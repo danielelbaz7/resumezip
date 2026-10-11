@@ -28,6 +28,15 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
   const searchRef = useRef<HTMLInputElement>(null)
   const searchId = useId()
 
+  // The search is in the page's HTML, so it can be typed in before this script runs. React keeps
+  // what's in the box as it hydrates, but `search` starts empty, and the list would ignore it.
+  useEffect(() => {
+    const typed = searchRef.current?.value
+    if (!typed) return
+    setSearch(typed)
+    setChanged(true)
+  }, [])
+
   // "/" goes to the search, as on many sites, unless it's being typed somewhere.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
