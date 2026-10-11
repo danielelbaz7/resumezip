@@ -69,7 +69,7 @@ const down = (share: number) => `${(100 * share) / FIGURE_HEIGHT}%`
 /**
  * resumezip introduced as it'd introduce anyone: its own resume, in Jake's
  * template, rising out of a folder as the page scrolls (`.folder-rise` and
- * `.about-pin-held` in styles/home.css), held by a paper clip. The page is a real
+ * `.about-pin-held` in styles/home.css), tilted a little and held by a paper clip. The page is a real
  * render of `own-resume.json`, cropped under its last line (the rest of the
  * sheet is plain white), so print it again when a line changes. Each line has
  * to stay true of the app, as the promises do. The folder is drawn twice, the
@@ -122,7 +122,7 @@ function OwnResume() {
         className={`${folder} drop-shadow-[0_24px_32px_rgb(30_40_90/0.28)]`}
         priority
       />
-      <div style={{ ...page, top: 0, height: down(PAGE.height) }} className="folder-rise absolute">
+      <div style={{ ...page, top: 0, height: down(PAGE.height) }} className="folder-rise absolute rotate-2">
         <PaperClip part="back" />
         <div className="relative h-full bg-white shadow-[0_1px_3px_rgb(17_19_24/0.12)]">
           <Image
