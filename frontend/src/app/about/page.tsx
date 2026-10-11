@@ -78,15 +78,12 @@ function OwnResume() {
   const folder = "absolute left-0 w-full h-auto"
   const page = { left: `${(100 * (1 - PAGE.width)) / 2}%`, width: `${100 * PAGE.width}%` }
   return (
-    <figure
-      className="relative w-full max-w-[520px] xl:w-[500px] xl:max-w-none 2xl:w-[580px]"
-      style={{ aspectRatio: `1 / ${FIGURE_HEIGHT}` }}
-    >
+    <figure className="relative w-full max-w-[360px] xl:w-[320px]" style={{ aspectRatio: `1 / ${FIGURE_HEIGHT}` }}>
       <Image
         src={FOLDER.src}
         width={FOLDER.width}
         height={FOLDER.height}
-        sizes="(min-width: 1536px) 580px, (min-width: 1280px) 500px, (min-width: 640px) 520px, 100vw"
+        sizes="(min-width: 1280px) 320px, (min-width: 640px) 360px, 100vw"
         alt=""
         style={{ top: down(FOLDER_TOP) }}
         className={`${folder} drop-shadow-[0_24px_32px_rgb(30_40_90/0.28)]`}
@@ -100,7 +97,7 @@ function OwnResume() {
           src="/about/own-resume.webp"
           width={1280}
           height={568}
-          sizes="(min-width: 1536px) 458px, (min-width: 1280px) 395px, (min-width: 640px) 411px, 80vw"
+          sizes="(min-width: 1280px) 253px, (min-width: 640px) 285px, 80vw"
           alt="resumezip’s own resume, in Jake’s template: a resume builder in your own browser since March 2025, with no account, that has kept 0 copies of anyone’s resume."
           className="h-auto w-full"
           priority
@@ -115,7 +112,7 @@ function OwnResume() {
         src={FOLDER.src}
         width={FOLDER.width}
         height={FOLDER.height}
-        sizes="(min-width: 1536px) 580px, (min-width: 1280px) 500px, (min-width: 640px) 520px, 100vw"
+        sizes="(min-width: 1280px) 320px, (min-width: 640px) 360px, 100vw"
         alt=""
         style={{ top: down(FOLDER_TOP), clipPath: `inset(${100 * FLAP_EDGE}% 0 0 0)` }}
         className={folder}
