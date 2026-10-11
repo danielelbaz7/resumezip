@@ -73,6 +73,8 @@ type ParseLine = Line & {
   /** It runs to its column's edge in justified text, as every line of a paragraph but its last does. */
   full?: boolean
   merged?: number[]
+  /** A heading split off a margin column (see `SourceLine`). */
+  side?: boolean
 }
 
 // ---------------------------------------------------------------- patterns
@@ -1745,13 +1747,12 @@ function bodySize(lines: Line[]): number {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 11
 }
 
-/**
- * Some layouts put each section's heading in a margin column, on the same
- * line as the section's first entry, set against either side of the margin.
- * A heading too long for the margin wraps onto the lines below. Splits each
- * heading off its lines.
- */
-export type SourceLine = Line & { sourceIndex: number }
+/** A line of the file, with its place in it. */
+export type SourceLine = Line & {
+  sourceIndex: number
+  /** A heading split off a margin column: a heading by where it sits, whatever its words. */
+  side?: boolean
+}
 
 /** Where text set apart from a few words on its left starts on most lines, if on two or more. */
 function besideColumn(lines: Line[]): number | undefined {
@@ -1767,6 +1768,26 @@ function besideColumn(lines: Line[]): number | undefined {
   return most && most.count >= 2 ? most.x : undefined
 }
 
+/** Words that could name a section of a person's own, like "Things I Built": no dates, numbers or sentences. */
+function headingWords(text: string): boolean {
+  const name = text.replace(/:$/, "").trim()
+  return (
+    name.length <= 80 &&
+    words(name).length <= 8 &&
+    !/\d/.test(name) &&
+    !EMAIL.test(name) &&
+    !/^\p{Ll}/u.test(name) &&
+    !/[.!?,;]$/.test(name) &&
+    !isLocation(name)
+  )
+}
+
+/**
+ * Some layouts put each section's heading in a margin column, on the same
+ * line as the section's first entry, set against either side of the margin.
+ * A heading too long for the margin wraps, or is hyphenated, onto the lines
+ * below, and can run on past its section. Splits each heading off its lines.
+ */
 function splitSideHeadings(lines: SourceLine[]): SourceLine[] {
   const candidate = (line: Line) =>
     line.parts.length > 1 &&
@@ -1787,68 +1808,89 @@ function splitSideHeadings(lines: SourceLine[]): SourceLine[] {
     ...lines.filter((line) => !line.bullet && beside(line) && line.parts[0].x < column - 3).map((line) => line.parts[0].x),
   )
   const inMargin = (line: Line) => !line.bullet && line.parts[0].x >= margin - 3 && line.parts[0].x < column - 3
-  // The rest of a wrapped heading: in the margin on the next line down, with
-  // the section's text beside it or nothing.
+  // The rest of a wrapped heading: on the next line down, with the section's
+  // text beside it in the column, or nothing. Alone on its line, a word set
+  // against the column's right side can start further left than any heading
+  // with text beside it: "Certifications" under "Awards &", beside one award.
   const baseline = (line: Line) => line.box![3] - 0.3 * line.size
   const wrapsOnto = (above: Line, below: Line) =>
     above.box !== undefined &&
     below.box !== undefined &&
     above.page === below.page &&
     baseline(below) - baseline(above) <= 1.6 * Math.max(above.size, below.size) &&
-    inMargin(below) &&
-    (below.parts.length === 1 ? below.box[2] <= column - 3 : beside(below))
+    !below.bullet &&
+    (below.parts.length === 1 ? below.box[2] <= column - 3 : inMargin(below) && beside(below))
 
-  // Only when the margin holds nothing but headings: a column of dates or
-  // skill categories ("Languages", "Tools") can look the same.
-  const headings = new Map<number, { text: string; count: number }>()
+  // Each heading in the margin, by its first line, with all its lines, and
+  // its text joined up the way wrapped text is, so a word hyphenated to fit
+  // reads whole. Its lines are spaced wider than the section's text, so one
+  // of those can come between two of its lines.
+  const headings = new Map<number, { text: string; runs: Run[]; lines: number[]; known: boolean }>()
+  const wrapped = new Set<number>()
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].parts.length < 2 || !inMargin(lines[i])) continue
+    if (wrapped.has(i) || lines[i].parts.length < 2 || !inMargin(lines[i])) continue
     if (!beside(lines[i])) return lines
-    // The most lines, up to three, whose margin text together names a heading.
-    let found: { text: string; count: number } | null = null
-    let text = lines[i].parts[0].text
-    for (let count = 1; count <= 3; count++) {
-      if (lookupHeading(text) !== undefined) found = { text, count }
-      const next = lines[i + count]
-      if (!next || !wrapsOnto(lines[i + count - 1], next)) break
-      text = `${text} ${next.parts[0].text}`
+    const own = [i]
+    for (let j = i + 1; j < lines.length; j++) {
+      if (lines[j].left >= column - 3) continue
+      if (!wrapsOnto(lines[own[own.length - 1]], lines[j])) break
+      own.push(j)
+      wrapped.add(j)
     }
-    if (!found) return lines
-    headings.set(i, found)
-    i += found.count - 1
-  }
-  // Two headings at least, counting those that wrap: one alone can be chance.
-  if (headings.size < 2) return lines
-
-  const split: SourceLine[] = []
-  for (let i = 0; i < lines.length; i++) {
-    const heading = headings.get(i)
-    if (!heading) {
-      split.push(lines[i])
-      continue
-    }
-    const wrapped = lines.slice(i, i + heading.count)
-    const first = wrapped[0]
-    const last = wrapped[wrapped.length - 1]
-    // The heading's words with their styles, then what's beside each of its lines.
+    let text = ""
     const runs: Run[] = []
-    let offset = 0
-    for (const line of wrapped) {
-      runs.push(...line.parts[0].runs.map((run) => ({ ...run, start: run.start + offset, end: run.end + offset })))
-      offset += line.parts[0].text.length + 1
+    for (const { parts } of own.map((index) => lines[index])) {
+      const joined = text ? joinWrapped(text, parts[0].text) : parts[0].text
+      const offset = joined.length - parts[0].text.length
+      // Without the soft hyphen that ended the line above.
+      for (const run of runs) run.end = Math.min(run.end, offset)
+      runs.push(...parts[0].runs.map((run) => ({ ...run, start: run.start + offset, end: run.end + offset })))
+      text = joined
     }
-    const box = first.box && last.box && ([first.box[0], first.box[1], column - 4, last.box[3]] as Line["box"])
-    const title = toLine([{ text: heading.text, x: first.parts[0].x, runs }], first.size, [], { page: first.page, box })
-    if (title) split.push({ ...title, sourceIndex: first.sourceIndex })
-    for (const line of wrapped) {
-      const rest = line.parts.slice(1)
-      const entry =
-        rest.length > 0 &&
-        toLine(rest, line.size, line.links, { page: line.page, box: line.box && ([rest[0].x, ...line.box.slice(1)] as Line["box"]) })
-      if (entry) split.push({ ...entry, sourceIndex: line.sourceIndex })
-    }
-    i += heading.count - 1
+    headings.set(i, { text, runs: runs.filter((run) => run.end > run.start), lines: own, known: lookupHeading(text) !== undefined })
   }
+  // Two headings it knows by name at least: one alone can be chance.
+  const named = [...headings].filter(([, heading]) => heading.known).map(([i]) => lines[i])
+  if (named.length < 2) return lines
+  // One it doesn't know, like "Things I Built", is a heading when it sits as
+  // they do, in their style. Anything else in the margin, like a column of
+  // dates or skill categories ("Languages", "Tools"), means the margin holds
+  // more than headings, and none are split off.
+  const leftAligned = named.every((line) => Math.abs(line.parts[0].x - named[0].parts[0].x) < 3)
+  const styled = (line: Line) =>
+    named.some(
+      (other) =>
+        Math.abs(other.size - line.size) < 0.25 &&
+        leadStyle(other).bold === leadStyle(line).bold &&
+        leadStyle(other).italic === leadStyle(line).italic &&
+        isAllCaps(other.parts[0].text) === isAllCaps(line.parts[0].text),
+    )
+  for (const [i, heading] of headings) {
+    if (heading.known) continue
+    const line = lines[i]
+    if (!headingWords(heading.text) || !styled(line)) return lines
+    if (leftAligned && Math.abs(line.parts[0].x - named[0].parts[0].x) >= 3) return lines
+  }
+
+  // The heading where its first line was, then what's beside each of its lines.
+  const split: SourceLine[] = []
+  lines.forEach((line, i) => {
+    const heading = headings.get(i)
+    if (heading) {
+      const last = lines[heading.lines[heading.lines.length - 1]]
+      const box = line.box && last.box && ([line.box[0], line.box[1], column - 4, last.box[3]] as Line["box"])
+      const title = toLine([{ text: heading.text, x: line.parts[0].x, runs: heading.runs }], line.size, [], { page: line.page, box })
+      if (title) split.push({ ...title, sourceIndex: line.sourceIndex, side: true })
+    } else if (!wrapped.has(i)) {
+      split.push(line)
+      return
+    }
+    const rest = line.parts.slice(1)
+    const entry =
+      rest.length > 0 &&
+      toLine(rest, line.size, line.links, { page: line.page, box: line.box && ([rest[0].x, ...line.box.slice(1)] as Line["box"]) })
+    if (entry) split.push({ ...entry, sourceIndex: line.sourceIndex })
+  })
   return split
 }
 
@@ -1911,10 +1953,11 @@ export function parseResume(file: Line[]): ParsedResume {
     }
   }
 
-  // Headings: first the ones we know by name, then anything styled the same way.
+  // Headings: first the ones we know by name, then anything styled the same
+  // way. One split off a margin column is a heading by where it sits.
   const known = new Map<number, HeadingMeaning>()
   for (const line of lines) {
-    if (!headingShaped(line)) continue
+    if (!headingShaped(line) && !line.side) continue
     const meaning = lookupHeading(line.text)
     if (meaning) known.set(line.index, meaning)
   }
@@ -1931,7 +1974,7 @@ export function parseResume(file: Line[]): ParsedResume {
   const most = Math.max(...alike)
   const sample: ParseLine | undefined = knownLines[alike.indexOf(most)]
   if (sample && most >= 2) {
-    for (const line of knownLines) if (!similar(sample, line)) known.delete(line.index)
+    for (const line of knownLines) if (!similar(sample, line) && !line.side) known.delete(line.index)
     knownLines = knownLines.filter((line) => known.has(line.index))
   }
   const headingStyle = (line: Line) => {
@@ -1950,19 +1993,21 @@ export function parseResume(file: Line[]): ParsedResume {
   // Headings it doesn't know by name, but known by a word in them, when they
   // look like the ones it does know.
   lines.forEach((line, i) => {
-    if (i === 0 || known.has(line.index) || !headingShaped(line) || !headingStyle(line)) return
+    if (i === 0 || known.has(line.index) || !(line.side || (headingShaped(line) && headingStyle(line)))) return
     const meaning = headingByWord(line.text)
     if (meaning) known.set(line.index, meaning)
   })
   knownLines = lines.filter((line) => known.has(line.index))
   // Unknown headings are only guessed from their style when it sets them apart:
   // if entry titles look the same (all bold, same size), it doesn't.
-  const lookalikes = lines.filter((line, i) => i > 0 && !known.has(line.index) && headingShaped(line) && headingStyle(line))
+  const lookalikes = lines.filter((line, i) => i > 0 && !known.has(line.index) && !line.side && headingShaped(line) && headingStyle(line))
   const guessHeadings = lookalikes.length <= Math.max(2, knownLines.length / 2)
   const headings = new Map<number, { meaning: HeadingMeaning; label: string }>()
   lines.forEach((line, i) => {
     const meaning = known.get(line.index)
     if (meaning) headings.set(line.index, { meaning, label: line.text.replace(/:$/, "") })
+    // A section of the person's own, like "Things I Built".
+    else if (line.side) headings.set(line.index, { meaning: { section: null }, label: line.text.replace(/:$/, "") })
     // The first line is usually the name, which can look like a heading.
     else if (guessHeadings && i > 0 && headingShaped(line) && headingStyle(line) && !looksLikeName(line.text)) {
       headings.set(line.index, { meaning: { section: null }, label: line.text.replace(/:$/, "") })
