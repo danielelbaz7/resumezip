@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import { pageErrors, seriousAccessibilityProblems, settled } from "./helpers"
+import { countSlides, inkCovers, pageErrors, seriousAccessibilityProblems, settled } from "./helpers"
 
 const resume = (id: string, resumeTitle: string, more: { resumeTag?: string; selectedTemplate?: string; updatedAt?: string } = {}) => ({
   id,
@@ -619,6 +619,33 @@ test("the tags show their resumes, with how many each has", async ({ page }) => 
   await tags.filter({ hasText: "Professional" }).click()
   await expect(tags.filter({ hasText: "Professional" })).toHaveAttribute("aria-pressed", "true")
   await expect(pages(page).getByRole("link")).toHaveText(["Ada", "Kestrel"])
+  expect(errors).toEqual([])
+})
+
+test("the picked tag's ink slides across to the next one picked, and stays with it as the tags change", async ({ page }) => {
+  const errors = pageErrors(page)
+  await dashboardWith(page, [resume("a", "Ada"), resume("b", "Grace", { resumeTag: "personal" }), resume("c", "Kestrel")])
+  const row = page.getByRole("group", { name: "Show" })
+  const tags = row.getByRole("button")
+  await expect(tags).toHaveText(["All 3", "Personal 1", "Professional 2"])
+  await expect.poll(() => inkCovers(row, tags.filter({ hasText: "All" }))).toBe(true)
+  const slides = await countSlides(row)
+
+  const professional = tags.filter({ hasText: "Professional" })
+  await professional.click()
+  await expect.poll(() => inkCovers(row, professional)).toBe(true)
+  expect(await slides()).toBe(1)
+
+  // Searching for one with no Personal resume takes that tag away, which moves Professional over, and
+  // clearing the search brings it back. The ink goes with Professional, without sliding.
+  const search = page.getByRole("combobox", { name: "Search your resumes" })
+  await search.fill("Kestrel")
+  await expect(tags).toHaveText(["All 1", "Professional 1"])
+  await expect.poll(() => inkCovers(row, professional)).toBe(true)
+  await search.fill("")
+  await expect(tags).toHaveText(["All 3", "Personal 1", "Professional 2"])
+  await expect.poll(() => inkCovers(row, professional)).toBe(true)
+  expect(await slides()).toBe(1)
   expect(errors).toEqual([])
 })
 

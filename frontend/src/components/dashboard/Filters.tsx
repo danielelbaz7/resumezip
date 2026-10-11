@@ -4,9 +4,13 @@ import { Check, ChevronDown, LayoutGrid, List } from "lucide-react"
 import { useId, type ReactNode } from "react"
 import { MENU_ITEM, MENU_PANEL, useMenu } from "./MoreMenu"
 import { SMALL_PILL } from "@/components/pills"
+import { SLIDING_PILL, useSlidingPill } from "@/components/useSlidingPill"
 
 export type View = "pages" | "list"
 export type Sort = "edited" | "name"
+
+// A tag chip's box, which the picked one's copy (SLIDING_PILL) shares to line up with it.
+const TAG = "inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm"
 
 const SORTS: { id: Sort; name: string }[] = [
   { id: "edited", name: "Last edited" },
@@ -32,24 +36,40 @@ interface FiltersProps {
  * go under the rest (dashboard.css).
  */
 export default function Filters({ search, tags, tag, onTag, sort, onSort, view, onView }: FiltersProps) {
+  const { group, pill, placed } = useSlidingPill(tag, tags.map((option) => option.id).join("\n"))
   return (
     <div className="dash-toolbar border-b border-ink pb-5">
       <div className="dash-toolbar-search">{search}</div>
-      <div role="group" aria-label="Show" className="dash-toolbar-chips flex flex-wrap gap-2">
-        {tags.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            aria-pressed={tag === option.id}
-            onClick={() => onTag(option.id)}
-            className={`inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none ${
-              tag === option.id ? "bg-ink text-white" : "bg-sheet/70 text-ink ring-1 ring-ink/15 hover:bg-sheet hover:ring-ink/40"
-            }`}
-          >
-            {option.name}{" "}
-            <span className={`font-mono text-[11px] ${tag === option.id ? "text-white/70" : "text-ink-2"}`}>{option.count}</span>
-          </button>
-        ))}
+      <div ref={group} role="group" aria-label="Show" className="dash-toolbar-chips relative flex flex-wrap gap-2">
+        {tags.map((option) => {
+          const pressed = tag === option.id
+          // Until the pill is placed, the pressed chip draws itself as picked. Under the pill, it has
+          // no line round it to show at the pill's edge.
+          const look = !pressed
+            ? "bg-sheet/70 text-ink ring-1 ring-ink/15 hover:bg-sheet hover:ring-ink/40"
+            : placed
+              ? "bg-sheet/70 text-ink ring-1 ring-transparent"
+              : "bg-ink text-white"
+          return (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={pressed}
+              onClick={() => onTag(option.id)}
+              className={`${TAG} transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none ${look}`}
+            >
+              {option.name}{" "}
+              <span className={`font-mono text-[11px] ${pressed && !placed ? "text-white/70" : "text-ink-2"}`}>{option.count}</span>
+            </button>
+          )
+        })}
+        <div ref={pill} aria-hidden="true" className={`${SLIDING_PILL} inset-0 flex flex-wrap gap-2 ${placed ? "" : "invisible"}`}>
+          {tags.map((option) => (
+            <span key={option.id} className={TAG}>
+              {option.name} <span className="font-mono text-[11px] text-white/70">{option.count}</span>
+            </span>
+          ))}
+        </div>
       </div>
       <div className="dash-toolbar-controls">
         <SortMenu sort={sort} onSort={onSort} />
