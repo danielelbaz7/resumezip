@@ -114,6 +114,8 @@ test("Take the tour, in the editor's header, opens it again after it's been seen
   const errors = pageErrors(page)
   await startWriting(page)
   const tour = page.getByRole("dialog")
+  // It opens once the editor has loaded: an Escape before then closes nothing, and the tour would open after it.
+  await expect(tour).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(tour).toBeHidden()
 
