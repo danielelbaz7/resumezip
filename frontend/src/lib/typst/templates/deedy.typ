@@ -19,13 +19,19 @@
 
 #set document(title: heading-or(p.name, "Resume"))
 #set page(paper: page-paper("us-letter"), margin: page-margin((x: 0.5in, top: 0.42in, bottom: 0.4in)))
-#set text(font: "Lato", weight: 300, size: sized(10.3pt), lang: "en", fill: body-grey)
+// Lato 2's word spaces are wider than those of the Lato 1 this was drawn with
+// (0.193em), which would move resumes' line breaks. Its letters run a little
+// narrower, so the space that keeps lines breaking where they did is a little
+// wider than Lato 1's: measured on the samples and the importer's corpus.
+// Raleway keeps its own (below).
+#set text(font: "Lato", weight: 300, size: sized(10.3pt), lang: "en", fill: body-grey, spacing: 0.2025em)
 #set block(spacing: 0pt)
 // Vertical spacing below follows Fine-tune (see common.typ).
 #set par(justify: false, leading: 0.5em * tune.leading, spacing: 0pt)
 
-// Raleway, with lining figures rather than its default old-style ones.
-#let raleway(body, size: sized(9.7pt), fill: headings) = text(font: "Raleway-v4020", weight: 500, size: size, fill: fill, number-type: "lining", body)
+// Raleway, with lining figures rather than its default old-style ones, and its
+// own word spaces rather than the text's.
+#let raleway(body, size: sized(9.7pt), fill: headings) = text(font: "Raleway-v4020", weight: 500, size: size, fill: fill, number-type: "lining", spacing: 100%, body)
 // Deedy's \descript: the role or degree in small capitals.
 #let descript(body) = raleway(smallcaps(body), size: sized(10.4pt), fill: subheadings)
 // Deedy's \location: dates and places.

@@ -91,7 +91,7 @@ is served under a name with its content's hash, which changes when the font does
 | Files | Font | Source | License |
 | --- | --- | --- | --- |
 | `NewCM10-*.otf` | New Computer Modern | [typst-assets](https://github.com/typst/typst-assets) | GUST Font License |
-| `Lato-*.ttf` | Lato | [Google Fonts](https://fonts.google.com/specimen/Lato) | SIL Open Font License 1.1 |
+| `Lato-*.ttf` | Lato 2.015 | [TeX Live's `lato`](https://ctan.org/pkg/lato), the same files as [latofonts.com](https://www.latofonts.com/)'s | SIL Open Font License 1.1 |
 | `texgyreheros-*.otf` | TeX Gyre Heros | [CTAN](https://ctan.org/pkg/tex-gyre) | GUST Font License |
 | `EBGaramond-*.ttf` | EB Garamond | [EBGaramond12](https://github.com/octaviopardo/EBGaramond12) | SIL Open Font License 1.1 |
 | `CharisSIL-*.ttf` | Charis SIL | [Google Fonts](https://fonts.google.com/specimen/Charis+SIL) | SIL Open Font License 1.1 |
@@ -120,7 +120,17 @@ their size. Each trimmed font says so in its description (name ID 10), as the
 GUST Font License asks. The rest are left as they were, because their licenses
 reserve their names ("Lato", "Charis" and "SIL", "Plex", "Source", "Raleway", "Biolinum")
 for unmodified copies. Raleway comes from its own project rather than Google
-Fonts, as the copies Google Fonts serves have no small capitals.
+Fonts, as the copies Google Fonts serves have no small capitals. Lato is the
+one TeX Live ships, which the LaTeX download prints with, rather than Google
+Fonts' older Lato, which has no Vietnamese, Greek or Cyrillic. Its lightest
+weight here is `Lato-Hairline.ttf`; Lato 2's Thin is a heavier one.
+
+Modern Jake's, Ian's and Deedy were drawn with that older Lato, whose word
+spaces are narrower (0.193em, where Lato 2's are 0.22em to 0.29em). So that
+resumes made before keep their line breaks, each pins Lato's word spaces with
+`spacing` in its `#set text`, to the width that best keeps lines breaking where
+they did with the old Lato. That's a little over 0.193em, as Lato 2's letters
+run a little narrower. Deedy's Raleway keeps its own spaces.
 
 Resumes printed with the trimmed fonts are identical to ones printed with the
 originals. To trim a new font the same way, with
