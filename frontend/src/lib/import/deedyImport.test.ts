@@ -43,6 +43,19 @@ describe("a Deedy PDF opened without its resume", () => {
     })
   })
 
+  test("keeps a school's wrapped lines with it, with Fine-tune's biggest text and widest margins", async () => {
+    // The contact lines, centered above both columns, then start near the
+    // left column's lines, but end far past them.
+    const schools = await schoolsOf({ ...sample, tune: { size: 1.15, margin: 1.4 } })
+    expect(schools).toHaveLength(1)
+    expect(schools[0]).toMatchObject({
+      schoolName: school.schoolName.toUpperCase(),
+      degree: school.degree,
+      coursework: school.coursework,
+      schoolLocation: school.schoolLocation,
+    })
+  })
+
   test("reads a school whose name wraps, with Fine-tune's biggest text", async () => {
     // "GEORGIA INSTITUTE OF", then "TECHNOLOGY". Lines this narrow column
     // sets ragged can end together by chance, as justified text's do.

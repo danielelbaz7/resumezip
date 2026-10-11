@@ -1981,9 +1981,13 @@ export function parseResume(file: Line[]): ParsedResume {
     if (page) page.push(line)
     else pages.set(line.page, [line])
   }
+  // A contact line centered over two columns (`spans`) can start near the
+  // left one's lines, as in Deedy with wide margins, but isn't one of them.
+  const sameColumn = (line: Line, other: Line) =>
+    Math.abs(other.left - line.left) < 60 && Math.abs(other.size - line.size) < 1.5 && Boolean(other.spans) === Boolean(line.spans)
   for (const page of pages.values()) {
     for (const line of page) {
-      const column = page.filter((other) => Math.abs(other.left - line.left) < 60 && Math.abs(other.size - line.size) < 1.5)
+      const column = page.filter((other) => sameColumn(line, other))
       line.margin = column.reduce((edge, other) => Math.max(edge, other.box![2]), -Infinity)
     }
     // Justified text: the long lines of a column all end at the same edge, at
@@ -1995,9 +1999,7 @@ export function parseResume(file: Line[]): ParsedResume {
     // each job).
     for (const line of page) {
       if (line.parts.length !== 1) continue
-      const ends = page
-        .filter((other) => other.parts.length === 1 && Math.abs(other.left - line.left) < 60 && Math.abs(other.size - line.size) < 1.5)
-        .map((other) => other.box![2])
+      const ends = page.filter((other) => other.parts.length === 1 && sameColumn(line, other)).map((other) => other.box![2])
       const counts = new Map<number, number>()
       for (const end of ends) counts.set(Math.round(end), (counts.get(Math.round(end)) ?? 0) + 1)
       const edge = [...counts].sort((a, b) => b[1] - a[1])[0][0]

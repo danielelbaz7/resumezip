@@ -39,6 +39,8 @@ export interface Line {
   links: string[]
   /** A Word heading. */
   heading?: boolean
+  /** Set across a PDF page's two columns, above them, like a name or a centered contact line: in neither column. */
+  spans?: boolean
   /** 1-based page, for highlighting. Word files have no pages. */
   page?: number
   /** [left, top, right, bottom] in PDF points from the page's top-left corner. */
@@ -544,6 +546,7 @@ export function linesFromPages(pages: PdfPage[]): Line[] {
       const textX = BULLET_ONLY.test(group[0].text.trim()) && group.length > 1 ? group[1].x : undefined
       const line = toLine(parts, size, lineLinks, { page: pageNumber, box, x: textX })
       if (line) {
+        if (gutter !== null && group[0].column === 0) line.spans = true
         lines.push(line)
         placed.push({ line, baseline, left, right, size })
       }

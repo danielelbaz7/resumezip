@@ -273,6 +273,13 @@ describe("columns", () => {
     expect(texts).toEqual(["Al Li", contact.text, ...left, ...right])
   })
 
+  test("a name and contact line above both are marked as in neither, and nothing is on a page without columns", () => {
+    const contact = item("al@li.dev | (555) 012-3307 | Boston, MA", 120, 724)
+    const lines = linesFromPages([page([short, contact, ...leftItems, ...rightItems])])
+    expect(lines.filter((line) => line.spans).map((line) => line.text)).toEqual(["Al Li", contact.text])
+    expect(linesFromPages([page([short, contact, ...rightItems])]).filter((line) => line.spans)).toEqual([])
+  })
+
   test("a contact line that starts on the left of the gap is above the columns, not in them", () => {
     const contact = [item("al@li.dev", 100, 724), item("| linkedin.com/in/alli | Boston, MA", 150, 724)]
     const texts = linesFromPages([page([short, ...contact, ...leftItems, ...rightItems])]).map((line) => line.text)
