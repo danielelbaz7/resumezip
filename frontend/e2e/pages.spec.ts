@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { type APIRequestContext, expect, test } from "@playwright/test"
 import { pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 const PAGES = ["/", "/templates", "/about", "/terms", "/create/dashboard", "/does-not-exist"]
@@ -26,6 +26,50 @@ test("/terms#privacy opens the privacy policy, and a tab's address opens it from
 
   await page.evaluate(() => (window.location.hash = "faq"))
   await expect(page.getByRole("tab", { name: "FAQ" })).toHaveAttribute("aria-selected", "true")
+})
+
+// What a search engine reads: the HTML as served, before any script runs. The
+// same in every browser, so it's read once.
+test.describe("search engines", () => {
+  test.skip(({ browserName }) => browserName !== "chromium", "Reads the served HTML, which doesn't depend on the browser")
+
+  const head = async (request: APIRequestContext, path: string) => {
+    const response = await request.get(path)
+    expect(response.ok()).toBe(true)
+    return (await response.text()).split("</head>")[0]
+  }
+  const meta = (html: string, name: string) => html.match(new RegExp(`<meta name="${name}" content="([^"]*)"`))?.[1]
+
+  test("find every page in the sitemap, each with its own description", async ({ request }) => {
+    expect(await (await request.get("/robots.txt")).text()).toContain("Sitemap: https://www.tryresumezip.com/sitemap.xml")
+    const sitemap = await (await request.get("/sitemap.xml")).text()
+    const paths = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, url]) => new URL(url).pathname)
+    expect(paths).toEqual(expect.arrayContaining(["/", "/templates", "/about", "/terms"]))
+
+    const descriptions = new Map<string, string>()
+    for (const path of paths) {
+      const html = await head(request, path)
+      expect(meta(html, "robots"), path).toBeUndefined()
+      const description = meta(html, "description")
+      expect(description, path).toBeTruthy()
+      expect(descriptions.get(description!), `${path} has the same description as`).toBeUndefined()
+      descriptions.set(description!, path)
+    }
+  })
+
+  test("are asked to leave the dashboard and the editor out", async ({ request }) => {
+    for (const path of ["/create/dashboard", "/create/new/a-resume"]) {
+      expect(meta(await head(request, path), "robots"), path).toBe("noindex")
+    }
+  })
+
+  test("read on the home page that resumezip is a free web app", async ({ request }) => {
+    const html = await (await request.get("/")).text()
+    const json = html.match(/<script type="application\/ld\+json">([^<]*)<\/script>/)?.[1]
+    const graph: { "@type": string; name: string; offers?: { price: string } }[] = JSON.parse(json ?? "{}")["@graph"]
+    expect(graph.find((item) => item["@type"] === "WebSite")?.name).toBe("resumezip")
+    expect(graph.find((item) => item["@type"] === "WebApplication")?.offers?.price).toBe("0")
+  })
 })
 
 for (const path of PAGES) {

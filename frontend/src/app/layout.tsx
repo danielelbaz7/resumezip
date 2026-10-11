@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono, Newsreader, Outfit } from "next/font/google"
+import { SITE_DESCRIPTION, SITE_URL } from "@/lib/site"
 import "./globals.css"
 
 // Self-hosted at build time, so visitors never load fonts from Google.
@@ -15,16 +16,16 @@ const outfit = Outfit({ subsets: ["latin"], weight: "500", variable: "--font-out
 
 export const metadata: Metadata = {
   // Links and images below are relative to the live site.
-  metadataBase: new URL("https://www.tryresumezip.com"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "resumezip: Free, private, open-source resume builder",
     // Other pages set a short title, e.g. "Templates" becomes "Templates · resumezip".
     template: "%s · resumezip",
   },
-  description: "Free, open-source resume builder that runs in your browser.",
+  description: SITE_DESCRIPTION,
   openGraph: {
     title: "resumezip: Free, private, open-source resume builder",
-    description: "Free, open-source resume builder that runs in your browser.",
+    description: SITE_DESCRIPTION,
     url: "/",
     siteName: "resumezip",
     images: [
