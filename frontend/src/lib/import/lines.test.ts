@@ -280,6 +280,26 @@ describe("columns", () => {
     expect(texts.slice(2)).toEqual([...left, ...right])
   })
 
+  test("dates set flush right, written after the rest of a one-column page, aren't one", () => {
+    // Too few to make a column of their own, they'd still pass for one of a
+    // short resume's two columns, like Deedy's, all starting at one place.
+    const top = [
+      item("Dana Cole", 250, 740, 20),
+      item("dana@cole.dev | (555) 012-3307 | Boston, MA", 196, 720),
+      item("Experience", 36, 696),
+    ]
+    const labs = ["A", "B", "C"].map((lab, i) => ({
+      lines: [`Research Assistant, Lab ${lab}`, "• Ran assays for the screening team", "• Wrote the plate reader scripts"],
+      dates: `20${10 + 2 * i} - 20${11 + 2 * i}`,
+      baseline: 680 - 40 * i,
+    }))
+    const entries = labs.flatMap((lab) => lab.lines.map((text, i) => item(text, i === 0 ? 36 : 46, lab.baseline - 12 * i)))
+    // Each date ends at 576, the right margin.
+    const dates = labs.map((lab) => item(lab.dates, 521, lab.baseline))
+    const texts = linesFromPages([page([...top, ...entries, ...dates])]).map((line) => line.text)
+    expect(texts.filter((text) => text.startsWith("Research Assistant"))).toEqual(labs.map((lab) => `${lab.lines[0]} ${lab.dates}`))
+  })
+
   test("text written line by line across both, like dates beside entries, isn't", () => {
     const written = rightItems.flatMap((rightItem, i) => (leftItems[i] ? [leftItems[i], rightItem] : [rightItem]))
     const texts = linesFromPages([page([name, ...written])]).map((line) => line.text)

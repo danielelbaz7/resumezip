@@ -118,6 +118,22 @@ describe("a detail line that wraps", () => {
     ])
     expect(resume.educationSection.map((entry) => entry.schoolName)).toEqual(["State University", "Austin Community College"])
   })
+
+  test("doesn't take in a plain school name set bigger, after a line that nearly fills the column", () => {
+    // "MIT" would have fit at the end of the line above, had it been part of it.
+    const { resume } = read(
+      "Education",
+      onPage([
+        line([["Stanford University", 36]], { size: 11 }),
+        line([["B.S. in Computer Science", 36], ["2016 – 2020", 480]]),
+        line([["Relevant Coursework: Algorithms, Operating Systems, Databases, Computer Networks, Compilers,", 36]]),
+        line([["Machine Learning, Computer Vision, Distributed Systems, Programming Languages, Robotics, Security", 36]]),
+        line([["MIT", 36]], { size: 11 }),
+        line([["M.S. in Computer Science", 36], ["2020 – 2022", 480]]),
+      ]),
+    )
+    expect(resume.educationSection.map((entry) => entry.schoolName)).toEqual(["Stanford University", "MIT"])
+  })
 })
 
 describe("a year on a line that wrapped", () => {

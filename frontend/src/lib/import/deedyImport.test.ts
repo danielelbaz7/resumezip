@@ -60,4 +60,34 @@ describe("a Deedy PDF opened without its resume", () => {
     expect(got.educationSection).toMatchObject([{ schoolName: "CMU", degree: "B.S. CS" }])
     expect(got.workExperienceSection).toMatchObject([{ companyName: "NVIDIA", workRole: "Intern", workEndDate: "2025" }])
   })
+
+  test("reads both columns of a short resume with a few bullets", async () => {
+    // Long enough (150 characters or more) for findGutter to look for its
+    // usual columns first, with too few lines for those: shortGutter finds these.
+    const bullets = [
+      "Wrote CUDA kernels for the attention layers",
+      "Built a benchmark suite for four GPU types",
+      "Profiled memory use across 30 models",
+    ]
+    const resume = {
+      selectedTemplate: "deedy",
+      sectionOrder: ["Education", "Skills", "Work"],
+      profileSection: { fullName: "Rohan Mehta", email: "rohan@example.com" },
+      educationSection: [{ id: 1, schoolName: "CMU", degree: "B.S. CS" }],
+      workExperienceSection: [
+        {
+          id: 1,
+          workRole: "Software Engineering Intern",
+          companyName: "NVIDIA",
+          workStartDate: "May 2025",
+          workEndDate: "Aug 2025",
+          workDescription: bullets.map((bullet) => `• ${bullet}`).join("\n"),
+        },
+      ],
+    }
+    const { parsed, resume: got } = await readBack(await render(resume))
+    expect(parsed.unplaced).toEqual([])
+    expect(got.educationSection).toMatchObject([{ schoolName: "CMU", degree: "B.S. CS" }])
+    expect(got.workExperienceSection).toMatchObject([{ companyName: "NVIDIA", workRole: "Software Engineering Intern" }])
+  })
 })

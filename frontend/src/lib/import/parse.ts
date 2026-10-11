@@ -626,7 +626,9 @@ function detailCarriesOn(line: ParseLine, item: Item, above: ParseLine): boolean
     Math.abs(line.left - item.left) < 3 &&
     start.bold === Boolean(end?.bold) &&
     start.italic === Boolean(end?.italic) &&
-    (CONNECTOR.test(item.text) || above.full === true || wrapsInto(above, line))
+    // Only a line the size of the one above wraps from it: a plain school
+    // name, set bigger, can follow a coursework line that nearly fills the column.
+    (CONNECTOR.test(item.text) || above.full === true || (wrapsInto(above, line) && Math.abs(line.size - above.size) < 0.5))
   )
 }
 
@@ -698,13 +700,15 @@ function groupEntries(lines: ParseLine[], isBody: (line: Line) => boolean = () =
     const first = header[0]
     // A title line that wrapped: "Bachelor of Arts in Computer Science," then
     // "Minor in Business". In a narrow column one with its date can wrap too,
-    // mid-place: "Aug 2022 - May 2026 | Pittsburgh," then "PA".
+    // mid-place: "Aug 2022 - May 2026 | Pittsburgh," then "PA". Only a line
+    // all in one part wraps like that; a comma typed after a date set apart
+    // on the right ("Aug 2025,") ends its line.
     const lastTitle = group && group.body.length === 0 ? header[header.length - 1] : undefined
     if (
       lastTitle &&
       (!hasDate(lastTitle) ||
         (CUT_DATE.test(lastTitle.text) && YEAR_FIRST.test(line.text)) ||
-        (lastTitle.text.endsWith(",") && !hasDate(line))) &&
+        (lastTitle.text.endsWith(",") && lastTitle.parts.length === 1 && !hasDate(line))) &&
       sameStyle(lastTitle, line) &&
       (wrapsInto(lastTitle, line) || CONNECTOR.test(lastTitle.text) || /^[a-z(]/.test(line.text))
     ) {

@@ -202,6 +202,16 @@ function leftAligned(items: Item[], fewest = 5): boolean {
   return most >= 2 && most / starts.size >= 0.5
 }
 
+/** Every line ends at one place, within a point. */
+function flushRight(items: Item[]): boolean {
+  const ends = new Map<number, number>()
+  for (const item of items) {
+    const line = Math.round(item.baseline)
+    ends.set(line, Math.max(ends.get(line) ?? -Infinity, item.right))
+  }
+  return Math.max(...ends.values()) - Math.min(...ends.values()) < 1
+}
+
 /** How many times text switches between the two sides of `x`, in the order it's written. */
 function switches(items: Item[], x: number): number {
   let count = 0
@@ -275,6 +285,10 @@ function shortGutter(items: Item[], width: number): { x: number; top: number } |
     const { top, below, crossing } = sidesOf(items, x)
     if (!Number.isFinite(top) || crossing > 0 || switches(below, x) > 1 || chars(below) / total < 0.5) continue
     const columns = [below.filter((item) => item.right <= x + 1), below.filter((item) => item.x >= x - 1)]
+    // Right-aligned dates written after a one-column page's text would pass
+    // for a column of their own: they all end at one place, and a column's
+    // lines, set ragged right, don't.
+    if (columns.some(flushRight)) continue
     if (columns.every((column) => leftAligned(column, 2))) return { x, top }
   }
   return null
