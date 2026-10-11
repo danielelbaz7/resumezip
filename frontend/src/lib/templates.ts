@@ -160,6 +160,25 @@ export function templateById(id: unknown): Template {
   return TEMPLATES.find((template) => template.id === id) ?? TEMPLATES[0]
 }
 
+/**
+ * The last part of the template's page's address, from its name: "jakes"
+ * for Jake's. Never its id, which can be an older name kept for saved
+ * resumes: Blueprint's is levelsfyi.
+ */
+export const templateSlug = (template: Template): string =>
+  template.name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f'’]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+
+/** The template's own page, e.g. /templates/jakes. */
+export const templatePath = (template: Template): string => `/templates/${templateSlug(template)}`
+
+/** The template whose page's address ends in `slug`, if there's one. */
+export const templateBySlug = (slug: string): Template | undefined => TEMPLATES.find((template) => templateSlug(template) === slug)
+
 /** How long the newest template is marked as new. */
 const NEW_FOR_DAYS = 60
 const DAY_MS = 24 * 60 * 60 * 1000

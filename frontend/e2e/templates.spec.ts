@@ -115,3 +115,20 @@ test("at most one template is marked new", async ({ page }) => {
   await expect(cards(page).first()).toBeVisible()
   expect(await page.getByRole("main").getByText("New", { exact: true }).count()).toBeLessThanOrEqual(1)
 })
+
+test("each template's page links to the others, and only those first made in LaTeX say it isn't needed", async ({ page }) => {
+  await page.goto("/templates/jakes")
+  await expect(page.getByText("You don’t need LaTeX or Overleaf")).toBeVisible()
+  const others = page.getByRole("navigation", { name: "Other templates" })
+  await expect(others.getByRole("link", { name: "Jake's", exact: true })).toHaveCount(0)
+  await others.getByRole("link", { name: "Blueprint" }).click()
+
+  await expect(page).toHaveURL(/\/templates\/blueprint$/)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Blueprint resume template")
+  await expect(page.getByText("You don’t need LaTeX or Overleaf")).toHaveCount(0)
+})
+
+test("a template's page is at its name, not its id", async ({ request }) => {
+  expect((await request.get("/templates/blueprint")).status()).toBe(200)
+  expect((await request.get("/templates/levelsfyi")).status()).toBe(404)
+})

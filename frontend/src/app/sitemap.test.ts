@@ -2,6 +2,7 @@ import { readdirSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, test } from "vitest"
 import { SITE_URL } from "@/lib/site"
+import { TEMPLATES, templatePath } from "@/lib/templates"
 import robots from "./robots"
 import sitemap from "./sitemap"
 
@@ -13,12 +14,18 @@ const LEFT_OUT: Record<string, string> = {
   "/contact": "redirects to About",
 }
 
+// The addresses each page with a [name] in its path is built for.
+const BUILT_FOR: Record<string, string[]> = {
+  "/templates/[template]": TEMPLATES.map(templatePath),
+}
+
 /** Every page's address, from the page.tsx files under src/app. */
 function pagePaths(): string[] {
   const app = import.meta.dirname
   return readdirSync(app, { recursive: true, encoding: "utf8" })
     .filter((file) => path.basename(file) === "page.tsx")
     .map((file) => `/${path.dirname(file).split(path.sep).join("/")}`.replace(/^\/\.$/, "/"))
+    .flatMap((page) => (page.includes("[") ? (BUILT_FOR[page] ?? [page]) : [page]))
     .sort()
 }
 
