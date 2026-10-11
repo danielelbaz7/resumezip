@@ -10,27 +10,38 @@
 \usepackage{iftex}
 \ifPDFTeX
   \usepackage[T1]{fontenc}
+\fi
+\ifPDFTeX
   \usepackage{lmodern}
+  % Latin Modern has no bold small capitals, which the name is set in, so it
+  % borrows the EC fonts' (cm-super), which match it.
+  \input{t1lmr.fd}
+  \DeclareFontShape{T1}{lmr}{bx}{sc}{<->ssub*cmr/bx/sc}{}
 \else
   % XeLaTeX or LuaLaTeX: New Computer Modern, as resumezip's Jake's is set in.
   \usepackage{newcomputermodern}
 \fi
+\usepackage[margin=0.5in, left=0.4in, right=0.4in]{geometry}
 \usepackage{latexsym}
-\usepackage[empty]{fullpage}
 \usepackage{titlesec}
 \usepackage{marvosym}
 \usepackage[usenames,dvipsnames]{color}
 \usepackage{verbatim}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
 \usepackage{fancyhdr}
 \usepackage[english]{babel}
 \usepackage{tabularx}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Rafael Conde}}
+\urlstyle{same}
 \ifPDFTeX
   \input{glyphtounicode}
+  \pdfgentounicode=1
+  \pdfinterwordspaceon
 \fi
-
-\hypersetup{pdftitle={Rafael Conde}}
+\ifXeTeX
+  \XeTeXgenerateactualtext=1
+\fi
 
 \pagestyle{fancy}
 \fancyhf{} % clear all header and footer fields
@@ -38,14 +49,12 @@
 \renewcommand{\headrulewidth}{0pt}
 \renewcommand{\footrulewidth}{0pt}
 
-% Adjust margins
-\addtolength{\oddsidemargin}{-0.5in}
-\addtolength{\evensidemargin}{-0.5in}
-\addtolength{\textwidth}{1in}
-\addtolength{\topmargin}{-.5in}
-\addtolength{\textheight}{1.0in}
-
-\urlstyle{same}
+% Text sizes and line spacing, as Fine-tune sets them
+\renewcommand{\normalsize}{\fontsize{11bp}{13.6bp}\selectfont}
+\renewcommand{\small}{\fontsize{10bp}{12bp}\selectfont}
+\renewcommand{\large}{\fontsize{12bp}{14bp}\selectfont}
+\renewcommand{\Huge}{\fontsize{24.88bp}{30bp}\selectfont}
+\normalsize
 
 \raggedbottom
 \raggedright
@@ -53,19 +62,16 @@
 
 % Sections formatting
 \titleformat{\section}{
-  \vspace{-4pt}\scshape\raggedright\large
-}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
-
-% Ensure that generated pdf is machine readable/ATS parsable
-\ifPDFTeX
-  \pdfgentounicode=1
-\fi
+  \vspace{-4bp}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5bp}]
+% titlesec's own spaces around a section title (3.5ex and 2.3ex), in points
+\titlespacing*{\section}{0pt}{16.5bp plus 4.7bp minus 0.9bp}{10.8bp plus 0.9bp}
 
 %-------------------------
 % Custom commands
 \newcommand{\resumeItem}[1]{
   \item\small{
-    {#1 \vspace{-2pt}}
+    {#1 \vspace{-2bp}}
   }
 }
 
@@ -74,35 +80,35 @@
 \newcolumntype{L}{>{\raggedright\arraybackslash}X}
 
 \newcommand{\resumeSubheading}[4]{
-  \vspace{-2pt}\item
+  \vspace{-2bp}\item
     \begin{tabularx}{0.97\textwidth}[t]{L@{\hspace{0.8em}}r}
       \textbf{#1} & #2 \\
       \textit{\small#3} & \textit{\small #4} \\
-    \end{tabularx}\vspace{-7pt}
+    \end{tabularx}\vspace{-7bp}
 }
 
 \newcommand{\resumeSubSubheading}[2]{
     \item
     \begin{tabularx}{0.97\textwidth}{L@{\hspace{0.8em}}r}
       \textit{\small#1} & \textit{\small #2} \\
-    \end{tabularx}\vspace{-7pt}
+    \end{tabularx}\vspace{-7bp}
 }
 
 \newcommand{\resumeProjectHeading}[2]{
     \item
     \begin{tabularx}{0.97\textwidth}{L@{\hspace{0.8em}}r}
       \small#1 & #2 \\
-    \end{tabularx}\vspace{-7pt}
+    \end{tabularx}\vspace{-7bp}
 }
 
-\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4bp}}
 
 \renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
 
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
 \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
 \newcommand{\resumeItemListStart}{\begin{itemize}}
-\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5bp}}
 
 % Paragraphs, as the summary's, in from the margin as entries are.
 \newcommand{\resumeTextStart}{\begin{itemize}[leftmargin=0.15in, label={}, parsep=0.6em]\item\relax}
@@ -158,8 +164,7 @@
   \resumeSubHeadingListEnd
 
 \section{Publications}
-  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, labelindent=0.15in, leftmargin=*, itemsep=2pt]
-    \small
+  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, leftmargin=*, labelindent=0.15in, itemsep=2pt, before=\small]
     \item \textbf{R. Conde}, J. Smith, and A. Lee, “Purging caches at the edge,” \textit{Proc. NSDI}, pp. 1-14, 2025, doi: \href{https://doi.org/10.1145/3580305}{\underline{10.1145/3580305}}.
     \item “Notes on consistent hashing?” \href{https://rconde.dev/hashing}{\underline{rconde.dev/hashing}}.
   \end{enumerate}

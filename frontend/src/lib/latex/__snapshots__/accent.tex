@@ -1,0 +1,223 @@
+%-------------------------
+% Resume in LaTeX, from resumezip
+% resumezip's Accent template
+%-------------------------
+
+\documentclass[letterpaper]{article}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+\fi
+% Source Sans Pro: Source Sans 3, the PDF's font, under its older name
+\usepackage[default]{sourcesanspro}
+\usepackage[left=0.6in, right=0.6in, top=0.48in, bottom=0.42in]{geometry}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tabularx}
+% Roles and degrees: capitals 0.08em apart, by microtype's letterspacing with
+% pdfLaTeX and the font's own with XeLaTeX and LuaLaTeX
+\ifPDFTeX
+  \usepackage{letterspace}
+  \newcommand{\spacedCaps}[1]{\textls*[80]{\MakeUppercase{#1}}}
+\else
+  \newcommand{\spacedCaps}[1]{{\addfontfeature{LetterSpace=8}\MakeUppercase{#1}}}
+\fi
+% The light weight of the first names
+\ifPDFTeX
+  \newcommand{\lightWeight}{\fontseries{l}\selectfont}
+\else
+  \newcommand{\lightWeight}{\sourcesansprolight}
+\fi
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Rafael Conde}}
+\urlstyle{same}
+\ifPDFTeX
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+  \pdfinterwordspaceon
+\fi
+\ifXeTeX
+  \XeTeXgenerateactualtext=1
+\fi
+
+\definecolor{accent}{HTML}{0A8A68}
+\definecolor{ink}{HTML}{2B2B2B}
+\definecolor{muted}{HTML}{707070}
+\definecolor{hairline}{HTML}{B9B9B9}
+\AtBeginDocument{\color{ink}}
+
+% Text size and line spacing, as Fine-tune sets them. Lengths are in bp,
+% the PDF's points: TeX's pt is a little smaller.
+\renewcommand{\normalsize}{\fontsize{10.5bp}{11.97bp}\selectfont}
+\normalsize
+
+\pagestyle{empty}
+\raggedright
+\setlength{\parindent}{0pt}
+% A page's first line sits its capitals' height under the top margin
+\setlength{\topskip}{6.93bp}
+% Words aren't broken at the end of a line, as in the PDF
+\hyphenpenalty=10000
+% Lines too tall to sit their usual distance apart touch rather than sit 1pt apart
+\setlength{\lineskip}{0pt}
+
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcommand{\resumeRow}[2]{{%
+  \renewcommand{\tabularxcolumn}[1]{b{##1}}%
+  \begin{tabularx}{\linewidth}{@{}L@{\hspace{0.8em}}r@{}}#1 & #2\end{tabularx}%
+}}
+
+%-------------------------
+% Custom commands
+
+% The name, its baseline its capitals' height under the top margin, then the
+% contact line, a fixed distance under it. An empty box at the top, and no
+% minimum space between lines, keep them where they are however tall or deep
+% the name's letters are.
+\newcommand{\resumeName}[1]{%
+  \hbox{}\vspace{-21.33bp}%
+  {\fontsize{30bp}{34.2bp}\selectfont\setlength{\lineskiplimit}{-\maxdimen}\centering #1\par}%
+}
+\newcommand{\resumeContacts}[1]{%
+  \vspace{3.78bp}%
+  {\fontsize{8.8bp}{10.03bp}\selectfont\setlength{\lineskiplimit}{-\maxdimen}\centering\textcolor{muted}{\ignorespaces #1}\par}%
+}
+\newcommand{\contactSep}{\hspace{0.6em}\textcolor{accent}{\textbar}\hspace{0.6em}}
+
+% A section: its title, the first three letters in the accent colour, then
+% a hairline to the margin
+\newcommand{\resumeSection}[2]{%
+  \par\vspace{6.52bp}%
+  {\fontsize{13.5bp}{15.39bp}\selectfont\textbf{\textcolor{accent}{#1}#2}\hspace{6bp}\sectionRule\par}%
+  \nopagebreak\vspace{6bp}%
+}
+% 0.6bp thick, 0.32em over the baseline
+\newcommand{\sectionRule}{{\color{hairline}\leaders\hrule height 3.66bp depth -3.06bp\hskip 0pt plus 1filll}}
+
+% An entry: the organization in bold and its place in accent italics, then
+% the role in small spaced capitals and its dates in grey italics
+\newcommand{\resumeEntryTop}[2]{%
+  \par\vspace{-5.04bp}%
+  \resumeRow{\textbf{#1}}{\textcolor{accent}{\textit{#2}}}\par\nopagebreak
+}
+\newcommand{\resumeEntry}[4]{%
+  \resumeEntryTop{#1}{#2}%
+  \vspace{-2.69bp}%
+  \resumeRow{\resumeRole{#3}}{\resumeDate{#4}}\par\nopagebreak
+}
+\newcommand{\resumeRole}[1]{{\fontsize{8bp}{9.12bp}\selectfont\textcolor{muted}{\spacedCaps{#1}}}}
+\newcommand{\resumeDate}[1]{{\fontsize{8.6bp}{9.81bp}\selectfont\textcolor{muted}{\textit{#1}}}}
+
+% A line with a date on the right: a project's first line, or an award
+\newcommand{\resumeLine}[2]{%
+  \par\vspace{-5.04bp}%
+  \resumeRow{#1}{\resumeDate{#2}}\par
+}
+\newcommand{\resumeProject}[2]{\resumeLine{#1}{#2}\nopagebreak}
+
+\newcommand{\resumeEntryGap}{\vspace{9bp}}
+\newcommand{\resumeAwardGap}{\vspace{4.4bp}}
+
+% Bullets: an accent dot 2bp in, the text 5bp after it
+\newlist{resumeItems}{itemize}{1}
+\setlist[resumeItems]{label=\textcolor{accent}{\textbullet}, leftmargin=*, labelindent=2bp, labelsep=5bp, topsep=0pt, partopsep=0pt,
+  parsep=0pt, itemsep=-1.64bp, before=\vspace{-1.44bp}}
+
+% Paragraphs, as the summary's, 0.6em apart. The first one gets \parskip too, so it's taken back.
+\newenvironment{resumeText}{%
+  \par\vspace{-5.04bp}%
+  \setlength{\parskip}{1.26bp}\vspace{-\parskip}%
+}{\par}
+
+% Skills: their names in bold, right-aligned, then what's in each
+\newenvironment{resumeSkills}{%
+  \par\vspace{-5.04bp}%
+  \tabularx{\linewidth}[t]{@{}r@{\hspace{1em}}L@{}}%
+}{%
+  \endtabularx\par
+  % The next line goes under the table's last line rather than its first.
+  \prevdepth=\dp\strutbox
+}
+\newcommand{\skillGap}{\\[-0.84bp]}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\resumeName{{\lightWeight Rafael} \textbf{Conde}}
+\resumeContacts{
+  \mbox{Austin, TX}\contactSep
+  \mbox{(555) 010-2299}\contactSep
+  \mbox{\href{mailto:rafael@example.com}{rafael@example.com}}\contactSep
+  \mbox{\href{https://linkedin.com/in/rconde}{linkedin.com/in/rconde}}\contactSep
+  \mbox{\href{https://github.com/rconde}{github.com/rconde}}
+}
+
+\resumeSection{Sum}{mary}
+  \begin{resumeText}
+    Backend engineer who likes fast, boring systems.
+  \end{resumeText}
+
+\resumeSection{Edu}{cation}
+  \resumeEntry{University of Texas at Austin}{Austin, TX}{B.S. in Computer Science}{Aug 2019 - May 2023}
+    \begin{resumeItems}
+      \item GPA: 3.8
+      \item Coursework: Operating Systems, Distributed Systems
+    \end{resumeItems}
+
+\resumeSection{Exp}{erience}
+  \resumeEntry{Cloudflare}{Austin, TX}{Software Engineer}{Jun 2023 - Present}
+    \begin{resumeItems}
+      \item Cut p99 latency of the \textbf{cache purge} API by \textit{40\%}
+      \item Owned on-call for R\&D's \textbf{\textit{edge}} fleet
+    \end{resumeItems}
+
+\resumeSection{Pro}{jects}
+  \resumeProject{\textbf{tinykv} \textcolor{accent}{\textbar} \emph{Rust, Raft} \textcolor{accent}{\textbar} \href{https://github.com/rconde/tinykv}{github.com/rconde/tinykv}}{2024}
+    \begin{resumeItems}
+      \item A key\_value store with \textbf{snapshots}
+    \end{resumeItems}
+
+\resumeSection{Pub}{lications}
+  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, leftmargin=*, labelindent=0pt, labelsep=0.7em, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=-0.04bp, before=\vspace{-5.04bp}]
+    \item \textbf{R. Conde}, J. Smith, and A. Lee, “Purging caches at the edge,” \textit{Proc. NSDI}, pp. 1-14, 2025, doi: \href{https://doi.org/10.1145/3580305}{10.1145/3580305}.
+    \item “Notes on consistent hashing?” \href{https://rconde.dev/hashing}{rconde.dev/hashing}.
+  \end{enumerate}
+
+\resumeSection{Ski}{lls}
+  \begin{resumeSkills}
+    \textbf{Languages} & Rust, Go, C++ \skillGap
+    \textbf{Tools} & Linux, eBPF
+  \end{resumeSkills}
+
+\resumeSection{Tal}{ks}
+  \begin{resumeItems}
+    \item \textit{Boring} systems, \textbf{fast}
+  \end{resumeItems}
+
+\resumeSection{Lea}{dership}
+  \resumeEntry{Longhorn Developers}{Austin, TX}{President}{2021 - 2022}
+    \begin{resumeItems}
+      \item Ran 12 workshops
+    \end{resumeItems}
+
+\resumeSection{Vol}{unteer}
+  \resumeEntry{Code2040}{}{Mentor}{}
+    \begin{resumeItems}
+      \item Mentored 4 students
+    \end{resumeItems}
+
+\resumeSection{Awa}{rds \& Certifications}
+  \resumeLine{\textbf{Dean's List}, UT Austin}{2022}
+
+\resumeSection{Int}{erests}
+  \begin{resumeText}
+    Climbing, film photography\newline
+    and bread.
+
+    Ask me about sourdough.
+  \end{resumeText}
+
+\end{document}

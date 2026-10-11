@@ -1,0 +1,246 @@
+%-------------------------
+% Resume in LaTeX, from resumezip
+% After Debarghya Das's Deedy resume: https://github.com/deedy/Deedy-Resume
+%-------------------------
+
+\documentclass[letterpaper]{article}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+\fi
+% Lato: light for text, bold for names and hairline for first names
+\usepackage[default]{lato}
+% Raleway Medium, with lining figures, for roles, dates and places
+\ifPDFTeX
+  \newcommand*{\raleway}{\fontfamily{Raleway-TLF}\fontseries{mb}\selectfont}
+\else
+  \newfontfamily{\ralewayfamily}{Raleway-Medium.otf}[Ligatures=TeX, Numbers={Lining,Proportional}]
+  \newcommand*{\raleway}{\fontseries{m}\ralewayfamily}
+\fi
+% Text in Lato Light; \textbf is still Lato Bold.
+\renewcommand*{\mddefault}{l}
+\usepackage[left=0.5in, right=0.5in, top=0.42in, bottom=0.4in]{geometry}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{paracol}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Rafael Conde}}
+\urlstyle{same}
+\ifPDFTeX
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+  \pdfinterwordspaceon
+\fi
+\ifXeTeX
+  \XeTeXgenerateactualtext=1
+\fi
+
+\pagestyle{empty}
+\raggedright
+\frenchspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+% A page's first line sits at its top margin, as in the PDF.
+\setlength{\topskip}{0pt}
+% Words aren't broken with a hyphen at the end of a line, as in the PDF.
+\hyphenpenalty=10000
+
+% Deedy's colors: headings, subheadings and the text's grey
+\definecolor{headings}{HTML}{6A6A6A}
+\definecolor{subheadings}{HTML}{333333}
+\definecolor{text}{HTML}{444444}
+\AtBeginDocument{\color{text}}
+
+% Text sizes and line spacing, as Fine-tune sets them. The space between
+% words is each font's own as the PDF prints it: Lato 1.1's is narrower than
+% this Lato's, and Raleway's small capitals would have a narrower one.
+\newcommand*{\latospace}{\spaceskip=0.193em\relax}
+\newcommand*{\ralewayspace}{\spaceskip=0.253em\relax}
+\renewcommand{\normalsize}{\fontsize{10.3bp}{12.44bp}\selectfont\latospace}
+\normalsize
+\newcommand{\namefont}{\fontsize{38bp}{45.89bp}\selectfont\latospace\color{headings}}
+\newcommand{\contactfont}{\raleway\fontsize{10.8bp}{13.07bp}\selectfont\ralewayspace}
+\newcommand{\titlefont}{\fontsize{16.5bp}{19.92bp}\selectfont\latospace\color{headings}}
+\newcommand{\entryfont}{\fontsize{11.4bp}{13.94bp}\selectfont\bfseries\latospace\color{subheadings}}
+\newcommand{\descriptfont}{\raleway\fontsize{10.4bp}{12.58bp}\selectfont\ralewayspace\scshape\color{subheadings}}
+\newcommand{\locationfont}{\raleway\fontsize{9.7bp}{11.74bp}\selectfont\ralewayspace\color{headings}}
+
+%-------------------------
+% The name, first names in hairline, and a line or two of contacts under it
+\newcommand{\namesection}[2]{{\namefont{\fontseries{ul}\selectfont #1} #2\par}}
+\newcommand{\firstcontactline}[1]{\par\vspace{6.6bp}{\contactfont #1\par}}
+\newcommand{\contactline}[1]{\par\vspace{-0.4bp}{\contactfont #1\par}}
+\newcommand{\contactsep}{\hspace{0.35em}|\hspace{0.35em}}
+% A rule across the whole page
+\newcommand{\namerule}{%
+  \par\vspace{-3.19bp}%
+  \makebox[\linewidth]{\color{headings}\rule{\paperwidth}{0.5bp}}\par
+  \vspace{11.75bp}%
+}
+
+% Two columns: education and skills on the left, the rest on the right
+\setcolumnwidth{0.32\textwidth/0.3in}
+
+% A section's title in light capitals, and the space between two sections
+\renewcommand{\section}[1]{%
+  \par\vspace{-8.25bp}{\titlefont\MakeUppercase{#1}\par}\nopagebreak\vspace{7bp}%
+}
+\newcommand{\sectionsep}{\par\vspace{13bp}}
+
+% Names are printed in capitals; a linked name's address is left as it is.
+\providecommand{\AddToNoCaseChangeList}[1]{}
+\AddToNoCaseChangeList{\href}
+
+% An entry's name in bold capitals, on a line of its own...
+\newcommand{\nameline}[1]{\par\vspace{-5.7bp}{\entryfont\MakeUppercase{#1}\par}}
+% ...or followed by its role, as \runsubsection{Name}\descript{| Role}
+\newcommand{\runsubsection}[1]{\par\vspace{-4.2bp}{\entryfont\MakeUppercase{#1}}\hspace{0.4em}}
+\newcommand{\descript}[1]{{\descriptfont #1}}
+% Its dates and place
+\newcommand{\location}[1]{\par\nopagebreak\vspace{-0.45bp}{\locationfont #1\par}}
+% The space between two entries
+\newcommand{\entrysep}{\par\vspace{9bp}}
+
+% Education: the degree, its dates, place and GPA, involvement and coursework
+\newcommand{\degree}[1]{\par\nopagebreak\vspace{-1.8bp}{\descriptfont #1\par}}
+\newcommand{\detail}[1]{\par\nopagebreak\vspace{-1.45bp}{\locationfont #1\par}}
+\newcommand{\involvement}[1]{\par\vspace{-1.75bp}Involvement: #1}
+\newcommand{\coursework}[1]{\par\vspace{-0.06bp}\descript{Coursework:} #1}
+
+% A skill: its name, if it has one, over its details; and the space between two
+\newcommand{\skill}[2]{%
+  \if\relax\detokenize{#1}\relax\par\vspace{-5.15bp}%
+  \else\nameline{#1}\vspace{-1.75bp}\fi
+  #2%
+}
+\newcommand{\skillsep}{\par\vspace{8bp}}
+
+% Bullets
+\newenvironment{tightemize}{%
+  \par\nopagebreak\vspace{-0.95bp}%
+  \begin{itemize}[label=\textbullet, leftmargin=*, labelindent=3bp, labelsep=6bp, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=-0.95bp]%
+}{\end{itemize}}
+
+% Paragraphs, as the summary's
+\newenvironment{paragraphs}{%
+  \par\setlength{\parskip}{1.03bp}\vspace{-6.18bp}%
+}{\par}
+
+% Publications, numbered
+\newenvironment{publications}{\par\vspace{-5.15bp}}{\par}
+
+% Awards: the date, then the award in regular weight and who gave it
+\newcommand{\award}[1]{{\fontseries{m}\selectfont #1}}
+\newenvironment{awards}{%
+  \par\vspace{-5.15bp}%
+  \tabularx{\linewidth}[t]{@{}>{\locationfont}r@{\hspace{0.9em}}>{\raggedright\arraybackslash}X@{}}%
+}{%
+  \endtabularx\par
+  % What comes next is spaced from the table's last line, not its foot.
+  \prevdepth=\dp\strutbox
+}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+{\centering
+  \namesection{Rafael}{Conde}
+  \firstcontactline{\mbox{\href{https://linkedin.com/in/rconde}{linkedin.com/in/rconde}}\contactsep
+    \mbox{\href{https://github.com/rconde}{github.com/rconde}}}
+  \contactline{\mbox{\href{mailto:rafael@example.com}{rafael@example.com}}\contactsep
+    \mbox{(555) 010-2299}\contactsep
+    \mbox{Austin, TX}}
+\par}
+\namerule
+
+\begin{paracol}{2}
+
+\section{Education}
+\nameline{University of Texas at Austin}
+\degree{B.S. in Computer Science}
+\detail{Aug 2019 - May 2023 | Austin, TX}
+\detail{GPA: 3.8}
+\coursework{Operating Systems, Distributed Systems}
+\sectionsep
+
+\section{Skills}
+\skill{Languages}{Rust, Go, C++}
+\skillsep
+\skill{Tools}{Linux, eBPF}
+
+\switchcolumn
+
+\section{Summary}
+\begin{paragraphs}
+  Backend engineer who likes fast, boring systems.
+\end{paragraphs}
+\sectionsep
+
+\section{Experience}
+\runsubsection{Cloudflare}\descript{| Software Engineer}
+\location{Jun 2023 - Present | Austin, TX}
+  \begin{tightemize}
+    \item\relax Cut p99 latency of the \textbf{cache purge} API by \textit{40\%}
+    \item\relax Owned on-call for R\&D's \textbf{\textit{edge}} fleet
+  \end{tightemize}
+\sectionsep
+
+\section{Projects}
+\runsubsection{tinykv}\descript{| Rust, Raft}
+\location{2024 | \href{https://github.com/rconde/tinykv}{github.com/rconde/tinykv}}
+  \begin{tightemize}
+    \item\relax A key\_value store with \textbf{snapshots}
+  \end{tightemize}
+\sectionsep
+
+\section{Publications}
+\begin{publications}
+  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, leftmargin=*, labelsep=0.7em, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=0.85bp]
+    \item \textbf{R. Conde}, J. Smith, and A. Lee, “Purging caches at the edge,” \textit{Proc. NSDI}, pp. 1-14, 2025, doi: \href{https://doi.org/10.1145/3580305}{10.1145/3580305}.
+    \item “Notes on consistent hashing?” \href{https://rconde.dev/hashing}{rconde.dev/hashing}.
+  \end{enumerate}
+\end{publications}
+\sectionsep
+
+\section{Talks}
+  \begin{tightemize}
+    \item\relax \textit{Boring} systems, \textbf{fast}
+  \end{tightemize}
+\sectionsep
+
+\section{Leadership}
+\runsubsection{Longhorn Developers}\descript{| President}
+\location{2021 - 2022 | Austin, TX}
+  \begin{tightemize}
+    \item\relax Ran 12 workshops
+  \end{tightemize}
+\sectionsep
+
+\section{Volunteer}
+\runsubsection{Code2040}\descript{| Mentor}
+  \begin{tightemize}
+    \item\relax Mentored 4 students
+  \end{tightemize}
+\sectionsep
+
+\section{Awards \& Certifications}
+\begin{awards}
+  2022 & \award{Dean's List} | UT Austin \\
+\end{awards}
+\sectionsep
+
+\section{Interests}
+\begin{paragraphs}
+  Climbing, film photography\newline
+  and bread.
+
+  Ask me about sourdough.
+\end{paragraphs}
+
+\end{paracol}
+
+\end{document}

@@ -399,7 +399,7 @@ function Editor({ id }: { id: string }) {
     }
   }
 
-  // The PDF's words as Jake's Resume in LaTeX, to keep editing on Overleaf.
+  // The PDF's words in LaTeX, laid out as its template is, to keep editing on Overleaf.
   // Its code downloads the first time it's chosen.
   const downloadLatex = async () => {
     const resume = read()
@@ -545,7 +545,7 @@ function Editor({ id }: { id: string }) {
                     { title: "Word", hint: "To edit in Word, Google Docs or Pages", icon: <WordIcon />, onChoose: downloadWord },
                     {
                       title: "LaTeX",
-                      hint: "To edit on Overleaf, in the style of Jake's Resume",
+                      hint: "To edit on Overleaf, laid out like your PDF",
                       icon: <LatexIcon />,
                       onChoose: downloadLatex,
                     },

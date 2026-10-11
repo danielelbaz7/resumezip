@@ -1,0 +1,192 @@
+%-------------------------
+% Resume in LaTeX, from resumezip
+% resumezip's Harvard template, in the format Harvard's career office recommends
+%-------------------------
+
+\documentclass[letterpaper]{article}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+\fi
+% EB Garamond's own figures: lining, of even width
+\ifPDFTeX
+  \usepackage[lining, tabular]{ebgaramond}
+\else
+  % Its OpenType files. The package would also ask for EB Garamond Initials, which not every TeX install has.
+  \usepackage{fontspec}
+  \setmainfont{EBGaramond}[Extension=.otf, UprightFont=*-Regular, ItalicFont=*-Italic, BoldFont=*-Bold, BoldItalicFont=*-BoldItalic]
+\fi
+\usepackage[left=0.6in, right=0.6in, top=0.58in, bottom=0.5in]{geometry}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{pict2e}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Rafael Conde}}
+\urlstyle{same}
+\ifPDFTeX
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+  \pdfinterwordspaceon
+\fi
+\ifXeTeX
+  \XeTeXgenerateactualtext=1
+\fi
+
+\definecolor{resumeText}{HTML}{1A1A1A}
+\definecolor{resumeDark}{HTML}{404040}
+\definecolor{resumeGray}{HTML}{595959}
+\definecolor{resumeLight}{HTML}{737373}
+\definecolor{resumeRule}{HTML}{262626}
+\AtBeginDocument{\color{resumeText}}
+
+\pagestyle{empty}
+\raggedbottom
+\raggedright
+\frenchspacing
+\setlength{\parskip}{0pt}
+
+% Text sizes and line spacing, as Fine-tune sets them. Spaces keep their
+% width, as the PDF's do: a word that doesn't fit goes to the next line
+% rather than squeeze the spaces before it.
+\newcommand{\resumeSpaces}{\spaceskip=\fontdimen2\font\relax}
+\renewcommand{\normalsize}{\fontsize{10.8bp}{12.8bp}\selectfont\resumeSpaces}
+\normalsize
+\setlength{\topskip}{7.02bp}
+\newcommand{\resumeNameFont}{\fontsize{20bp}{18.78bp}\selectfont\bfseries\resumeSpaces}
+\newcommand{\resumeHeadingFont}{\fontsize{12bp}{13.58bp}\selectfont\bfseries\resumeSpaces}
+
+% Lists start and end flush with the text around them, and stay with what's above them.
+\setlist{topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=0pt, beginpenalty=10000}
+
+%-------------------------
+% Custom commands
+
+% The name in capitals, and the contact line under it
+\newenvironment{resumeHeader}{\centering\lineskiplimit=-\maxdimen}{\par\vspace{-3.5bp}}
+% An empty box takes the page's first line, so the name's capitals sit at the
+% top margin however tall its accents are.
+\newcommand{\resumeName}[1]{\hbox{}\vspace{-12.8bp}{\resumeNameFont\textcolor{resumeDark}{\MakeUppercase{#1}}\par}}
+\newcommand{\resumeContacts}[1]{\vspace{0.6bp}#1\par}
+
+% A heading in capitals over a dark rule, kept with what follows it.
+\newcommand{\resumeSection}[1]{%
+  \par\vspace{12.07bp}%
+  {\resumeHeadingFont\textcolor{resumeDark}{\MakeUppercase{#1}}\par}%
+  \nobreak\vskip\dimexpr3.6bp-\prevdepth\relax
+  {\color{resumeRule}\hrule height 0.8pt}%
+  % The next line's capitals sit 10.38bp under the rule.
+  \nobreak\prevdepth=-4.2bp
+}
+
+% A line with one part flush left and one flush right. A long left part
+% wraps short of the right one, which sits on its last line.
+\newlength{\resumeRightWidth}
+\newcommand{\resumeRow}[2]{%
+  \par\settowidth{\resumeRightWidth}{#2}%
+  {\rightskip=\dimexpr\resumeRightWidth+0.8em\relax plus 1fil\hyphenpenalty=10000\interlinepenalty=10000
+    #1\nobreak\hfill\rlap{\hspace{0.8em}#2}\par}%
+}
+% An organization in gray capitals and its place, then the line under it
+\newcommand{\resumeOrganization}[2]{\resumeRow{\textbf{\textcolor{resumeGray}{\MakeUppercase{#1}}}}{#2}}
+\newcommand{\resumeSubRow}[2]{\nobreak\resumeRow{#1}{#2}}
+
+% Round bullets at the margin, drawn: EB Garamond's own is small.
+\newcommand{\resumeBullet}{%
+  \raisebox{1.22bp}{\setlength{\unitlength}{1.8bp}\begin{picture}(2,2)\put(1,1){\circle*{2}}\end{picture}}%
+}
+\newenvironment{resumeItems}{%
+  \nobreak\begin{itemize}[label=\resumeBullet, align=left, labelindent=0pt, labelsep=10.7pt, leftmargin=*]%
+}{\end{itemize}\vspace{3.3bp}}
+
+% Paragraphs, as the summary's
+\newenvironment{resumeText}{%
+  \begin{itemize}[label={}, leftmargin=0pt, labelwidth=0pt, labelsep=0pt, parsep=0.7bp]\item\relax
+}{\end{itemize}}
+
+% The space between entries
+\newcommand{\resumeEntryGap}{\vspace{7.8bp}}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\begin{resumeHeader}
+  \resumeName{Rafael Conde}
+  \resumeContacts{
+    \mbox{Austin, TX} |
+    \mbox{P: (555) 010-2299} |
+    \href{mailto:rafael@example.com}{\mbox{rafael@example.com}} |
+    \href{https://linkedin.com/in/rconde}{\mbox{linkedin.com/in/rconde}} |
+    \href{https://github.com/rconde}{\mbox{github.com/rconde}}
+  }
+\end{resumeHeader}
+
+\resumeSection{Summary}
+  \begin{resumeText}
+    Backend engineer who likes fast, boring systems.
+  \end{resumeText}
+
+\resumeSection{Education}
+  \resumeOrganization{University of Texas at Austin}{Austin, TX}
+  \resumeSubRow{\textcolor{resumeLight}{B.S. in Computer Science}}{Aug 2019 \textendash{} May 2023}
+  Cumulative GPA: 3.8\par
+  Relevant Coursework: Operating Systems, Distributed Systems\par
+
+\resumeSection{Experience}
+  \resumeOrganization{Cloudflare}{Austin, TX}
+  \resumeSubRow{Software Engineer}{Jun 2023 \textendash{} Present}
+  \begin{resumeItems}
+    \item Cut p99 latency of the \textbf{cache purge} API by \textit{40\%}
+    \item Owned on-call for R\&D's \textbf{\textit{edge}} fleet
+  \end{resumeItems}
+
+\resumeSection{Projects}
+  \resumeRow{\textbf{\MakeUppercase{tinykv}} \textcolor{resumeGray}{| Rust, Raft | \href{https://github.com/rconde/tinykv}{\mbox{github.com/rconde/tinykv}}}}{2024}
+  \begin{resumeItems}
+    \item A key\_value store with \textbf{snapshots}
+  \end{resumeItems}
+
+\resumeSection{Publications}
+  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, leftmargin=*, labelsep=0.7em]
+    \item \textbf{R. Conde}, J. Smith, and A. Lee, “Purging caches at the edge,” \textit{Proc. NSDI}, pp. 1-14, 2025, doi: \href{https://doi.org/10.1145/3580305}{10.1145/3580305}.
+    \item “Notes on consistent hashing?” \href{https://rconde.dev/hashing}{rconde.dev/hashing}.
+  \end{enumerate}
+
+\resumeSection{Skills}
+  \textbf{Languages:} Rust, Go, C++\newline
+  \textbf{Tools:} Linux, eBPF\par
+
+\resumeSection{Talks}
+  \vspace{5.78bp}
+  \begin{resumeItems}
+    \item \textit{Boring} systems, \textbf{fast}
+  \end{resumeItems}
+
+\resumeSection{Leadership}
+  \resumeOrganization{Longhorn Developers}{Austin, TX}
+  \resumeSubRow{President}{2021 \textendash{} 2022}
+  \begin{resumeItems}
+    \item Ran 12 workshops
+  \end{resumeItems}
+
+\resumeSection{Volunteer}
+  \resumeOrganization{Code2040}{}
+  \resumeSubRow{Mentor}{}
+  \begin{resumeItems}
+    \item Mentored 4 students
+  \end{resumeItems}
+
+\resumeSection{Awards \& Certifications}
+  \resumeRow{\textbf{Dean's List}, UT Austin}{2022}
+
+\resumeSection{Interests}
+  \begin{resumeText}
+    Climbing, film photography\newline
+    and bread.
+
+    Ask me about sourdough.
+  \end{resumeText}
+
+\end{document}

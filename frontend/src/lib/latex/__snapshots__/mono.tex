@@ -1,0 +1,219 @@
+%-------------------------
+% Resume in LaTeX, from resumezip
+% resumezip's Mono template
+%-------------------------
+
+\documentclass[letterpaper]{article}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+\fi
+% IBM Plex Mono for everything, with its semibold as bold
+\usepackage[semibold]{plex-mono}
+\renewcommand*\familydefault{\ttdefault}
+\usepackage[left=0.55in, right=0.55in, top=0.5in, bottom=0.42in]{geometry}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\ifPDFTeX
+  % For \textls, which spaces out the section titles
+  \usepackage[protrusion=false, expansion=false]{microtype}
+\fi
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Rafael Conde}}
+\urlstyle{same}
+\ifPDFTeX
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+  \pdfinterwordspaceon
+\fi
+\ifXeTeX
+  \XeTeXgenerateactualtext=1
+\fi
+
+\definecolor{ink}{HTML}{111111}
+\definecolor{grey}{RGB}{105,105,105}
+\definecolor{rulegrey}{RGB}{150,150,150}
+\AtBeginDocument{\color{ink}}
+
+% Text sizes and line spacing, as Fine-tune sets them: a line is its
+% capitals' height and the gap above them
+\renewcommand{\normalsize}{\fontsize{8.4bp}{10.23bp}\selectfont}
+\newcommand{\nameSize}{\fontsize{18bp}{21.92bp}\selectfont}
+\normalsize
+% Each \vspace below runs from a line to the top of the next line's
+% capitals, as in the PDF, so a new paragraph takes back the gap above them
+\setlength{\parskip}{-4.37bp}
+\setlength{\topskip}{5.86bp}
+
+\pagestyle{empty}
+\raggedbottom
+\raggedright
+\frenchspacing
+
+% Section titles spaced out by 0.04em
+\ifPDFTeX
+  \newcommand{\tracked}[1]{\textls*[40]{#1}}
+\else
+  \newcommand{\tracked}[1]{{\addfontfeatures{LetterSpace=4}#1}}
+\fi
+
+%-------------------------
+% Custom commands
+
+% The name, and where you are and how to reach you under it. Lines are placed
+% by their baselines alone, however deep the name's letters go.
+\newcommand{\resumeName}[1]{\par\noindent{\nameSize\bfseries #1\par}}
+\newcommand{\resumeContacts}[1]{\par\vspace{6bp}{\lineskiplimit=-\maxdimen\noindent\color{grey}#1\par}}
+\newcommand{\contactGap}{\hspace{1.5em}}
+
+% A section title in capitals over a grey dashed rule: 2pt dashes, 2pt apart
+\newcommand{\dashedRule}{\leaders\hbox to 4pt{\rule[-4.3bp]{2pt}{0.6pt}\hss}\hskip\linewidth}
+\newcommand{\resumeSection}[1]{%
+  \par\vspace{13bp}%
+  \noindent\rlap{\smash{\color{rulegrey}\dashedRule}}%
+  \textbf{\tracked{\MakeUppercase{#1}}}\par
+  \nobreak\addvspace{10bp}%
+}
+
+% A line with one part flush left and one flush right. A long left part
+% wraps, and the right one sits on its last line.
+\newlength{\rowRight}
+\newcommand{\resumeRow}[2]{%
+  \par\begingroup
+  \settowidth{\rowRight}{#2}%
+  \rightskip=\dimexpr\rowRight+0.8em\relax plus 1fil
+  \parfillskip=0pt
+  \noindent#1\hspace{0pt plus 1fill}\rlap{\hspace{0.8em}#2}\par
+  \endgroup
+}
+
+% An entry: the organization in bold and its dates, then the role and the
+% place, when there's either. After a section title (the space it ends with),
+% only the title's own space.
+\newcommand{\resumeEntry}[4]{%
+  \par\ifdim\lastskip=0pt \vspace{7.5bp}\fi
+  \resumeRow{\textbf{#1}}{\textcolor{grey}{#2}}%
+  \if\relax\detokenize{#3#4}\relax\else
+    \nobreak\vspace{3.2bp}%
+    \resumeRow{#3}{\textcolor{grey}{#4}}%
+  \fi
+  \nobreak
+}
+
+% A project: its name, stack and links, and its date
+\newcommand{\resumeProject}[2]{%
+  \par\ifdim\lastskip=0pt \vspace{7.5bp}\fi
+  \resumeRow{#1}{\textcolor{grey}{#2}}\nobreak
+}
+
+% An award: its name in bold, who gave it, and its date
+\newcommand{\resumeAward}[3]{%
+  \par\ifdim\lastskip=0pt \vspace{4.2bp}\fi
+  \resumeRow{\textbf{#1}\if\relax\detokenize{#2}\relax\else\barSep #2\fi}{\textcolor{grey}{#3}}%
+}
+
+\newcommand{\barSep}{ \textcolor{grey}{\textbar} }
+
+% Bullets: a grey hyphen, its text 1em after it, and wrapped lines under the text
+\newenvironment{resumeItems}{\par\vspace{3.6bp}\let\itemGap\relax}{\par}
+\newcommand{\resumeItem}[1]{%
+  \par\itemGap\def\itemGap{\vspace{3.4bp}}%
+  \noindent\hangindent=1.6em
+  \makebox[1.6em][l]{\textcolor{grey}{-}}#1\par
+}
+
+% Paragraphs, as the summary's, 0.6em apart
+\newenvironment{resumeText}{\par\noindent\setlength{\parskip}{0.67bp}\ignorespaces}{\par}
+
+% Skills: the names in a column as wide as the widest, the rest beside them.
+% \prevdepth puts what comes next as far below as after a line of text.
+\newenvironment{resumeSkills}{%
+  \par\noindent
+  \renewcommand{\arraystretch}{0.964}%
+  \tabularx{\linewidth}[t]{@{}l@{\hspace{1.5em}}X@{}}%
+}{%
+  \endtabularx\par
+  \prevdepth=\arraystretch\dp\strutbox
+}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\resumeName{Rafael Conde}
+\resumeContacts{%
+  \mbox{Austin, TX}\contactGap
+  \mbox{(555) 010-2299}\contactGap
+  \mbox{\href{mailto:rafael@example.com}{rafael@example.com}}\newline
+  \mbox{\href{https://linkedin.com/in/rconde}{linkedin.com/in/rconde}}\contactGap
+  \mbox{\href{https://github.com/rconde}{github.com/rconde}}%
+}
+
+\resumeSection{Summary}
+  \begin{resumeText}
+    Backend engineer who likes fast, boring systems.
+  \end{resumeText}
+
+\resumeSection{Education}
+  \resumeEntry{University of Texas at Austin}{Aug 2019 - May 2023}{B.S. in Computer Science, GPA 3.8}{Austin, TX}
+  \begin{resumeItems}
+    \resumeItem{Coursework: Operating Systems, Distributed Systems}
+  \end{resumeItems}
+
+\resumeSection{Experience}
+  \resumeEntry{Cloudflare}{Jun 2023 - Present}{Software Engineer}{Austin, TX}
+  \begin{resumeItems}
+    \resumeItem{Cut p99 latency of the \textbf{cache purge} API by \textit{40\%}}
+    \resumeItem{Owned on-call for R\&D's \textbf{\textit{edge}} fleet}
+  \end{resumeItems}
+
+\resumeSection{Projects}
+  \resumeProject{\textbf{tinykv}\barSep \emph{Rust, Raft}\barSep \href{https://github.com/rconde/tinykv}{github.com/rconde/tinykv}}{2024}
+  \begin{resumeItems}
+    \resumeItem{A key\_value store with \textbf{snapshots}}
+  \end{resumeItems}
+
+\resumeSection{Publications}
+  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, leftmargin=*, labelsep=0.7em, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=0.63bp]
+    \item \textbf{R. Conde}, J. Smith, and A. Lee, “Purging caches at the edge,” \textit{Proc. NSDI}, pp. 1-14, 2025, doi: \href{https://doi.org/10.1145/3580305}{10.1145/3580305}.
+    \item “Notes on consistent hashing?” \href{https://rconde.dev/hashing}{rconde.dev/hashing}.
+  \end{enumerate}
+
+\resumeSection{Skills}
+  \begin{resumeSkills}
+    \textbf{Languages} & Rust, Go, C++ \\
+    \textbf{Tools} & Linux, eBPF
+  \end{resumeSkills}
+
+\resumeSection{Talks}
+  \begin{resumeItems}
+    \resumeItem{\textit{Boring} systems, \textbf{fast}}
+  \end{resumeItems}
+
+\resumeSection{Leadership}
+  \resumeEntry{Longhorn Developers}{2021 - 2022}{President}{Austin, TX}
+  \begin{resumeItems}
+    \resumeItem{Ran 12 workshops}
+  \end{resumeItems}
+
+\resumeSection{Volunteer}
+  \resumeEntry{Code2040}{}{Mentor}{}
+  \begin{resumeItems}
+    \resumeItem{Mentored 4 students}
+  \end{resumeItems}
+
+\resumeSection{Awards \& Certifications}
+  \resumeAward{Dean's List}{UT Austin}{2022}
+
+\resumeSection{Interests}
+  \begin{resumeText}
+    Climbing, film photography\newline
+    and bread.
+
+    Ask me about sourdough.
+  \end{resumeText}
+
+\end{document}

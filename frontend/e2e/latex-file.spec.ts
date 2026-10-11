@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises"
 import { expect, test, type Download, type Page } from "@playwright/test"
-import { pageErrors } from "./helpers"
+import { chooseTemplate, pageErrors } from "./helpers"
 
 /** A resume with a job, a bullet and an entry left out of the PDF. */
 const MARA = {
@@ -51,7 +51,7 @@ async function downloadLatex(page: Page): Promise<Download> {
 
 const textOf = async (download: Download) => readFile((await download.path())!, "utf8")
 
-test("a resume downloaded as LaTeX from the ▾ menu is Jake's Resume, with what its PDF prints", async ({ page }) => {
+test("a resume downloaded as LaTeX from the ▾ menu is laid out as its template is, with what its PDF prints", async ({ page }) => {
   const errors = pageErrors(page)
   await open(page, MARA)
 
@@ -61,16 +61,23 @@ test("a resume downloaded as LaTeX from the ▾ menu is Jake's Resume, with what
   await expect(page.getByRole("button", { name: "More formats" })).toBeFocused()
   await expect(page.getByRole("status").filter({ hasText: "LaTeX file downloaded" })).toBeAttached()
 
-  // Jake's commands, whatever the template, and only what the PDF prints.
+  // Modern Jake's, as the resume is, with only what the PDF prints.
   const text = await textOf(download)
-  expect(text).toContain("\\resumeSubheading\n      {Engineer}{Jun 2024 - Present}\n      {Stripe}{}")
-  expect(text).toContain("\\resumeItem{Built \\textbf{payments} search for R\\&D}")
-  expect(text).toContain("\\href{https://linkedin.com/in/maralin}{\\underline{linkedin.com/in/maralin}}")
+  expect(text).toContain("% resumezip's Modern Jake's template")
+  expect(text).toContain("\\usepackage[default]{lato}")
+  expect(text).toContain("Built \\textbf{payments} search for R\\&D")
+  expect(text).toContain("\\href{https://linkedin.com/in/maralin}")
   expect(text).not.toContain("MI6")
   expect(text).not.toContain("Fed the cat")
   // pdfLaTeX, Overleaf's default, prints it all, so there's nothing more to say.
   expect(text).not.toContain("xelatex")
   await expect(page.getByRole("group", { name: "LaTeX file downloaded" })).toHaveCount(0)
+
+  // Another template, another layout.
+  await chooseTemplate(page, "Jake's")
+  const jake = await textOf(await downloadLatex(page))
+  expect(jake).toContain("% Based on Jake's Resume: https://github.com/jakegut/resume")
+  expect(jake).toContain("Built \\textbf{payments} search for R\\&D")
 
   expect(errors).toEqual([])
 })

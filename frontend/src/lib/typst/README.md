@@ -73,6 +73,12 @@ server to build a PDF.
    it prints with. A template with a column of sections on the left names
    them as `firstColumn`, so the resume checker expects them first in the PDF.
    Every page that lists templates reads that list.
+4. Write its LaTeX twin in `src/lib/latex/templates/<id>.ts`, for the LaTeX
+   download, and add it to `TEMPLATES` in `src/lib/latex/index.ts`; the build
+   fails without it. Mirror the `.typ`: its fonts (from TeX Live, working with
+   pdfLaTeX and XeLaTeX), sizes, spaces and layout, Fine-tune's through
+   `Units`. `src/lib/latex/templates/jake.ts` is the one to start from. When
+   you change a template's `.typ`, change its twin too.
 
 Templates can only use the fonts in `fonts/`, listed in `fontFiles.ts`. They're
 bundled rather than kept in `public/`, so browsers can cache them for good: each
