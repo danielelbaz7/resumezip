@@ -15,6 +15,10 @@
 // its baseline x + 7.3pt below the line above.
 #set block(spacing: 0pt)
 #set par(justify: true, leading: spaced(4.71pt), spacing: 0pt)
+// A hyphen added to break a link would read as part of its address, to anyone
+// typing it in and to hiring software. A long one breaks where a line may
+// break anyway, as after a "/" or a "-" it has.
+#show link: set text(hyphenate: false)
 
 #let bullets(items, indent: 11pt, body-indent: 5pt) = if items.len() > 0 {
   list(marker: [•], indent: indent, body-indent: body-indent, spacing: spaced(4.71pt), ..items.map(rich))
@@ -82,26 +86,41 @@
 
 // ---------- Heading ----------
 
-#v(sized(-2.2pt))
-#align(center, text(size: sized(24pt), weight: "bold", p.name))
-#v(sized(15.8pt))
-// Where you are and how to reach you on the left, your profiles on the right.
-#let reach = (
-  if has(p.location) { p.location },
-  if has(p.phone) { p.phone },
-  if has(p.email) { email-link(p.email, p.email) },
-).filter(item => item != none)
-#let profiles = (
-  if has(p.linkedin) { web-link(p.linkedin, p.linkedin) },
-  if has(p.github) { web-link(p.github, p.github) },
-  if has(p.website) { web-link(p.website, p.website) },
-).filter(item => item != none)
-#grid(
-  columns: (1fr, 1fr),
-  align: (left, right),
-  row-gutter: spaced(4.71pt),
-  ..range(calc.max(reach.len(), profiles.len())).map(i => (reach.at(i, default: []), profiles.at(i, default: []))).flatten(),
-)
+// Ragged and never hyphenated: justified, a name too long for its line was
+// stretched across it, and hyphenated, broken with a hyphen that isn't in it.
+#{
+  set par(justify: false)
+  set text(hyphenate: false)
+  v(sized(-2.2pt))
+  align(center, text(size: sized(24pt), weight: "bold", p.name))
+  v(sized(15.8pt))
+  // Where you are and how to reach you on the left, your profiles on the
+  // right. Two share a line, a gap or more apart, when they fit on it, and
+  // take a line each when they don't. Not in two columns of half the line: an
+  // email, or a link too long to break without a hyphen, would run on into
+  // the other half.
+  let reach = (
+    if has(p.location) { p.location },
+    if has(p.phone) { p.phone },
+    if has(p.email) { email-link(p.email, p.email) },
+  ).filter(item => item != none)
+  let profiles = (
+    if has(p.linkedin) { web-link(p.linkedin, p.linkedin) },
+    if has(p.github) { web-link(p.github, p.github) },
+    if has(p.website) { web-link(p.website, p.website) },
+  ).filter(item => item != none)
+  let gap = 12pt
+  layout(size => range(calc.max(reach.len(), profiles.len()))
+    .map(i => {
+      let (start, end) = (reach.at(i, default: []), profiles.at(i, default: []))
+      if measure(start).width + gap + measure(end).width <= size.width {
+        grid(columns: (1fr, auto), column-gutter: gap, start, end)
+      } else {
+        grid(columns: 1fr, row-gutter: spaced(4.71pt), start, align(right, end))
+      }
+    })
+    .join(v(spaced(4.71pt))))
+}
 #v(sized(5pt))
 
 // ---------- Sections ----------
