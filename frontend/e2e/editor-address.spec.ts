@@ -61,14 +61,16 @@ test("a resume whose id has a slash, a space and an accent opens from the dashbo
     { key: `resume:${id}`, value: JSON.stringify(resume) },
   )
 
+  // Let the preview finish before the page is left, each time, so the compiler's download and pdf.js's worker aren't cut off.
+  const previewShown = () =>
+    expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
   await page.goto("/create/dashboard")
   await page.getByRole("link", { name: "Accented", exact: true }).click()
   await expect(page.getByLabel("Full name")).toHaveValue("Ada Lovelace")
+  await previewShown()
   await page.reload()
   await expect(page.getByLabel("Full name")).toHaveValue("Ada Lovelace")
-
-  // Let the preview finish, so the compiler's download isn't cut off as the page closes.
-  await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
+  await previewShown()
   expect(errors).toEqual([])
 })
 
