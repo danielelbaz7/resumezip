@@ -14,10 +14,13 @@
 // Charis SIL it prints with has none, so the PDF's are lining, as these are.
 
 import {
+  CHARIS,
   citations,
   dateRange,
+  EB_GARAMOND,
   emailLink,
   ENGINES,
+  GREEK,
   itemText,
   latex,
   links,
@@ -26,7 +29,10 @@ import {
   runs,
   sectionsOf,
   shownLink,
+  signs,
+  unlessPdfLatex,
   webLink,
+  type Fallbacks,
   type LatexTemplate,
   type ShowLink,
   type Units,
@@ -42,7 +48,24 @@ const CHARIS_CAPS = 0.671
 const BIOLINUM_CAPS = 0.658
 const HEADING_SIZE = 10.8
 
-const preamble = (units: Units, title: string) => {
+const FALLBACKS: Fallbacks = {
+  comment: `Charis SIL has only the Greek letters phonetics uses, so all of Greek prints
+in EB Garamond, as in the PDF. Linux Biolinum, in headings, has all of Greek,
+but not ₹ ₽ ₺ ₴, which print in EB Garamond too, nor ₿, which prints in
+Charis SIL.`,
+  fonts: [
+    { name: "CharisSIL", faces: true, someGreek: true },
+    { name: "LinBiolinum", faces: false, someGreek: false },
+  ],
+  families: [EB_GARAMOND, CHARIS],
+  letters: [
+    [GREEK, EB_GARAMOND],
+    [signs("₹₽₺₴"), EB_GARAMOND],
+    [signs("₿"), CHARIS],
+  ],
+}
+
+const preamble = (units: Units, title: string, fallbacks: string) => {
   // Sums of Fine-tune's lengths, in the unit it gives them in.
   const unit = units.size(1).replace(/^[\d.]+/, "")
   const length = (value: number) => `${Math.round(value * 100) / 100}${unit}`
@@ -68,7 +91,7 @@ const preamble = (units: Units, title: string) => {
   return `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-% Charis SIL for the text, Linux Biolinum for the headings
+${unlessPdfLatex(fallbacks)}% Charis SIL for the text, Linux Biolinum for the headings
 \\usepackage{CharisSIL}
 \\ifPDFTeX
   \\usepackage[sf]{libertine}
@@ -319,4 +342,5 @@ export const margin: LatexTemplate = {
   credit: ["resumezip's Margin template"],
   preamble,
   body,
+  fallbacks: FALLBACKS,
 }

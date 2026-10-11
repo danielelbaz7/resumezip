@@ -55,9 +55,9 @@
 \AtBeginDocument{\color{text}}
 
 % Text sizes and line spacing, as Fine-tune sets them. The space between
-% words is each font's own as the PDF prints it: Lato 1.1's is narrower than
-% this Lato's, and Raleway's small capitals would have a narrower one.
-\newcommand*{\latospace}{\spaceskip=0.193em\relax}
+% words is as the PDF prints it: Lato's pinned to 0.2025em, and Raleway's
+% own, which its small capitals would make narrower.
+\newcommand*{\latospace}{\spaceskip=0.2025em\relax}
 \newcommand*{\ralewayspace}{\spaceskip=0.253em\relax}
 \renewcommand{\normalsize}{\fontsize{10.3bp}{12.44bp}\selectfont\latospace}
 \normalsize

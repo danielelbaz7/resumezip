@@ -7,6 +7,7 @@
 
 import {
   bold,
+  CHARIS,
   citations,
   emailLink,
   ENGINES,
@@ -19,9 +20,11 @@ import {
   runs,
   sectionsOf,
   shownLink,
+  signs,
   sum,
   web,
   webLink,
+  type Fallbacks,
   type LatexTemplate,
   type ShowLink,
   type Units,
@@ -39,7 +42,14 @@ const plain: ShowLink = (url, text) => shownLink(url, text)
 /** "Start – End" with an en dash, or whichever of the two is present. */
 const dates = (start: string, end: string) => joinPresent(" \\textendash{} ", latex(start), latex(end))
 
-function preamble(units: Units, title: string): string {
+const FALLBACKS: Fallbacks = {
+  comment: `EB Garamond has no ₿, which prints in Charis SIL, as in the PDF.`,
+  fonts: [{ name: "EBGaramond", faces: true, someGreek: false }],
+  families: [CHARIS],
+  letters: [[signs("₿"), CHARIS]],
+}
+
+function preamble(units: Units, title: string, fallbacks: string): string {
   // EB Garamond's cap height is 0.65em: the .typ measures each space to a line's capitals.
   const leading = units.space(5.78)
   const line = (size: number) => sum(units.size(size * 0.65), leading)
@@ -56,7 +66,7 @@ ${ENGINES}
 \\ifPDFTeX
   \\usepackage[lining, tabular]{ebgaramond}
 \\else
-  % Its OpenType files. The package would also ask for EB Garamond Initials, which not every TeX install has.
+${fallbacks}  % Its OpenType files. The package would also ask for EB Garamond Initials, which not every TeX install has.
   \\usepackage{fontspec}
   \\setmainfont{EBGaramond}[Extension=.otf, UprightFont=*-Regular, ItalicFont=*-Italic, BoldFont=*-Bold, BoldItalicFont=*-BoldItalic]
 \\fi
@@ -253,4 +263,5 @@ export const resumeworded: LatexTemplate = {
   credit: ["resumezip's Harvard template, in the format Harvard's career office recommends"],
   preamble,
   body,
+  fallbacks: FALLBACKS,
 }

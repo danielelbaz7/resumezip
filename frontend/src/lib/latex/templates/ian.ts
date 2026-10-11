@@ -12,6 +12,7 @@
 import type { TemplateData } from "@/lib/typst/resumeData"
 import {
   bold,
+  CHARIS,
   citations,
   emailLink,
   ENGINES,
@@ -25,8 +26,11 @@ import {
   runs,
   sectionsOf,
   shownLink,
+  signs,
   sum,
+  unlessPdfLatex,
   webLink,
+  type Fallbacks,
   type LatexTemplate,
   type Section,
   type ShowLink,
@@ -41,6 +45,15 @@ const CAP = 0.7165
 const BOLD_CAP = 0.723
 // The text size, in points.
 const BASE = 9.96
+// The space between words, as ian.typ pins Lato's.
+const WORD_SPACE = "0.2125em"
+
+const FALLBACKS: Fallbacks = {
+  comment: `Lato has no ₽ or ₿, which print in Charis SIL, as in the PDF.`,
+  fonts: [{ name: "Lato", faces: true, someGreek: false }],
+  families: [CHARIS],
+  letters: [[signs("₽₿"), CHARIS]],
+}
 
 /** Fine-tune's lengths in bp, the leading above a line, and the \baselineskip of text this size. */
 function lengthsOf(units: Units) {
@@ -58,9 +71,9 @@ const underlined: ShowLink = (url, text) => shownLink(url, text, underline)
 /** "Start – End", with an en dash, or whichever of the two is present, as ian.typ's `dates`. */
 const dates = (start: string, end: string) => joinPresent(" \\textendash{} ", latex(start), latex(end))
 
-const preamble = (units: Units, title: string) => {
+const preamble = (units: Units, title: string, fallbacks: string) => {
   const { size, space, gap, lead, pitch } = lengthsOf(units)
-  const font = (pt: number, cap = CAP) => `\\fontsize{${size(pt)}}{${pitch(pt, cap)}}\\selectfont`
+  const font = (pt: number, cap = CAP) => `\\fontsize{${size(pt)}}{${pitch(pt, cap)}}\\selectfont\\latospace`
   // How much further a line in bold this size starts above its baseline than regular text does.
   const bolder = (pt: number) => sum(size(BOLD_CAP * pt), "-" + size(CAP * BASE))
   // The space under a section's rule, before what comes next.
@@ -69,7 +82,9 @@ const preamble = (units: Units, title: string) => {
   return `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-\\usepackage[default]{lato}
+${unlessPdfLatex(fallbacks)}\\usepackage[default]{lato}
+% Words ${WORD_SPACE} apart at every size, as the PDF pins Lato's spaces
+\\newcommand*{\\latospace}{\\spaceskip=${WORD_SPACE}\\relax}
 \\usepackage[left=${units.margin(0.35)}, right=${units.margin(0.35)}, top=${units.margin(0.5)}, bottom=${units.margin(0.35)}]{geometry}
 \\usepackage{xcolor}
 \\usepackage{enumitem}
@@ -288,4 +303,5 @@ export const ian: LatexTemplate = {
   credit: ["resumezip's Ian's template, after Ian Hoang's own resume"],
   preamble,
   body,
+  fallbacks: FALLBACKS,
 }

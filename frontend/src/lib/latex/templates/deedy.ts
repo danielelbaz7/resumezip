@@ -16,21 +16,29 @@
 // the other.
 
 import {
+  ARROWS,
+  CHARIS,
   citations,
   dateRange,
   emailLink,
   ENGINES,
+  GREEK,
   href,
   joinPresent,
   latex,
+  LATO,
   links,
   paragraphs,
   runs,
   sectionsOf,
   shownLink,
+  signs,
   sum,
+  unlessPdfLatex,
+  VIETNAMESE,
   web,
   webLink,
+  type Fallbacks,
   type LatexTemplate,
   type Section,
   type ShowLink,
@@ -57,7 +65,26 @@ type Font = keyof typeof FONTS
 /** Links print as their own text, in the font and color of the words around them. */
 const plainLink: ShowLink = (url, text) => shownLink(url, text)
 
-function preamble(units: Units, title: string): string {
+const FALLBACKS: Fallbacks = {
+  comment: `Raleway, in roles, dates and places, has only a few Greek letters and no
+arrows, and TeX Live's is older than the PDF's: it has no Vietnamese ơ, ư or
+ộ, nor ₺ ₴ ₫. These, and all of Greek, print in Lato, as the PDF prints what
+its Raleway lacks. ₽ and ₿, which Lato lacks too, print in Charis SIL.`,
+  fonts: [
+    { name: "Lato", faces: true, someGreek: false },
+    { name: "Raleway-Medium", faces: false, someGreek: true },
+  ],
+  families: [LATO, CHARIS],
+  letters: [
+    [GREEK, LATO],
+    [VIETNAMESE, LATO],
+    [ARROWS, LATO],
+    [signs("₺₴₫"), LATO],
+    [signs("₽₿"), CHARIS],
+  ],
+}
+
+function preamble(units: Units, title: string, fallbacks: string): string {
   const cap = (font: Font) => units.size(FONTS[font].cap)
   /** The .typ's leading: half the text size, between one line's baseline and the next one's top. */
   const lead = (font: Font) => units.space(FONTS[font].size / 2)
@@ -77,7 +104,7 @@ function preamble(units: Units, title: string): string {
   return `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-% Lato: light for text, bold for names and hairline for first names
+${unlessPdfLatex(fallbacks)}% Lato: light for text, bold for names and hairline for first names
 \\usepackage[default]{lato}
 % Raleway Medium, with lining figures, for roles, dates and places
 \\ifPDFTeX
@@ -113,9 +140,9 @@ ${links(title)}
 \\AtBeginDocument{\\color{text}}
 
 % Text sizes and line spacing, as Fine-tune sets them. The space between
-% words is each font's own as the PDF prints it: Lato 1.1's is narrower than
-% this Lato's, and Raleway's small capitals would have a narrower one.
-\\newcommand*{\\latospace}{\\spaceskip=0.193em\\relax}
+% words is as the PDF prints it: Lato's pinned to 0.2025em, and Raleway's
+% own, which its small capitals would make narrower.
+\\newcommand*{\\latospace}{\\spaceskip=0.2025em\\relax}
 \\newcommand*{\\ralewayspace}{\\spaceskip=0.253em\\relax}
 \\renewcommand{\\normalsize}{${fontsize("body")}\\latospace}
 \\normalsize
@@ -374,4 +401,5 @@ export const deedy: LatexTemplate = {
   credit: ["After Debarghya Das's Deedy resume: https://github.com/deedy/Deedy-Resume"],
   preamble,
   body,
+  fallbacks: FALLBACKS,
 }

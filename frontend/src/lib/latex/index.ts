@@ -9,8 +9,10 @@
 //
 // It compiles with pdfLaTeX, Overleaf's default. pdfLaTeX's fonts only have
 // Latin letters, so a resume with others (Иван, Nguyễn) gets a file that asks
-// for XeLaTeX, where the template's fonts print what the PDF prints. Every
-// file works with both engines, and with LuaLaTeX; iftex tells them apart.
+// for XeLaTeX, where the template's fonts print what the PDF prints, and the
+// PDF's fallback fonts the letters they lack (fallbackFonts in common.ts).
+// Every file works with both engines, and with LuaLaTeX; iftex tells them
+// apart.
 //
 // Unlike the PDF and the Word file, it doesn't carry its resume, so
 // resumezip can't open it again.
@@ -20,7 +22,7 @@
 import type { Resume } from "@/lib/resume"
 import type { TemplateId } from "@/lib/templates"
 import { templateIdOf, toTemplateData } from "@/lib/typst/resumeData"
-import { beyondPdfLatex, latex, unitsOf, type LatexTemplate } from "./common"
+import { beyondPdfLatex, fallbackFonts, latex, unitsOf, type LatexTemplate } from "./common"
 import { accent } from "./templates/accent"
 import { deedy } from "./templates/deedy"
 import { ian } from "./templates/ian"
@@ -90,14 +92,26 @@ export function toLatexFile(resume: Resume): LatexFile {
 \\fi
 `
     : ""
+  // glyphtounicode, which tells readers of a pdfLaTeX PDF which character
+  // each glyph is (`links` in common.ts), doesn't know the ohm sign by the
+  // name Latin Modern's and TeX Gyre's fonts give it, so it would read back
+  // as the W its slot holds in ASCII.
+  const ohm = document.includes("\\textohm")
+    ? `
+\\ifPDFTeX
+  % The ohm sign reads back as one
+  \\pdfglyphtounicode{ohm}{2126}
+\\fi
+`
+    : ""
 
   const text = `${head}%-------------------------
 % Resume in LaTeX, from resumezip
 ${template.credit.map((line) => `% ${line}`).join("\n")}
 %-------------------------
 
-${template.preamble(units, title).trimEnd()}
-${stop}
+${template.preamble(units, title, letters.length ? fallbackFonts(template.fallbacks) : "").trimEnd()}
+${ohm}${stop}
 %-------------------------------------------
 %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
