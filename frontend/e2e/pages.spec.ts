@@ -62,6 +62,14 @@ test.describe("search engines", () => {
       expect(meta(await head(request, path), "robots"), path).toBe("noindex")
     }
   })
+
+  test("read on the home page that resumezip is a free web app", async ({ request }) => {
+    const html = await (await request.get("/")).text()
+    const json = html.match(/<script type="application\/ld\+json">([^<]*)<\/script>/)?.[1]
+    const graph: { "@type": string; name: string; offers?: { price: string } }[] = JSON.parse(json ?? "{}")["@graph"]
+    expect(graph.find((item) => item["@type"] === "WebSite")?.name).toBe("resumezip")
+    expect(graph.find((item) => item["@type"] === "WebApplication")?.offers?.price).toBe("0")
+  })
 })
 
 for (const path of PAGES) {
