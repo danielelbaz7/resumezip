@@ -19,15 +19,51 @@
 #let gutter = 0.2in
 #let old(body) = text(number-type: "old-style", body)
 
+// A heading's words, kept within the column: right-aligned, a wider one would
+// run left into the page margin, and off the paper with Fine-tune's smallest
+// margins. A word too wide is hyphenated; only it, as hyphenating the heading
+// would break words that fit. When hyphenation can't fit one, the heading is
+// set smaller, to fit that word whole, as the LaTeX file does: measured at
+// the column's width, a paragraph with a line too wide measures as wide as
+// the column. A word up to 0.03em too wide stays as it is: "Certifications",
+// in the sample, is 0.2 pt too wide, and its first letter's side bearing more.
+#let fitted(title) = context {
+  let words = ()
+  let widest = 0pt
+  for word in title.split(" ") {
+    let width = measure(word).width
+    if width <= margin + 0.03 * text.size {
+      words.push(word)
+    } else {
+      let hyphenated = text(hyphenate: true, word)
+      if measure(hyphenated, width: margin).width >= margin { widest = calc.max(widest, width) }
+      words.push(hyphenated)
+    }
+  }
+  if widest > 0pt { text(size: margin / widest * 1em, words.join(" ")) } else { words.join(" ") }
+}
+
 // A heading in the margin, level with the first line of its section. Spaced
 // any wider, its letters read as separate words in the PDF's text.
-#let section(title, body) = {
+//
+// Its lines stay on one page, which in a grid cell they wouldn't: an empty
+// block as tall as the heading goes first, its room given back after it, so
+// when there's no room for the heading, the block and the section start the
+// next page. Sticky, the block never stays behind without the section.
+#let section(title, body) = context {
+  let heading = block(
+    breakable: false,
+    text(font: "Linux Biolinum O", size: sized(10.8pt), tracking: 0.03em, fill: black, stroke: sized(0.15pt) + black, smallcaps(fitted(title))),
+  )
+  let height = measure(heading, width: margin).height
   v(gapped(12.5pt))
+  block(breakable: false, sticky: true, height: height)
+  v(-height)
   grid(
     columns: (margin, 1fr),
     column-gutter: gutter,
     align: (right + top, left + top),
-    text(font: "Linux Biolinum O", size: sized(10.8pt), tracking: 0.03em, fill: black, stroke: sized(0.15pt) + black, smallcaps(title)),
+    heading,
     body,
   )
 }
