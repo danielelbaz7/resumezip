@@ -80,7 +80,13 @@ interface Experience {
 // An entry as saved: older resumes can lack any of its fields.
 type Saved = Partial<Entry>
 
-const text = (value: unknown) => (typeof value === "string" ? value.trim() : "")
+// Half of an emoji (a surrogate without its pair), which an opened file or a
+// paste can bring. JSON.stringify writes it as an escape Typst's json() won't
+// read, so no template could print the resume. With the u flag, \p{Cs} only
+// matches a surrogate that isn't part of a pair, so whole emoji are kept.
+const HALF_EMOJI = /\p{Cs}/gu
+
+const text = (value: unknown) => (typeof value === "string" ? value.replace(HALF_EMOJI, "").trim() : "")
 
 // Prose as paragraphs, split at blank lines. A single line break stays in its paragraph.
 const paragraphs = (value: unknown) =>
@@ -230,7 +236,7 @@ export function toTemplateData(saved: Resume): TemplateData {
       Object.entries(extrasOf(resume))
         .filter(([, section]) => extraHasBody(section))
         .map(([id, section]) => {
-          const heading = extraHeading(section)
+          const heading = extraHeading({ ...section, heading: text(section.heading) })
           const printable: ExtraTemplateSection =
             section.kind === "list"
               ? { kind: "list", heading, bullets: bullets(section.bullets) }
