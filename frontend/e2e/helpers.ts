@@ -97,7 +97,10 @@ export async function transitionsDone(page: Page): Promise<void> {
  * A view transition counts too: until it ends, what shows of the element is
  * its picture, moving from where it was. Its animations are on the root's
  * ::view-transition pseudo-elements, and start as the browser pictures the
- * new view, at the next frame after it's rendered.
+ * new view, at the next frame after it's rendered. Only those still playing
+ * count: once done, they hold their last frame (fill: both), and WebKit went
+ * on listing one after Start writing's rise had played, which held up every
+ * test that came into the editor that way. A failure names what's moving.
  */
 export async function settled(locator: Locator): Promise<void> {
   await expect
@@ -105,16 +108,19 @@ export async function settled(locator: Locator): Promise<void> {
       () =>
         locator.evaluate(async (element) => {
           await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
-          return document.getAnimations().filter((animation) => {
+          return document.getAnimations().flatMap((animation) => {
             const effect = animation.effect as KeyframeEffect | null
             const target = effect?.target
-            if (!target || !(target.contains(element) || element.contains(target))) return false
-            return "transitionProperty" in animation || !!effect.pseudoElement?.startsWith("::view-transition")
-          }).length
+            if (!target || !(target.contains(element) || element.contains(target))) return []
+            if ("transitionProperty" in animation)
+              return [`${target.tagName.toLowerCase()} ${(animation as CSSTransition).transitionProperty}`]
+            if (!effect.pseudoElement?.startsWith("::view-transition") || animation.playState !== "running") return []
+            return [`${effect.pseudoElement} ${(animation as CSSAnimation).animationName}${animation.pending ? " pending" : ""}`]
+          })
         }),
       { message: "nothing on, in or around it is transitioning" },
     )
-    .toBe(0)
+    .toEqual([])
 }
 
 /**
