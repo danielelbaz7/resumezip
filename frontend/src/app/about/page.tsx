@@ -68,17 +68,50 @@ const down = (share: number) => `${(100 * share) / FIGURE_HEIGHT}%`
 
 /**
  * resumezip introduced as it'd introduce anyone: its own resume, in Jake's
- * template, sliding out of a folder as the page opens. The page is a real
+ * template, rising out of a folder as the page scrolls (`.folder-rise` in
+ * styles/home.css), held by a paper clip. The page is a real
  * render of `own-resume.json`, cropped under its last line (the rest of the
  * sheet is plain white), so print it again when a line changes. Each line has
  * to stay true of the app, as the promises do. The folder is drawn twice, the
  * second time only from the front flap's edge down, so the page goes into it.
  */
+// A paper clip's one wire, drawn as two parts: the outer loop on the front of the
+// page, and the inner one behind it, which only shows above the page's edge.
+const CLIP_WIRE = {
+  front: "M18 24 L18 54 A8 8 0 0 1 2 54 L2 10 A6.75 6.75 0 0 1 15.5 10",
+  back: "M15.5 10 L15.5 48 A4 4 0 0 1 7.5 48 L7.5 20",
+}
+
+/** Half of a steel paper clip over the page's top edge, which crosses it 18 units down. */
+function PaperClip({ part }: { part: keyof typeof CLIP_WIRE }) {
+  return (
+    <svg
+      viewBox="0 0 20 64"
+      aria-hidden="true"
+      className={`absolute left-[10%] top-0 w-[5.5%] -translate-y-[28%] overflow-visible ${
+        part === "front" ? "z-10 drop-shadow-[0.5px_1px_0.75px_rgb(17_19_24/0.35)]" : ""
+      }`}
+    >
+      <defs>
+        <linearGradient id={`clip-steel-${part}`} x1="0" x2="20" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#6f757c" />
+          <stop offset="0.3" stopColor="#eef0f2" />
+          <stop offset="0.55" stopColor="#858b91" />
+          <stop offset="0.8" stopColor="#f6f7f8" />
+          <stop offset="1" stopColor="#6f757c" />
+        </linearGradient>
+      </defs>
+      <path d={CLIP_WIRE[part]} fill="none" stroke={`url(#clip-steel-${part})`} strokeWidth="2.4" strokeLinecap="round" />
+      <path d={CLIP_WIRE[part]} fill="none" stroke="#fff" strokeOpacity="0.55" strokeWidth="0.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function OwnResume() {
   const folder = "absolute left-0 w-full h-auto"
   const page = { left: `${(100 * (1 - PAGE.width)) / 2}%`, width: `${100 * PAGE.width}%` }
   return (
-    <figure className="relative w-full max-w-[440px] xl:w-[410px]" style={{ aspectRatio: `1 / ${FIGURE_HEIGHT}` }}>
+    <figure className="relative w-full max-w-[440px] xl:mr-24 xl:w-[410px]" style={{ aspectRatio: `1 / ${FIGURE_HEIGHT}` }}>
       <Image
         src={FOLDER.src}
         width={FOLDER.width}
@@ -89,19 +122,20 @@ function OwnResume() {
         className={`${folder} drop-shadow-[0_24px_32px_rgb(30_40_90/0.28)]`}
         priority
       />
-      <div
-        style={{ ...page, top: 0, height: down(PAGE.height) }}
-        className="absolute bg-white shadow-[0_1px_3px_rgb(17_19_24/0.12)] transition-transform duration-1000 ease-glide motion-reduce:transition-none starting:translate-y-1/4"
-      >
-        <Image
-          src="/about/own-resume.webp"
-          width={1280}
-          height={568}
-          sizes="(min-width: 1280px) 324px, (min-width: 640px) 348px, 80vw"
-          alt="resumezip’s own resume, in Jake’s template: a resume builder in your own browser since March 2025, with no account, that has kept 0 copies of anyone’s resume."
-          className="h-auto w-full"
-          priority
-        />
+      <div style={{ ...page, top: 0, height: down(PAGE.height) }} className="folder-rise absolute">
+        <PaperClip part="back" />
+        <div className="relative h-full bg-white shadow-[0_1px_3px_rgb(17_19_24/0.12)]">
+          <Image
+            src="/about/own-resume.webp"
+            width={1280}
+            height={568}
+            sizes="(min-width: 1280px) 324px, (min-width: 640px) 348px, 80vw"
+            alt="resumezip’s own resume, in Jake’s template: a resume builder in your own browser since March 2025, with no account, that has kept 0 copies of anyone’s resume."
+            className="h-auto w-full"
+            priority
+          />
+        </div>
+        <PaperClip part="front" />
       </div>
       {/* The flap's shadow on the page, just above its edge. */}
       <div
