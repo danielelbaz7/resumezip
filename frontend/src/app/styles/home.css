@@ -422,9 +422,9 @@
         }
         .about-pin-room {
           display: block;
-          /* 480px for the resume to rise, then 200px more with it all the way
+          /* 480px for the resume to rise, then 300px more with it all the way
              out, so the page doesn't move on the moment it's done. */
-          height: 680px;
+          height: 780px;
         }
         .folder-rise {
           animation-timeline: scroll(root);
