@@ -169,6 +169,8 @@ interface Item {
   italic: boolean
   /** A hyphen alone in a marked span, the way a typesetter marks one it added to break a word. */
   soft?: boolean
+  /** Ends where a hyphen pdf.js leaves out broke a word in two. */
+  broken?: boolean
 }
 
 /** A link on a page, in the same coordinates as the page's text. */
@@ -254,6 +256,43 @@ function findGutter(items: Item[], width: number): { x: number; top: number } | 
   return ok ? { x, top } : null
 }
 
+// pdf.js's codes for the drawing instructions read here (its `OPS`), which
+// this file can't import without loading pdf.js along with it.
+const SHOW_TEXT = 44
+const BEGIN_MARKED_CONTENT = 69
+const BEGIN_MARKED_CONTENT_PROPS = 70
+const END_MARKED_CONTENT = 71
+
+/**
+ * The marked spans, by MCID, whose text ends with a soft hyphen. That's how
+ * Typst draws a hyphen it added to break a word, and pdf.js leaves soft
+ * hyphens out of a page's text, so they're found in its drawing instead.
+ */
+function softHyphenSpans({ fnArray = [], argsArray = [] }: { fnArray?: number[]; argsArray?: unknown[] }): Set<number> {
+  const found = new Set<number>()
+  // Only each open span's last glyph is kept, not its text: a span's text
+  // passes on to the one around it, so keeping it all would take time
+  // quadratic in how deeply a PDF nests its spans.
+  const spans: { mcid: unknown; last: string }[] = []
+  fnArray.forEach((fn, i) => {
+    const args = argsArray[i]
+    if (fn === BEGIN_MARKED_CONTENT || fn === BEGIN_MARKED_CONTENT_PROPS) {
+      spans.push({ mcid: fn === BEGIN_MARKED_CONTENT_PROPS && Array.isArray(args) ? args[1] : undefined, last: "" })
+    } else if (fn === END_MARKED_CONTENT) {
+      const span = spans.pop()
+      if (span && typeof span.mcid === "number" && span.last.endsWith(SOFT_HYPHEN)) found.add(span.mcid)
+      if (span?.last && spans.length > 0) spans[spans.length - 1].last = span.last
+    } else if (fn === SHOW_TEXT && spans.length > 0 && Array.isArray(args) && Array.isArray(args[0])) {
+      // Glyphs, with numbers between them for the spacing.
+      for (const glyph of args[0] as unknown[]) {
+        const unicode = typeof glyph === "object" && glyph !== null ? (glyph as { unicode?: unknown }).unicode : undefined
+        if (typeof unicode === "string" && unicode) spans[spans.length - 1].last = unicode
+      }
+    }
+  })
+  return found
+}
+
 /**
  * Reads every page's text, with its styles and links. pdf.js does the reading
  * in a worker of its own; sorting the text into lines (`linesFromPages`) is
@@ -270,7 +309,7 @@ export async function readPdf(doc: PDFDocumentProxy, signal?: AbortSignal): Prom
     const [x0, y0, x1, y1] = page.view
 
     // Font names (like "Calibri-Bold") are only available once the page's fonts are loaded.
-    await page.getOperatorList()
+    const hyphens = softHyphenSpans(await page.getOperatorList())
     const fontStyles = new Map<string, { bold: boolean; italic: boolean }>()
     const styleOf = (fontName: string) => {
       let style = fontStyles.get(fontName)
@@ -297,17 +336,21 @@ export async function readPdf(doc: PDFDocumentProxy, signal?: AbortSignal): Prom
     // passes them on to the span around it when it ends. Only a span with
     // properties can say what its text stands for, and only one outside the
     // document's structure (with no MCID) is there to say it.
-    const spans: { count: number; first?: Item; standsIn: boolean }[] = []
+    const spans: { count: number; first?: Item; standsIn: boolean; mcid?: number }[] = []
     const reader = (page.streamTextContent({ includeMarkedContent: true }) as ReadableStream<TextContent>).getReader()
     try {
       for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
         for (const item of chunk.value.items) {
           if ("type" in item) {
             if (item.type === "beginMarkedContent" || item.type === "beginMarkedContentProps") {
-              spans.push({ count: 0, standsIn: item.type === "beginMarkedContentProps" && !item.id })
+              const mcid = item.type === "beginMarkedContentProps" ? item.id?.match(/_mc(\d+)$/)?.[1] : undefined
+              spans.push({ count: 0, standsIn: item.type === "beginMarkedContentProps" && !item.id, mcid: mcid ? Number(mcid) : undefined })
             } else if (item.type === "endMarkedContent") {
               const span = spans.pop()
               if (span?.standsIn && span.count === 1 && /^[-\u2010]$/.test(span.first!.text)) span.first!.soft = true
+              // A span ending with a soft hyphen broke the word read last, in it or just before it.
+              const word = items[items.length - 1]
+              if (span?.mcid !== undefined && hyphens.has(span.mcid) && word && /\p{L}$/u.test(word.text)) word.broken = true
               const outer = spans[spans.length - 1]
               if (span?.first && outer) {
                 outer.first ??= span.first
@@ -414,14 +457,15 @@ export function linesFromPages(pages: PdfPage[]): Line[] {
         // Small caps also come out a letter or two at a time, but with the letters touching.
         if (median > 0.08 * size) letterGap = median + 0.2 * size
       }
+      const apart = Math.max(0.9 * size, 7, letterGap + 0.5 * size)
       const parts: Part[] = []
       let pieces: Piece[] = []
       let partX = group[0].x
       let previous: Item | null = null
-      for (const item of group) {
+      for (const [index, item] of group.entries()) {
         if (previous) {
           const gap = item.x - previous.right
-          if (gap > Math.max(0.9 * size, 7, letterGap + 0.5 * size)) {
+          if (gap > apart) {
             parts.push(...toParts(pieces, partX))
             pieces = []
             partX = item.x
@@ -436,7 +480,11 @@ export function linesFromPages(pages: PdfPage[]): Line[] {
           previous &&
           item.x - previous.right < 0.12 * size &&
           /\p{L}$/u.test(previous.text)
-        pieces.push({ text: soft ? SOFT_HYPHEN : item.text, bold: item.bold, italic: item.italic })
+        // So did a hyphen pdf.js left out, ending the word's part of the line:
+        // a heading in a margin has the section's text beside it.
+        const next = group[index + 1]
+        const hidden = item.broken && (!next || next.x - item.right > apart)
+        pieces.push({ text: soft ? SOFT_HYPHEN : hidden ? item.text + SOFT_HYPHEN : item.text, bold: item.bold, italic: item.italic })
         previous = item
       }
       parts.push(...toParts(pieces, partX))
