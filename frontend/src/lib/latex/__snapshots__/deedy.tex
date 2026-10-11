@@ -44,7 +44,8 @@
 \setlength{\parskip}{0pt}
 % A page's first line sits at its top margin, as in the PDF.
 \setlength{\topskip}{0pt}
-% Words aren't broken with a hyphen at the end of a line, as in the PDF.
+% Words aren't broken with a hyphen at the end of a line, as in the PDF,
+% unless one is too wide for the left column (\narrowpar).
 \hyphenpenalty=10000
 
 % Deedy's colors: headings, subheadings and the text's grey
@@ -62,7 +63,7 @@
 \normalsize
 \newcommand{\namefont}{\fontsize{38bp}{45.89bp}\selectfont\latospace\color{headings}}
 \newcommand{\contactfont}{\raleway\fontsize{10.8bp}{13.07bp}\selectfont\ralewayspace}
-\newcommand{\titlefont}{\fontsize{16.5bp}{19.92bp}\selectfont\latospace\color{headings}}
+\newcommand{\titlefont}{\fontsize{\dimexpr16.5bp*\linewidth/\widesttitleword\relax}{\dimexpr19.92bp*\linewidth/\widesttitleword\relax}\selectfont\latospace\color{headings}}
 \newcommand{\entryfont}{\fontsize{11.4bp}{13.94bp}\selectfont\bfseries\latospace\color{subheadings}}
 \newcommand{\descriptfont}{\raleway\fontsize{10.4bp}{12.58bp}\selectfont\ralewayspace\scshape\color{subheadings}}
 \newcommand{\locationfont}{\raleway\fontsize{9.7bp}{11.74bp}\selectfont\ralewayspace\color{headings}}
@@ -83,9 +84,20 @@
 % Two columns: education and skills on the left, the rest on the right
 \setcolumnwidth{0.32\textwidth/0.3in}
 
-% A section's title in light capitals, and the space between two sections
+% A section's title in light capitals, and the space between two sections.
+% A title wraps between its words, but a word can't, so a title with a word
+% wider than its column is set just small enough for that word to fit, as
+% in the PDF: \widesttitleword is that word's width, or the column's.
+\newlength{\titleword}
+\newlength{\widesttitleword}
+\def\measuretitle#1 #2\relax{%
+  \settowidth{\titleword}{\fontsize{16.5bp}{19.92bp}\selectfont\MakeUppercase{#1}}%
+  \ifdim\titleword>\widesttitleword\setlength{\widesttitleword}{\titleword}\fi
+  \if\relax\detokenize{#2}\relax\else\measuretitle#2\relax\fi
+}
 \renewcommand{\section}[1]{%
-  \par\vspace{-8.25bp}{\titlefont\MakeUppercase{#1}\par}\nopagebreak\vspace{7bp}%
+  \par\setlength{\widesttitleword}{\linewidth}\measuretitle#1 \relax
+  \vspace{\dimexpr-8.25bp*\linewidth/\widesttitleword\relax}{\titlefont\MakeUppercase{#1}\par}\nopagebreak\vspace{7bp}%
 }
 \newcommand{\sectionsep}{\par\vspace{13bp}}
 
@@ -103,17 +115,29 @@
 % The space between two entries
 \newcommand{\entrysep}{\par\vspace{9bp}}
 
+% The left column is narrow, and a word too wide for it would run on into the
+% right one. So there, as in the PDF, such a word breaks after a comma,
+% semicolon or slash (\wordbreak), or else with a hyphen. Ragged lines all
+% cost TeX the same, so the penalties keep it from breaking a word that fits.
+% \narrowpar starts each paragraph there, with glue, since TeX only
+% hyphenates a word that comes after glue.
+\newcommand*{\wordbreak}{\penalty1000\relax}
+\newcommand*{\narrowpar}{\leavevmode\hyphenpenalty=1000\relax\nobreak\hspace{0pt}}
+
+% A school's or a skill's name, on the left, as Deedy's \subsection
+\renewcommand{\subsection}[1]{\par\vspace{-5.7bp}{\entryfont\narrowpar\MakeUppercase{#1}\par}}
+
 % Education: the degree, its dates, place and GPA, involvement and coursework
-\newcommand{\degree}[1]{\par\nopagebreak\vspace{-1.8bp}{\descriptfont #1\par}}
-\newcommand{\detail}[1]{\par\nopagebreak\vspace{-1.45bp}{\locationfont #1\par}}
-\newcommand{\involvement}[1]{\par\vspace{-1.75bp}Involvement: #1}
-\newcommand{\coursework}[1]{\par\vspace{-0.06bp}\descript{Coursework:} #1}
+\newcommand{\degree}[1]{\par\nopagebreak\vspace{-1.8bp}{\descriptfont\narrowpar #1\par}}
+\newcommand{\detail}[1]{\par\nopagebreak\vspace{-1.45bp}{\locationfont\narrowpar #1\par}}
+\newcommand{\involvement}[1]{\par\vspace{-1.75bp}{\narrowpar Involvement: #1\par}}
+\newcommand{\coursework}[1]{\par\vspace{-0.06bp}{\narrowpar\descript{Coursework:} #1\par}}
 
 % A skill: its name, if it has one, over its details; and the space between two
 \newcommand{\skill}[2]{%
   \if\relax\detokenize{#1}\relax\par\vspace{-5.15bp}%
-  \else\nameline{#1}\vspace{-1.75bp}\fi
-  #2%
+  \else\subsection{#1}\vspace{-1.75bp}\fi
+  {\narrowpar #2\par}%
 }
 \newcommand{\skillsep}{\par\vspace{8bp}}
 
@@ -160,7 +184,7 @@
 \begin{paracol}{2}
 
 \section{Education}
-\nameline{University of Texas at Austin}
+\subsection{University of Texas at Austin}
 \degree{B.S. in Computer Science}
 \detail{Aug 2019 - May 2023 | Austin, TX}
 \detail{GPA: 3.8}
