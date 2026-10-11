@@ -199,12 +199,13 @@ test("A4, chosen in the Style tab, prints the page on A4, and Download PDF still
   const errors = pageErrors(page)
   const preview = await startWriting(page, 1440, 900)
   const button = download(page)
-  // The first page's height over its width: 11 / 8.5 on Letter, 297 / 210 on A4.
+  // The first page's height over its width: 11 / 8.5 on Letter, 297 / 210 on A4. A drawing
+  // replaced as it's read, as the page is drawn again, has no box: NaN, and the poll reads again.
   const shape = async () => {
-    const box = await boxOf(preview.locator(".react-pdf__Page__canvas").first())
-    return box.height / box.width
+    const box = await preview.locator(".react-pdf__Page__canvas").first().boundingBox()
+    return box ? box.height / box.width : NaN
   }
-  expect(await shape()).toBeCloseTo(11 / 8.5, 1)
+  await expect.poll(shape).toBeCloseTo(11 / 8.5, 1)
   await expect(button).toHaveText("Download PDF")
 
   await styleTab(page).click()
