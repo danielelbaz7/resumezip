@@ -53,12 +53,13 @@ describe("coverage", () => {
   })
 
   test("a character the family lacks brings every font that has it", () => {
-    const greek = "Ελένη"
-    const missing = [...greek].find(
+    // Lato has no ruble sign.
+    const price = "₽ 1 500"
+    const missing = [...price].find(
       (char) => !filesOf("Lato").every((file) => FONT_INFO[file].info.some((face) => covers(face.coverage, char.codePointAt(0)!))),
     )
     expect(missing).toBeDefined()
-    const extra = fontsFor([{ family: "Lato" }], greek).filter((file) => !filesOf("Lato").includes(file))
+    const extra = fontsFor([{ family: "Lato" }], price).filter((file) => !filesOf("Lato").includes(file))
     expect(extra.length).toBeGreaterThan(0)
   })
 

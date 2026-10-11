@@ -9,7 +9,11 @@
 
 #set document(title: heading-or(p.name, "Resume"))
 #set page(paper: page-paper("us-letter"), margin: page-margin((x: 0.35in, top: 0.5in, bottom: 0.35in)))
-#set text(font: "Lato", size: sized(9.96pt), lang: "en")
+// Lato 2's word spaces are wider than those of the Lato 1 this was drawn with
+// (0.193em), which would move resumes' line breaks. Its letters run a little
+// narrower, so the space that keeps lines breaking where they did is a little
+// wider than Lato 1's: measured on the samples and the importer's corpus.
+#set text(font: "Lato", size: sized(9.96pt), lang: "en", spacing: 0.2125em)
 // All vertical spacing below is explicit, measured against the original PDF,
 // and scaled by Fine-tune (see common.typ). Gaps are from one line's
 // baseline to the top of the next line's capitals.
