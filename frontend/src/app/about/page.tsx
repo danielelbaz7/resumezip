@@ -7,7 +7,10 @@ import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
 
-export const metadata: Metadata = { title: "About" }
+export const metadata: Metadata = {
+  title: "About",
+  description: "Who makes resumezip, what it promises, how your PDF is made in your own browser, and how to get in touch.",
+}
 
 const REPO_URL = "https://github.com/ian-hoang/resumezip"
 const ISSUES_URL = `${REPO_URL}/issues`

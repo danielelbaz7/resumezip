@@ -40,6 +40,23 @@ test.describe("search engines", () => {
   }
   const meta = (html: string, name: string) => html.match(new RegExp(`<meta name="${name}" content="([^"]*)"`))?.[1]
 
+  test("find every page in the sitemap, each with its own description", async ({ request }) => {
+    expect(await (await request.get("/robots.txt")).text()).toContain("Sitemap: https://www.tryresumezip.com/sitemap.xml")
+    const sitemap = await (await request.get("/sitemap.xml")).text()
+    const paths = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, url]) => new URL(url).pathname)
+    expect(paths).toEqual(expect.arrayContaining(["/", "/templates", "/about", "/terms"]))
+
+    const descriptions = new Map<string, string>()
+    for (const path of paths) {
+      const html = await head(request, path)
+      expect(meta(html, "robots"), path).toBeUndefined()
+      const description = meta(html, "description")
+      expect(description, path).toBeTruthy()
+      expect(descriptions.get(description!), `${path} has the same description as`).toBeUndefined()
+      descriptions.set(description!, path)
+    }
+  })
+
   test("are asked to leave the dashboard and the editor out", async ({ request }) => {
     for (const path of ["/create/dashboard", "/create/new/a-resume"]) {
       expect(meta(await head(request, path), "robots"), path).toBe("noindex")

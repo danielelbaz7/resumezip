@@ -5,7 +5,11 @@ import { newTemplate, TEMPLATES } from "@/lib/templates"
 import TemplateGallery from "./TemplateGallery"
 import { SHEET } from "@/components/site/sheet"
 
-export const metadata: Metadata = { title: "Templates" }
+export const metadata: Metadata = {
+  title: "Templates",
+  description:
+    "Free resume templates made for the hiring software (ATS) that reads them. Pick one, write in your browser, and download the PDF.",
+}
 
 export default function TemplatesPage() {
   // The page is built ahead of time, so the newest template is marked new until a build after it's no longer new.
