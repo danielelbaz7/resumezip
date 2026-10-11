@@ -4,6 +4,7 @@ import { wordFileResume } from "@/lib/import/open"
 import { samples } from "@/lib/import/testRender"
 import { fromAttachment, toAttachment } from "@/lib/resumeFile"
 import { asSaved } from "@/lib/testResume"
+import { TEMPLATE_SETTINGS, type Tune } from "@/lib/tune"
 import { toWordFile } from "./word"
 import { storedFile, zip, zipDirectory } from "./zip"
 
@@ -112,6 +113,51 @@ describe("a Word file", () => {
     expect(partsOf(file)["word/document.xml"]).toContain("<w:body><w:p/><w:sectPr>")
     expect(await linesFromDocx(file.buffer)).toEqual([])
     expect(reopened(file)).toEqual(fromAttachment(toAttachment(asSaved({}))))
+  })
+})
+
+describe("a Word file's page", () => {
+  /** Ada's resume on `tune`'s paper, with an entry whose dates are on a tab stop. */
+  const ada = (tune?: Tune) =>
+    asSaved({
+      selectedTemplate: "jake",
+      tune,
+      profileSection: { fullName: "Ada Lovelace" },
+      workExperienceSection: [{ id: 1, companyName: "Analytical Engine", workStartDate: "1842", workEndDate: "1843" }],
+    })
+
+  /** The page's size and margins, and where its tab stops for dates are, in twentieths of a point. */
+  function pageOf(file: Uint8Array<ArrayBuffer>) {
+    const parts = partsOf(file)
+    const document = parts["word/document.xml"]
+    const [, width, height] = /<w:pgSz w:w="(\d+)" w:h="(\d+)"\/>/.exec(document) ?? []
+    const [, ...margins] = /<w:pgMar w:top="(\d+)" w:right="(\d+)" w:bottom="(\d+)" w:left="(\d+)"/.exec(document) ?? []
+    const tabs = [document, parts["word/styles.xml"]].flatMap((part) =>
+      [...part.matchAll(/<w:tab w:val="right" w:pos="(\d+)"\/>/g)].map(([, position]) => Number(position)),
+    )
+    return { width: Number(width), height: Number(height), margins: margins.map(Number), tabs: [...new Set(tabs)] }
+  }
+
+  // Half-inch margins all round, and the dates' tab stop an inch in from the paper's width.
+  const margins = [720, 720, 720, 720]
+  const a4 = { width: 11906, height: 16838, margins, tabs: [11906 - 1440] }
+  const letter = { width: 12240, height: 15840, margins, tabs: [12240 - 1440] }
+
+  test("is A4 when the resume is set to A4, with the dates on its right margin", () => {
+    expect(pageOf(toWordFile(ada({ paper: "a4" })))).toEqual(a4)
+  })
+
+  test("is Letter when the resume is set to Letter, or to its template's own, which is Letter", () => {
+    expect(TEMPLATE_SETTINGS.jake.paper).toBe("us-letter")
+    expect(pageOf(toWordFile(ada({ paper: "us-letter" })))).toEqual(letter)
+    expect(pageOf(toWordFile(ada()))).toEqual(letter)
+  })
+
+  test("on A4 still brings back its resume, paper and all", () => {
+    const resume = ada({ paper: "a4" })
+    const opened = reopened(toWordFile(resume))
+    expect(opened).toEqual(fromAttachment(toAttachment(resume)))
+    expect(opened?.tune).toEqual({ paper: "a4" })
   })
 })
 
