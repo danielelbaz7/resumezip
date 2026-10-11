@@ -108,8 +108,9 @@ test("a LaTeX file with letters pdfLaTeX can't print says to compile it with XeL
   await page.getByRole("menuitem", { name: /^Word/ }).click()
   await word
   await expect(page.getByRole("status").filter({ hasText: "Word file downloaded" })).toBeAttached()
-  await page.waitForTimeout(500)
-  await expect(notice).toHaveCount(0)
+  // Counted once the menu's gone, as that's when it would come back: a retrying check would pass once it timed out.
+  await expect(page.getByRole("menu")).toHaveCount(0)
+  expect(await notice.count()).toBe(0)
 
   // Closed, the keyboard goes back to the ▾.
   await downloadLatex(page)
