@@ -10,7 +10,8 @@ import {
   dateRange,
   emailLink,
   ENGINES,
-  HEROS,
+  heros,
+  HEROS_FALLBACKS,
   href,
   italic,
   itemText,
@@ -36,14 +37,14 @@ const underline = (body: string) => `\\resumeUnderline{${body}}`
 /** A link printed as its own text, underlined, as the .typ's `ul`. */
 const underlined: ShowLink = (url, text) => shownLink(url, text, underline)
 
-function preamble(units: Units, title: string): string {
+function preamble(units: Units, title: string, fallbacks: string): string {
   // TeX Gyre Heros's cap height is 0.729em: the .typ measures each space to a line's capitals.
   const leading = units.space(4.71)
   const line = (size: number) => sum(units.size(size * 0.729), leading)
   return `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-${HEROS}
+${heros(fallbacks)}
 \\usepackage[margin=${units.margin(0.5)}]{geometry}
 \\usepackage{enumitem}
 ${links(title)}
@@ -226,4 +227,5 @@ export const referme: LatexTemplate = {
   credit: ["resumezip's Compact template"],
   preamble,
   body,
+  fallbacks: HEROS_FALLBACKS,
 }

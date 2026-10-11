@@ -15,7 +15,8 @@ import {
   dateRange,
   emailLink,
   ENGINES,
-  HEROS,
+  heros,
+  HEROS_FALLBACKS,
   joinPresent,
   latex,
   links,
@@ -47,10 +48,10 @@ const fontSize = (units: Units, size: number) =>
 /** A project's links, in grey. */
 const greyLink: ShowLink = (url, text) => `\\textcolor{grey}{${shownLink(url, text)}}`
 
-const preamble = (units: Units, title: string) => `\\documentclass[${units.paper("letterpaper")}]{article}
+const preamble = (units: Units, title: string, fallbacks: string) => `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-${HEROS}
+${heros(fallbacks)}
 \\usepackage[left=${units.margin(0.55)}, right=${units.margin(0.55)}, top=${units.margin(0.48)}, bottom=${units.margin(0.42)}]{geometry}
 \\usepackage{xcolor}
 \\usepackage{tabularx}
@@ -275,4 +276,5 @@ export const swiss: LatexTemplate = {
   credit: ["resumezip's Swiss template"],
   preamble,
   body,
+  fallbacks: HEROS_FALLBACKS,
 }

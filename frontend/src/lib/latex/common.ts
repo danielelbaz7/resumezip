@@ -15,8 +15,15 @@ export interface LatexTemplate {
    * file, as "Based on Jake's Resume: https://github.com/jakegut/resume".
    */
   credit: string[]
-  /** \documentclass and everything up to \begin{document}. `title` is the PDF's title, escaped. */
-  preamble: (units: Units, title: string) => string
+  /**
+   * \documentclass and everything up to \begin{document}. `title` is the PDF's
+   * title, escaped. `fallbacks` is the set-up of fonts for letters the
+   * template's fonts lack (`fallbackFonts`), for XeLaTeX and LuaLaTeX, or
+   * nothing for a file pdfLaTeX can compile; it goes before the fonts.
+   */
+  preamble: (units: Units, title: string, fallbacks: string) => string
+  /** Where letters the template's fonts lack print, as in its PDF. */
+  fallbacks: Fallbacks
   /** Everything between \begin{document} and \end{document}. */
   body: (data: TemplateData, units: Units) => string
 }
@@ -51,19 +58,34 @@ const UNPRINTABLE = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDFFF\0-\x08\x0B\x0
 // LuaLaTeX. A lone ' and ` still print as curly quotes, as LaTeX writes them.
 const LIGATURE = /([-'`<>,])(?=\1)|[!?](?=`)/g
 
+// Signs NFC turns into letters pdfLaTeX can't print, as toTemplateData has
+// already done: the ohm sign (U+2126) into Greek's capital omega, and the
+// angle brackets (U+2329, U+232A) into CJK ones. They're the same characters
+// to Unicode, so they print as signs pdfLaTeX has: an omega that isn't part of
+// a Greek word as the ohm sign (textcomp's, in the template's font), as in
+// "10 kΩ", and the brackets as maths' (Lato's textcomp has none).
+const SIGNS: [RegExp, string][] = [
+  [/(?<!\p{Script=Greek}\p{M}*)\u03A9(?!\p{M}*\p{Script=Greek})/gu, "\\textohm{}"],
+  [/\u3008/g, "\\ensuremath{\\langle}"],
+  [/\u3009/g, "\\ensuremath{\\rangle}"],
+]
+
 /**
  * Text as LaTeX that prints it as typed. Line breaks are `lineBreak`; tabs
  * are spaces. Letters are composed (NFC), since pdfLaTeX can print "é" but not
  * "e" followed by a combining accent, as macOS sometimes types it.
  */
 export function latex(value: string, lineBreak = " "): string {
-  return value
-    .normalize("NFC")
-    .replace(UNPRINTABLE, (match) => (match.length === 2 ? match : ""))
-    .replace(/[\\{}&%$#_~^"]/g, (special) => SPECIAL[special])
-    .replace(LIGATURE, "$&\\kern0pt ")
-    .replace(/\t/g, " ")
-    .replace(/\r\n?|\n/g, lineBreak)
+  return SIGNS.reduce(
+    (text, [sign, command]) => text.replace(sign, command),
+    value
+      .normalize("NFC")
+      .replace(UNPRINTABLE, (match) => (match.length === 2 ? match : ""))
+      .replace(/[\\{}&%$#_~^"]/g, (special) => SPECIAL[special])
+      .replace(LIGATURE, "$&\\kern0pt ")
+      .replace(/\t/g, " ")
+      .replace(/\r\n?|\n/g, lineBreak),
+  )
 }
 
 /**
@@ -342,21 +364,282 @@ export const ROW = `\\newcolumntype{L}{>{\\raggedright\\arraybackslash}X}
 
 /**
  * TeX Gyre Heros, as the Helvetica-style templates are set in: its Type 1
- * fonts with pdfLaTeX, its OpenType ones otherwise. Some TeX installs leave
- * out TeX Gyre's OpenType files; Nimbus Sans, which TeX Gyre Heros is drawn
- * from, stands in for them.
+ * fonts with pdfLaTeX, its OpenType ones otherwise, after `fallbacks`, its
+ * fallback fonts' set-up (HEROS_FALLBACKS), if the file has one, which loads
+ * fontspec. Some TeX installs leave out TeX Gyre's OpenType files; Nimbus
+ * Sans, which TeX Gyre Heros is drawn from, stands in for them.
  */
-export const HEROS = `\\ifPDFTeX
+export const heros = (fallbacks: string) => `\\ifPDFTeX
   \\usepackage{tgheros}
   \\renewcommand*\\familydefault{\\sfdefault}
 \\else
-  \\usepackage{fontspec}
-  \\IfFontExistsTF{texgyreheros-regular.otf}{
+${fallbacks || "  \\usepackage{fontspec}\n"}  \\IfFontExistsTF{texgyreheros-regular.otf}{
     \\setmainfont{texgyreheros}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold, ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
   }{
     \\setmainfont{zhv}[Extension=.otf, UprightFont=*-Reg, BoldFont=*-Bol, ItalicFont=*-RegIta, BoldItalicFont=*-BolIta]
   }
 \\fi`
+
+// ---------- Letters a template's fonts lack ----------
+
+/**
+ * A family that prints letters a template's fonts lack, as the PDF does, from
+ * TeX Live's OpenType files, which Overleaf has too.
+ */
+export interface FallbackFamily {
+  /** Its name, for the file's comment. */
+  name: string
+  /** The command XeLaTeX switches to it with. */
+  command: string
+  /** Its regular, bold, italic and bold italic files. */
+  files: readonly [string, string, string, string]
+  /** More of fontspec's features, for XeLaTeX. */
+  features?: string
+}
+
+/** Source Sans 3, the PDF's fallback, under its older name: TeX Live 2023 has no Source Sans 3. */
+export const SOURCE_SANS: FallbackFamily = {
+  name: "Source Sans Pro",
+  command: "\\resumeSourceSans",
+  files: ["SourceSansPro-Regular.otf", "SourceSansPro-Bold.otf", "SourceSansPro-RegularIt.otf", "SourceSansPro-BoldIt.otf"],
+}
+
+/** The serif the PDF prints signs in that a template's fonts and its fallback lack, as ₿. */
+export const CHARIS: FallbackFamily = {
+  name: "Charis SIL",
+  command: "\\resumeCharis",
+  files: ["CharisSIL-Regular.ttf", "CharisSIL-Bold.ttf", "CharisSIL-Italic.ttf", "CharisSIL-BoldItalic.ttf"],
+}
+
+export const LATO: FallbackFamily = {
+  name: "Lato",
+  command: "\\resumeLato",
+  files: ["Lato-Regular.ttf", "Lato-Bold.ttf", "Lato-Italic.ttf", "Lato-BoldItalic.ttf"],
+  // Lato has no small capitals: what it prints in small capitals' place (as
+  // Deedy's Raleway roles) is its regular letters, as in the PDF, without
+  // LaTeX's warning that the shape is missing.
+  features: "SmallCapsFont=Lato-Regular.ttf",
+}
+
+export const EB_GARAMOND: FallbackFamily = {
+  name: "EB Garamond",
+  command: "\\resumeGaramond",
+  files: ["EBGaramond-Regular.otf", "EBGaramond-Bold.otf", "EBGaramond-Italic.otf", "EBGaramond-BoldItalic.otf"],
+}
+
+/** Letters XeLaTeX prints in a fallback together: all of them, unless the font they're in has `test`. */
+export interface Letters {
+  /**
+   * One of them that a font has only if it has them all. Greek's is accented:
+   * fonts with only some Greek letters have none of those, and the PDF prints
+   * all of a Greek word in one font.
+   */
+  test: string
+  /** Their code points, as the first and last of each range. */
+  ranges: readonly (readonly [number, number])[]
+}
+
+/** Greek, and the ohm sign, which is a Greek letter to Unicode (and to luaotfload's multiscript). */
+export const GREEK: Letters = {
+  test: "ά",
+  ranges: [
+    [0x370, 0x3ff],
+    [0x1f00, 0x1fff],
+    [0x2126, 0x2126],
+  ],
+}
+export const CYRILLIC: Letters = { test: "и", ranges: [[0x400, 0x52f]] }
+/** The letters only Vietnamese has: ơ, ư, and those with two accents or a dot below. */
+export const VIETNAMESE: Letters = {
+  test: "ộ",
+  ranges: [
+    [0x1a0, 0x1a1],
+    [0x1af, 0x1b0],
+    [0x1ea0, 0x1ef9],
+  ],
+}
+export const ARROWS: Letters = { test: "→", ranges: [[0x2190, 0x21ff]] }
+
+/** Currency signs, which a font has one by one: the first is the test. */
+export const signs = (characters: string): Letters => {
+  const points = [...characters].map((character) => character.codePointAt(0)!)
+  return { test: characters[0], ranges: points.map((point) => [point, point] as const) }
+}
+
+/** A font a template prints with, by the name fontspec loads it under. */
+export interface TemplateFont {
+  name: string
+  /**
+   * Its bold and italic each fall back to the fallbacks' bold and italic.
+   * Not for a font of one file (Raleway Medium, Linux Biolinum), nor New
+   * Computer Modern, whose sizes load files of their own: fontspec rejects
+   * BoldFeatures there, so all its faces fall back to the regular ones.
+   */
+  faces: boolean
+  /** It has only some Greek letters, so all of Greek prints in the first fallback, as in the PDF. */
+  someGreek: boolean
+}
+
+/** Where letters a template's fonts lack print in XeLaTeX and LuaLaTeX, as its PDF prints them. */
+export interface Fallbacks {
+  /** What the file's comment says: which letters print in which family. */
+  comment: string
+  fonts: readonly TemplateFont[]
+  /** The families letters the fonts lack print in, in the order LuaLaTeX tries them. */
+  families: readonly FallbackFamily[]
+  /**
+   * For XeLaTeX, which can't try fonts in turn: the letters the fonts may
+   * lack, and the family each group prints in.
+   */
+  letters: readonly (readonly [Letters, FallbackFamily])[]
+}
+
+/** TeX Gyre Heros, in Blueprint, Compact and Swiss. */
+export const HEROS_FALLBACKS: Fallbacks = {
+  comment: `TeX Gyre Heros has no Cyrillic and only some Greek letters, so these print
+as in the PDF: Cyrillic, all of Greek and ₹ ₽ ₺ ₴ in Source Sans Pro (Source
+Sans 3 under its older name), and ₿ in Charis SIL.`,
+  fonts: [
+    { name: "texgyreheros", faces: true, someGreek: true },
+    { name: "zhv", faces: true, someGreek: true },
+  ],
+  families: [SOURCE_SANS, CHARIS],
+  letters: [
+    [GREEK, SOURCE_SANS],
+    [CYRILLIC, SOURCE_SANS],
+    [signs("₹₽₺₴"), SOURCE_SANS],
+    [signs("₿"), CHARIS],
+  ],
+}
+
+// A character's code as TeX reads it: "03AC.
+const code = (point: number) => `"${point.toString(16).toUpperCase().padStart(4, "0")}`
+
+// XeLaTeX: \resumeLetters{\family}{letter}{first-last,...} makes the
+// characters from first to last a class of their own (see "Character
+// classes" in XeTeX's reference). Where a run of them starts, XeTeX inserts a
+// \begingroup and a switch to \family, unless the font they follow has
+// letter; where it ends, the \endgroup; between two classes, both. Class
+// numbers go through \numexpr, so the space after each ends it.
+const XETEX_CLASSES = String.raw`\makeatletter
+\newcount\resume@code
+\def\resume@classes{}
+\newcommand*\resumeLetters[3]{%
+  \newXeTeXintercharclass\resume@class
+  \edef\resume@this{\the\resume@class}%
+  \@for\resume@range:=#3\do{\expandafter\resume@letters\resume@range\@nil}%
+  \expandafter\def\csname resume@start@\resume@this\endcsname{\begingroup\iffontchar\font#2 \else#1\fi}%
+  \def\resume@pair##1{\resume@between{##1}\resume@this\resume@between\resume@this{##1}}%
+  \resume@classes
+  \resume@pair\z@
+  \resume@pair\e@alloc@intercharclass@top
+  \edef\resume@classes{\unexpanded\expandafter{\resume@classes}\noexpand\resume@pair{\resume@this}}}
+\def\resume@letters#1-#2\@nil{%
+  \resume@code=#1\relax
+  \loop
+    \XeTeXcharclass\resume@code=\resume@class
+  \ifnum\resume@code<#2\relax
+    \advance\resume@code\@ne
+  \repeat}
+\def\resume@between#1#2{%
+  \edef\resume@next{\XeTeXinterchartoks\the\numexpr#1\relax\space\the\numexpr#2\relax\space={%
+    \ifcsname resume@start@\the\numexpr#1\relax\endcsname\endgroup\fi
+    \ifcsname resume@start@\the\numexpr#2\relax\endcsname
+      \expandafter\noexpand\csname resume@start@\the\numexpr#2\relax\endcsname
+    \fi}}%
+  \resume@next}
+\makeatother`
+
+const FACES = ["regular", "bold", "italic", "bolditalic"] as const
+type Face = (typeof FACES)[number]
+
+/**
+ * The set-up that prints letters a template's fonts lack in its fallback
+ * fonts, for a file that asks for XeLaTeX: lines indented to sit in an
+ * \ifPDFTeX's \else, before the template loads its fonts.
+ *
+ * XeLaTeX switches fonts by character class (XETEX_CLASSES). LuaLaTeX uses
+ * luaotfload's fallback feature, which takes a letter a font lacks from the
+ * first font in its list that has it, and its multiscript feature, which
+ * prints all of a script in a font of its own: Greek, where a font has only
+ * some of it. Each face falls back to the same face, bold to bold, as the
+ * PDF's do; fontspec's per-font defaults attach them, as they reach fonts the
+ * templates load with packages too. luaotfload also prints digits and
+ * punctuation right after a Greek word in the Greek font, where the PDF keeps
+ * them in the template's.
+ */
+export function fallbackFonts({ comment, fonts, families, letters }: Fallbacks): string {
+  const xetexFamilies = families.filter((family) => letters.some(([, to]) => to === family))
+  const spec = (file: string, features = "") => `file:${file}:mode=node;${features}`
+  const features = (face: Face, someGreek: boolean) =>
+    `RawFeature={fallback=resume-${face}${someGreek ? `;multiscript=resume-${face}` : ""}}`
+  // For each kind of font, the regular face's fallbacks for every face, which
+  // those with bold and italic files override with their own.
+  const defaults = [true, false].flatMap((faces) =>
+    [true, false].flatMap((someGreek) => {
+      const names = fonts.filter((font) => font.faces === faces && font.someGreek === someGreek).map((font) => font.name)
+      if (!names.length) return []
+      const each = faces
+        ? [
+            ",",
+            `BoldFeatures={${features("bold", someGreek)}},`,
+            `ItalicFeatures={${features("italic", someGreek)}},`,
+            `BoldItalicFeatures={${features("bolditalic", someGreek)}}`,
+          ].join("\n    ")
+        : ""
+      return [`  \\defaultfontfeatures[${names.join(",")}]{${features("regular", someGreek)}${each}}`]
+    }),
+  )
+
+  return [
+    ...comment.split("\n").map((line) => `% ${line}`),
+    "\\usepackage{fontspec}",
+    "\\ifXeTeX",
+    "  % XeLaTeX: each \\resumeLetters is a class of characters. Where a run of",
+    "  % them starts, XeTeX switches to its font, unless the font it's in has the",
+    "  % letter named (for Greek, an accented one, which fonts with only some",
+    "  % Greek letters lack).",
+    ...xetexFamilies.map(({ command, files: [regular, bold, italic, boldItalic], features }) =>
+      [
+        `  \\newfontfamily${command}{${regular}}[BoldFont=${bold},`,
+        `ItalicFont=${italic}, BoldItalicFont=${boldItalic},`,
+        `FontFace={l}{n}{${regular}}, FontFace={l}{it}{${italic}}${features ? `, ${features}` : ""}]`,
+      ].join("\n    "),
+    ),
+    ...XETEX_CLASSES.split("\n").map((line) => `  ${line}`),
+    ...letters.map(
+      ([{ test, ranges }, { command }]) =>
+        `  \\resumeLetters{${command}}{${code(test.codePointAt(0)!)}}{${ranges.map(([first, last]) => `${code(first)}-${code(last)}`).join(",")}}`,
+    ),
+    "  \\XeTeXinterchartokenstate=1",
+    "\\else",
+    "  % LuaLaTeX: luaotfload takes a letter a font lacks from the first of these",
+    "  % fonts that has it, in the same face, and all of Greek from the first,",
+    "  % where the font has only some of it.",
+    "  \\directlua{",
+    ...FACES.map(
+      (face, index) =>
+        `    luaotfload.add_fallback("resume-${face}", {${families.map((family) => `"${spec(family.files[index])}"`).join(", ")}})`,
+    ),
+    ...(fonts.some((font) => font.someGreek)
+      ? FACES.map(
+          (face, index) =>
+            `    luaotfload.add_multiscript("resume-${face}", {grek = "${spec(families[0].files[index], `script=grek;fallback=resume-${face}`)}"})`,
+        )
+      : []),
+    "  }",
+    ...defaults,
+    "\\fi",
+  ]
+    .join("\n")
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n")
+    .concat("\n")
+}
+
+/** XeLaTeX and LuaLaTeX's `setUp`, in a branch of its own after \ifPDFTeX, or nothing when there's none. */
+export const unlessPdfLatex = (setUp: string) => (setUp ? `\\ifPDFTeX\\else\n${setUp}\\fi\n` : "")
 
 // ---------- What pdfLaTeX can print ----------
 

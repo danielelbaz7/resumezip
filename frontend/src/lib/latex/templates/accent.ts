@@ -14,6 +14,7 @@ import { SECTIONS, type SectionName } from "@/components/editor/sections"
 import type { TemplateData } from "@/lib/typst/resumeData"
 import {
   bold,
+  CHARIS,
   citations,
   dateRange,
   emailLink,
@@ -27,8 +28,11 @@ import {
   runs,
   sectionsOf,
   shownLink,
+  signs,
   sum,
+  unlessPdfLatex,
   webLink,
+  type Fallbacks,
   type LatexTemplate,
   type Section,
   type ShowLink,
@@ -42,6 +46,13 @@ const CAP = 0.66
 // The text size, in points.
 const BASE = 10.5
 
+const FALLBACKS: Fallbacks = {
+  comment: `Source Sans Pro has no ₿, which prints in Charis SIL, as in the PDF.`,
+  fonts: [{ name: "SourceSansPro", faces: true, someGreek: false }],
+  families: [CHARIS],
+  letters: [[signs("₿"), CHARIS]],
+}
+
 /** Fine-tune's lengths in bp, and the leading above a line of text this size and its \baselineskip. */
 function lengthsOf(units: Units) {
   const size = (pt: number) => units.size(pt)
@@ -54,7 +65,7 @@ function lengthsOf(units: Units) {
 /** Links print as plain text, as accent.typ's do. */
 const plain: ShowLink = (url, text) => shownLink(url, text)
 
-const preamble = (units: Units, title: string) => {
+const preamble = (units: Units, title: string, fallbacks: string) => {
   const { size, space, gap, lead, pitch } = lengthsOf(units)
   const font = (pt: number) => `\\fontsize{${size(pt)}}{${pitch(pt)}}\\selectfont`
   const rise = size(0.32 * BASE)
@@ -62,7 +73,7 @@ const preamble = (units: Units, title: string) => {
   return `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-% Source Sans Pro: Source Sans 3, the PDF's font, under its older name
+${unlessPdfLatex(fallbacks)}% Source Sans Pro: Source Sans 3, the PDF's font, under its older name
 \\usepackage[default]{sourcesanspro}
 \\usepackage[left=${units.margin(0.6)}, right=${units.margin(0.6)}, top=${units.margin(0.48)}, bottom=${units.margin(0.42)}]{geometry}
 \\usepackage{xcolor}
@@ -311,4 +322,5 @@ export const accent: LatexTemplate = {
   credit: ["resumezip's Accent template"],
   preamble,
   body,
+  fallbacks: FALLBACKS,
 }

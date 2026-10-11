@@ -9,10 +9,12 @@
 
 import {
   bold,
+  CHARIS,
   citations,
   dateRange,
   emailLink,
   ENGINES,
+  GREEK,
   joinPresent,
   latex,
   links,
@@ -21,8 +23,11 @@ import {
   runs,
   sectionsOf,
   shownLink,
+  SOURCE_SANS,
   sum,
+  unlessPdfLatex,
   webLink,
+  type Fallbacks,
   type LatexTemplate,
   type Units,
 } from "../common"
@@ -35,10 +40,18 @@ const CAP = 0.698
 const LEADING = 0.52
 const NAME = 18
 
-const preamble = (units: Units, title: string) => `\\documentclass[${units.paper("letterpaper")}]{article}
+const FALLBACKS: Fallbacks = {
+  comment: `IBM Plex Mono has no Greek but π, so all of Greek prints in Source Sans Pro
+(Source Sans 3 under its older name), as in the PDF.`,
+  fonts: [{ name: "IBMPlexMono", faces: true, someGreek: true }],
+  families: [SOURCE_SANS, CHARIS],
+  letters: [[GREEK, SOURCE_SANS]],
+}
+
+const preamble = (units: Units, title: string, fallbacks: string) => `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-% IBM Plex Mono for everything, with its semibold as bold
+${unlessPdfLatex(fallbacks)}% IBM Plex Mono for everything, with its semibold as bold
 \\usepackage[semibold]{plex-mono}
 \\renewcommand*\\familydefault{\\ttdefault}
 \\usepackage[left=${units.margin(0.55)}, right=${units.margin(0.55)}, top=${units.margin(0.5)}, bottom=${units.margin(0.42)}]{geometry}
@@ -266,4 +279,5 @@ export const mono: LatexTemplate = {
   credit: ["resumezip's Mono template"],
   preamble,
   body,
+  fallbacks: FALLBACKS,
 }

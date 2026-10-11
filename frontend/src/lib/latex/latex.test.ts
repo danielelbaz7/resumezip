@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs"
+import path from "node:path"
 import { describe, expect, test } from "vitest"
 import { samples } from "@/lib/import/testRender"
-import { TEMPLATES } from "@/lib/templates"
+import { TEMPLATES, type TemplateId } from "@/lib/templates"
 import { asSaved } from "@/lib/testResume"
 import { TEMPLATE_SETTINGS } from "@/lib/tune"
 import { toLatexFile } from "."
@@ -245,6 +247,104 @@ const EVERYTHING = {
   },
 }
 
+// Letters the templates' fonts may lack: Cyrillic, Greek (an unaccented letter,
+// which some fonts have, though all of Greek prints in one font), Vietnamese,
+// and currency signs.
+const LETTERS = ["И", "λ", "ộ", "₹", "₽", "₿"] as const
+type Fallback = "SourceSansPro" | "CharisSIL" | "Lato" | "EBGaramond" | null
+
+/** Where the letters print in XeLaTeX and LuaLaTeX when a template's fonts lack them, as its PDF prints them. */
+interface Fallbacks {
+  /** The family XeLaTeX switches to for each letter, by its files' name, or null where the template's font prints it. */
+  xelatex: Record<(typeof LETTERS)[number], Fallback>
+  /** The families LuaLaTeX takes a letter from, first first. */
+  lualatex: Fallback[]
+  /** The fonts, by the names fontspec loads them under, that have only some Greek, and the family all of it prints in. */
+  greek: { fonts: string[]; to: Fallback }
+}
+
+const HEROS: Fallbacks = {
+  xelatex: { И: "SourceSansPro", λ: "SourceSansPro", ộ: null, "₹": "SourceSansPro", "₽": "SourceSansPro", "₿": "CharisSIL" },
+  lualatex: ["SourceSansPro", "CharisSIL"],
+  greek: { fonts: ["texgyreheros", "zhv"], to: "SourceSansPro" },
+}
+const LATO_SIGNS: Fallbacks = {
+  xelatex: { И: null, λ: null, ộ: null, "₹": null, "₽": "CharisSIL", "₿": "CharisSIL" },
+  lualatex: ["CharisSIL"],
+  greek: { fonts: [], to: null },
+}
+const FALLBACKS: Record<TemplateId, Fallbacks> = {
+  levelsfyi: HEROS,
+  referme: HEROS,
+  swiss: HEROS,
+  mono: {
+    xelatex: { И: null, λ: "SourceSansPro", ộ: null, "₹": null, "₽": null, "₿": null },
+    lualatex: ["SourceSansPro", "CharisSIL"],
+    greek: { fonts: ["IBMPlexMono"], to: "SourceSansPro" },
+  },
+  // Raleway, in roles, dates and places: TeX Live's has no Vietnamese ộ, which the PDF's has.
+  deedy: {
+    xelatex: { И: null, λ: "Lato", ộ: "Lato", "₹": null, "₽": "CharisSIL", "₿": "CharisSIL" },
+    lualatex: ["Lato", "CharisSIL"],
+    greek: { fonts: ["Raleway-Medium"], to: "Lato" },
+  },
+  // Charis SIL for the text, Linux Biolinum, which lacks ₹ ₽ ₿, for headings.
+  margin: {
+    xelatex: { И: null, λ: "EBGaramond", ộ: null, "₹": "EBGaramond", "₽": "EBGaramond", "₿": "CharisSIL" },
+    lualatex: ["EBGaramond", "CharisSIL"],
+    greek: { fonts: ["CharisSIL"], to: "EBGaramond" },
+  },
+  ian: LATO_SIGNS,
+  modernjack: LATO_SIGNS,
+  accent: {
+    xelatex: { И: null, λ: null, ộ: null, "₹": null, "₽": null, "₿": "CharisSIL" },
+    lualatex: ["CharisSIL"],
+    greek: { fonts: [], to: null },
+  },
+  resumeworded: {
+    xelatex: { И: null, λ: null, ộ: null, "₹": null, "₽": null, "₿": "CharisSIL" },
+    lualatex: ["CharisSIL"],
+    greek: { fonts: [], to: null },
+  },
+  // TeX Live 2023's New Computer Modern has no ₹ ₽ ₿; the PDF's newer one has.
+  jake: {
+    xelatex: { И: null, λ: null, ộ: null, "₹": "CharisSIL", "₽": "CharisSIL", "₿": "CharisSIL" },
+    lualatex: ["CharisSIL"],
+    greek: { fonts: [], to: null },
+  },
+}
+
+/** A file's name without its face and extension: "SourceSansPro" for SourceSansPro-Bold.otf. */
+const familyOf = (file: string) => file.replace(/-\w+\.(otf|ttf)$/, "")
+
+/** Where the file's XeLaTeX set-up prints `letter`: the family of the \resumeLetters class that has it, or null. */
+function xelatexFallback(text: string, letter: string): string | null {
+  const families = new Map([...text.matchAll(/\\newfontfamily(\\\w+)\{([\w.-]+)\}/g)].map(([, command, file]) => [command, familyOf(file)]))
+  const point = letter.codePointAt(0)!
+  for (const [, command, ranges] of text.matchAll(/\\resumeLetters\{(\\\w+)\}\{"[0-9A-F]+\}\{([^}]*)\}/g)) {
+    for (const range of ranges.split(",")) {
+      const [first, last] = range.split("-").map((code) => parseInt(code.slice(1), 16))
+      if (point >= first && point <= last) return families.get(command)!
+    }
+  }
+  return null
+}
+
+/** The file's LuaLaTeX set-up: its fallbacks, and which fonts print all of Greek in which family. */
+function lualatexFallbacks(text: string) {
+  const list = text.match(/luaotfload\.add_fallback\("resume-regular", \{([^}]*)\}\)/)?.[1] ?? ""
+  const greek = text.match(/luaotfload\.add_multiscript\("resume-regular", \{grek = "file:([\w.-]+):/)?.[1]
+  return {
+    fallbacks: [...list.matchAll(/"file:([\w.-]+):/g)].map(([, file]) => familyOf(file)),
+    greek: {
+      fonts: [...text.matchAll(/\\defaultfontfeatures\[([^\]]*)\]\{RawFeature=\{[^}]*multiscript=/g)].flatMap(([, names]) =>
+        names.split(","),
+      ),
+      to: greek ? familyOf(greek) : null,
+    },
+  }
+}
+
 // Accent colors a heading's first three letters, so its headings are in two parts.
 const HEADINGS = ["Work heading", "Talks", "Notes"]
 const printedIn = (id: string, name: string) =>
@@ -343,6 +443,22 @@ describe.each(IDS)("a LaTeX file in %s's layout", (id) => {
     expect(balanced(text)).toBe(true)
     expect(beyondPdfLatex).toEqual([])
     expect(text).not.toContain("xelatex")
+    // Nor does it need fonts for letters it doesn't have.
+    expect(text).not.toContain("\\resumeLetters")
+    expect(text).not.toContain("luaotfload")
+  })
+
+  test("prints Cyrillic, Greek, Vietnamese and currency signs its fonts lack in the fonts its PDF prints them in", () => {
+    const { text } = toLatexFile(
+      asSaved({
+        selectedTemplate: id,
+        profileSection: { fullName: "Иван Петров", location: "Αθήνα", summary: "Hà Nội, ₹5" },
+      }),
+    )
+    const want = FALLBACKS[id]
+    expect(Object.fromEntries(LETTERS.map((letter) => [letter, xelatexFallback(text, letter)]))).toEqual(want.xelatex)
+    expect(lualatexFallbacks(text)).toEqual({ fallbacks: want.lualatex, greek: want.greek })
+    expect(balanced(text)).toBe(true)
   })
 
   test("with links, bold and italic, extra sections and publications is laid out as its template is", async () => {
@@ -451,6 +567,16 @@ describe("a LaTeX file in Jake's layout", () => {
   })
 })
 
+describe.each(["deedy", "ian", "modernjack"])("a LaTeX file in %s's layout", (id) => {
+  test("puts words as far apart as its PDF pins Lato's spaces, at every size", () => {
+    const typst = readFileSync(path.resolve("src/lib/typst/templates", `${id}.typ`), "utf8")
+    const [, space] = typst.match(/#set text\(font: "Lato"[^\n]*spacing: ([\d.]+em)\)/)!
+    const text = latexOf({ selectedTemplate: id })
+    expect(text).toContain(`\\newcommand*{\\latospace}{\\spaceskip=${space}\\relax}`)
+    expect(text).toMatch(/\\renewcommand\{\\normalsize\}\{[^\n]*\\latospace/)
+  })
+})
+
 describe("letters pdfLaTeX can't print", () => {
   test("make the file ask for XeLaTeX, naming them", () => {
     const { text, beyondPdfLatex } = toLatexFile(asSaved({ selectedTemplate: "jake", profileSection: { fullName: "Иван Petrov" } }))
@@ -487,6 +613,24 @@ describe("letters pdfLaTeX can't print", () => {
     )
     expect(text).toContain("\\scshape Ada Lovelace 🎉}")
     expect(beyondPdfLatex).toEqual(["🎉"])
+  })
+
+  test("aren't the ohm sign or angle brackets, which Unicode composes into Greek and CJK ones", () => {
+    const { text, beyondPdfLatex } = toLatexFile(
+      asSaved({ selectedTemplate: "jake", profileSection: { summary: "A 10 k\u2126 resistor, \u2329x\u232A, 5 \u03A9." } }),
+    )
+    expect(beyondPdfLatex).toEqual([])
+    expect(text).toContain("A 10 k\\textohm{} resistor, \\ensuremath{\\langle}x\\ensuremath{\\rangle}, 5 \\textohm{}.")
+    expect(text).not.toContain("xelatex")
+    // pdfLaTeX's PDF says the ohm sign's glyph is one.
+    expect(text).toMatch(/\\ifPDFTeX\n(.*\n)?\s*\\pdfglyphtounicode\{ohm\}\{2126\}\n\\fi/)
+  })
+
+  test("include Ω in a Greek word", () => {
+    const { text, beyondPdfLatex } = toLatexFile(asSaved({ selectedTemplate: "jake", profileSection: { fullName: "\u03A9μέγα Ανδρέου" } }))
+    expect(beyondPdfLatex.slice(0, 2)).toEqual(["\u03A9", "μ"])
+    expect(text).toContain("\\scshape \u03A9μέγα Ανδρέου}")
+    expect(text).toContain("% !TeX program = xelatex")
   })
 
   test("name the first ten, and say there are more", () => {

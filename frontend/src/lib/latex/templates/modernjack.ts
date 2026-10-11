@@ -6,6 +6,7 @@
 
 import {
   bold,
+  CHARIS,
   citations,
   dateRange,
   emailLink,
@@ -18,7 +19,10 @@ import {
   runs,
   sectionsOf,
   shownLink,
+  signs,
+  unlessPdfLatex,
   webLink,
+  type Fallbacks,
   type LatexTemplate,
   type ShowLink,
   type Units,
@@ -40,6 +44,15 @@ const CAP = 0.7165 // Lato's cap height, in em
 const LEADING = 0.48 // modernjack.typ's leading, in em
 // The rule under a section title: 0.4pt, drawn centred on its line in Typst.
 const RULE = 0.4
+// The space between words, as modernjack.typ pins Lato's.
+const WORD_SPACE = "0.2275em"
+
+const FALLBACKS: Fallbacks = {
+  comment: `Lato has no ₽ or ₿, which print in Charis SIL, as in the PDF.`,
+  fonts: [{ name: "Lato", faces: true, someGreek: false }],
+  families: [CHARIS],
+  letters: [[signs("₽₿"), CHARIS]],
+}
 
 /** The spaces that differ between Typst and TeX, as lengths in `units`' own unit. */
 function spacing(units: Units) {
@@ -67,13 +80,15 @@ function spacing(units: Units) {
   }
 }
 
-const preamble = (units: Units, title: string) => {
+const preamble = (units: Units, title: string, fallbacks: string) => {
   const space = spacing(units)
   return `\\documentclass[${units.paper("letterpaper")},11pt]{article}
 
 ${ENGINES}
-% Lato, with its tabular figures, as the PDF has them
+${unlessPdfLatex(fallbacks)}% Lato, with its tabular figures, as the PDF has them
 \\usepackage[default]{lato}
+% Words ${WORD_SPACE} apart at every size, as the PDF pins Lato's spaces
+\\newcommand*{\\latospace}{\\spaceskip=${WORD_SPACE}\\relax}
 \\usepackage[margin=${units.margin(0.5)}, left=${units.margin(0.4)}, right=${units.margin(0.4)}]{geometry}
 \\usepackage{titlesec}
 \\usepackage{enumitem}
@@ -93,10 +108,10 @@ ${links(title)}
 \\setlength{\\topskip}{${units.size(10 * CAP)}}
 
 % Text sizes and line spacing, as Fine-tune sets them
-\\renewcommand{\\normalsize}{\\fontsize{${units.size(11)}}{${space.line(11)}}\\selectfont}
-\\renewcommand{\\small}{\\fontsize{${units.size(10)}}{${space.line(10)}}\\selectfont}
-\\renewcommand{\\large}{\\fontsize{${units.size(12)}}{${space.line(12)}}\\selectfont}
-\\renewcommand{\\Huge}{\\fontsize{${units.size(24.88)}}{${space.line(24.88)}}\\selectfont}
+\\renewcommand{\\normalsize}{\\fontsize{${units.size(11)}}{${space.line(11)}}\\selectfont\\latospace}
+\\renewcommand{\\small}{\\fontsize{${units.size(10)}}{${space.line(10)}}\\selectfont\\latospace}
+\\renewcommand{\\large}{\\fontsize{${units.size(12)}}{${space.line(12)}}\\selectfont\\latospace}
+\\renewcommand{\\Huge}{\\fontsize{${units.size(24.88)}}{${space.line(24.88)}}\\selectfont\\latospace}
 \\normalsize
 
 % Sections formatting: a bold title over a thin rule. \\prevdepth sets what
@@ -292,4 +307,5 @@ export const modernjack: LatexTemplate = {
   ],
   preamble,
   body,
+  fallbacks: FALLBACKS,
 }

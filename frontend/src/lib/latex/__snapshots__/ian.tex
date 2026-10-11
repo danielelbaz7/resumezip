@@ -10,6 +10,8 @@
   \usepackage[T1]{fontenc}
 \fi
 \usepackage[default]{lato}
+% Words 0.2125em apart at every size, as the PDF pins Lato's spaces
+\newcommand*{\latospace}{\spaceskip=0.2125em\relax}
 \usepackage[left=0.35in, right=0.35in, top=0.5in, bottom=0.35in]{geometry}
 \usepackage{xcolor}
 \usepackage{enumitem}
@@ -30,7 +32,7 @@
 
 % Text size and line spacing, as Fine-tune sets them. Lengths are in bp,
 % the PDF's points: TeX's pt is a little smaller.
-\renewcommand{\normalsize}{\fontsize{9.96bp}{11.92bp}\selectfont}
+\renewcommand{\normalsize}{\fontsize{9.96bp}{11.92bp}\selectfont\latospace}
 \normalsize
 
 \pagestyle{empty}
@@ -61,7 +63,7 @@
 % the name's letters are.
 \newcommand{\resumeName}[1]{%
   \hbox{}\vspace{-11.92bp}%
-  {\fontsize{24.79bp}{22.7bp}\selectfont\setlength{\lineskiplimit}{-\maxdimen}\centering\textbf{\textcolor{titleblue}{#1}}\par}%
+  {\fontsize{24.79bp}{22.7bp}\selectfont\latospace\setlength{\lineskiplimit}{-\maxdimen}\centering\textbf{\textcolor{titleblue}{#1}}\par}%
   \vspace{3.1bp}%
 }
 \newcommand{\resumeContacts}[1]{%
@@ -75,7 +77,7 @@
 % however deep its letters go. The option is the space under the rule.
 \newcommand{\resumeSection}[2][5.58bp]{%
   \par\vspace{8.95bp}%
-  {\fontsize{11.96bp}{13.43bp}\selectfont\textbf{\textcolor{titleblue}{#2}}\par}%
+  {\fontsize{11.96bp}{13.43bp}\selectfont\latospace\textbf{\textcolor{titleblue}{#2}}\par}%
   \nopagebreak\vspace{\dimexpr 4.2bp-\prevdepth\relax}%
   {\color{titleblue}\hrule height 0.2bp depth 0.2bp}%
   \prevdepth=0.2bp
@@ -87,7 +89,7 @@
 % both rows are as tall as a line of text and sit their usual distance apart.
 \newcommand{\resumeEntryTop}[2]{%
   \par\vspace{-4.03bp}%
-  \resumeRow{\fontsize{10.91bp}{12.6bp}\selectfont\textbf{#1}}{\fontsize{10.91bp}{12.6bp}\selectfont\textbf{#2}}\par\nopagebreak
+  \resumeRow{\fontsize{10.91bp}{12.6bp}\selectfont\latospace\textbf{#1}}{\fontsize{10.91bp}{12.6bp}\selectfont\latospace\textbf{#2}}\par\nopagebreak
 }
 \newcommand{\resumeEntry}[4]{%
   \resumeEntryTop{#1}{#2}%
@@ -108,7 +110,7 @@
 
 % Bullets: a small dot 14.7bp in, raised so the top of its capitals would be level with
 % the text's, and the text 5bp after it
-\SetEnumitemKey{bullets}{label={\raisebox{1.76bp}{\fontsize{7.5bp}{10.15bp}\selectfont\textbullet}}, leftmargin=*, labelindent=14.7bp,
+\SetEnumitemKey{bullets}{label={\raisebox{1.76bp}{\fontsize{7.5bp}{10.15bp}\selectfont\latospace\textbullet}}, leftmargin=*, labelindent=14.7bp,
   labelsep=5bp, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=0.43bp}
 \newlist{resumeItems}{itemize}{1}
 \setlist[resumeItems]{bullets, before=\vspace{0.88bp}}

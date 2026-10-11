@@ -6,6 +6,7 @@
 
 import {
   bold,
+  CHARIS,
   citations,
   dateRange,
   emailLink,
@@ -17,7 +18,9 @@ import {
   runs,
   sectionsOf,
   shownLink,
+  signs,
   webLink,
+  type Fallbacks,
   type LatexTemplate,
   type ShowLink,
   type Units,
@@ -29,11 +32,20 @@ const underline = (body: string) => `\\underline{${body}}`
 const underlined: ShowLink = (url, text) => shownLink(url, text, underline)
 const BAR = " $|$ "
 
+const FALLBACKS: Fallbacks = {
+  comment: `TeX Live 2023's New Computer Modern has no ₹ ₽ ₺ ₴ ₿, which newer ones
+have, as the PDF's does. Where it lacks them, they print in Charis SIL, a
+serif that has them all.`,
+  fonts: [{ name: "NewCM10-Book", faces: false, someGreek: false }],
+  families: [CHARIS],
+  letters: [[signs("₹₽₺₴₿"), CHARIS]],
+}
+
 // Jake's Resume's preamble, with what lets it compile with XeLaTeX and
 // LuaLaTeX too, Latin Modern, and geometry for the page Fine-tune sets rather
 // than fullpage. Then a command for prose, which Jake's doesn't have: its
 // \relax ends \item, so text starting with [ isn't read as \item's option.
-const preamble = (units: Units, title: string) => `\\documentclass[${units.paper("letterpaper")},11pt]{article}
+const preamble = (units: Units, title: string, fallbacks: string) => `\\documentclass[${units.paper("letterpaper")},11pt]{article}
 
 ${ENGINES}
 \\ifPDFTeX
@@ -43,7 +55,7 @@ ${ENGINES}
   \\input{t1lmr.fd}
   \\DeclareFontShape{T1}{lmr}{bx}{sc}{<->ssub*cmr/bx/sc}{}
 \\else
-  % XeLaTeX or LuaLaTeX: New Computer Modern, as resumezip's Jake's is set in.
+${fallbacks}  % XeLaTeX or LuaLaTeX: New Computer Modern, as resumezip's Jake's is set in.
   \\usepackage{newcomputermodern}
 \\fi
 \\usepackage[margin=${units.margin(0.5)}, left=${units.margin(0.4)}, right=${units.margin(0.4)}]{geometry}
@@ -248,4 +260,5 @@ export const jake: LatexTemplate = {
   credit: ["Based on Jake's Resume: https://github.com/jakegut/resume", "Author: Jake Gutierrez", "License: MIT"],
   preamble,
   body,
+  fallbacks: FALLBACKS,
 }

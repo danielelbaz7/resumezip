@@ -9,7 +9,8 @@ import {
   dateRange,
   emailLink,
   ENGINES,
-  HEROS,
+  heros,
+  HEROS_FALLBACKS,
   itemText,
   joinPresent,
   latex,
@@ -68,12 +69,12 @@ function spacing(units: Units) {
   }
 }
 
-const preamble = (units: Units, title: string) => {
+const preamble = (units: Units, title: string, fallbacks: string) => {
   const space = spacing(units)
   return `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-${HEROS}
+${heros(fallbacks)}
 \\usepackage[margin=${units.margin(0.4)}]{geometry}
 \\usepackage{xcolor}
 \\usepackage{titlesec}
@@ -319,4 +320,5 @@ export const levelsfyi: LatexTemplate = {
   credit: ["resumezip's Blueprint template"],
   preamble,
   body,
+  fallbacks: HEROS_FALLBACKS,
 }
