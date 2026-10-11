@@ -373,6 +373,28 @@ describe("a heading it doesn't know by name", () => {
     expect(resume.workExperienceSection).toEqual([])
   })
 
+  test("set like the others, in bold capitals the size of the text, has as much space below it as they do", () => {
+    // As Mono sets them, so a school's name in capitals looks the same.
+    const lines: [Line, number][] = [
+      [line([["Mara Lin", 36]], { size: 18, bold: true }), 60],
+      [line([["EDUCATION", 36]], { bold: true }), 100],
+      [line([["UCLA", 36]], { bold: true }), 116],
+      [line([["B.A. in Economics", 36]]), 125],
+      [line([["State University", 36], ["2016 – 2020", 480]], { bold: true }), 138],
+      [line([["B.S. in Nursing", 36]]), 147],
+      [line([["PRESS", 36]], { bold: true }), 166],
+      [line([["Interviewed by the Daily Planet", 36]]), 182],
+      [line([["SKILLS", 36]], { bold: true }), 201],
+      [line([["Python, SQL", 36]]), 217],
+    ]
+    // Boxed as lines.ts boxes them, around each line's baseline.
+    const parsed = parseResume(
+      lines.map(([each, baseline]) => ({ ...each, box: [36, baseline - 0.85 * each.size, 36 + 5 * each.text.length, baseline + 0.3 * each.size] })),
+    )
+    expect(toResumeContent(parsed).educationSection.map((school) => school.schoolName)).toEqual(["UCLA", "State University"])
+    expect(parsed.unplaced.map((group) => [group.heading, group.text])).toEqual([["Press", ["Interviewed by the Daily Planet"]]])
+  })
+
   test("isn't a line that only shares a word with one", () => {
     const { resume } = read("Projects", [
       line([["Volunteer Matching App", 36]], { bold: true }),

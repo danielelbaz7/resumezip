@@ -115,6 +115,22 @@ test("a school with its place on the right starts a new entry, even right after 
   ])
 })
 
+// Mono sets a school's name in bold, as it does its headings, which are in
+// capitals; Blueprint (levelsfyi) sets "**Degree,** School" and the dates on one line.
+test.each(["mono", "levelsfyi"])("in %s, a school with no dates and no word for one in its name is read whole", async (template) => {
+  const sample = samples.find((resume) => resume.selectedTemplate === template)
+  const ucla = { id: 9, schoolName: "UCLA", degree: "B.A. in Economics" }
+  for (const educationSection of [
+    [ucla, ...sample.educationSection],
+    [...sample.educationSection, ucla],
+  ]) {
+    const { parsed, resume: got } = await readBack(await render({ ...sample, educationSection }))
+    expect(parsed.unplaced).toEqual([])
+    const read = got.educationSection?.map(({ schoolName, degree, schoolEndDate }) => ({ schoolName, degree, schoolEndDate }))
+    expect(read).toEqual(educationSection.map(({ schoolName, degree, schoolEndDate = "" }) => ({ schoolName, degree, schoolEndDate })))
+  }
+})
+
 test.each(["levelsfyi", "referme"])(
   "in %s, an entry with no date stays apart from one whose date ends in a typed comma",
   async (template) => {
