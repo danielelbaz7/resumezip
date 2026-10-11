@@ -105,11 +105,13 @@ test("the template gallery fades away as it closes, rather than vanishing", asyn
   await settled(gallery)
   await transitionsDone(page)
 
-  // Each frame from here on, whether the gallery showed part way see-through: its opacity times
-  // that of what holds it. Read from computed styles rather than transition events, which WebKit
-  // doesn't always deliver.
+  // From here on, whether the gallery fades: an opacity transition on it or on what holds it, or
+  // its opacity times theirs part way. Looked at as the page changes as well as each frame: frames
+  // came 700ms apart in WebKit on CI, and the 260ms fade fell between two of them, but as the
+  // gallery starts to close, its transition is already there. Read from the page rather than
+  // transition events, which WebKit doesn't always deliver.
   const seen = await page.evaluateHandle(() => {
-    const seen = { partWay: false }
+    const seen = { fading: false }
     const look = () => {
       let opacity = 1
       for (
@@ -118,18 +120,25 @@ test("the template gallery fades away as it closes, rather than vanishing", asyn
         element = element.parentElement
       ) {
         opacity *= Number(getComputedStyle(element).opacity)
+        if (element.getAnimations().some((animation) => "transitionProperty" in animation && animation.transitionProperty === "opacity")) {
+          seen.fading = true
+        }
       }
-      if (opacity > 0 && opacity < 1) seen.partWay = true
-      requestAnimationFrame(look)
+      if (opacity > 0 && opacity < 1) seen.fading = true
     }
-    requestAnimationFrame(look)
+    new MutationObserver(look).observe(document.body, { attributes: true, childList: true, subtree: true })
+    const frame = () => {
+      look()
+      requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
     return seen
   })
   await gallery.getByRole("button", { name: "Close" }).click()
   await expect(page.getByRole("button", { name: /^Template/ })).toBeFocused()
   await expect(gallery).toBeHidden()
-  // One that vanished would go from solid to gone, never in between.
-  expect((await seen.jsonValue()).partWay).toBe(true)
+  // One that vanished would go from solid to gone, with nothing in between.
+  expect((await seen.jsonValue()).fading).toBe(true)
   expect(errors).toEqual([])
 })
 
@@ -137,19 +146,25 @@ test("the Add section menu grows in solid, and only what's in it fades in", asyn
   const errors = pageErrors(page)
   await newResume(page)
   await transitionsDone(page)
-  // Each frame from here on, the least opacity the menu and what's in it have shown. Read from
-  // their computed styles rather than animation events, which WebKit doesn't always deliver.
+  // From here on, the least opacity the menu and what's in it have shown, looked at as the page
+  // changes as well as each frame. Frames came 700ms apart in WebKit on CI, which starts an
+  // animation's clock as it's made, so the contents' 220ms fade was over by the first frame; as
+  // the menu is put on the page, they're at its start. Read from their computed styles rather
+  // than animation events, which WebKit doesn't always deliver.
   const lowest = await page.evaluateHandle(() => {
     const seen = { menu: 1, contents: 1 }
     const look = () => {
       const menu = document.querySelector('[role="menu"][aria-label="Add section"]')
-      if (menu) {
-        seen.menu = Math.min(seen.menu, Number(getComputedStyle(menu).opacity))
-        for (const child of menu.children) seen.contents = Math.min(seen.contents, Number(getComputedStyle(child).opacity))
-      }
-      requestAnimationFrame(look)
+      if (!menu) return
+      seen.menu = Math.min(seen.menu, Number(getComputedStyle(menu).opacity))
+      for (const child of menu.children) seen.contents = Math.min(seen.contents, Number(getComputedStyle(child).opacity))
     }
-    requestAnimationFrame(look)
+    new MutationObserver(look).observe(document.body, { childList: true, subtree: true })
+    const frame = () => {
+      look()
+      requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
     return seen
   })
 
