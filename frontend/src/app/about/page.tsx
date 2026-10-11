@@ -60,16 +60,16 @@ const FOLDER_HEIGHT = FOLDER.height / FOLDER.width
 const FLAP_EDGE = 79 / FOLDER.height
 // The page sits in the middle of the folder. Only its top stands out of it, so
 // it's no taller than it needs to be to stay inside.
-const PAGE = { width: 0.79, height: 0.6 }
+const PAGE = { width: 0.79, height: 0.58 }
 // How far the page stands out above the folder: enough for everything written on it.
-const FOLDER_TOP = 0.325
+const FOLDER_TOP = 0.368
 const FIGURE_HEIGHT = FOLDER_TOP + FOLDER_HEIGHT
 const down = (share: number) => `${(100 * share) / FIGURE_HEIGHT}%`
 
 /**
  * resumezip introduced as it'd introduce anyone: its own resume, in Jake's
- * template, rising out of a folder as the page scrolls (`.folder-rise` in
- * styles/home.css), held by a paper clip. The page is a real
+ * template, rising out of a folder as the page scrolls (`.folder-rise` and
+ * `.about-pin` in styles/home.css), held by a paper clip. The page is a real
  * render of `own-resume.json`, cropped under its last line (the rest of the
  * sheet is plain white), so print it again when a line changes. Each line has
  * to stay true of the app, as the promises do. The folder is drawn twice, the
@@ -128,7 +128,7 @@ function OwnResume() {
           <Image
             src="/about/own-resume.webp"
             width={1280}
-            height={568}
+            height={764}
             sizes="(min-width: 1280px) 324px, (min-width: 640px) 348px, 80vw"
             alt="resumezip’s own resume, in Jake’s template: a resume builder in your own browser since March 2025, with no account, that has kept 0 copies of anyone’s resume."
             className="h-auto w-full"
@@ -160,31 +160,35 @@ export default function AboutPage() {
     <div className="desk flex min-h-screen flex-col">
       <SiteHeader />
       <main className={SHEET}>
-        <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-12">
-          <div className="flex flex-col gap-5">
-            <span className="label-mono text-ink-2">About</span>
-            <h1 className="font-serif text-5xl leading-[1.02] tracking-[-0.03em] md:text-[80px] md:leading-[0.95]">
-              Here’s <em className="whitespace-nowrap text-accent">our resume.</em>
-            </h1>
-            <p className="max-w-[600px] text-[17px] leading-relaxed text-ink-2">
-              Many resume builders charge you to download your own resume, and keep a copy. <Wordmark /> doesn’t: every template is free and
-              made for the hiring software (ATS) that reads it, and your resume stays in your browser.
-            </p>
-            {/* One plain line, set apart by hairlines, rather than a logo wall. */}
-            <p className="mt-3 inline-flex self-start flex-wrap items-center gap-x-3 gap-y-1 border-y border-ink/15 py-3 pr-2">
-              <span className="label-mono text-ink-2">Part of</span>
-              <a
-                href={MICROSOFT_STARTUPS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2.5 underline-offset-4 hover:underline"
-              >
-                <MicrosoftLogo />
-                <span className="font-serif text-[22px] leading-none tracking-[-0.01em]">Microsoft for Startups</span>
-              </a>
-            </p>
+        {/* On a wide screen this stays put while the resume rises, then scrolls on. */}
+        <div className="about-pin">
+          <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-12">
+            <div className="flex flex-col gap-5">
+              <span className="label-mono text-ink-2">About</span>
+              <h1 className="font-serif text-5xl leading-[1.02] tracking-[-0.03em] md:text-[80px] md:leading-[0.95]">
+                Here’s <em className="whitespace-nowrap text-accent">our resume.</em>
+              </h1>
+              <p className="max-w-[600px] text-[17px] leading-relaxed text-ink-2">
+                Many resume builders charge you to download your own resume, and keep a copy. <Wordmark /> doesn’t: every template is free
+                and made for the hiring software (ATS) that reads it, and your resume stays in your browser.
+              </p>
+              {/* One plain line, set apart by hairlines, rather than a logo wall. */}
+              <p className="mt-3 inline-flex self-start flex-wrap items-center gap-x-3 gap-y-1 border-y border-ink/15 py-3 pr-2">
+                <span className="label-mono text-ink-2">Part of</span>
+                <a
+                  href={MICROSOFT_STARTUPS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2.5 underline-offset-4 hover:underline"
+                >
+                  <MicrosoftLogo />
+                  <span className="font-serif text-[22px] leading-none tracking-[-0.01em]">Microsoft for Startups</span>
+                </a>
+              </p>
+            </div>
+            <OwnResume />
           </div>
-          <OwnResume />
+          <div className="about-pin-room" />
         </div>
 
         <section className={SECTION} aria-labelledby="promises">
