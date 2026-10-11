@@ -257,6 +257,25 @@ describe.each(IDS)("a LaTeX file in %s's layout", (id) => {
     expect(bodyOf(text)).not.toMatch(/(\\item|\\\\)\s*\[Q/)
   })
 
+  test("never leaves ^^ in a link's address, which TeX would read as a character of its own", () => {
+    // ^^5c is a backslash and ^^7d a closing brace to TeX, as it reads the file: a
+    // link could close its \href and run what follows.
+    const text = latexOf({
+      selectedTemplate: id,
+      profileSection: {
+        email: "a^^5cb@example.com",
+        linkedin: "linkedin.com/in/^^7d",
+        personalWebsite: "example.com/^^5cinput",
+        profileGithub: "github.com/^^7b",
+      },
+      sectionOrder: ["Projects", "Publications"],
+      projectsSection: [{ id: 1, projectName: "Atlas", projectGithub: "github.com/a/^^5c", additionalLink: "example.com/^^7d" }],
+      publicationsSection: [{ id: 1, publicationTitle: "Paper", publicationLink: "example.com/^^5c" }],
+    })
+    expect(text).toContain("\\%5E\\%5E5c")
+    expect(text).not.toContain("^^")
+  })
+
   test("leaves out what the PDF leaves out", () => {
     const sample = samples.find((resume) => resume.selectedTemplate === id)
     const [job] = sample.workExperienceSection
