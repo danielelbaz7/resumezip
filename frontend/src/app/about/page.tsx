@@ -69,7 +69,7 @@ const down = (share: number) => `${(100 * share) / FIGURE_HEIGHT}%`
 /**
  * resumezip introduced as it'd introduce anyone: its own resume, in Jake's
  * template, rising out of a folder as the page scrolls (`.folder-rise` and
- * `.about-pin` in styles/home.css), held by a paper clip. The page is a real
+ * `.about-pin-held` in styles/home.css), held by a paper clip. The page is a real
  * render of `own-resume.json`, cropped under its last line (the rest of the
  * sheet is plain white), so print it again when a line changes. Each line has
  * to stay true of the app, as the promises do. The folder is drawn twice, the
@@ -159,9 +159,9 @@ export default function AboutPage() {
   return (
     <div className="desk flex min-h-screen flex-col">
       <SiteHeader />
-      <main className={SHEET}>
-        {/* On a wide screen this stays put while the resume rises, then scrolls on. */}
-        <div className="about-pin">
+      {/* On a wide screen the whole page holds still while the resume rises, then scrolls on. */}
+      <div className="flex flex-1 flex-col">
+        <main className={`${SHEET} about-pin-held`}>
           <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-12">
             <div className="flex flex-col gap-5">
               <span className="label-mono text-ink-2">About</span>
@@ -188,76 +188,76 @@ export default function AboutPage() {
             </div>
             <OwnResume />
           </div>
-          <div className="about-pin-room" />
-        </div>
 
-        <section className={SECTION} aria-labelledby="promises">
-          <h2 id="promises" className={HEADING}>
-            What it promises
-          </h2>
-          <ul className="grid gap-8 sm:grid-cols-3 md:col-span-2">
-            {PROMISES.map((promise) => (
-              <li key={promise.title} className="flex flex-col gap-2">
-                <span className="font-serif text-[22px] italic leading-tight text-accent">{promise.title}</span>
-                <span className="text-[15px] leading-relaxed text-ink-2">{promise.text}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className={SECTION} aria-labelledby="made">
-          <h2 id="made" className={HEADING}>
-            How it’s made
-          </h2>
-          <div className="md:col-span-2">
-            <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
-              Your PDF is typeset by Typst, running in your own browser, so your resume never has to be sent anywhere to become a page. The
-              PDF carries your resume inside it, which is how resumezip opens it again on any computer.
-            </p>
-          </div>
-        </section>
-
-        {/* Where Contact used to be: /contact comes here. */}
-        <section id="contact" className={`${SECTION} scroll-mt-28`} aria-labelledby="contact-heading">
-          <div className="flex flex-col gap-3">
-            <h2 id="contact-heading" className={HEADING}>
-              Get in touch
+          <section className={SECTION} aria-labelledby="promises">
+            <h2 id="promises" className={HEADING}>
+              What it promises
             </h2>
-            <p className="text-[15px] leading-relaxed text-ink-2">Found a bug or have an idea? I read every message.</p>
-          </div>
-          <div className="flex flex-col gap-5 md:col-span-2">
-            <EmailContact />
-            <p className="flex flex-wrap gap-x-6 gap-y-2 text-[15px]">
-              <a href={ISSUES_URL} target="_blank" rel="noopener noreferrer" className={TEXT_LINK}>
-                Report a bug on GitHub
-              </a>
-              <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className={TEXT_LINK}>
-                Find us on LinkedIn
-              </a>
-            </p>
-          </div>
-        </section>
+            <ul className="grid gap-8 sm:grid-cols-3 md:col-span-2">
+              {PROMISES.map((promise) => (
+                <li key={promise.title} className="flex flex-col gap-2">
+                  <span className="font-serif text-[22px] italic leading-tight text-accent">{promise.title}</span>
+                  <span className="text-[15px] leading-relaxed text-ink-2">{promise.text}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-        <section className={SECTION}>
-          <h2 className={`${HEADING} flex items-center gap-3 self-start`}>
-            <GitHubLogo className="h-7 w-7 shrink-0 md:h-8 md:w-8" />
-            Star it on GitHub
-          </h2>
-          <div className="md:col-span-2">
-            <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
-              No ads, no paid plans. If <Wordmark /> helped you, a star helps others find it.
-            </p>
-            <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={`group ${INK_PILL} mt-6`}>
-              {/* Yellow under the pointer, as the header's star is. */}
-              <Star
-                className="h-4 w-4 transition-colors duration-200 group-hover:fill-[#facc15] group-hover:text-[#facc15] motion-reduce:transition-none"
-                aria-hidden="true"
-              />
-              Star on GitHub
-            </a>
-          </div>
-        </section>
-      </main>
+          <section className={SECTION} aria-labelledby="made">
+            <h2 id="made" className={HEADING}>
+              How it’s made
+            </h2>
+            <div className="md:col-span-2">
+              <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
+                Your PDF is typeset by Typst, running in your own browser, so your resume never has to be sent anywhere to become a page.
+                The PDF carries your resume inside it, which is how resumezip opens it again on any computer.
+              </p>
+            </div>
+          </section>
+
+          {/* Where Contact used to be: /contact comes here. */}
+          <section id="contact" className={`${SECTION} scroll-mt-28`} aria-labelledby="contact-heading">
+            <div className="flex flex-col gap-3">
+              <h2 id="contact-heading" className={HEADING}>
+                Get in touch
+              </h2>
+              <p className="text-[15px] leading-relaxed text-ink-2">Found a bug or have an idea? I read every message.</p>
+            </div>
+            <div className="flex flex-col gap-5 md:col-span-2">
+              <EmailContact />
+              <p className="flex flex-wrap gap-x-6 gap-y-2 text-[15px]">
+                <a href={ISSUES_URL} target="_blank" rel="noopener noreferrer" className={TEXT_LINK}>
+                  Report a bug on GitHub
+                </a>
+                <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className={TEXT_LINK}>
+                  Find us on LinkedIn
+                </a>
+              </p>
+            </div>
+          </section>
+
+          <section className={SECTION}>
+            <h2 className={`${HEADING} flex items-center gap-3 self-start`}>
+              <GitHubLogo className="h-7 w-7 shrink-0 md:h-8 md:w-8" />
+              Star it on GitHub
+            </h2>
+            <div className="md:col-span-2">
+              <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
+                No ads, no paid plans. If <Wordmark /> helped you, a star helps others find it.
+              </p>
+              <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={`group ${INK_PILL} mt-6`}>
+                {/* Yellow under the pointer, as the header's star is. */}
+                <Star
+                  className="h-4 w-4 transition-colors duration-200 group-hover:fill-[#facc15] group-hover:text-[#facc15] motion-reduce:transition-none"
+                  aria-hidden="true"
+                />
+                Star on GitHub
+              </a>
+            </div>
+          </section>
+        </main>
+        <div className="about-pin-room" />
+      </div>
       <SiteFooter />
     </div>
   )

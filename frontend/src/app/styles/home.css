@@ -398,9 +398,10 @@
   }
 
   /* The About page's resume rises out of its folder as the page scrolls, and
-     never moves on its own. On a wide screen the top of the page holds still
-     (sticky, at where it starts) over the first 240px of scrolling while the
-     resume rises, so it's all the way out before the page moves on. On
+     never moves on its own. On a wide screen the whole page holds still
+     (sticky, where it starts under the header) over the first 240px of
+     scrolling while the resume rises, so it's all the way out before the page
+     moves on. The room for that is below the page, so it never shows as a gap. On
      narrower ones it rises as the folder comes up the screen. Without
      scroll-driven animations, or with less motion, nothing holds and the
      resume stands as far out as it goes. */
@@ -415,9 +416,9 @@
         animation-range: entry 0% cover 55%;
       }
       @media (min-width: 80rem) {
-        .about-pin > :first-child {
+        .about-pin-held {
           position: sticky;
-          top: 140px;
+          top: 100px;
         }
         .about-pin-room {
           display: block;
