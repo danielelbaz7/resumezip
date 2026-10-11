@@ -95,14 +95,27 @@ test("a LaTeX file with letters pdfLaTeX can't print says to compile it with XeL
   expect(download.suggestedFilename()).toBe("Ivan at Stripe.tex")
   expect((await textOf(download)).split("\n")[0]).toBe("% !TeX program = xelatex")
 
-  // Said under the ▾, and aloud, until it's closed.
+  // Said under the ▾, and aloud.
   const notice = page.getByRole("group", { name: "LaTeX file downloaded" })
   await expect(notice).toContainText("On Overleaf, set Compiler to XeLaTeX in the project's settings.")
   await expect(notice).toContainText("Ivan at Stripe.tex")
   await expect(page.getByRole("status").filter({ hasText: "set Compiler to XeLaTeX" })).toBeAttached()
+
+  // It's about that file: once the ▾ opens for another, it doesn't come back as the menu closes.
+  const more = page.getByRole("button", { name: "More formats" })
+  await more.click()
+  const word = page.waitForEvent("download")
+  await page.getByRole("menuitem", { name: /^Word/ }).click()
+  await word
+  await expect(page.getByRole("status").filter({ hasText: "Word file downloaded" })).toBeAttached()
+  await page.waitForTimeout(500)
+  await expect(notice).toHaveCount(0)
+
+  // Closed, the keyboard goes back to the ▾.
+  await downloadLatex(page)
   await notice.getByRole("button", { name: "Close" }).click()
   await expect(notice).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "More formats" })).toBeFocused()
+  await expect(more).toBeFocused()
 
   expect(errors).toEqual([])
 })

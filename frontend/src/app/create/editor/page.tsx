@@ -553,10 +553,7 @@ function Editor({ id }: { id: string }) {
                       title: "Save to Google Drive",
                       hint: "Puts the PDF in your Drive. Google asks you first.",
                       icon: <DriveIcon />,
-                      onChoose: () => {
-                        setLatexNotice(null)
-                        drive.save()
-                      },
+                      onChoose: drive.save,
                     },
                     {
                       title: "JSON",
@@ -570,7 +567,12 @@ function Editor({ id }: { id: string }) {
                       : []),
                   ]}
                   busy={sharePdf.making}
-                  onOpen={sharePdf.shareable ? preparePdf : undefined}
+                  onOpen={() => {
+                    // The last LaTeX file's note goes as the menu opens: it's about that
+                    // file, and whatever is chosen next is another.
+                    setLatexNotice(null)
+                    if (sharePdf.shareable) preparePdf()
+                  }}
                   notice={
                     drive.saving
                       ? { title: "Saving to Google Drive…", working: true }
