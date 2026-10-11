@@ -12,8 +12,12 @@ test("/ goes to the search, which finds templates by name, font or style", async
   await expect(cards(page).first()).toBeVisible()
   const every = await cards(page).count()
 
-  await page.keyboard.press("/")
-  await expect(search).toBeFocused()
+  // The cards are in the page's HTML, so they show before its script runs, and "/" does nothing
+  // until it has. Pressed again until it goes to the search, which then holds no "/".
+  await expect(async () => {
+    await page.keyboard.press("/")
+    await expect(search).toBeFocused({ timeout: 1_000 })
+  }).toPass()
   await expect(search).toHaveValue("")
 
   await page.keyboard.type("garamond")
@@ -78,6 +82,24 @@ test("when nothing matches, it says so, and one click shows every template again
   await page.getByRole("button", { name: "Show every template" }).click()
   await expect(cards(page)).toHaveCount(every)
   await expect(page.getByRole("searchbox", { name: "Search templates" })).toBeFocused()
+})
+
+test("what's typed in the search before the page's script has run still searches", async ({ page }) => {
+  const errors = pageErrors(page)
+  // The script held back until it's typed, as on a slow connection.
+  let typed!: () => void
+  const held = new Promise<void>((done) => (typed = done))
+  await page.route("**/_next/static/chunks/**", async (route) => {
+    await held
+    await route.continue()
+  })
+  await page.goto("/templates", { waitUntil: "domcontentloaded" })
+  await page.getByRole("searchbox", { name: "Search templates" }).fill("zebra")
+  typed()
+  await expect(page.getByText("No template matches that.")).toBeVisible()
+  await expect(cards(page)).toHaveCount(0)
+  await expect(page.getByRole("searchbox", { name: "Search templates" })).toHaveValue("zebra")
+  expect(errors).toEqual([])
 })
 
 test("/ typed in the search is part of the search", async ({ page }) => {

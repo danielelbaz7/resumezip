@@ -142,6 +142,8 @@ test("in the list, each resume's small page has its edge on all four sides", asy
   // the attribute the view switch moves it by. It sits right at the left edge of the table's scroll box.
   const picture = row.locator("[data-resume-page]")
   await expect(picture).toBeVisible()
+  // Until the switch to the list ends, what shows is its picture moving into the row, and the list fading in.
+  await settled(picture)
   const box = (await picture.boundingBox())!
 
   // Its left-most column of pixels, halfway down, as drawn: the grey edge, not the white page inside.

@@ -4,14 +4,22 @@ import { expect, type Locator, type Page } from "@playwright/test"
 // Safari logs these when a page is left while something is still loading in
 // the background, and the visitor never sees them: the PDF compiler, its
 // fonts and pdf.js's worker, which the home page, dashboard and editor start
-// early, the scripts the compiler's worker loads as it starts, and the pages
+// early, the scripts the compiler's worker loads as it starts, the PDF a
+// preview or page picture is reading from its blob: URL, and the pages
 // behind a page's links, which Next.js fetches ahead. They're only left out
 // while the page is being left, so a load that fails on a page that stays
 // open counts.
 const CUT_SHORT = [
   /^Fetch API cannot load \S+\.(wasm|otf|ttf|mjs) due to access control checks\.$/,
-  /^Cannot load \S+\.js due to access control checks\.$/,
+  /^Cannot load (\S+\.m?js|blob:\S+) due to access control checks\.$/,
   /^Failed to fetch RSC payload for \S+\. Falling back to browser navigation\. TypeError: Load failed$/,
+  // What pdf.js (4.8) throws after those: its worker cut short, it tries
+  // to load the worker's code on the page instead, which is cut short too...
+  /^Error: Setting up fake worker failed: "Importing a module script failed\."\.$/,
+  // ...and a PDF's request cut short ends with no status and no headers,
+  // which it reads into a Headers object, one with an empty name.
+  /^Invalid header name: ''$/,
+  /^UnexpectedResponseException: Unexpected server response \(0\) while retrieving PDF "blob:\S+"\.$/,
 ]
 // Safari can report a load cut short just before the request for the next page.
 const BEFORE_LEAVING_MS = 500
@@ -19,9 +27,13 @@ const BEFORE_LEAVING_MS = 500
 // Safari sometimes reports a load cut short as an error thrown by the page
 // rather than logging it. Playwright splits a thrown error's text at its first
 // colon, here the one in "http://", into a name ("Cannot load http") and a
-// message ("/localhost:…"), dropping the character after the colon. Put back
-// together, it reads as it does when it's logged.
-const thrownText = (error: Error) => (/ https?$/.test(error.name) ? `${error.name}:/${error.message}` : error.message)
+// message ("/localhost:…"), dropping the character after the colon: "/", or
+// "h" in "blob:http://". Put back together, it reads as it does when it's logged.
+const thrownText = (error: Error) => {
+  if (/ https?$/.test(error.name)) return `${error.name}:/${error.message}`
+  if (/ blob$/.test(error.name)) return `${error.name}:h${error.message}`
+  return error.message
+}
 
 /**
  * Collects the errors a page throws or logs, for a test to check at the end.
@@ -82,6 +94,13 @@ export async function transitionsDone(page: Page): Promise<void> {
  * or on what's in it, as a dialog growing into place, so a box read next is
  * its final one. Each look comes two frames on: a transition can start with
  * the next frame, and its transitionrun event comes with the one after.
+ * A view transition counts too: until it ends, what shows of the element is
+ * its picture, moving from where it was. Its animations are on the root's
+ * ::view-transition pseudo-elements, and start as the browser pictures the
+ * new view, at the next frame after it's rendered. Only those still playing
+ * count: once done, they hold their last frame (fill: both), and WebKit went
+ * on listing one after Start writing's rise had played, which held up every
+ * test that came into the editor that way. A failure names what's moving.
  */
 export async function settled(locator: Locator): Promise<void> {
   await expect
@@ -89,14 +108,19 @@ export async function settled(locator: Locator): Promise<void> {
       () =>
         locator.evaluate(async (element) => {
           await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
-          return document.getAnimations().filter((animation) => {
-            const target = (animation.effect as KeyframeEffect | null)?.target
-            return "transitionProperty" in animation && !!target && (target.contains(element) || element.contains(target))
-          }).length
+          return document.getAnimations().flatMap((animation) => {
+            const effect = animation.effect as KeyframeEffect | null
+            const target = effect?.target
+            if (!target || !(target.contains(element) || element.contains(target))) return []
+            if ("transitionProperty" in animation)
+              return [`${target.tagName.toLowerCase()} ${(animation as CSSTransition).transitionProperty}`]
+            if (!effect.pseudoElement?.startsWith("::view-transition") || animation.playState !== "running") return []
+            return [`${effect.pseudoElement} ${(animation as CSSAnimation).animationName}${animation.pending ? " pending" : ""}`]
+          })
         }),
       { message: "nothing on, in or around it is transitioning" },
     )
-    .toBe(0)
+    .toEqual([])
 }
 
 /**
