@@ -105,19 +105,31 @@ test("the template gallery fades away as it closes, rather than vanishing", asyn
   await settled(gallery)
   await transitionsDone(page)
 
-  // Whether an opacity transition starts on the gallery, or what holds it, as it closes.
-  await page.evaluate(() => {
-    const flags = window as unknown as { galleryFaded: boolean }
-    flags.galleryFaded = false
-    document.addEventListener("transitionrun", (event) => {
-      if (event.propertyName !== "opacity" || !(event.target instanceof Element)) return
-      if (event.target.querySelector('[role="dialog"][aria-label="Choose a template"]')) flags.galleryFaded = true
-    })
+  // Each frame from here on, whether the gallery showed part way see-through: its opacity times
+  // that of what holds it. Read from computed styles rather than transition events, which WebKit
+  // doesn't always deliver.
+  const seen = await page.evaluateHandle(() => {
+    const seen = { partWay: false }
+    const look = () => {
+      let opacity = 1
+      for (
+        let element = document.querySelector('[role="dialog"][aria-label="Choose a template"]');
+        element;
+        element = element.parentElement
+      ) {
+        opacity *= Number(getComputedStyle(element).opacity)
+      }
+      if (opacity > 0 && opacity < 1) seen.partWay = true
+      requestAnimationFrame(look)
+    }
+    requestAnimationFrame(look)
+    return seen
   })
   await gallery.getByRole("button", { name: "Close" }).click()
   await expect(page.getByRole("button", { name: /^Template/ })).toBeFocused()
   await expect(gallery).toBeHidden()
-  expect(await page.evaluate(() => (window as unknown as { galleryFaded: boolean }).galleryFaded)).toBe(true)
+  // One that vanished would go from solid to gone, never in between.
+  expect((await seen.jsonValue()).partWay).toBe(true)
   expect(errors).toEqual([])
 })
 
