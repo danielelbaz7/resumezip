@@ -188,17 +188,18 @@ export interface PdfPage extends PageSize {
   links: Link[]
 }
 
-/** Text in a column starts at the same place on most lines; right-aligned dates don't. */
-function leftAligned(items: Item[]): boolean {
+/** Text in a column starts at the same place on most of its lines, at least `fewest` of them; right-aligned dates don't. */
+function leftAligned(items: Item[], fewest = 5): boolean {
   const starts = new Map<number, number>()
   for (const item of items) {
     const line = Math.round(item.baseline)
     starts.set(line, Math.min(starts.get(line) ?? Infinity, item.x))
   }
-  if (starts.size < 5) return false
+  if (starts.size < fewest) return false
   const counts = new Map<number, number>()
   for (const x of starts.values()) counts.set(Math.round(x / 3), (counts.get(Math.round(x / 3)) ?? 0) + 1)
-  return Math.max(...counts.values()) / starts.size >= 0.5
+  const most = Math.max(...counts.values())
+  return most >= 2 && most / starts.size >= 0.5
 }
 
 /** How many times text switches between the two sides of `x`, in the order it's written. */
@@ -214,29 +215,34 @@ function switches(items: Item[], x: number): number {
   return count
 }
 
+const chars = (list: Item[]) => list.reduce((sum, item) => sum + item.text.length, 0)
+
+/** The text on each side of `x`, where columns split there would start, and the text below that. */
+function sidesOf(items: Item[], x: number) {
+  const left = items.filter((item) => item.right <= x + 1)
+  const right = items.filter((item) => item.x >= x - 1)
+  // The columns start below the last line that crosses the gap, like a
+  // centered contact line, even where some of that line is on one side.
+  const crossed = new Set(items.filter((item) => item.x < x - 1 && item.right > x + 1).map((item) => Math.round(item.baseline)))
+  const highest = (list: Item[]) => Math.max(...list.filter((item) => !crossed.has(Math.round(item.baseline))).map((item) => item.baseline))
+  const top = Math.min(highest(left), highest(right))
+  const below = items.filter((item) => item.baseline <= top + 1)
+  return { left, right, top, below, crossing: chars(below.filter((item) => item.x < x - 1 && item.right > x + 1)) }
+}
+
 /**
  * Finds the gap between two columns of text, if the page has them, and where
  * the columns start. Text may only cross it above that, like a name across the top.
  */
 function findGutter(items: Item[], width: number): { x: number; top: number } | null {
-  const chars = (list: Item[]) => list.reduce((sum, item) => sum + item.text.length, 0)
   const total = chars(items)
-  if (total < 150) return null
+  if (total < 150) return shortGutter(items, width)
   let best: { x: number; top: number; crossing: number; apart: boolean } | null = null
   for (let x = width * 0.2; x <= width * 0.8; x += 2) {
-    const left = items.filter((item) => item.right <= x + 1)
-    const right = items.filter((item) => item.x >= x - 1)
+    const { left, right, top, below, crossing } = sidesOf(items, x)
     const share = Math.min(chars(left), chars(right)) / total
     if (share < 0.05) continue
-    // The columns start below the last line that crosses the gap, like a
-    // centered contact line, even where some of that line is on one side.
-    const crossed = new Set(items.filter((item) => item.x < x - 1 && item.right > x + 1).map((item) => Math.round(item.baseline)))
-    const highest = (list: Item[]) =>
-      Math.max(...list.filter((item) => !crossed.has(Math.round(item.baseline))).map((item) => item.baseline))
-    const top = Math.min(highest(left), highest(right))
     if (!Number.isFinite(top)) continue
-    const below = items.filter((item) => item.baseline <= top + 1)
-    const crossing = chars(below.filter((item) => item.x < x - 1 && item.right > x + 1))
     if (crossing / total > 0.01) continue
     // A column written whole, before or after the other, is a column however
     // little it holds, as long as it has lines of its own and the columns
@@ -250,10 +256,28 @@ function findGutter(items: Item[], width: number): { x: number; top: number } | 
     if (share < 0.2 && !apart) continue
     if (!best || crossing < best.crossing) best = { x, top, crossing, apart }
   }
-  if (!best) return null
+  if (!best) return shortGutter(items, width)
   const { x, top, apart } = best
   const ok = apart || (leftAligned(items.filter((item) => item.x >= x - 1)) && leftAligned(items.filter((item) => item.right <= x + 1)))
-  return ok ? { x, top } : null
+  return ok ? { x, top } : shortGutter(items, width)
+}
+
+/**
+ * Two columns with too few lines for findGutter to go by, like Deedy's with
+ * one school and one job: nothing crosses between them, each is written
+ * whole, one after the other, and most lines of each start at one place.
+ * The gap is just left of the right column, so a name centered above
+ * crosses it, and reads first.
+ */
+function shortGutter(items: Item[], width: number): { x: number; top: number } | null {
+  const total = chars(items)
+  for (let x = width * 0.8; x >= width * 0.2; x -= 2) {
+    const { top, below, crossing } = sidesOf(items, x)
+    if (!Number.isFinite(top) || crossing > 0 || switches(below, x) > 1 || chars(below) / total < 0.5) continue
+    const columns = [below.filter((item) => item.right <= x + 1), below.filter((item) => item.x >= x - 1)]
+    if (columns.every((column) => leftAligned(column, 2))) return { x, top }
+  }
+  return null
 }
 
 // pdf.js's codes for the drawing instructions read here (its `OPS`), which
