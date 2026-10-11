@@ -217,6 +217,18 @@ addEventListener("message", ({ data: request }: MessageEvent<WorkerRequest>) => 
 // Typst couldn't lay out the resume: its diagnostics.
 class Unprintable extends Error {}
 
+// How much memory the compiler holds, in bytes, for the page to replace a
+// worker that holds too much (see MEMORY_LIMIT in compile.ts). Initialising
+// the compiler's module again only hands back the instance already running.
+async function memoryHeld(): Promise<number | undefined> {
+  try {
+    const running = await (await import("@myriaddreamin/typst-ts-web-compiler")).default()
+    return running.memory.buffer.byteLength
+  } catch {
+    return undefined
+  }
+}
+
 async function compile({ id, template, data, attachment }: CompileRequest) {
   let response: CompileResponse
   let typst: TypstCompiler | undefined
@@ -258,5 +270,7 @@ async function compile({ id, template, data, attachment }: CompileRequest) {
     const message = error instanceof Error ? error.message : String(error)
     response = { id, error: message, failure: error instanceof Unprintable ? "resume" : typst === undefined ? "connection" : "crash" }
   }
+  // Only a compiler that was built holds any.
+  if (typst) response.memory = await memoryHeld()
   postMessage(response)
 }

@@ -451,6 +451,63 @@ test("a preview whose PDF can't be turned into a link still settles", async () =
   expect(next.value).toMatch(/^blob:/)
 })
 
+describe("a compiler that has grown to hold too much memory", () => {
+  // Makes PDFs, saying its compiler then holds this many MB.
+  function holding(megabytes: number) {
+    return ({ id }: CompileRequest) => ({ id, pdf: PDF, memory: megabytes * 1024 * 1024 })
+  }
+
+  test("is replaced once it has nothing to do, by one that starts loading at once", async () => {
+    FakeWorker.answer = holding(1024)
+    const preview = track(compilePreview(printing("A")))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(preview.value).toMatch(/^blob:/)
+    expect(FakeWorker.made).toHaveLength(2)
+    expect(FakeWorker.made[0].terminated).toBe(true)
+    // With the fonts of the template it was printing.
+    expect(FakeWorker.made[1].loadRequests).toEqual([{ load: true, template: "jake" }])
+    expect(compilerStatus()).toEqual({ loaded: false, downloaded: 0 })
+
+    // The old one's wait for an answer went with it.
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(FakeWorker.made[1].terminated).toBe(false)
+
+    FakeWorker.answer = makesPdf
+    const next = track(compilePreview(printing("Ad")))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(next.value).toMatch(/^blob:/)
+    expect(FakeWorker.made).toHaveLength(2)
+  })
+
+  test("finishes the previews and downloads under way first", async () => {
+    FakeWorker.delay = () => 100
+    FakeWorker.answer = holding(1024)
+    const first = track(compilePreview(printing("A")))
+    const download = track(compileResume({ profileSection: { fullName: "Download" } }))
+    const replaced = track(compilePreview(printing("Ad")))
+    const latest = track(compilePreview(printing("Ada")))
+    await vi.advanceTimersByTimeAsync(100)
+    expect([first.value, download.value, replaced.error?.name]).toEqual([expect.stringMatching(/^blob:/), PDF, "Superseded"])
+    expect(FakeWorker.made).toHaveLength(1)
+
+    await vi.advanceTimersByTimeAsync(100)
+    expect(latest.value).toMatch(/^blob:/)
+    expect(namesReceived()).toEqual(["A", "Download", "Ada"])
+    expect(FakeWorker.made[0].terminated).toBe(true)
+    expect(FakeWorker.made).toHaveLength(2)
+  })
+
+  test("is kept while it holds less", async () => {
+    FakeWorker.answer = holding(64)
+    for (const name of ["A", "Ad", "Ada"]) {
+      track(compilePreview(printing(name)))
+      await vi.advanceTimersByTimeAsync(10)
+    }
+    expect(namesReceived()).toEqual(["A", "Ad", "Ada"])
+    expect(FakeWorker.made).toHaveLength(1)
+  })
+})
+
 test("the compiler can start loading before the first PDF, which then uses the same worker", async () => {
   FakeWorker.loading = [{ progress: true, downloaded: 0.5 }, { progress: true, downloaded: 1 }, { ready: true }]
   loadAhead("resumeworded")

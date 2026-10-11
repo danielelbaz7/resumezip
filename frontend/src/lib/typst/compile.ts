@@ -64,7 +64,8 @@ interface Compiled {
   fit?: Fit
 }
 
-export type CompileResponse = ({ id: number } & Compiled) | { id: number; error: string; failure: PdfFailure }
+/** The worker's answer, with how much memory its compiler holds afterwards, in bytes, when it can tell (see MEMORY_LIMIT). */
+export type CompileResponse = { id: number; memory?: number } & (Compiled | { error: string; failure: PdfFailure })
 
 /**
  * What the page sends the worker: a resume to compile; word to start
@@ -91,6 +92,16 @@ export interface CompilerStatus {
 // spent waiting behind other requests doesn't count against any of them.
 const LOADING_MS = 30_000
 const COMPILING_MS = 20_000
+
+// A worker's memory only grows: Typst keeps what it works out for later
+// compiles, and WebAssembly memory is never given back. In Chromium it grew
+// about 0.12 MB a preview while typing, and 0.8 MB with "Keep to one page",
+// which compiles several times a preview, without levelling off (#216). Once
+// it holds more than this, the worker is replaced as soon as it has nothing
+// to do. The new one takes a few seconds to build its compiler, usually from
+// the browser's cache, so this is set to rarely cost that: after about 300
+// previews kept to one page, or 2,000 without.
+const MEMORY_LIMIT = 256 * 1024 * 1024
 
 let worker: Worker | null = null
 // Whether the current worker's compiler has loaded, and how much of it has arrived.
@@ -134,10 +145,17 @@ function restart(error: PdfError) {
   previewWaiting?.reject(error)
   previewWaiting = null
   watch()
+  dropWorker()
+}
+
+function dropWorker() {
   worker?.terminate()
   worker = null
   setStatus({ loaded: false, downloaded: 0 })
 }
+
+// The template of the latest resume sent, whose fonts a replacement worker loads ahead.
+let lastTemplate: TemplateId | undefined
 
 function getWorker(): Worker {
   if (worker) return worker
@@ -158,6 +176,14 @@ function getWorker(): Worker {
         request?.reject(new PdfError(data.error, data.failure))
         // A broken compiler can't be trusted with the rest.
         if (data.failure === "crash") return restart(new PdfError(data.error, "crash"))
+      }
+      // Replaced only once nothing is in flight or waiting, so no request is
+      // dropped or waits for a new compiler; until then, each answer says
+      // again how much it holds. The new one starts loading at once.
+      if ((data.memory ?? 0) > MEMORY_LIMIT && pending.size === 0 && !previewWaiting) {
+        watch()
+        dropWorker()
+        return loadCompiler(lastTemplate)
       }
     } else if ("ready" in data) {
       setStatus({ loaded: data.ready, downloaded: data.ready ? 1 : 0 })
@@ -240,6 +266,7 @@ export async function compileResume(resume: Resume, { attach = false }: CompileO
 
 function send(printed: Printed, attachment?: string): Promise<Compiled> {
   const request: CompileRequest = { id: nextId++, ...printed, attachment }
+  lastTemplate = printed.template
   return new Promise((resolve, reject) => {
     getWorker().postMessage(request satisfies WorkerRequest)
     pending.set(request.id, { resolve, reject })
