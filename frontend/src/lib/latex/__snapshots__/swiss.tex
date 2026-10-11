@@ -1,0 +1,233 @@
+%-------------------------
+% Resume in LaTeX, from resumezip
+% resumezip's Swiss template
+%-------------------------
+
+\documentclass[letterpaper]{article}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+\fi
+\ifPDFTeX
+  \usepackage{tgheros}
+  \renewcommand*\familydefault{\sfdefault}
+\else
+  \usepackage{fontspec}
+  \IfFontExistsTF{texgyreheros-regular.otf}{
+    \setmainfont{texgyreheros}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold, ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+  }{
+    \setmainfont{zhv}[Extension=.otf, UprightFont=*-Reg, BoldFont=*-Bol, ItalicFont=*-RegIta, BoldItalicFont=*-BolIta]
+  }
+\fi
+\usepackage[left=0.55in, right=0.55in, top=0.48in, bottom=0.42in]{geometry}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\ifPDFTeX
+  % For \textls, which tightens the name and section titles
+  \usepackage[protrusion=false, expansion=false]{microtype}
+\fi
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Rafael Conde}}
+\urlstyle{same}
+\ifPDFTeX
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+  \pdfinterwordspaceon
+\fi
+\ifXeTeX
+  \XeTeXgenerateactualtext=1
+\fi
+
+\definecolor{swissred}{HTML}{D4261C}
+\definecolor{grey}{RGB}{105,105,105}
+
+% Text sizes and line spacing, as Fine-tune sets them: a line is its
+% capitals' height and the gap above them
+\renewcommand{\normalsize}{\fontsize{9.2bp}{11.31bp}\selectfont}
+\newcommand{\titleSize}{\fontsize{15bp}{18.44bp}\selectfont}
+\newcommand{\nameSize}{\fontsize{40bp}{49.16bp}\selectfont}
+\normalsize
+% Each \vspace below runs from a line to the top of the next line's
+% capitals, as in the PDF, so a new paragraph takes back the gap above them
+\setlength{\parskip}{-4.6bp}
+\setlength{\topskip}{6.71bp}
+
+\pagestyle{empty}
+\raggedbottom
+\raggedright
+
+% \tracked{-35}{text}: letters 0.035em closer together
+\ifPDFTeX
+  \newcommand{\tracked}[2]{\textls*[#1]{#2}}
+\else
+  \newcommand{\tracked}[2]{{\addfontfeatures{LetterSpace=\fpeval{#1/10}}#2}}
+\fi
+
+%-------------------------
+% Custom commands
+
+% The name, where you are and how to reach you, and the red rule under them.
+% Lines are placed by their baselines alone, however deep the name's letters go.
+\newcommand{\resumeName}[1]{\par\noindent{\nameSize\bfseries\tracked{-35}{#1}\par}}
+\newcommand{\resumeContacts}[1]{\par\vspace{14bp}{\lineskiplimit=-\maxdimen\noindent#1\par}}
+\newcommand{\contactGap}{\hspace{1em}}
+% The red rule, 9pt below the line above it, less the capitals' height that
+% a line of its own adds
+\newcommand{\resumeRule}{%
+  \par\vspace{2.29bp}%
+  \noindent\smash{\color{swissred}\rule[-1.2pt]{\linewidth}{2.4pt}}\par
+  \vspace{2bp}%
+}
+
+% A section title, big and bold
+\newcommand{\resumeSection}[1]{%
+  \par\vspace{13bp}%
+  {\titleSize\setlength{\parskip}{-7.5bp}\noindent\textbf{\tracked{-15}{#1}}\par}%
+  \nobreak\addvspace{7bp}%
+}
+
+% A line with one part flush left and one flush right. A long left part
+% wraps, and the right one sits on its last line.
+\newlength{\rowRight}
+\newcommand{\resumeRow}[2]{%
+  \par\begingroup
+  \settowidth{\rowRight}{#2}%
+  \rightskip=\dimexpr\rowRight+0.8em\relax plus 1fil
+  \parfillskip=0pt
+  \noindent#1\hspace{0pt plus 1fill}\rlap{\hspace{0.8em}#2}\par
+  \endgroup
+}
+
+% An entry: the organization in bold and its dates, then the role and the
+% place in grey, when there's either. After a section title (the space it
+% ends with), only the title's own space.
+\newcommand{\resumeEntry}[4]{%
+  \par\ifdim\lastskip=0pt \vspace{8bp}\fi
+  \resumeRow{\textbf{#1}}{#2}%
+  \if\relax\detokenize{#3#4}\relax\else
+    \nobreak\vspace{3.4bp}%
+    \resumeRow{#3}{\textcolor{grey}{#4}}%
+  \fi
+  \nobreak
+}
+
+% A project: its name, stack and links, and its date
+\newcommand{\resumeProject}[2]{%
+  \par\ifdim\lastskip=0pt \vspace{8bp}\fi
+  \resumeRow{#1}{#2}\nobreak
+}
+
+% An award: its name in bold, who gave it in grey, and its date
+\newcommand{\resumeAward}[3]{%
+  \par\ifdim\lastskip=0pt \vspace{4.4bp}\fi
+  \resumeRow{\textbf{#1}\if\relax\detokenize{#2}\relax\else\dotSep\textcolor{grey}{#2}\fi}{#3}%
+}
+
+\newcommand{\dotSep}{\hspace{0.45em}\textcolor{grey}{\textperiodcentered}\hspace{0.45em}}
+
+% Bullets: a red dash, its text 6pt after it, and wrapped lines under the text
+\newlength{\bulletWidth}
+\newenvironment{resumeItems}{\par\vspace{3.8bp}\let\itemGap\relax}{\par}
+\newcommand{\resumeItem}[1]{%
+  \par\itemGap\def\itemGap{\vspace{3.6bp}}%
+  \settowidth{\bulletWidth}{\textendash\hspace{6pt}}%
+  \noindent\hangindent=\bulletWidth
+  \makebox[\bulletWidth][l]{\textcolor{swissred}{\textendash}}#1\par
+}
+
+% Paragraphs, as the summary's, 0.6em apart
+\newenvironment{resumeText}{\par\noindent\setlength{\parskip}{0.92bp}\ignorespaces}{\par}
+
+% Skills: the names in a column as wide as the widest, the rest beside them.
+% \prevdepth puts what comes next as far below as after a line of text.
+\newenvironment{resumeSkills}{%
+  \par\noindent
+  \renewcommand{\arraystretch}{0.965}%
+  \tabularx{\linewidth}[t]{@{}l@{\hspace{1.2em}}X@{}}%
+}{%
+  \endtabularx\par
+  \prevdepth=\arraystretch\dp\strutbox
+}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\resumeName{Rafael Conde}
+\resumeContacts{%
+  \mbox{Austin, TX}\contactGap
+  \mbox{(555) 010-2299}\contactGap
+  \mbox{\href{mailto:rafael@example.com}{rafael@example.com}}\contactGap
+  \mbox{\href{https://linkedin.com/in/rconde}{linkedin.com/in/rconde}}\contactGap
+  \mbox{\href{https://github.com/rconde}{github.com/rconde}}%
+}
+\resumeRule
+
+\resumeSection{Summary}
+  \begin{resumeText}
+    Backend engineer who likes fast, boring systems.
+  \end{resumeText}
+
+\resumeSection{Education}
+  \resumeEntry{University of Texas at Austin}{Aug 2019 - May 2023}{B.S. in Computer Science, GPA 3.8}{Austin, TX}
+  \begin{resumeItems}
+    \resumeItem{Coursework: Operating Systems, Distributed Systems}
+  \end{resumeItems}
+
+\resumeSection{Experience}
+  \resumeEntry{Cloudflare}{Jun 2023 - Present}{Software Engineer}{Austin, TX}
+  \begin{resumeItems}
+    \resumeItem{Cut p99 latency of the \textbf{cache purge} API by \textit{40\%}}
+    \resumeItem{Owned on-call for R\&D's \textbf{\textit{edge}} fleet}
+  \end{resumeItems}
+
+\resumeSection{Projects}
+  \resumeProject{\textbf{tinykv}\dotSep \emph{Rust, Raft}\dotSep \textcolor{grey}{\href{https://github.com/rconde/tinykv}{github.com/rconde/tinykv}}}{2024}
+  \begin{resumeItems}
+    \resumeItem{A key\_value store with \textbf{snapshots}}
+  \end{resumeItems}
+
+\resumeSection{Publications}
+  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, leftmargin=*, labelsep=0.7em, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=0.4bp]
+    \item \textbf{R. Conde}, J. Smith, and A. Lee, “Purging caches at the edge,” \textit{Proc. NSDI}, pp. 1-14, 2025, doi: \href{https://doi.org/10.1145/3580305}{10.1145/3580305}.
+    \item “Notes on consistent hashing?” \href{https://rconde.dev/hashing}{rconde.dev/hashing}.
+  \end{enumerate}
+
+\resumeSection{Skills}
+  \begin{resumeSkills}
+    \textbf{Languages} & Rust, Go, C++ \\
+    \textbf{Tools} & Linux, eBPF
+  \end{resumeSkills}
+
+\resumeSection{Talks}
+  \begin{resumeItems}
+    \resumeItem{\textit{Boring} systems, \textbf{fast}}
+  \end{resumeItems}
+
+\resumeSection{Leadership}
+  \resumeEntry{Longhorn Developers}{2021 - 2022}{President}{Austin, TX}
+  \begin{resumeItems}
+    \resumeItem{Ran 12 workshops}
+  \end{resumeItems}
+
+\resumeSection{Volunteer}
+  \resumeEntry{Code2040}{}{Mentor}{}
+  \begin{resumeItems}
+    \resumeItem{Mentored 4 students}
+  \end{resumeItems}
+
+\resumeSection{Awards \& Certifications}
+  \resumeAward{Dean's List}{UT Austin}{2022}
+
+\resumeSection{Interests}
+  \begin{resumeText}
+    Climbing, film photography\newline
+    and bread.
+
+    Ask me about sourdough.
+  \end{resumeText}
+
+\end{document}

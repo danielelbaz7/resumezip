@@ -1,0 +1,186 @@
+%-------------------------
+% Resume in LaTeX, from resumezip
+% resumezip's Compact template
+%-------------------------
+
+\documentclass[letterpaper]{article}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+\fi
+\ifPDFTeX
+  \usepackage{tgheros}
+  \renewcommand*\familydefault{\sfdefault}
+\else
+  \usepackage{fontspec}
+  \IfFontExistsTF{texgyreheros-regular.otf}{
+    \setmainfont{texgyreheros}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold, ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+  }{
+    \setmainfont{zhv}[Extension=.otf, UprightFont=*-Reg, BoldFont=*-Bol, ItalicFont=*-RegIta, BoldItalicFont=*-BolIta]
+  }
+\fi
+\usepackage[margin=0.5in]{geometry}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Rafael Conde}}
+\urlstyle{same}
+\ifPDFTeX
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+  \pdfinterwordspaceon
+\fi
+\ifXeTeX
+  \XeTeXgenerateactualtext=1
+\fi
+
+\pagestyle{empty}
+\raggedbottom
+\frenchspacing
+% Lines stretch further, as the PDF's do, rather than run into the margin.
+\setlength{\emergencystretch}{3em}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+
+% Text sizes and line spacing, as Fine-tune sets them
+\renewcommand{\normalsize}{\fontsize{10bp}{12bp}\selectfont}
+\normalsize
+\setlength{\topskip}{7.29bp}
+\newcommand{\resumeNameFont}{\fontsize{20.74bp}{19.83bp}\selectfont\bfseries}
+\newcommand{\resumeHeadingFont}{\fontsize{12bp}{13.46bp}\selectfont\bfseries}
+
+% Lists start and end flush with the text around them, and stay with what's above them.
+\setlist{topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=0pt, beginpenalty=10000}
+
+%-------------------------
+% Custom commands
+
+% The name, and the contact line under it
+\newenvironment{resumeHeader}{\centering\lineskiplimit=-\maxdimen}{\par\vspace{1.1bp}}
+% An empty box takes the page's first line, so the name's capitals sit at the
+% top margin however tall its accents are.
+\newcommand{\resumeName}[1]{\hbox{}\vspace{-12bp}{\resumeNameFont #1\par}}
+\newcommand{\resumeContacts}[1]{#1\par}
+
+% A link, underlined 3bp under its baseline. It never breaks across lines.
+\newsavebox{\resumeLinkBox}
+\newcommand{\resumeUnderline}[1]{%
+  \sbox{\resumeLinkBox}{#1}%
+  \rlap{\rule[-3.2bp]{\wd\resumeLinkBox}{0.4pt}}\usebox{\resumeLinkBox}%
+}
+
+% A heading in bold capitals over a thin rule, kept with what follows it.
+\newcommand{\resumeSection}[1]{%
+  \par\vspace{15.39bp}%
+  {\resumeHeadingFont\MakeUppercase{#1}\par}%
+  \nobreak\vskip\dimexpr3.85bp-\prevdepth\relax
+  \hrule height 0.4pt\relax
+  % The next line's capitals sit 4.7bp under the rule.
+  \nobreak\prevdepth=0.21bp
+}
+
+% A line with one part flush left and one flush right. A long left part
+% wraps short of the right one, which sits on its last line.
+\newlength{\resumeRightWidth}
+\newcommand{\resumeRow}[2]{%
+  \par\settowidth{\resumeRightWidth}{#2}%
+  {\rightskip=\dimexpr\resumeRightWidth+0.8em\relax plus 1fil\hyphenpenalty=10000\interlinepenalty=10000
+    #1\nobreak\hfill\rlap{\hspace{0.8em}#2}\par}%
+}
+
+% A project's tech stack and links, under its name
+\newcommand{\resumeDetails}[1]{\nobreak{\raggedright #1\par}}
+
+% Bullets, kept with the line above them
+\newenvironment{resumeItems}{%
+  \nobreak\vspace{1.09bp}%
+  \begin{itemize}[label=\textbullet, align=left, labelindent=11.1pt, labelsep=5.2pt, leftmargin=*]%
+}{\end{itemize}}
+
+% Paragraphs, as the summary's
+\newenvironment{resumeText}{\begin{itemize}[label={}, leftmargin=0pt, labelwidth=0pt, labelsep=0pt, parsep=0.6em]\item\relax}{\end{itemize}}
+
+% The space between entries, and between schools
+\newcommand{\resumeEntryGap}{\vspace{2.09bp}}
+\newcommand{\resumeSchoolGap}{\vspace{1bp}}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\begin{resumeHeader}
+  \resumeName{Rafael Conde}
+  \resumeContacts{
+    \mbox{Austin, TX} \textbullet{}
+    \mbox{(555) 010-2299} \textbullet{}
+    \href{mailto:rafael@example.com}{\resumeUnderline{rafael@example.com}} \textbullet{}
+    \href{https://linkedin.com/in/rconde}{\resumeUnderline{linkedin.com/in/rconde}} \textbullet{}
+    \href{https://github.com/rconde}{\resumeUnderline{github.com/rconde}}
+  }
+\end{resumeHeader}
+
+\resumeSection{Summary}
+  \begin{resumeText}
+    Backend engineer who likes fast, boring systems.
+  \end{resumeText}
+
+\resumeSection{Education}
+  \resumeRow{\textbf{B.S. in Computer Science}}{\textbf{Aug 2019 - May 2023}}
+  \resumeRow{\textit{University of Texas at Austin, Austin, TX}}{\textit{GPA: 3.8}}
+  \textit{Relevant Coursework:} Operating Systems, Distributed Systems\par
+
+\resumeSection{Experience}
+  \resumeRow{\textbf{Cloudflare, Austin, TX:} \textit{Software Engineer}}{\textit{Jun 2023 - Present}}
+  \begin{resumeItems}
+    \item Cut p99 latency of the \textbf{cache purge} API by \textit{40\%}
+    \item Owned on-call for R\&D's \textbf{\textit{edge}} fleet
+  \end{resumeItems}
+
+\resumeSection{Projects}
+  \resumeRow{\textbf{tinykv}}{\textit{2024}}
+  \resumeDetails{\textit{Rust, Raft} | \href{https://github.com/rconde/tinykv}{\resumeUnderline{github.com/rconde/tinykv}}}
+  \begin{resumeItems}
+    \item A key\_value store with \textbf{snapshots}
+  \end{resumeItems}
+
+\resumeSection{Publications}
+  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, leftmargin=*, labelsep=0.7em, itemsep=1.29bp]
+    \item \textbf{R. Conde}, J. Smith, and A. Lee, “Purging caches at the edge,” \textit{Proc. NSDI}, pp. 1-14, 2025, doi: \href{https://doi.org/10.1145/3580305}{\resumeUnderline{10.1145/3580305}}.
+    \item “Notes on consistent hashing?” \href{https://rconde.dev/hashing}{\resumeUnderline{rconde.dev/hashing}}.
+  \end{enumerate}
+
+\resumeSection{Skills}
+  \textbf{Languages:} Rust, Go, C++\par
+  \textbf{Tools:} Linux, eBPF\par
+
+\resumeSection{Talks}
+  \vspace{4.71bp}
+  \begin{resumeItems}
+    \item \textit{Boring} systems, \textbf{fast}
+  \end{resumeItems}
+
+\resumeSection{Leadership}
+  \resumeRow{\textbf{Longhorn Developers, Austin, TX:} \textit{President}}{\textit{2021 - 2022}}
+  \begin{resumeItems}
+    \item Ran 12 workshops
+  \end{resumeItems}
+
+\resumeSection{Volunteer}
+  \resumeRow{\textbf{Code2040:} \textit{Mentor}}{}
+  \begin{resumeItems}
+    \item Mentored 4 students
+  \end{resumeItems}
+
+\resumeSection{Awards \& Certifications}
+  \resumeRow{\textbf{Dean's List}, UT Austin}{\textit{2022}}
+
+\resumeSection{Interests}
+  \begin{resumeText}
+    Climbing, film photography\newline
+    and bread.
+
+    Ask me about sourdough.
+  \end{resumeText}
+
+\end{document}

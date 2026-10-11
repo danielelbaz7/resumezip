@@ -1,0 +1,203 @@
+%-------------------------
+% Resume in LaTeX, from resumezip
+% resumezip's Ian's template, after Ian Hoang's own resume
+%-------------------------
+
+\documentclass[letterpaper]{article}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+\fi
+\usepackage[default]{lato}
+\usepackage[left=0.35in, right=0.35in, top=0.5in, bottom=0.35in]{geometry}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Rafael Conde}}
+\urlstyle{same}
+\ifPDFTeX
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+  \pdfinterwordspaceon
+\fi
+\ifXeTeX
+  \XeTeXgenerateactualtext=1
+\fi
+
+\definecolor{titleblue}{RGB}{10,90,160}
+
+% Text size and line spacing, as Fine-tune sets them. Lengths are in bp,
+% the PDF's points: TeX's pt is a little smaller.
+\renewcommand{\normalsize}{\fontsize{9.96bp}{11.92bp}\selectfont}
+\normalsize
+
+\pagestyle{empty}
+\raggedright
+\setlength{\parindent}{0pt}
+% A page's first line sits its capitals' height under the top margin
+\setlength{\topskip}{7.14bp}
+% Words aren't broken at the end of a line, as in the PDF
+\hyphenpenalty=10000
+% Lines too tall to sit their usual distance apart touch rather than sit 1pt apart
+\setlength{\lineskip}{0pt}
+
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcommand{\resumeRow}[2]{{%
+  \renewcommand{\tabularxcolumn}[1]{b{##1}}%
+  \begin{tabularx}{\linewidth}{@{}L@{\hspace{0.8em}}r@{}}#1 & #2\end{tabularx}%
+}}
+
+%-------------------------
+% Custom commands
+
+% Links are underlined 2bp under the baseline, through the letters' tails
+\newcommand{\resumeUnderline}[1]{\setbox0\hbox{#1}\rlap{\rule[-2.2bp]{\wd0}{0.4bp}}\box0}
+
+% The name, its baseline its capitals' height under the top margin, then the
+% contact line, a fixed distance under it. An empty box at the top, and no
+% minimum space between lines, keep them where they are however tall or deep
+% the name's letters are.
+\newcommand{\resumeName}[1]{%
+  \hbox{}\vspace{-11.92bp}%
+  {\fontsize{24.79bp}{22.7bp}\selectfont\setlength{\lineskiplimit}{-\maxdimen}\centering\textbf{\textcolor{titleblue}{#1}}\par}%
+  \vspace{3.1bp}%
+}
+\newcommand{\resumeContacts}[1]{%
+  \vspace{3.18bp}%
+  {\setlength{\lineskiplimit}{-\maxdimen}\centering\ignorespaces #1\par}%
+  \vspace{3.1bp}%
+}
+\newcommand{\contactSep}{\hspace{0.6em}\textbar\hspace{0.5em}}
+
+% A section: its title in blue, over a thin blue rule 4.4bp under its baseline
+% however deep its letters go. The option is the space under the rule.
+\newcommand{\resumeSection}[2][5.58bp]{%
+  \par\vspace{8.95bp}%
+  {\fontsize{11.96bp}{13.43bp}\selectfont\textbf{\textcolor{titleblue}{#2}}\par}%
+  \nopagebreak\vspace{\dimexpr 4.2bp-\prevdepth\relax}%
+  {\color{titleblue}\hrule height 0.2bp depth 0.2bp}%
+  \prevdepth=0.2bp
+  \nopagebreak\vspace{#1}%
+}
+
+% An entry: the organization and its dates in bold, then the role and its
+% place in italics. The first line's larger size is set inside its row, so
+% both rows are as tall as a line of text and sit their usual distance apart.
+\newcommand{\resumeEntryTop}[2]{%
+  \par\vspace{-4.03bp}%
+  \resumeRow{\fontsize{10.91bp}{12.6bp}\selectfont\textbf{#1}}{\fontsize{10.91bp}{12.6bp}\selectfont\textbf{#2}}\par\nopagebreak
+}
+\newcommand{\resumeEntry}[4]{%
+  \resumeEntryTop{#1}{#2}%
+  \vspace{1.68bp}%
+  \resumeRow{\textit{#3}}{\textit{#4}}\par\nopagebreak
+}
+% A line with a name in bold and something on the right: a project's first line, or an award
+\newcommand{\resumeLine}[2]{%
+  \par\vspace{-4.72bp}%
+  \resumeRow{#1}{#2}\par
+}
+\newcommand{\resumeProject}[2]{\resumeLine{#1}{\textbf{#2}}\nopagebreak}
+\newcommand{\resumeAward}[2]{\resumeLine{#1}{\textit{#2}}}
+
+\newcommand{\resumeEntryGap}{\vspace{7.78bp}}
+\newcommand{\resumeProjectGap}{\vspace{10.46bp}}
+\newcommand{\resumeAwardGap}{\vspace{4.78bp}}
+
+% Bullets: a small dot 14.7bp in, raised so the top of its capitals would be level with
+% the text's, and the text 5bp after it
+\SetEnumitemKey{bullets}{label={\raisebox{1.76bp}{\fontsize{7.5bp}{10.15bp}\selectfont\textbullet}}, leftmargin=*, labelindent=14.7bp,
+  labelsep=5bp, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=0.43bp}
+\newlist{resumeItems}{itemize}{1}
+\setlist[resumeItems]{bullets, before=\vspace{0.88bp}}
+% A project's bullets are a little closer to its first line
+\newlist{projectItems}{itemize}{1}
+\setlist[projectItems]{bullets, before=\vspace{0.48bp}}
+
+% Paragraphs, as the summary's, 0.6em apart. The first one gets \parskip too, so it's taken back.
+\newenvironment{resumeText}{%
+  \par\vspace{-4.78bp}%
+  \setlength{\parskip}{1.2bp}\vspace{-\parskip}%
+}{\par}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\resumeName{Rafael Conde}
+\resumeContacts{
+  \mbox{Austin, TX}\contactSep
+  \mbox{(555) 010-2299}\contactSep
+  \mbox{\href{mailto:rafael@example.com}{\resumeUnderline{rafael@example.com}}}\contactSep
+  \mbox{\href{https://github.com/rconde}{\resumeUnderline{github.com/rconde}}}\contactSep
+  \mbox{\href{https://linkedin.com/in/rconde}{\resumeUnderline{linkedin.com/in/rconde}}}
+}
+
+\resumeSection{Summary}
+  \begin{resumeText}
+    Backend engineer who likes fast, boring systems.
+  \end{resumeText}
+
+\resumeSection{Education}
+  \resumeEntry{University of Texas at Austin}{Aug 2019 \textendash{} May 2023}{B.S. in Computer Science}{Austin, TX | GPA: 3.8}
+    \begin{resumeItems}
+      \item \textbf{Relevant Coursework:} Operating Systems, Distributed Systems
+    \end{resumeItems}
+
+\resumeSection{Experience}
+  \resumeEntry{Cloudflare}{Jun 2023 \textendash{} Present}{Software Engineer}{Austin, TX}
+    \begin{resumeItems}
+      \item Cut p99 latency of the \textbf{cache purge} API by \textit{40\%}
+      \item Owned on-call for R\&D's \textbf{\textit{edge}} fleet
+    \end{resumeItems}
+
+\resumeSection[8.36bp]{Projects}
+  \resumeProject{\textbf{tinykv} | \emph{Rust, Raft} | \href{https://github.com/rconde/tinykv}{\resumeUnderline{github.com/rconde/tinykv}}}{2024}
+    \begin{projectItems}
+      \item A key\_value store with \textbf{snapshots}
+    \end{projectItems}
+
+\resumeSection[6.06bp]{Publications}
+  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, leftmargin=*, labelindent=0pt, labelsep=0.7em, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=0.48bp, before=\vspace{-4.78bp}]
+    \item \textbf{R. Conde}, J. Smith, and A. Lee, “Purging caches at the edge,” \textit{Proc. NSDI}, pp. 1-14, 2025, doi: \href{https://doi.org/10.1145/3580305}{\resumeUnderline{10.1145/3580305}}.
+    \item “Notes on consistent hashing?” \href{https://rconde.dev/hashing}{\resumeUnderline{rconde.dev/hashing}}.
+  \end{enumerate}
+
+\resumeSection[6.06bp]{Skills}
+  \begin{resumeText}
+    \textbf{Languages}: Rust, Go, C++\newline
+    \textbf{Tools}: Linux, eBPF
+  \end{resumeText}
+
+\resumeSection{Talks}
+  \begin{resumeItems}
+    \item \textit{Boring} systems, \textbf{fast}
+  \end{resumeItems}
+
+\resumeSection{Leadership}
+  \resumeEntry{Longhorn Developers}{2021 \textendash{} 2022}{President}{Austin, TX}
+    \begin{resumeItems}
+      \item Ran 12 workshops
+    \end{resumeItems}
+
+\resumeSection{Volunteer}
+  \resumeEntry{Code2040}{}{Mentor}{}
+    \begin{resumeItems}
+      \item Mentored 4 students
+    \end{resumeItems}
+
+\resumeSection[6.06bp]{Awards \& Certifications}
+  \resumeAward{\textbf{Dean's List}, UT Austin}{2022}
+
+\resumeSection{Interests}
+  \begin{resumeText}
+    Climbing, film photography\newline
+    and bread.
+
+    Ask me about sourdough.
+  \end{resumeText}
+
+\end{document}

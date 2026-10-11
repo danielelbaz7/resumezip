@@ -1,0 +1,213 @@
+%-------------------------
+% Resume in LaTeX, from resumezip
+% resumezip's Modern Jake's template: Jake's Resume set in Lato
+% Based on Jake's Resume: https://github.com/jakegut/resume
+% Author: Jake Gutierrez
+% License: MIT
+%-------------------------
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+\fi
+% Lato, with its tabular figures, as the PDF has them
+\usepackage[default]{lato}
+\usepackage[margin=0.5in, left=0.4in, right=0.4in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Rafael Conde}}
+\urlstyle{same}
+\ifPDFTeX
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+  \pdfinterwordspaceon
+\fi
+\ifXeTeX
+  \XeTeXgenerateactualtext=1
+\fi
+
+\pagestyle{empty}
+\raggedbottom
+\raggedright
+\frenchspacing
+% Lines break between words, never inside one.
+\hyphenpenalty=10000
+\setlength{\parindent}{0pt}
+\setlength{\tabcolsep}{0pt}
+% A page's first line as high as the PDF's: its cap height below the margin, if it's no taller
+\setlength{\topskip}{7.17bp}
+
+% Text sizes and line spacing, as Fine-tune sets them
+\renewcommand{\normalsize}{\fontsize{11bp}{13.16bp}\selectfont}
+\renewcommand{\small}{\fontsize{10bp}{11.97bp}\selectfont}
+\renewcommand{\large}{\fontsize{12bp}{14.36bp}\selectfont}
+\renewcommand{\Huge}{\fontsize{24.88bp}{29.77bp}\selectfont}
+\normalsize
+
+% Sections formatting: a bold title over a thin rule. \prevdepth sets what
+% follows from the rule, whatever its letters.
+\titleformat{\section}{\vspace{9.24bp}\large\bfseries\raggedright}{}{0em}{}
+  [\vspace{0.49bp}\titlerule\prevdepth=-0.02bp]
+\titlespacing*{\section}{0pt}{0pt}{0pt}
+
+%-------------------------
+% Custom commands
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcommand{\resumeRow}[2]{{%
+  \renewcommand{\tabularxcolumn}[1]{b{##1}}%
+  \begin{tabularx}{\linewidth}{@{}L@{\hspace{0.8em}}r@{}}#1 & #2\end{tabularx}%
+}}
+
+\newcommand{\resumeSubheading}[4]{
+  \item
+    \resumeRow{\textbf{#1}}{#2} \\*[0.51bp]
+    \resumeRow{\small\textit{#3}}{\small\textit{#4}}%
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+  \item
+    \resumeRow{\small#1}{#2}%
+}
+
+\newcommand{\resumeAward}[2]{
+  \item
+    \resumeRow{#1}{#2}%
+}
+
+\newcommand{\resumeItem}[1]{\item\relax #1}
+
+% Entries, in from the margin, [the space between them] apart
+\newcommand{\resumeSubHeadingListStart}[1][5.72bp]{%
+  \begin{itemize}[leftmargin=0.15in, rightmargin=0.075in, label={}, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=#1]%
+}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+
+% Bullets, [the space above them] under what's above, and on its page. Small
+% before the list starts, so its bullets are measured at the size they're printed.
+\newcommand{\resumeItemListStart}[1][2.7bp]{%
+  \par\nopagebreak\vspace{#1}\begingroup\small
+  \begin{itemize}[label=\textbullet, leftmargin=*, labelindent=17pt, labelsep=5pt, topsep=0pt, partopsep=0pt, parsep=0pt,
+    beginpenalty=10000, itemsep=1.8bp]%
+}
+\newcommand{\resumeItemListEnd}{\end{itemize}\endgroup}
+
+% Paragraphs, as the summary's, in from the margin as entries are
+\newcommand{\resumeTextStart}{%
+  \begin{itemize}[leftmargin=0.15in, rightmargin=0.075in, label={}, topsep=0pt, partopsep=0pt,
+    parsep=1.32bp]\item\relax
+}
+\newcommand{\resumeTextEnd}{\end{itemize}}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+{\centering
+    {\Huge\bfseries Rafael Conde\par}
+    \prevdepth=0pt\vspace{1.7bp}
+    \small \mbox{Austin, TX} |
+    \mbox{(555) 010-2299} |
+    \href{mailto:rafael@example.com}{\underline{rafael@example.com}} |
+    \href{https://linkedin.com/in/rconde}{\underline{linkedin.com/in/rconde}} |
+    \href{https://github.com/rconde}{\underline{github.com/rconde}}
+\par}
+\vspace{2bp}
+
+\section{Summary}
+  \resumeTextStart
+    Backend engineer who likes fast, boring systems.
+  \resumeTextEnd
+
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {University of Texas at Austin}{Aug 2019 - May 2023}
+      {B.S. in Computer Science (GPA: 3.8)}{Austin, TX}
+      \resumeItemListStart
+        \resumeItem{\textbf{Relevant Coursework:} Operating Systems, Distributed Systems}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+\section{Experience}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Cloudflare}{Jun 2023 - Present}
+      {Software Engineer}{Austin, TX}
+      \resumeItemListStart
+        \resumeItem{Cut p99 latency of the \textbf{cache purge} API by \textit{40\%}}
+        \resumeItem{Owned on-call for R\&D's \textbf{\textit{edge}} fleet}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+\section{Projects}
+  \resumeSubHeadingListStart
+    \resumeProjectHeading
+      {\textbf{tinykv} | \emph{Rust, Raft} | \href{https://github.com/rconde/tinykv}{\underline{github.com/rconde/tinykv}}}{2024}
+      \resumeItemListStart
+        \resumeItem{A key\_value store with \textbf{snapshots}}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+\section{Publications}
+  {\small
+  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, leftmargin=*, labelindent=0.15in, rightmargin=0.075in, labelsep=0.7em, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=1.2bp]
+    \item \textbf{R. Conde}, J. Smith, and A. Lee, “Purging caches at the edge,” \textit{Proc. NSDI}, pp. 1-14, 2025, doi: \href{https://doi.org/10.1145/3580305}{\underline{10.1145/3580305}}.
+    \item “Notes on consistent hashing?” \href{https://rconde.dev/hashing}{\underline{rconde.dev/hashing}}.
+  \end{enumerate}
+  }
+
+\section{Skills}
+  \resumeTextStart\small
+    \textbf{Languages:} {Rust, Go, C++} \\
+    \textbf{Tools:} {Linux, eBPF}
+  \resumeTextEnd
+
+\section{Talks}
+  \resumeSubHeadingListStart
+    \item
+      \resumeItemListStart[7.98bp]
+        \resumeItem{\textit{Boring} systems, \textbf{fast}}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+\section{Leadership}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Longhorn Developers}{2021 - 2022}
+      {President}{Austin, TX}
+      \resumeItemListStart
+        \resumeItem{Ran 12 workshops}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+\section{Volunteer}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Code2040}{}
+      {Mentor}{}
+      \resumeItemListStart
+        \resumeItem{Mentored 4 students}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+\section{Awards \& Certifications}
+  \resumeSubHeadingListStart[1.72bp]
+    \resumeAward
+      {\textbf{Dean's List}, UT Austin}{2022}
+  \resumeSubHeadingListEnd
+
+\section{Interests}
+  \resumeTextStart
+    Climbing, film photography\newline
+    and bread.
+
+    Ask me about sourdough.
+  \resumeTextEnd
+
+\end{document}
