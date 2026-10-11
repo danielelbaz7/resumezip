@@ -335,8 +335,8 @@
     mask-image: linear-gradient(to bottom, transparent 50%, #000 75%);
   }
 
-  /* The templates page's cards: paper on the desk. A hover or focus lifts the
-     page, and a glass plate with Use slides up over its foot. The plate only
+  /* The templates page's cards: paper on the desk. A hover, or focus on its
+     link or its Use, lifts the page, and a glass plate with Use slides up over its foot. The plate only
      moves, never fades: glass that's see-through stops blurring (glass.css). */
   .template-card .template-page {
     box-shadow:
@@ -351,14 +351,14 @@
     transition: transform 380ms var(--ease-glide);
   }
   .template-card:hover .template-page,
-  .template-card:focus-visible .template-page {
+  .template-card:has(:focus-visible) .template-page {
     transform: translateY(-6px);
     box-shadow:
       0 1px 2px rgb(17 19 24 / 0.08),
       0 28px 44px -22px rgb(30 40 90 / 0.5);
   }
   .template-card:hover .template-use,
-  .template-card:focus-visible .template-use {
+  .template-card:has(:focus-visible) .template-use {
     transform: none;
   }
   /* Without a pointer to hover with, it's always there to say what a tap does. */
@@ -385,7 +385,7 @@
       opacity: 1;
     }
     .template-card:hover .template-page,
-    .template-card:focus-visible .template-page {
+    .template-card:has(:focus-visible) .template-page {
       transform: none;
     }
   }

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
-import { countSlides, inkCovers, pageErrors } from "./helpers"
+import { countSlides, inkCovers, pageErrors, templateChosen } from "./helpers"
 
-// The templates page's search and style chips. Each card is a link that starts a resume with its template.
+// The templates page's search and style chips. Each card's picture leads to its template's page.
 
 const cards = (page: Page) => page.getByRole("main").getByRole("link", { name: / template/ })
 
@@ -114,6 +114,20 @@ test("at most one template is marked new", async ({ page }) => {
   await page.goto("/templates")
   await expect(cards(page).first()).toBeVisible()
   expect(await page.getByRole("main").getByText("New", { exact: true }).count()).toBeLessThanOrEqual(1)
+})
+
+test("a card's picture leads to its template's page, whose Use this template starts a resume with it", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.goto("/templates")
+  await page.getByRole("link", { name: /^Harvard template/ }).click()
+  await expect(page).toHaveURL(/\/templates\/harvard$/)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Harvard resume template")
+  await expect(page.getByRole("img", { name: "A sample resume in the Harvard template" })).toBeVisible()
+
+  await page.getByRole("link", { name: "Use this template" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  await expect(await templateChosen(page)).toContainText("Harvard")
+  expect(errors).toEqual([])
 })
 
 test("each template's page links to the others, and only those first made in LaTeX say it isn't needed", async ({ page }) => {

@@ -1,12 +1,13 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
 import { useEffect, useId, useRef, useState } from "react"
 import { ArrowUpRight, Search } from "lucide-react"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import { OUTLINE_PILL } from "@/components/pills"
 import { SLIDING_PILL, useSlidingPill } from "@/components/useSlidingPill"
-import { TEMPLATE_TAGS, TEMPLATES, templateMatches, type TemplateId, type TemplateTag } from "@/lib/templates"
+import { TEMPLATE_TAGS, TEMPLATES, templateMatches, templatePath, type TemplateId, type TemplateTag } from "@/lib/templates"
 
 const names = new Intl.ListFormat("en", { type: "conjunction" })
 
@@ -20,10 +21,10 @@ const typingIn = (target: EventTarget | null) =>
 
 /**
  * The templates page's list: one glass bar with a search, chips to filter by
- * style and how many are shown; and a card for each template that starts a
- * resume with it. Pointed
- * at, a card's page brings up a glass plate with its details and Use. `newId`
- * is the template marked as new, if one is.
+ * style and how many are shown; and a card for each template that leads to
+ * its page. Pointed at, a card's page brings up a glass plate with its
+ * details and Use, which starts a resume with it. `newId` is the template
+ * marked as new, if one is.
  */
 export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
   const [search, setSearch] = useState("")
@@ -158,38 +159,52 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
       {shown.length > 0 ? (
         <div className="grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {shown.map((template) => (
-            <StartWritingLink key={template.id} template={template.id} className="template-card group flex flex-col gap-4">
+            <div key={template.id} className="template-card group flex flex-col gap-4">
               <div className="template-page relative aspect-[8.5/11] w-full overflow-hidden bg-sheet">
-                <Image
-                  src={template.image}
-                  alt={`${template.name} template`}
-                  fill
-                  sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                  className="object-cover object-top"
-                />
+                <Link href={templatePath(template)} className="absolute inset-0">
+                  <Image
+                    src={template.image}
+                    alt={`${template.name} template`}
+                    fill
+                    sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                    className="object-cover object-top"
+                  />
+                </Link>
                 {template.id === newId && (
-                  <span className="label-mono absolute right-3 top-3 rounded-full bg-accent px-2.5 py-1 text-white">New</span>
+                  <span className="label-mono pointer-events-none absolute right-3 top-3 rounded-full bg-accent px-2.5 py-1 text-white">
+                    New
+                  </span>
                 )}
-                {/* Frosted glass over the foot of the page: what it's set in, and Use. */}
-                <span
-                  aria-hidden="true"
+                {/* Frosted glass over the foot of the page: what it's set in, and Use, which starts a resume with it. */}
+                <StartWritingLink
+                  template={template.id}
                   className="template-use search-field absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-[18px] py-2.5 pl-4 pr-2.5 [--search-blur:14px] [--search-fill:linear-gradient(180deg,rgb(255_255_255/0.66),rgb(255_255_255/0.46))]"
                 >
-                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="sr-only">Use {template.name}</span>
+                  <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="truncate font-serif text-[21px] leading-none tracking-[-0.015em]">{template.name}</span>
                     <span className="label-mono truncate text-ink-2">{[template.font, ...template.tags].join(" · ")}</span>
                   </span>
-                  <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 text-[14px] font-medium tracking-[-0.01em] text-white shadow-[0_10px_24px_-12px_rgb(17_19_24/0.6)]">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 text-[14px] font-medium tracking-[-0.01em] text-white shadow-[0_10px_24px_-12px_rgb(17_19_24/0.6)]"
+                  >
                     Use <ArrowUpRight className="h-4 w-4" />
                   </span>
-                </span>
+                </StartWritingLink>
               </div>
-              {/* On touch screens the plate is always up and says this already. */}
-              <div className="flex items-baseline justify-between gap-3 pt-1 [@media(hover:none)]:hidden">
+              {/* On touch screens the plate is always up and says this already. Keyboards and
+                  screen readers get the picture's link to the same page. */}
+              <Link
+                href={templatePath(template)}
+                tabIndex={-1}
+                aria-hidden="true"
+                className="flex items-baseline justify-between gap-3 pt-1 [@media(hover:none)]:hidden"
+              >
                 <span className="font-serif text-[22px] leading-tight tracking-[-0.015em]">{template.name}</span>
                 <span className="label-mono text-right text-ink-2">{template.font}</span>
-              </div>
-            </StartWritingLink>
+              </Link>
+            </div>
           ))}
         </div>
       ) : (

@@ -1,5 +1,5 @@
-import { expect, test, type Page } from "@playwright/test"
-import { pageErrors, templateShown } from "./helpers"
+import { expect, test } from "@playwright/test"
+import { pageErrors, templateChosen } from "./helpers"
 
 declare global {
   interface Window {
@@ -10,18 +10,6 @@ declare global {
 
 // The editor is one page, built once, that next.config.js serves at every
 // resume's address, /create/new/<id>. The page reads the id from the address.
-
-/**
- * What names the resume's template on screen. On wide screens it's in the
- * left panel's Style tab, so that's opened first; narrower, the header's
- * Template button says it.
- */
-async function templateChosen(page: Page) {
-  const style = page.getByRole("tab", { name: "Style" })
-  await expect(style).toBeVisible()
-  if (await page.getByRole("button", { name: /^Template/ }).isHidden()) await style.click()
-  return templateShown(page)
-}
 
 test("every resume's address gets the same page, built once", async ({ request }) => {
   // Resumes only exist in the browser, so a page rendered for each visit
@@ -79,8 +67,9 @@ test("resumes open in the page from links and the history, each one afresh", asy
   await page.goto("/templates")
   await page.evaluate(() => (window.marked = true))
 
-  // A template's link starts a resume with it.
-  await page.getByRole("link", { name: /^Harvard template/ }).click()
+  // A template's Use starts a resume with it. It comes up over the card's picture.
+  await page.getByRole("link", { name: /^Harvard template/ }).hover()
+  await page.getByRole("link", { name: "Use Harvard" }).click()
   await expect(page).toHaveURL(/\/create\/new\//)
   const first = page.url()
   await expect(await templateChosen(page)).toContainText("Harvard")
