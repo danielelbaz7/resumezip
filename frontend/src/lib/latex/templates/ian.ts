@@ -162,10 +162,10 @@ ${ROW}
 \\newlist{projectItems}{itemize}{1}
 \\setlist[projectItems]{bullets, before=\\vspace{${sum(space(5.26), "-" + lead)}}}
 
-% Paragraphs, as the summary's, 0.6em apart. The first one gets \\parskip too, so it's taken back.
+% Paragraphs, as the summary's, 0.6em further apart than lines. The first one gets \\parskip too, so it's taken back.
 \\newenvironment{resumeText}{%
   \\par\\vspace{-${lead}}%
-  \\setlength{\\parskip}{${sum(size(0.6 * BASE), "-" + lead)}}\\vspace{-\\parskip}%
+  \\setlength{\\parskip}{${size(0.6 * BASE)}}\\vspace{-\\parskip}%
 }{\\par}
 `
 }

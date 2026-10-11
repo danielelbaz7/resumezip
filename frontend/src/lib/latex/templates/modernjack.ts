@@ -142,10 +142,10 @@ ${ROW}
 }
 \\newcommand{\\resumeItemListEnd}{\\end{itemize}\\endgroup}
 
-% Paragraphs, as the summary's, in from the margin as entries are
+% Paragraphs, as the summary's, 0.6em further apart than lines, in from the margin as entries are
 \\newcommand{\\resumeTextStart}{%
   \\begin{itemize}[leftmargin=0.15in, rightmargin=0.075in, label={}, topsep=0pt, partopsep=0pt,
-    parsep=${space.above(units.size(6.6), 11)}]\\item\\relax
+    parsep=${units.size(6.6)}]\\item\\relax
 }
 \\newcommand{\\resumeTextEnd}{\\end{itemize}}
 `

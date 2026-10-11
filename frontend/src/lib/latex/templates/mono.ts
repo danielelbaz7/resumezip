@@ -143,8 +143,8 @@ ${links(title)}
   \\makebox[1.6em][l]{\\textcolor{grey}{-}}#1\\par
 }
 
-% Paragraphs, as the summary's, 0.6em apart
-\\newenvironment{resumeText}{\\par\\noindent\\setlength{\\parskip}{${sum(units.size(0.6 * SIZE), units.space(-LEADING * SIZE))}}\\ignorespaces}{\\par}
+% Paragraphs, as the summary's, 0.6em further apart than lines
+\\newenvironment{resumeText}{\\par\\noindent\\setlength{\\parskip}{${units.size(0.6 * SIZE)}}\\ignorespaces}{\\par}
 
 % Skills: the names in a column as wide as the widest, the rest beside them.
 % \\prevdepth puts what comes next as far below as after a line of text.
