@@ -78,12 +78,12 @@ function OwnResume() {
   const folder = "absolute left-0 w-full h-auto"
   const page = { left: `${(100 * (1 - PAGE.width)) / 2}%`, width: `${100 * PAGE.width}%` }
   return (
-    <figure className="relative w-full max-w-[360px] xl:w-[320px]" style={{ aspectRatio: `1 / ${FIGURE_HEIGHT}` }}>
+    <figure className="relative w-full max-w-[440px] xl:w-[410px]" style={{ aspectRatio: `1 / ${FIGURE_HEIGHT}` }}>
       <Image
         src={FOLDER.src}
         width={FOLDER.width}
         height={FOLDER.height}
-        sizes="(min-width: 1280px) 320px, (min-width: 640px) 360px, 100vw"
+        sizes="(min-width: 1280px) 410px, (min-width: 640px) 440px, 100vw"
         alt=""
         style={{ top: down(FOLDER_TOP) }}
         className={`${folder} drop-shadow-[0_24px_32px_rgb(30_40_90/0.28)]`}
@@ -97,7 +97,7 @@ function OwnResume() {
           src="/about/own-resume.webp"
           width={1280}
           height={568}
-          sizes="(min-width: 1280px) 253px, (min-width: 640px) 285px, 80vw"
+          sizes="(min-width: 1280px) 324px, (min-width: 640px) 348px, 80vw"
           alt="resumezip’s own resume, in Jake’s template: a resume builder in your own browser since March 2025, with no account, that has kept 0 copies of anyone’s resume."
           className="h-auto w-full"
           priority
@@ -112,7 +112,7 @@ function OwnResume() {
         src={FOLDER.src}
         width={FOLDER.width}
         height={FOLDER.height}
-        sizes="(min-width: 1280px) 320px, (min-width: 640px) 360px, 100vw"
+        sizes="(min-width: 1280px) 410px, (min-width: 640px) 440px, 100vw"
         alt=""
         style={{ top: down(FOLDER_TOP), clipPath: `inset(${100 * FLAP_EDGE}% 0 0 0)` }}
         className={folder}
@@ -126,7 +126,7 @@ export default function AboutPage() {
     <div className="desk flex min-h-screen flex-col">
       <SiteHeader />
       <main className={SHEET}>
-        <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:gap-12">
+        <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-12">
           <div className="flex flex-col gap-5">
             <span className="label-mono text-ink-2">About</span>
             <h1 className="font-serif text-5xl leading-[1.02] tracking-[-0.03em] md:text-[80px] md:leading-[0.95]">
