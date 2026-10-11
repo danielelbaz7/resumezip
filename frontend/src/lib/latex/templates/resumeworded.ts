@@ -132,9 +132,9 @@ ${links(title)}
   \\nobreak\\begin{itemize}[label=\\resumeBullet, align=left, labelindent=0pt, labelsep=10.7pt, leftmargin=*]%
 }{\\end{itemize}\\vspace{${units.size(3.3)}}}
 
-% Paragraphs, as the summary's
+% Paragraphs, as the summary's, 0.6em further apart than lines
 \\newenvironment{resumeText}{%
-  \\begin{itemize}[label={}, leftmargin=0pt, labelwidth=0pt, labelsep=0pt, parsep=${sum(units.size(6.48), minus(leading))}]\\item\\relax
+  \\begin{itemize}[label={}, leftmargin=0pt, labelwidth=0pt, labelsep=0pt, parsep=${units.size(6.48)}]\\item\\relax
 }{\\end{itemize}}
 
 % The space between entries

@@ -175,10 +175,10 @@ ${ROW}
     itemsep=0pt, beginpenalty=10000, #2]%
 }{\\end{itemize}}
 
-% Paragraphs, as the summary's
+% Paragraphs, as the summary's, 0.6em further apart than lines
 \\newenvironment{resumeText}{%
   \\begin{itemize}[label={}, leftmargin=0pt, labelwidth=0pt, labelsep=0pt, topsep=0pt, partopsep=0pt,
-    parsep=${space.above(units.size(6))}]\\item\\relax
+    parsep=${units.size(6)}]\\item\\relax
 }{\\end{itemize}}
 `
 }

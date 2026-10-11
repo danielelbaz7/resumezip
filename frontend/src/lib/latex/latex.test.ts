@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest"
 import { samples } from "@/lib/import/testRender"
 import { TEMPLATES } from "@/lib/templates"
 import { asSaved } from "@/lib/testResume"
+import { TEMPLATE_SETTINGS } from "@/lib/tune"
 import { toLatexFile } from "."
 
 const IDS = TEMPLATES.map((template) => template.id)
@@ -13,6 +14,17 @@ const latexOf = (resume: unknown) => toLatexFile(asSaved(resume)).text
 
 /** What's between \begin{document} and \end{document}. */
 const bodyOf = (text: string) => text.slice(text.indexOf("\\begin{document}"), text.indexOf("\\end{document}"))
+
+/** What's inside the {...} group that opens at `start`, braces TeX reads as text (\{, \}) aside. */
+function group(text: string, start: number): string {
+  let depth = 0
+  for (let at = start; at < text.length; at++) {
+    if (text[at] === "\\") at++
+    else if (text[at] === "{") depth++
+    else if (text[at] === "}" && --depth === 0) return text.slice(start + 1, at)
+  }
+  throw new Error(`No group closes after ${text.slice(start, start + 40)}`)
+}
 
 /** Whether every brace TeX reads as one has its pair: escaped ones (\{, \}) and \\ aside. */
 function balanced(text: string): boolean {
@@ -302,6 +314,28 @@ describe.each(IDS)("a LaTeX file in %s's layout", (id) => {
     for (const tune of [{ size: 1.1 }, { margin: 0.8 }, { leading: 1.2 }, { gap: 0.8 }]) {
       expect(latexOf({ ...resume, tune }), JSON.stringify(tune)).not.toBe(plain)
     }
+  })
+
+  test("starts a new paragraph 0.6em further down than a new line, as its PDF does", () => {
+    // The PDF leaves the leading plus 0.6em between paragraphs (extra-body in
+    // templates/common.typ). \baselineskip has the leading in it already, so
+    // what a blank line adds, \parskip or a list's parsep, is the 0.6em. Text
+    // size and line spacing are both off 1, so the leading can't hide in it.
+    const size = 1.1
+    const text = latexOf({
+      selectedTemplate: id,
+      tune: { size, leading: 1.3 },
+      profileSection: { summary: "Alpha line one.\nBeta line two.\n\nGamma new paragraph." },
+    })
+    expect(text).toMatch(/Alpha line one\.\\newline\n\s*Beta line two\.\n\n\s*Gamma new paragraph\./)
+    // The environment or command the summary is set in, and its definition.
+    const [, environment, command] = text.match(/\\(?:begin\{(\w+)\}|(\w+))\n\s*Alpha line one/)!
+    const definition = environment ? `\\newenvironment{${environment}}` : `\\newcommand{\\${command}}`
+    expect(text).toContain(definition)
+    const opening = group(text, text.indexOf(definition) + definition.length)
+    const [, length, unit] = opening.match(/(?:\\setlength\{\\parskip\}\{|parsep=)(-?[\d.]+)(bp|em)/)!
+    const em = TEMPLATE_SETTINGS[id].size * size
+    expect(parseFloat(length) * (unit === "em" ? em : 1), definition).toBeCloseTo(0.6 * em, 1)
   })
 
   test("of its sample is one pdfLaTeX can compile", () => {

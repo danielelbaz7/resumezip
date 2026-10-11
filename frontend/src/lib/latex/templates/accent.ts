@@ -163,10 +163,10 @@ ${ROW}
 \\setlist[resumeItems]{label=\\textcolor{accent}{\\textbullet}, leftmargin=*, labelindent=2bp, labelsep=5bp, topsep=0pt, partopsep=0pt,
   parsep=0pt, itemsep=${sum(space(3.4), "-" + lead(BASE))}, before=\\vspace{${sum(space(3.6), "-" + lead(BASE))}}}
 
-% Paragraphs, as the summary's, 0.6em apart. The first one gets \\parskip too, so it's taken back.
+% Paragraphs, as the summary's, 0.6em further apart than lines. The first one gets \\parskip too, so it's taken back.
 \\newenvironment{resumeText}{%
   \\par\\vspace{-${lead(BASE)}}%
-  \\setlength{\\parskip}{${sum(size(0.6 * BASE), "-" + lead(BASE))}}\\vspace{-\\parskip}%
+  \\setlength{\\parskip}{${size(0.6 * BASE)}}\\vspace{-\\parskip}%
 }{\\par}
 
 % Skills: their names in bold, right-aligned, then what's in each

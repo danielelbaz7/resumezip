@@ -221,8 +221,8 @@ ${links(title)}
     parsep=0pt, itemsep=${between(units.space(3.9))}, beginpenalty=10000]%
 }{\\end{itemize}}
 
-% Paragraphs, as the summary's, a little further apart than lines
-\\newenvironment{resumeText}{\\setlength{\\parskip}{${between(units.size(5.76))}}\\vspace{-\\parskip}}{\\par}
+% Paragraphs, as the summary's, 0.6em further apart than lines
+\\newenvironment{resumeText}{\\setlength{\\parskip}{${units.size(5.76)}}\\vspace{-\\parskip}}{\\par}
 
 % Publications: the space between them
 \\newcommand{\\citationSpace}{${between(units.space(5))}}

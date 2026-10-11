@@ -205,9 +205,9 @@ ${links(title)}
   \\begin{itemize}[label=\\textbullet, leftmargin=*, labelindent=3bp, labelsep=6bp, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=${bulletSpace}]%
 }{\\end{itemize}}
 
-% Paragraphs, as the summary's
+% Paragraphs, as the summary's, 0.6em further apart than lines. The first one gets \\parskip too, so it's taken back.
 \\newenvironment{paragraphs}{%
-  \\par\\setlength{\\parskip}{${before("body", units.size(6.18))}}\\vspace{${minus(units.size(6.18))}}%
+  \\par\\setlength{\\parskip}{${units.size(6.18)}}\\vspace{${before("body", minus(units.size(6.18)))}}%
 }{\\par}
 
 % Publications, numbered
