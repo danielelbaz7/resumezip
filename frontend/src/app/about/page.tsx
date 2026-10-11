@@ -52,23 +52,73 @@ function Wordmark() {
   return <span className="font-logo font-medium tracking-[-0.02em] text-ink">resumezip</span>
 }
 
+// The resume standing out of a manila folder, all as shares of the figure's width.
+// The folder is a photo with a band of its plain middle taken out, so it's shorter.
+const FOLDER = { src: "/about/manila-folder.webp", width: 1041, height: 640 }
+const FOLDER_HEIGHT = FOLDER.height / FOLDER.width
+// The front flap's top edge in the folder picture, measured from it, as a share of its height.
+const FLAP_EDGE = 79 / FOLDER.height
+// The page sits right of center, so the folder's tab shows on the left. Only its
+// top stands out of the folder, so it's no taller than it needs to be to stay inside.
+const PAGE = { left: 0.16, width: 0.79, height: 0.6 }
+// How far the page stands out above the folder: enough for everything written on it.
+const FOLDER_TOP = 0.325
+const FIGURE_HEIGHT = FOLDER_TOP + FOLDER_HEIGHT
+const down = (share: number) => `${(100 * share) / FIGURE_HEIGHT}%`
+
 /**
  * resumezip introduced as it'd introduce anyone: its own resume, in Jake's
- * template. The picture is a real render of `own-resume.json`, cropped under
- * its last line, so print it again when a line changes. Each line has to stay
- * true of the app, as the promises do.
+ * template, sliding out of a folder as the page opens. The page is a real
+ * render of `own-resume.json`, cropped under its last line (the rest of the
+ * sheet is plain white), so print it again when a line changes. Each line has
+ * to stay true of the app, as the promises do. The folder is drawn twice, the
+ * second time only from the front flap's edge down, so the page goes into it.
  */
 function OwnResume() {
+  const folder = "absolute left-0 w-full h-auto"
+  const page = { left: `${100 * PAGE.left}%`, width: `${100 * PAGE.width}%` }
   return (
-    <figure className="w-full max-w-[640px] xl:max-w-[520px] 2xl:max-w-[640px]">
+    <figure
+      className="relative w-full max-w-[520px] xl:w-[500px] xl:max-w-none 2xl:w-[580px]"
+      style={{ aspectRatio: `1 / ${FIGURE_HEIGHT}` }}
+    >
       <Image
-        src="/about/own-resume.webp"
-        width={1280}
-        height={568}
-        sizes="(min-width: 1536px) 640px, (min-width: 1280px) 520px, (min-width: 640px) 640px, 100vw"
-        alt="resumezip’s own resume, in Jake’s template: a resume builder in your own browser since March 2025, with no account, that has kept 0 copies of anyone’s resume."
-        className="h-auto w-full bg-white shadow-[0_1px_0_rgb(17_19_24/0.06),0_30px_60px_-30px_rgb(30_40_90/0.5)]"
+        src={FOLDER.src}
+        width={FOLDER.width}
+        height={FOLDER.height}
+        sizes="(min-width: 1536px) 580px, (min-width: 1280px) 500px, (min-width: 640px) 520px, 100vw"
+        alt=""
+        style={{ top: down(FOLDER_TOP) }}
+        className={`${folder} drop-shadow-[0_24px_32px_rgb(30_40_90/0.28)]`}
         priority
+      />
+      <div
+        style={{ ...page, top: 0, height: down(PAGE.height) }}
+        className="absolute bg-white shadow-[0_1px_3px_rgb(17_19_24/0.12)] transition-transform duration-1000 ease-glide motion-reduce:transition-none starting:translate-y-1/4"
+      >
+        <Image
+          src="/about/own-resume.webp"
+          width={1280}
+          height={568}
+          sizes="(min-width: 1536px) 458px, (min-width: 1280px) 395px, (min-width: 640px) 411px, 80vw"
+          alt="resumezip’s own resume, in Jake’s template: a resume builder in your own browser since March 2025, with no account, that has kept 0 copies of anyone’s resume."
+          className="h-auto w-full"
+          priority
+        />
+      </div>
+      {/* The flap's shadow on the page, just above its edge. */}
+      <div
+        style={{ ...page, top: `calc(${down(FOLDER_TOP + FLAP_EDGE * FOLDER_HEIGHT)} - 6px)` }}
+        className="absolute h-1.5 bg-linear-to-t from-[rgb(80_55_20/0.18)] to-transparent"
+      />
+      <Image
+        src={FOLDER.src}
+        width={FOLDER.width}
+        height={FOLDER.height}
+        sizes="(min-width: 1536px) 580px, (min-width: 1280px) 500px, (min-width: 640px) 520px, 100vw"
+        alt=""
+        style={{ top: down(FOLDER_TOP), clipPath: `inset(${100 * FLAP_EDGE}% 0 0 0)` }}
+        className={folder}
       />
     </figure>
   )
