@@ -1,5 +1,5 @@
 /* Styles for the home page and the site-wide header (src/components/home, src/components/site),
-   and the templates page (src/app/templates). */
+   the templates page (src/app/templates) and the About page (src/app/about). */
 @layer components {
   /* The hero starts under the header's strip. */
   .home-hero {
@@ -395,5 +395,48 @@
     .floating-blur {
       display: none;
     }
+  }
+
+  /* The About page's resume rises out of its folder as the page scrolls, and
+     never moves on its own. On a wide screen the whole page holds still
+     (sticky, where it starts under the header) while the resume rises, and a
+     little longer once it's all the way out, before the page moves on. The
+     room for that is below the page, so it never shows as a gap. On narrower
+     screens it rises as the folder comes up the screen. Without scroll-driven
+     animations, or with less motion, nothing holds and the resume stands as
+     far out as it goes. */
+  .about-pin-room {
+    display: none;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .folder-rise {
+        animation: folder-rise linear both;
+        animation-timeline: view();
+        animation-range: entry 0% cover 75%;
+      }
+      @media (min-width: 80rem) {
+        .about-pin-held {
+          position: sticky;
+          top: 100px;
+        }
+        .about-pin-room {
+          display: block;
+          /* 480px for the resume to rise, then 300px more with it all the way
+             out, so the page doesn't move on the moment it's done. */
+          height: 780px;
+        }
+        .folder-rise {
+          animation-timeline: scroll(root);
+          animation-range: 0 480px;
+        }
+      }
+    }
+  }
+}
+
+@keyframes folder-rise {
+  from {
+    translate: 0 55%;
   }
 }
