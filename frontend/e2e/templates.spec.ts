@@ -12,8 +12,12 @@ test("/ goes to the search, which finds templates by name, font or style", async
   await expect(cards(page).first()).toBeVisible()
   const every = await cards(page).count()
 
-  await page.keyboard.press("/")
-  await expect(search).toBeFocused()
+  // The cards are in the page's HTML, so they show before its script runs, and "/" does nothing
+  // until it has. Pressed again until it goes to the search, which then holds no "/".
+  await expect(async () => {
+    await page.keyboard.press("/")
+    await expect(search).toBeFocused({ timeout: 1_000 })
+  }).toPass()
   await expect(search).toHaveValue("")
 
   await page.keyboard.type("garamond")
