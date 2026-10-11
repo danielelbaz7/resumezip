@@ -38,15 +38,50 @@
   list(marker: [•], indent: 3pt, body-indent: 6pt, spacing: spaced(4.2pt), ..items.map(rich))
 }
 
-// A section title in light capitals. The first in each column has no space above it.
+// A section title in light capitals. The first in each column has no space
+// above it. A title wraps between its words, but a word can't, so a title
+// with a word wider than its column, like "Programmierkenntnisse" on the
+// left, is set just small enough for that word to fit.
 #let section(title, body, first: false) = {
   if not first { v(gapped(13pt)) }
   block(sticky: true, {
-    text(size: sized(16.5pt), weight: 300, fill: headings, upper(title))
+    layout(column => {
+      let title-text(size, body) = text(size: size, weight: 300, fill: headings, upper(body))
+      let size = sized(16.5pt)
+      let widest = calc.max(..title.split(regex("\s+")).map(word => measure(title-text(size, word)).width))
+      if widest > column.width { size *= column.width / widest }
+      title-text(size, title)
+    })
     v(sized(7pt))
   })
   body
 }
+
+// The left column is narrow, and a word wider than it would run on over the
+// right column. So such a word breaks after its commas, semicolons and
+// slashes (skills typed "Go,Rust,C++"), and a piece of it still too wide is
+// hyphenated (a long German degree). Only sections' bodies go through this:
+// titles are made smaller instead (see `section`).
+//
+// The rule takes a whole run of text in one style and gives it back as it
+// was unless a word in it is too wide: taking each word apart would split
+// the run, and lose the kerning between a word and the space after it. The
+// empty box is a place to break that prints nothing, where a zero-width
+// space would be in the PDF's text.
+#let break-wide-words(body) = layout(column => {
+  let wide(word) = measure(word).width > column.width
+  show regex(".+"): run => context {
+    let words = run.text.split(" ")
+    if words.any(wide) {
+      words.map(word => if wide(word) {
+        word.matches(regex("[^,;/]*[,;/]+|[^,;/]+")).map(piece => {
+          if wide(piece.text) { text(hyphenate: true, piece.text) } else { piece.text }
+        }).join(box())
+      } else { word }).join(" ")
+    } else { run }
+  }
+  body
+})
 
 #let entries(items, gap: 9pt) = items.join(v(sized(gap)))
 
@@ -177,12 +212,13 @@
   }
 }
 
-#let column(sections) = sections.filter(s => s != none).enumerate().map(((i, (title, body))) => section(title, body, first: i == 0)).join()
+// A column's sections, each body through `fit`.
+#let column(sections, fit: body => body) = sections.filter(s => s != none).enumerate().map(((i, (title, body))) => section(title, fit(body), first: i == 0)).join()
 
 #grid(
   columns: (32%, 1fr),
   column-gutter: 0.3in,
-  column(data.order.filter(n => n in on-left).map(left-section)),
+  column(data.order.filter(n => n in on-left).map(left-section), fit: break-wide-words),
   {
     let sections = data.order.filter(n => n not in on-left).map(right-section)
     if data.summary.len() > 0 {

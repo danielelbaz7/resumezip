@@ -2,8 +2,8 @@
 // (https://github.com/deedy/Deedy-Resume): the name large and light over a
 // rule across the page, education and skills in a narrow column on the left,
 // everything else on the right. Its commands keep Deedy's names (\section,
-// \runsubsection, \descript, \location, tightemize) where they do what
-// Deedy's do, so it's familiar to anyone who has used it.
+// \subsection, \runsubsection, \descript, \location, tightemize) where they
+// do what Deedy's do, so it's familiar to anyone who has used it.
 //
 // The columns are paracol's rather than two minipages, so a long resume
 // carries on onto the next page as the PDF's does (minipages can't break
@@ -63,6 +63,8 @@ function preamble(units: Units, title: string): string {
   const lead = (font: Font) => units.space(FONTS[font].size / 2)
   const baselineskip = (font: Font) => sum(cap(font), lead(font))
   const fontsize = (font: Font) => `\\fontsize{${units.size(FONTS[font].size)}}{${baselineskip(font)}}\\selectfont`
+  /** A length of a section title's, scaled down as the title is when a word in it is too wide for its column. */
+  const fitted = (length: string) => `\\dimexpr${length}*\\linewidth/\\widesttitleword\\relax`
   /**
    * The space before a line in `font` whose paragraph ends in the body's
    * size, so it's `space` below the baseline above, as the .typ's v() is.
@@ -100,7 +102,8 @@ ${links(title)}
 \\setlength{\\parskip}{0pt}
 % A page's first line sits at its top margin, as in the PDF.
 \\setlength{\\topskip}{0pt}
-% Words aren't broken with a hyphen at the end of a line, as in the PDF.
+% Words aren't broken with a hyphen at the end of a line, as in the PDF,
+% unless one is too wide for the left column (\\narrowpar).
 \\hyphenpenalty=10000
 
 % Deedy's colors: headings, subheadings and the text's grey
@@ -118,7 +121,7 @@ ${links(title)}
 \\normalsize
 \\newcommand{\\namefont}{${fontsize("name")}\\latospace\\color{headings}}
 \\newcommand{\\contactfont}{\\raleway${fontsize("contact")}\\ralewayspace}
-\\newcommand{\\titlefont}{${fontsize("title")}\\latospace\\color{headings}}
+\\newcommand{\\titlefont}{\\fontsize{${fitted(units.size(FONTS.title.size))}}{${fitted(baselineskip("title"))}}\\selectfont\\latospace\\color{headings}}
 \\newcommand{\\entryfont}{${fontsize("entry")}\\bfseries\\latospace\\color{subheadings}}
 \\newcommand{\\descriptfont}{\\raleway${fontsize("descript")}\\ralewayspace\\scshape\\color{subheadings}}
 \\newcommand{\\locationfont}{\\raleway${fontsize("location")}\\ralewayspace\\color{headings}}
@@ -139,9 +142,20 @@ ${links(title)}
 % Two columns: education and skills on the left, the rest on the right
 \\setcolumnwidth{0.32\\textwidth/0.3in}
 
-% A section's title in light capitals, and the space between two sections
+% A section's title in light capitals, and the space between two sections.
+% A title wraps between its words, but a word can't, so a title with a word
+% wider than its column is set just small enough for that word to fit, as
+% in the PDF: \\widesttitleword is that word's width, or the column's.
+\\newlength{\\titleword}
+\\newlength{\\widesttitleword}
+\\def\\measuretitle#1 #2\\relax{%
+  \\settowidth{\\titleword}{${fontsize("title")}\\MakeUppercase{#1}}%
+  \\ifdim\\titleword>\\widesttitleword\\setlength{\\widesttitleword}{\\titleword}\\fi
+  \\if\\relax\\detokenize{#2}\\relax\\else\\measuretitle#2\\relax\\fi
+}
 \\renewcommand{\\section}[1]{%
-  \\par\\vspace{${before("title")}}{\\titlefont\\MakeUppercase{#1}\\par}\\nopagebreak\\vspace{${units.size(7)}}%
+  \\par\\setlength{\\widesttitleword}{\\linewidth}\\measuretitle#1 \\relax
+  \\vspace{${fitted(before("title"))}}{\\titlefont\\MakeUppercase{#1}\\par}\\nopagebreak\\vspace{${units.size(7)}}%
 }
 \\newcommand{\\sectionsep}{\\par\\vspace{${units.gap(13)}}}
 
@@ -159,17 +173,29 @@ ${links(title)}
 % The space between two entries
 \\newcommand{\\entrysep}{\\par\\vspace{${units.size(9)}}}
 
+% The left column is narrow, and a word too wide for it would run on into the
+% right one. So there, as in the PDF, such a word breaks after a comma,
+% semicolon or slash (\\wordbreak), or else with a hyphen. Ragged lines all
+% cost TeX the same, so the penalties keep it from breaking a word that fits.
+% \\narrowpar starts each paragraph there, with glue, since TeX only
+% hyphenates a word that comes after glue.
+\\newcommand*{\\wordbreak}{\\penalty1000\\relax}
+\\newcommand*{\\narrowpar}{\\leavevmode\\hyphenpenalty=1000\\relax\\nobreak\\hspace{0pt}}
+
+% A school's or a skill's name, on the left, as Deedy's \\subsection
+\\renewcommand{\\subsection}[1]{\\par\\vspace{${before("entry")}}{\\entryfont\\narrowpar\\MakeUppercase{#1}\\par}}
+
 % Education: the degree, its dates, place and GPA, involvement and coursework
-\\newcommand{\\degree}[1]{\\par\\nopagebreak\\vspace{${before("descript", units.space(3.4))}}{\\descriptfont #1\\par}}
-\\newcommand{\\detail}[1]{\\par\\nopagebreak\\vspace{${before("location", units.space(3.4))}}{\\locationfont #1\\par}}
-\\newcommand{\\involvement}[1]{\\par\\vspace{${above("body", units.space(3.4))}}Involvement: #1}
-\\newcommand{\\coursework}[1]{\\par\\vspace{${above("descript", units.space(5))}}\\descript{Coursework:} #1}
+\\newcommand{\\degree}[1]{\\par\\nopagebreak\\vspace{${before("descript", units.space(3.4))}}{\\descriptfont\\narrowpar #1\\par}}
+\\newcommand{\\detail}[1]{\\par\\nopagebreak\\vspace{${before("location", units.space(3.4))}}{\\locationfont\\narrowpar #1\\par}}
+\\newcommand{\\involvement}[1]{\\par\\vspace{${above("body", units.space(3.4))}}{\\narrowpar Involvement: #1\\par}}
+\\newcommand{\\coursework}[1]{\\par\\vspace{${above("descript", units.space(5))}}{\\narrowpar\\descript{Coursework:} #1\\par}}
 
 % A skill: its name, if it has one, over its details; and the space between two
 \\newcommand{\\skill}[2]{%
   \\if\\relax\\detokenize{#1}\\relax\\par\\vspace{${before("body")}}%
-  \\else\\nameline{#1}\\vspace{${before("body", units.space(3.4))}}\\fi
-  #2%
+  \\else\\subsection{#1}\\vspace{${before("body", units.space(3.4))}}\\fi
+  {\\narrowpar #2\\par}%
 }
 \\newcommand{\\skillsep}{\\par\\vspace{${units.size(8)}}}
 
@@ -226,24 +252,30 @@ function body(data: TemplateData, units: Units): string {
   const experience = (name: string, role: string, start: string, end: string, location: string, items: Run[][]) =>
     entry(latex(name), latex(role), latex(joinPresent(" | ", dateRange(start, end), location)), items)
 
+  /**
+   * Text in the left column, which may break after a comma, semicolon or
+   * slash with no space after it. Not before a backslash: that's an escaped
+   * character, or the \kern that keeps two commas from printing as „.
+   */
+  const narrow = (value: string) => latex(value).replace(/[,;/](?=[^\s\\])/g, "$&\\wordbreak ")
   const left = (section: Section) => {
     if (section.kind === "education")
       join(
         "\\entrysep",
         data.education.map((school) => () => {
-          add(`\\nameline{${latex(school.school)}}`)
-          if (school.degree) add(`\\degree{${latex(school.degree)}}`)
+          add(`\\subsection{${narrow(school.school)}}`)
+          if (school.degree) add(`\\degree{${narrow(school.degree)}}`)
           const when = joinPresent(" | ", dateRange(school.start, school.end), school.location)
-          if (when) add(`\\detail{${latex(when)}}`)
-          if (school.gpa) add(`\\detail{GPA: ${latex(school.gpa)}}`)
-          if (school.involvement) add(`\\involvement{${latex(school.involvement)}}`)
-          if (school.coursework) add(`\\coursework{${latex(school.coursework)}}`)
+          if (when) add(`\\detail{${narrow(when)}}`)
+          if (school.gpa) add(`\\detail{GPA: ${narrow(school.gpa)}}`)
+          if (school.involvement) add(`\\involvement{${narrow(school.involvement)}}`)
+          if (school.coursework) add(`\\coursework{${narrow(school.coursework)}}`)
         }),
       )
     else if (section.kind === "skills")
       join(
         "\\skillsep",
-        data.skills.map((skill) => () => add(`\\skill{${latex(skill.name)}}{${latex(skill.details)}}`)),
+        data.skills.map((skill) => () => add(`\\skill{${narrow(skill.name)}}{${narrow(skill.details)}}`)),
       )
   }
 
