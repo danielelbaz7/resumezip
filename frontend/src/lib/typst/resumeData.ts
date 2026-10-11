@@ -80,18 +80,37 @@ interface Experience {
 // An entry as saved: older resumes can lack any of its fields.
 type Saved = Partial<Entry>
 
-// Half of an emoji (a surrogate without its pair), which an opened file or a
-// paste can bring. JSON.stringify writes it as an escape Typst's json() won't
-// read, so no template could print the resume. With the u flag, \p{Cs} only
-// matches a surrogate that isn't part of a pair, so whole emoji are kept.
-const HALF_EMOJI = /\p{Cs}/gu
+// What an opened file or a paste can bring that no template prints, and the
+// LaTeX file drops too: half of an emoji (a surrogate without its pair), which
+// JSON.stringify writes as an escape Typst's json() won't read, so no template
+// could print the resume; and control characters other than tab and line
+// breaks, which print as boxes. With the u flag, \p{Cs} only matches a
+// surrogate that isn't part of a pair, so whole emoji are kept.
+const UNPRINTABLE = /[\p{Cs}\0-\x08\x0B\x0C\x0E-\x1F\x7F]/gu
 
-const text = (value: unknown) => (typeof value === "string" ? value.replace(HALF_EMOJI, "").trim() : "")
+// Characters that print nothing, of which trim() only removes U+FEFF. A field
+// of only these is empty, so it doesn't print an empty heading or bullet.
+const INVISIBLE = /^[\s\u00AD\u200B\u2060\uFEFF]*$/
+
+/**
+ * A field as printed. Letters are composed (NFC), since Lato has no combining
+ * marks: "e" and a separate accent, as macOS, PDFs and some Vietnamese
+ * keyboards type it, prints as boxes in its templates. Control characters are
+ * dropped first, so one between a letter and its accent doesn't keep them
+ * apart. Typst prints a tab as nothing, so it's a space, as in the Word and
+ * LaTeX files. Saved data stays as typed.
+ */
+function text(value: unknown): string {
+  if (typeof value !== "string") return ""
+  const printed = value.replace(UNPRINTABLE, "").normalize("NFC").replace(/\t/g, " ").trim()
+  return INVISIBLE.test(printed) ? "" : printed
+}
 
 // Prose as paragraphs, split at blank lines. A single line break stays in its paragraph.
 const paragraphs = (value: unknown) =>
   text(value)
     .split(/\r?\n\s*\r?\n/)
+    .map(text)
     .filter(Boolean)
 
 // Links are displayed without their scheme, "www." or a trailing slash; the
@@ -105,7 +124,7 @@ const bareUrl = (value: unknown) =>
 // Descriptions are typed one bullet per line, each prefixed with "• ".
 const bullets = (value: unknown) =>
   (Array.isArray(value) ? value.map(text) : text(value).split("\n"))
-    .map((line) => line.trim().replace(/^•\s*/, ""))
+    .map((line) => text(line.trim().replace(/^•\s*/, "")))
     .filter(Boolean)
     .map((line) => runs(line))
 
@@ -235,7 +254,7 @@ export function toTemplateData(saved: Resume): TemplateData {
     extras: Object.fromEntries(
       Object.entries(extrasOf(resume))
         .filter(([, section]) => extraHasBody(section))
-        .map(([id, section]) => {
+        .map(([id, section]): [string, ExtraTemplateSection] => {
           const heading = extraHeading({ ...section, heading: text(section.heading) })
           const printable: ExtraTemplateSection =
             section.kind === "list"
@@ -246,7 +265,9 @@ export function toTemplateData(saved: Resume): TemplateData {
                   paragraphs: paragraphs(section.text),
                 }
           return [`extra:${id}`, printable]
-        }),
+        })
+        // extraHasBody counts invisible characters as words; a body of only them would print a bare heading.
+        .filter(([, printable]) => (printable.kind === "list" ? printable.bullets : printable.paragraphs).length > 0),
     ),
     education: entries(resume.educationSection, (e) => ({
       school: text(e.schoolName),
