@@ -270,20 +270,23 @@ const END_MARKED_CONTENT = 71
  */
 function softHyphenSpans({ fnArray = [], argsArray = [] }: { fnArray?: number[]; argsArray?: unknown[] }): Set<number> {
   const found = new Set<number>()
-  const spans: { mcid: unknown; text: string }[] = []
+  // Only each open span's last glyph is kept, not its text: a span's text
+  // passes on to the one around it, so keeping it all would take time
+  // quadratic in how deeply a PDF nests its spans.
+  const spans: { mcid: unknown; last: string }[] = []
   fnArray.forEach((fn, i) => {
     const args = argsArray[i]
     if (fn === BEGIN_MARKED_CONTENT || fn === BEGIN_MARKED_CONTENT_PROPS) {
-      spans.push({ mcid: fn === BEGIN_MARKED_CONTENT_PROPS && Array.isArray(args) ? args[1] : undefined, text: "" })
+      spans.push({ mcid: fn === BEGIN_MARKED_CONTENT_PROPS && Array.isArray(args) ? args[1] : undefined, last: "" })
     } else if (fn === END_MARKED_CONTENT) {
       const span = spans.pop()
-      if (span && typeof span.mcid === "number" && span.text.endsWith(SOFT_HYPHEN)) found.add(span.mcid)
-      if (span && spans.length > 0) spans[spans.length - 1].text += span.text
+      if (span && typeof span.mcid === "number" && span.last.endsWith(SOFT_HYPHEN)) found.add(span.mcid)
+      if (span?.last && spans.length > 0) spans[spans.length - 1].last = span.last
     } else if (fn === SHOW_TEXT && spans.length > 0 && Array.isArray(args) && Array.isArray(args[0])) {
       // Glyphs, with numbers between them for the spacing.
       for (const glyph of args[0] as unknown[]) {
         const unicode = typeof glyph === "object" && glyph !== null ? (glyph as { unicode?: unknown }).unicode : undefined
-        if (typeof unicode === "string") spans[spans.length - 1].text += unicode
+        if (typeof unicode === "string" && unicode) spans[spans.length - 1].last = unicode
       }
     }
   })

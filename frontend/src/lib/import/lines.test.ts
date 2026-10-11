@@ -76,6 +76,33 @@ describe("reading a PDF", () => {
     })
   })
 
+  test("reads a page that nests its marked spans deeply in time linear in them", async () => {
+    // 20,000 spans, each inside the one before, each with 50 glyphs: what a
+    // small PDF can hold. Keeping each span's text took about 10 seconds.
+    const depth = 20_000
+    const glyphs = [Array.from({ length: 50 }, () => ({ unicode: "a" }))]
+    const operators = {
+      fnArray: [...Array.from({ length: depth }, () => [70, 44]).flat(), ...Array.from({ length: depth }, () => 71)],
+      argsArray: [
+        ...Array.from({ length: depth }, (_, mcid) => [["Span", mcid], glyphs]).flat(),
+        ...Array.from({ length: depth }, () => null),
+      ],
+    }
+    await withPdf(textPdf([["Mara Lin"]]), async (doc) => {
+      const getPage = doc.getPage.bind(doc)
+      vi.spyOn(doc, "getPage").mockImplementation(async (number) => {
+        const page = await getPage(number)
+        const getOperatorList = page.getOperatorList.bind(page)
+        vi.spyOn(page, "getOperatorList").mockImplementation(async () => ({ ...(await getOperatorList()), ...operators }))
+        return page
+      })
+      const start = performance.now()
+      const lines = linesFromPages(await readPdf(doc))
+      expect(performance.now() - start).toBeLessThan(1000)
+      expect(lines.map((line) => line.text)).toEqual(["Mara Lin"])
+    })
+  }, 30_000)
+
   test("reads no further once cancelled", async () => {
     await withPdf(textPdf([["Mara Lin"], ["Never read"]]), async (doc) => {
       // Cancelled while the first page is being read.
