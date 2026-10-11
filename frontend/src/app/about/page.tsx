@@ -64,7 +64,7 @@ function OwnResume() {
       <Image
         src="/about/own-resume.webp"
         width={1280}
-        height={904}
+        height={568}
         sizes="(min-width: 1536px) 640px, (min-width: 1280px) 520px, (min-width: 640px) 640px, 100vw"
         alt="resumezip’s own resume, in Jake’s template: a resume builder in your own browser since March 2025, with no account, that has kept 0 copies of anyone’s resume."
         className="h-auto w-full bg-white shadow-[0_1px_0_rgb(17_19_24/0.06),0_30px_60px_-30px_rgb(30_40_90/0.5)]"
