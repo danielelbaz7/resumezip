@@ -128,9 +128,16 @@
 // Optional sections share content formatting, while every template supplies
 // its own heading and bullet styles. Prose is literal text, not markup.
 // Keep paragraphs breakable so long sections span pages.
+//
+// A blank line leaves 0.6em more than a line break does. Between two
+// paragraphs, the template's paragraph spacing stands in for its leading, and
+// most templates set it to 0pt, so the gap is the leading plus 0.6em. It's
+// weak, so it replaces the paragraph spacing of a template that sets one,
+// like Compact, rather than adding to it.
 #let extra-body(extra, show-bullets) = {
   if extra.kind == "text" {
-    extra.paragraphs.map(value => par(value.split("\n").join(linebreak()))).join(v(0.6em))
+    let gap = context v(par.leading + 0.6em, weak: true)
+    extra.paragraphs.map(value => par(value.split("\n").join(linebreak()))).join(gap)
   } else if extra.kind == "list" {
     show-bullets(extra.bullets)
   }
