@@ -22,7 +22,8 @@
 import { SECTIONS, type SectionName } from "@/components/editor/sections"
 import type { Resume } from "@/lib/resume"
 import { ATTACHMENT_NAME, toAttachment, WORD_DOCUMENT, WORD_RELATIONSHIPS } from "@/lib/resumeFile"
-import { toTemplateData, type TemplateData } from "@/lib/typst/resumeData"
+import { TEMPLATE_SETTINGS, type Paper } from "@/lib/tune"
+import { templateIdOf, toTemplateData, type TemplateData } from "@/lib/typst/resumeData"
 import { crc32, zip } from "@/lib/zip"
 
 /** A Word file's type, for a download. */
@@ -36,18 +37,36 @@ interface Piece {
   link?: string
 }
 
-/** The paragraph styles in STYLES, by id. */
+/** The paragraph styles in styles(), by id. */
 type Style = "Normal" | "Title" | "Subtitle" | "Heading1" | "BodyText" | "Entry" | "EntryDetails" | "ListBullet" | "ListNumber"
 
 // The lists in NUMBERING, by id.
 const BULLETS = 1
 const CITATIONS = 2
 
-// Letter paper with half-inch margins, as the templates' pages are, in
-// twentieths of a point (1,440 to the inch). Dates and places are set on a
-// tab stop at the right margin.
-const PAGE = { width: 12240, height: 15840, margin: 720 }
-const RIGHT_TAB = PAGE.width - 2 * PAGE.margin
+// The page is the paper the PDF is printed on (see pageOf), with half-inch
+// margins whatever the template's are, in twentieths of a point (1,440 to the
+// inch). Dates and places are set on a tab stop at the right margin, so it
+// moves with the paper's width.
+// prettier-ignore
+const PAPER_SIZES: Record<Paper, { width: number; height: number }> = {
+  "us-letter": { width: 12240, height: 15840 },
+  a4:          { width: 11906, height: 16838 },
+}
+const MARGIN = 720
+
+interface Page {
+  width: number
+  height: number
+  /** Where the tab stop at the right margin is, from the left margin. */
+  rightTab: number
+}
+
+/** The page the PDF is printed on: Fine-tune's paper, or the template's own. */
+function pageOf(resume: Resume, data: TemplateData): Page {
+  const { width, height } = PAPER_SIZES[data.tune.paper || TEMPLATE_SETTINGS[templateIdOf(resume.selectedTemplate)].paper]
+  return { width, height, rightTab: width - 2 * MARGIN }
+}
 
 const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -145,7 +164,7 @@ const SECTION_KEYS: Record<SectionName, keyof TemplateData["headings"]> = {
 }
 
 /** The text of the Word file, and where each of its links goes, in order. */
-function documentOf(data: TemplateData): { xml: string; links: string[] } {
+function documentOf(data: TemplateData, page: Page): { xml: string; links: string[] } {
   const paragraphs: string[] = []
   const links: string[] = []
 
@@ -173,7 +192,7 @@ function documentOf(data: TemplateData): { xml: string; links: string[] } {
     const numbering = list ? `<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${list}"/></w:numPr>` : ""
     const tabbed = right.some((piece) => piece.text)
     // The Entry style has the tab stop too, but Google Docs has no styles of its own like it.
-    const tabs = tabbed ? `<w:tabs><w:tab w:val="right" w:pos="${RIGHT_TAB}"/></w:tabs>` : ""
+    const tabs = tabbed ? `<w:tabs><w:tab w:val="right" w:pos="${page.rightTab}"/></w:tabs>` : ""
     const props = `<w:pStyle w:val="${style}"/>${keepNext ? "<w:keepNext/>" : ""}${numbering}${tabs}`
     paragraphs.push(`<w:p><w:pPr>${props}</w:pPr>${runs(pieces)}${tabbed ? TAB + runs(right) : ""}</w:p>`)
   }
@@ -282,11 +301,11 @@ function documentOf(data: TemplateData): { xml: string; links: string[] } {
     }
   }
 
-  const page = `<w:pgSz w:w="${PAGE.width}" w:h="${PAGE.height}"/><w:pgMar w:top="${PAGE.margin}" w:right="${PAGE.margin}" w:bottom="${PAGE.margin}" w:left="${PAGE.margin}" w:header="360" w:footer="360" w:gutter="0"/>`
+  const section = `<w:pgSz w:w="${page.width}" w:h="${page.height}"/><w:pgMar w:top="${MARGIN}" w:right="${MARGIN}" w:bottom="${MARGIN}" w:left="${MARGIN}" w:header="360" w:footer="360" w:gutter="0"/>`
   // Word wants a paragraph in every document, even an empty one.
   const body = paragraphs.join("") || "<w:p/>"
   return {
-    xml: `${XML}<w:document xmlns:w="${W}" xmlns:r="${OFFICE_RELATIONSHIPS}"><w:body>${body}<w:sectPr>${page}</w:sectPr></w:body></w:document>`,
+    xml: `${XML}<w:document xmlns:w="${W}" xmlns:r="${OFFICE_RELATIONSHIPS}"><w:body>${body}<w:sectPr>${section}</w:sectPr></w:body></w:document>`,
     links,
   }
 }
@@ -330,7 +349,7 @@ const SETTINGS = `${XML}<w:settings xmlns:w="${W}"><w:defaultTabStop w:val="720"
 // Normal repeats the font, as macOS's reader (Quick Look, TextEdit) skips the
 // defaults.
 // prettier-ignore
-const STYLES = `${XML}<w:styles xmlns:w="${W}">\
+const styles = (page: Page) => `${XML}<w:styles xmlns:w="${W}">\
 <w:docDefaults>\
 <w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:eastAsia="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="en-US"/></w:rPr></w:rPrDefault>\
 <w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault>\
@@ -347,7 +366,7 @@ const STYLES = `${XML}<w:styles xmlns:w="${W}">\
 <w:rPr><w:b/><w:bCs/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>\
 <w:style w:type="paragraph" w:styleId="BodyText"><w:name w:val="Body Text"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="80"/></w:pPr></w:style>\
 <w:style w:type="paragraph" w:customStyle="1" w:styleId="Entry"><w:name w:val="Entry"/><w:basedOn w:val="Normal"/><w:next w:val="EntryDetails"/><w:qFormat/>\
-<w:pPr><w:tabs><w:tab w:val="right" w:pos="${RIGHT_TAB}"/></w:tabs><w:spacing w:before="100"/></w:pPr></w:style>\
+<w:pPr><w:tabs><w:tab w:val="right" w:pos="${page.rightTab}"/></w:tabs><w:spacing w:before="100"/></w:pPr></w:style>\
 <w:style w:type="paragraph" w:customStyle="1" w:styleId="EntryDetails"><w:name w:val="Entry Details"/><w:basedOn w:val="Entry"/><w:next w:val="ListBullet"/><w:qFormat/>\
 <w:pPr><w:spacing w:before="0"/></w:pPr></w:style>\
 <w:style w:type="paragraph" w:styleId="ListBullet"><w:name w:val="List Bullet"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="20"/></w:pPr></w:style>\
@@ -374,7 +393,8 @@ const NUMBERING = `${XML}<w:numbering xmlns:w="${W}">\
  */
 export function toWordFile(resume: Resume): Uint8Array<ArrayBuffer> {
   const data = toTemplateData(resume)
-  const { xml, links } = documentOf(data)
+  const page = pageOf(resume, data)
+  const { xml, links } = documentOf(data, page)
   const encoder = new TextEncoder()
   const document = encoder.encode(xml)
   const relationships = encoder.encode(documentRelationships(links))
@@ -384,7 +404,7 @@ export function toWordFile(resume: Resume): Uint8Array<ArrayBuffer> {
     "docProps/core.xml": coreProperties(data.profile.name || "Resume"),
     [WORD_DOCUMENT]: document,
     [WORD_RELATIONSHIPS]: relationships,
-    "word/styles.xml": STYLES,
+    "word/styles.xml": styles(page),
     "word/numbering.xml": NUMBERING,
     "word/settings.xml": SETTINGS,
     [ATTACHMENT_NAME]: toAttachment(resume, { documentCrc32: crc32(document), relationshipsCrc32: crc32(relationships) }),
