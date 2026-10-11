@@ -9,7 +9,10 @@
 
 #set document(title: heading-or(p.name, "Resume"))
 #set page(paper: page-paper("us-letter"), margin: page-margin((x: 0.55in, top: 0.55in, bottom: 0.45in)))
-#set text(font: "Charis SIL", size: sized(9.6pt), lang: "en")
+// Charis SIL has only the Greek letters phonetics uses (θ, λ, σ and a few
+// more), so a Greek word would mix it with whatever font has the rest. All of
+// Greek comes from EB Garamond instead, as do letters Charis lacks.
+#set text(font: ((name: "Charis SIL", covers: regex("\P{Greek}")), "EB Garamond"), size: sized(9.6pt), lang: "en")
 #set block(spacing: 0pt)
 // Vertical spacing below follows Fine-tune (see common.typ).
 #set par(justify: false, leading: 0.5em * tune.leading, spacing: 0pt)
@@ -51,9 +54,10 @@
 // when there's no room for the heading, the block and the section start the
 // next page. Sticky, the block never stays behind without the section.
 #let section(title, body) = context {
+  // Biolinum has all of Greek; what it lacks comes from the text's fallback.
   let heading = block(
     breakable: false,
-    text(font: "Linux Biolinum O", size: sized(10.8pt), tracking: 0.03em, fill: black, stroke: sized(0.15pt) + black, smallcaps(fitted(title))),
+    text(font: ("Linux Biolinum O", "EB Garamond"), size: sized(10.8pt), tracking: 0.03em, fill: black, stroke: sized(0.15pt) + black, smallcaps(fitted(title))),
   )
   let height = measure(heading, width: margin).height
   v(gapped(12.5pt))

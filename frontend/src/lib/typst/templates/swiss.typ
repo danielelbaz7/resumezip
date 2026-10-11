@@ -10,7 +10,10 @@
 
 #set document(title: heading-or(p.name, "Resume"))
 #set page(paper: page-paper("us-letter"), margin: page-margin((x: 0.55in, top: 0.48in, bottom: 0.42in)))
-#set text(font: "TeX Gyre Heros", size: sized(9.2pt), lang: "en")
+// Heros has no Cyrillic, and its Greek has no accented letters and is spaced
+// for maths, so both come from Source Sans 3: all of a Greek word, or it
+// would mix the two fonts.
+#set text(font: ((name: "TeX Gyre Heros", covers: regex("\P{Greek}")), "Source Sans 3"), size: sized(9.2pt), lang: "en")
 #set block(spacing: 0pt)
 // Vertical spacing below follows Fine-tune (see common.typ).
 #set par(justify: false, leading: 0.5em * tune.leading, spacing: 0pt)

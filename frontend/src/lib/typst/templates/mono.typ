@@ -9,7 +9,10 @@
 
 #set document(title: heading-or(p.name, "Resume"))
 #set page(paper: page-paper("us-letter"), margin: page-margin((x: 0.55in, top: 0.5in, bottom: 0.42in)))
-#set text(font: "IBM Plex Mono", size: sized(8.4pt), lang: "en", fill: rgb("#111111"))
+// No bundled monospaced font has Greek, and a sans sits better in a monospaced
+// page than a serif. Plex Mono's only Greek letter is π, which would break up
+// a Greek word, so all of Greek comes from Source Sans 3.
+#set text(font: ((name: "IBM Plex Mono", covers: regex("\P{Greek}")), "Source Sans 3"), size: sized(8.4pt), lang: "en", fill: rgb("#111111"))
 #set block(spacing: 0pt)
 // Vertical spacing below follows Fine-tune (see common.typ).
 #set par(justify: false, leading: 0.52em * tune.leading, spacing: 0pt)

@@ -7,7 +7,10 @@
 
 #set document(title: heading-or(p.name, "Resume"))
 #set page(paper: page-paper("us-letter"), margin: page-margin(0.5in))
-#set text(font: "TeX Gyre Heros", size: sized(10pt), lang: "en", hyphenate: true)
+// Heros has no Cyrillic, and its Greek has no accented letters and is spaced
+// for maths, so both come from Source Sans 3: all of a Greek word, or it
+// would mix the two fonts.
+#set text(font: ((name: "TeX Gyre Heros", covers: regex("\P{Greek}")), "Source Sans 3"), size: sized(10pt), lang: "en", hyphenate: true)
 // All vertical spacing below is explicit, measured against the LaTeX output,
 // and scaled by Fine-tune (see common.typ). Text lines are measured from
 // their cap height (0.729em in this font), so a v(x) before a 10pt line puts

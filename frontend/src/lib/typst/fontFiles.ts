@@ -1,8 +1,9 @@
 // The fonts templates can use. The compiler knows every one from the start,
 // from what fonts/info.json says about it, but only reads a font's data when
-// it prints with it. So a resume only needs its template's fonts, plus any
-// font with a character those fonts lack, as Typst picks those from every
-// font it knows, the same as if all were loaded.
+// it prints with it. So a resume only needs its template's fonts, plus, for a
+// character those fonts lack, the fallback the template names; and when that
+// lacks it too, or there's none, every font with it, as Typst then picks one
+// from every font it knows, the same as if all were loaded.
 
 import type { FontUse } from "@/lib/templates"
 import INFO from "./fonts/info.json"
@@ -85,18 +86,26 @@ const has = (file: string, codePoint: number) => FONT_INFO[file].info.some((face
 
 /**
  * The font files a resume printed in `fonts` needs, given its `text`: the
- * families' own, and for each character not in all of them, every font that
- * has it, since Typst may print that character with any of those.
+ * families' own, and for each character not in all of them, or in the script
+ * they leave to the fallback, the fallback's. A character the fallback lacks
+ * too, or with no fallback, brings every font that has it, since Typst may
+ * print it with any of those.
  */
 export function fontsFor(fonts: readonly FontUse[], text: string): string[] {
-  const own = fonts.flatMap(({ family, weights }) => filesOf(family, weights))
+  const own = fonts.filter((font) => !font.fallback).flatMap(({ family, weights }) => filesOf(family, weights))
+  const fallback = fonts.find((font) => font.fallback)
+  const fallbackFiles = fallback ? filesOf(fallback.family, fallback.weights) : []
+  const leftToFallback = fallback?.script ? new RegExp(`\\p{Script=${fallback.script}}`, "u") : null
   const needed = new Set(own)
   const seen = new Set<number>()
   for (const char of text) {
     const codePoint = char.codePointAt(0)!
     if (codePoint < 0x20 || seen.has(codePoint)) continue
     seen.add(codePoint)
-    if (own.every((file) => has(file, codePoint))) continue
+    if (!leftToFallback?.test(char) && own.every((file) => has(file, codePoint))) continue
+    // Typst reads the fallback to find out whether it has the character.
+    for (const file of fallbackFiles) needed.add(file)
+    if (fallbackFiles.length > 0 && fallbackFiles.every((file) => has(file, codePoint))) continue
     for (const file of FONT_FILES) if (has(file, codePoint)) needed.add(file)
   }
   return [...needed]

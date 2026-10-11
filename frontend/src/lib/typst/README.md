@@ -72,9 +72,11 @@ server to build a PDF.
    downloaded before its first PDF. A test checks the two match. Name any
    other family it sets words in as `alsoFonts`, and, when it uses only some
    of its family's weights, those as `weights`, so it downloads no more than
-   it prints with. A template with a column of sections on the left names
-   them as `firstColumn`, so the resume checker expects them first in the PDF.
-   Every page that lists templates reads that list.
+   it prints with. If its fonts lack letters a resume may have, like Cyrillic
+   or Greek, name a fallback for them (see [Fonts](#fonts)). A template with a
+   column of sections on the left names them as `firstColumn`, so the resume
+   checker expects them first in the PDF. Every page that lists templates
+   reads that list.
 4. Write its LaTeX twin in `src/lib/latex/templates/<id>.ts`, for the LaTeX
    download, and add it to `TEMPLATES` in `src/lib/latex/index.ts`; the build
    fails without it. Mirror the `.typ`: its fonts (from TeX Live, working with
@@ -102,24 +104,50 @@ is served under a name with its content's hash, which changes when the font does
 
 The compiler knows every font from the start, from what `fonts/info.json` says
 about each (its family, style, which characters it has and a hash of the
-file), but only reads a font when it prints with it. So a resume downloads its
-template's family, and, for any character that family lacks, every font that
-has it: Typst picks one of those for that character, just as it would with
-every font loaded, so resumes print exactly as they would with all of them.
-`fontFiles.test.ts` prints each template's sample, and text in many scripts,
-both ways to check. After adding or changing a font, write `info.json` again:
+file), but only reads a font when it prints with it. So `fontsFor` downloads a
+resume's template's families, and, for a character they lack, the fallback the
+template names (see below), which Typst tries next. Only for a character the
+fallback lacks too, or when the template names none, does it download every
+font that has it: Typst picks one of those for that character, as it would with
+every font loaded. Either way, resumes print exactly as they would with all of
+them. `fontFiles.test.ts` prints each template's sample, and text in many
+scripts, both ways, and checks Typst read no font `fontsFor` didn't download.
+After adding or changing a font, write `info.json` again:
 
 ```bash
 UPDATE_FONT_INFO=1 npx vitest run src/lib/typst/fontFiles.test.ts
 ```
 
-New Computer Modern, TeX Gyre Heros and EB Garamond are trimmed copies: Latin
-(with Vietnamese), Greek, Cyrillic, punctuation, currency and common symbols,
-keeping kerning, ligatures, accents and small caps, without hinting. That halves
-their size. Each trimmed font says so in its description (name ID 10), as the
-GUST Font License asks. The rest are left as they were, because their licenses
-reserve their names ("Lato", "Charis" and "SIL", "Plex", "Source", "Raleway", "Biolinum")
-for unmodified copies. Raleway comes from its own project rather than Google
+Where a template's fonts lack letters a resume may have, it names a fallback,
+last in each of its font lists, so those letters don't come from whichever
+font Typst finds, often a serif:
+
+| Template | Its fonts | Fallback | For |
+| --- | --- | --- | --- |
+| Blueprint, Compact, Swiss | TeX Gyre Heros | Source Sans 3 | Cyrillic, which Heros has none of, and Greek |
+| Mono | IBM Plex Mono | Source Sans 3 | Greek. No bundled monospaced font has it, and a sans sits better than a serif in a monospaced page |
+| Deedy | Raleway, in roles, dates and places | Lato, its other font | Greek |
+| Margin | Charis SIL, and Linux Biolinum in headings | EB Garamond, a serif | Greek |
+
+A font with only some of a script's letters would draw a word from two fonts:
+Plex Mono and Raleway have only π of Greek, Charis SIL only the Greek letters
+phonetics uses, and Heros's Greek has no accented letters and is spaced for
+maths. So these leave all of Greek to the fallback, with
+`(name: "Charis SIL", covers: regex("\P{Greek}"))` in the font list. Linux
+Biolinum has all of Greek, so keeps it. `src/lib/templates.ts` lists the fallback
+in `alsoFonts`, with `fallback: true`, the weights the template prints it in,
+and the script the others leave to it, as `script: "Greek"`. It's downloaded
+only for a resume with a letter it prints. `fontFiles.test.ts` checks each of
+a template's font lists ends with its fallback, as `fontsFor` counts on that.
+
+New Computer Modern, TeX Gyre Heros and EB Garamond are trimmed copies, keeping
+what each has of Latin (with Vietnamese), Greek, Cyrillic, punctuation, currency
+and common symbols, with kerning, ligatures, accents and small caps, without
+hinting. That halves their size. TeX Gyre Heros never had Cyrillic, and its
+Greek has no accented letters. Each trimmed font says so in its description
+(name ID 10), as the GUST Font License asks. The rest are left as they were,
+because their licenses reserve their names ("Lato", "Charis" and "SIL", "Plex",
+"Source", "Raleway", "Biolinum") for unmodified copies. Raleway comes from its own project rather than Google
 Fonts, as the copies Google Fonts serves have no small capitals. Lato is the
 one TeX Live ships, which the LaTeX download prints with, rather than Google
 Fonts' older Lato, which has no Vietnamese, Greek or Cyrillic. Its lightest
