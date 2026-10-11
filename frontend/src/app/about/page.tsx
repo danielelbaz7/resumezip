@@ -1,11 +1,11 @@
 import type { Metadata } from "next"
+import Image from "next/image"
 import { Star } from "lucide-react"
 import EmailContact from "@/components/site/EmailContact"
 import { INK_PILL } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
-import { TEMPLATES } from "@/lib/templates"
 
 export const metadata: Metadata = { title: "About" }
 
@@ -52,47 +52,105 @@ function Wordmark() {
   return <span className="font-logo font-medium tracking-[-0.02em] text-ink">resumezip</span>
 }
 
-// The resume's section headings and its lines with a date at the right, as Jake's lays them out.
-const RESUME_HEADING = "mt-5 border-b border-ink pb-0.5 text-[12px] font-semibold uppercase tracking-[0.08em] md:text-[13px]"
-const RESUME_ROW = "flex justify-between gap-4"
+// The resume standing out of a manila folder, all as shares of the figure's width.
+// The folder is a photo with a band of its plain middle taken out, so it's shorter.
+const FOLDER = { src: "/about/manila-folder.webp", width: 1041, height: 640 }
+const FOLDER_HEIGHT = FOLDER.height / FOLDER.width
+// The front flap's top edge in the folder picture, measured from it, as a share of its height.
+const FLAP_EDGE = 79 / FOLDER.height
+// The page sits in the middle of the folder. Only its top stands out of it, so
+// it's no taller than it needs to be to stay inside.
+const PAGE = { width: 0.79, height: 0.58 }
+// How far the page stands out above the folder: enough for everything written on it.
+const FOLDER_TOP = 0.368
+const FIGURE_HEIGHT = FOLDER_TOP + FOLDER_HEIGHT
+const down = (share: number) => `${(100 * share) / FIGURE_HEIGHT}%`
 
 /**
- * resumezip introduced as it'd introduce anyone: a one-page resume, in the
- * look of Jake's template, saying what it's done. Each line has to stay true
- * of the app, as the promises do; the number of templates is counted.
+ * resumezip introduced as it'd introduce anyone: its own resume, in Jake's
+ * template, rising out of a folder as the page scrolls (`.folder-rise` and
+ * `.about-pin-held` in styles/home.css), tilted a little and held by a paper clip. The page is a real
+ * render of `own-resume.json`, cropped under its last line (the rest of the
+ * sheet is plain white), so print it again when a line changes. Each line has
+ * to stay true of the app, as the promises do. The folder is drawn twice, the
+ * second time only from the front flap's edge down, so the page goes into it.
  */
-function OwnResume() {
+// A paper clip's one wire, drawn as two parts: the outer loop on the front of the
+// page, and the inner one behind it, which only shows above the page's edge.
+const CLIP_WIRE = {
+  front: "M18 24 L18 54 A8 8 0 0 1 2 54 L2 10 A6.75 6.75 0 0 1 15.5 10",
+  back: "M15.5 10 L15.5 48 A4 4 0 0 1 7.5 48 L7.5 20",
+}
+
+/** Half of a steel paper clip over the page's top edge, which crosses it 18 units down. */
+function PaperClip({ part }: { part: keyof typeof CLIP_WIRE }) {
   return (
-    <figure
-      aria-label="resumezip’s own resume"
-      className="w-full max-w-[600px] bg-white xl:max-w-[480px] 2xl:max-w-[600px] px-6 py-8 font-serif text-[13px] leading-normal text-ink shadow-[0_1px_0_rgb(17_19_24/0.06),0_30px_60px_-30px_rgb(30_40_90/0.5)] md:rotate-1 md:px-12 md:py-10 md:text-[14.5px]"
+    <svg
+      viewBox="0 0 20 64"
+      aria-hidden="true"
+      className={`absolute left-[10%] top-0 w-[5.5%] -translate-y-[28%] overflow-visible ${
+        part === "front" ? "z-10 drop-shadow-[0.5px_1px_0.75px_rgb(17_19_24/0.35)]" : ""
+      }`}
     >
-      <div className="text-center">
-        <p className="text-[28px] leading-tight tracking-[-0.01em] md:text-[32px]">resumezip</p>
-        <p className="mt-1 text-[12px] md:text-[12.5px]">tryresumezip.com | github.com/ian-hoang/resumezip | MIT license</p>
+      <defs>
+        <linearGradient id={`clip-steel-${part}`} x1="0" x2="20" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#6f757c" />
+          <stop offset="0.3" stopColor="#eef0f2" />
+          <stop offset="0.55" stopColor="#858b91" />
+          <stop offset="0.8" stopColor="#f6f7f8" />
+          <stop offset="1" stopColor="#6f757c" />
+        </linearGradient>
+      </defs>
+      <path d={CLIP_WIRE[part]} fill="none" stroke={`url(#clip-steel-${part})`} strokeWidth="2.4" strokeLinecap="round" />
+      <path d={CLIP_WIRE[part]} fill="none" stroke="#fff" strokeOpacity="0.55" strokeWidth="0.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function OwnResume() {
+  const folder = "absolute left-0 w-full h-auto"
+  const page = { left: `${(100 * (1 - PAGE.width)) / 2}%`, width: `${100 * PAGE.width}%` }
+  return (
+    <figure className="relative w-full max-w-[440px] xl:mr-24 xl:w-[410px]" style={{ aspectRatio: `1 / ${FIGURE_HEIGHT}` }}>
+      <Image
+        src={FOLDER.src}
+        width={FOLDER.width}
+        height={FOLDER.height}
+        sizes="(min-width: 1280px) 410px, (min-width: 640px) 440px, 100vw"
+        alt=""
+        style={{ top: down(FOLDER_TOP) }}
+        className={`${folder} drop-shadow-[0_24px_32px_rgb(30_40_90/0.28)]`}
+        priority
+      />
+      <div style={{ ...page, top: 0, height: down(PAGE.height) }} className="folder-rise absolute rotate-2">
+        <PaperClip part="back" />
+        <div className="relative h-full bg-white shadow-[0_1px_3px_rgb(17_19_24/0.12)]">
+          <Image
+            src="/about/own-resume.webp"
+            width={1280}
+            height={764}
+            sizes="(min-width: 1280px) 324px, (min-width: 640px) 348px, 80vw"
+            alt="resumezip’s own resume, in Jake’s template: a resume builder in your own browser since March 2025, with no account, that has kept 0 copies of anyone’s resume."
+            className="h-auto w-full"
+            priority
+          />
+        </div>
+        <PaperClip part="front" />
       </div>
-      <p className={RESUME_HEADING}>Experience</p>
-      <p className={`${RESUME_ROW} mt-2`}>
-        <b>Resume builder</b>
-        <span>Mar 2025 – Present</span>
-      </p>
-      <p className={`${RESUME_ROW} italic`}>
-        <span>Your own browser</span>
-        <span>No account</span>
-      </p>
-      <ul className="mt-1.5 list-disc pl-5">
-        <li>Turned what people write into a PDF on their own device, in {TEMPLATES.length} templates</li>
-        <li>
-          Kept <b>0</b> copies of anyone’s resume, by having no server to keep them on
-        </li>
-        <li>Opened its own PDFs again on any computer, each carrying its resume</li>
-      </ul>
-      <p className={RESUME_HEADING}>Skills</p>
-      <p className="mt-2">
-        <b>Promises:</b> Free, Private, Open source
-        <br />
-        <b>Reads:</b> PDF, Word and its own JSON backups
-      </p>
+      {/* The flap's shadow on the page, just above its edge. */}
+      <div
+        style={{ ...page, top: `calc(${down(FOLDER_TOP + FLAP_EDGE * FOLDER_HEIGHT)} - 6px)` }}
+        className="absolute h-1.5 bg-linear-to-t from-[rgb(80_55_20/0.18)] to-transparent"
+      />
+      <Image
+        src={FOLDER.src}
+        width={FOLDER.width}
+        height={FOLDER.height}
+        sizes="(min-width: 1280px) 410px, (min-width: 640px) 440px, 100vw"
+        alt=""
+        style={{ top: down(FOLDER_TOP), clipPath: `inset(${100 * FLAP_EDGE}% 0 0 0)` }}
+        className={folder}
+      />
     </figure>
   )
 }
@@ -101,102 +159,105 @@ export default function AboutPage() {
   return (
     <div className="desk flex min-h-screen flex-col">
       <SiteHeader />
-      <main className={SHEET}>
-        <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-12">
-          <div className="flex flex-col gap-5">
-            <span className="label-mono text-ink-2">About</span>
-            <h1 className="font-serif text-5xl leading-[1.02] tracking-[-0.03em] md:text-[80px] md:leading-[0.95]">
-              Here’s <em className="whitespace-nowrap text-accent">our resume.</em>
-            </h1>
-            <p className="max-w-[600px] text-[17px] leading-relaxed text-ink-2">
-              Many resume builders charge you to download your own resume, and keep a copy. <Wordmark /> doesn’t: every template is free and
-              made for the hiring software (ATS) that reads it, and your resume stays in your browser.
-            </p>
+      {/* On a wide screen the whole page holds still while the resume rises, then scrolls on. */}
+      <div className="flex flex-1 flex-col">
+        <main className={`${SHEET} about-pin-held`}>
+          <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-12">
+            <div className="flex flex-col gap-5">
+              <span className="label-mono text-ink-2">About</span>
+              <h1 className="font-serif text-5xl leading-[1.02] tracking-[-0.03em] md:text-[80px] md:leading-[0.95]">
+                Here’s <em className="whitespace-nowrap text-accent">our resume.</em>
+              </h1>
+              <p className="max-w-[600px] text-[17px] leading-relaxed text-ink-2">
+                Many resume builders charge you to download your own resume, and keep a copy. <Wordmark /> doesn’t: every template is free
+                and made for the hiring software (ATS) that reads it, and your resume stays in your browser.
+              </p>
+              {/* One plain line, set apart by hairlines, rather than a logo wall. */}
+              <p className="mt-3 inline-flex self-start flex-wrap items-center gap-x-3 gap-y-1 border-y border-ink/15 py-3 pr-2">
+                <span className="label-mono text-ink-2">Part of</span>
+                <a
+                  href={MICROSOFT_STARTUPS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2.5 underline-offset-4 hover:underline"
+                >
+                  <MicrosoftLogo />
+                  <span className="font-serif text-[22px] leading-none tracking-[-0.01em]">Microsoft for Startups</span>
+                </a>
+              </p>
+            </div>
+            <OwnResume />
           </div>
-          <OwnResume />
-        </div>
 
-        {/* One plain line, set apart by hairlines, rather than a logo wall. */}
-        <p className="mt-10 inline-flex flex-wrap items-center gap-x-3 gap-y-1 border-y border-ink/15 py-3 pr-2">
-          <span className="label-mono text-ink-2">Part of</span>
-          <a
-            href={MICROSOFT_STARTUPS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2.5 underline-offset-4 hover:underline"
-          >
-            <MicrosoftLogo />
-            <span className="font-serif text-[22px] leading-none tracking-[-0.01em]">Microsoft for Startups</span>
-          </a>
-        </p>
-
-        <section className={SECTION} aria-labelledby="promises">
-          <h2 id="promises" className={HEADING}>
-            What it promises
-          </h2>
-          <ul className="grid gap-8 sm:grid-cols-3 md:col-span-2">
-            {PROMISES.map((promise) => (
-              <li key={promise.title} className="flex flex-col gap-2">
-                <span className="font-serif text-[22px] italic leading-tight text-accent">{promise.title}</span>
-                <span className="text-[15px] leading-relaxed text-ink-2">{promise.text}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className={SECTION} aria-labelledby="made">
-          <h2 id="made" className={HEADING}>
-            How it’s made
-          </h2>
-          <div className="md:col-span-2">
-            <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
-              Your PDF is typeset by Typst, running in your own browser, so your resume never has to be sent anywhere to become a page. The
-              PDF carries your resume inside it, which is how resumezip opens it again on any computer.
-            </p>
-          </div>
-        </section>
-
-        {/* Where Contact used to be: /contact comes here. */}
-        <section id="contact" className={`${SECTION} scroll-mt-28`} aria-labelledby="contact-heading">
-          <div className="flex flex-col gap-3">
-            <h2 id="contact-heading" className={HEADING}>
-              Get in touch
+          <section className={SECTION} aria-labelledby="promises">
+            <h2 id="promises" className={HEADING}>
+              What it promises
             </h2>
-            <p className="text-[15px] leading-relaxed text-ink-2">Found a bug or have an idea? I read every message.</p>
-          </div>
-          <div className="flex flex-col gap-5 md:col-span-2">
-            <EmailContact />
-            <p className="flex flex-wrap gap-x-6 gap-y-2 text-[15px]">
-              <a href={ISSUES_URL} target="_blank" rel="noopener noreferrer" className={TEXT_LINK}>
-                Report a bug on GitHub
-              </a>
-              <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className={TEXT_LINK}>
-                Find us on LinkedIn
-              </a>
-            </p>
-          </div>
-        </section>
+            <ul className="grid gap-8 sm:grid-cols-3 md:col-span-2">
+              {PROMISES.map((promise) => (
+                <li key={promise.title} className="flex flex-col gap-2">
+                  <span className="font-serif text-[22px] italic leading-tight text-accent">{promise.title}</span>
+                  <span className="text-[15px] leading-relaxed text-ink-2">{promise.text}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-        <section className={SECTION}>
-          <h2 className={`${HEADING} flex items-center gap-3 self-start`}>
-            <GitHubLogo className="h-7 w-7 shrink-0 md:h-8 md:w-8" />
-            Star it on GitHub
-          </h2>
-          <div className="md:col-span-2">
-            <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
-              No ads, no paid plans. If <Wordmark /> helped you, a star helps others find it.
-            </p>
-            <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={`group ${INK_PILL} mt-6`}>
-              {/* Yellow under the pointer, as the header's star is. */}
-              <Star
-                className="h-4 w-4 transition-colors duration-200 group-hover:fill-[#facc15] group-hover:text-[#facc15] motion-reduce:transition-none"
-                aria-hidden="true"
-              />
-              Star on GitHub
-            </a>
-          </div>
-        </section>
-      </main>
+          <section className={SECTION} aria-labelledby="made">
+            <h2 id="made" className={HEADING}>
+              How it’s made
+            </h2>
+            <div className="md:col-span-2">
+              <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
+                Your PDF is typeset by Typst, running in your own browser, so your resume never has to be sent anywhere to become a page.
+                The PDF carries your resume inside it, which is how resumezip opens it again on any computer.
+              </p>
+            </div>
+          </section>
+
+          {/* Where Contact used to be: /contact comes here. */}
+          <section id="contact" className={`${SECTION} scroll-mt-28`} aria-labelledby="contact-heading">
+            <div className="flex flex-col gap-3">
+              <h2 id="contact-heading" className={HEADING}>
+                Get in touch
+              </h2>
+              <p className="text-[15px] leading-relaxed text-ink-2">Found a bug or have an idea? I read every message.</p>
+            </div>
+            <div className="flex flex-col gap-5 md:col-span-2">
+              <EmailContact />
+              <p className="flex flex-wrap gap-x-6 gap-y-2 text-[15px]">
+                <a href={ISSUES_URL} target="_blank" rel="noopener noreferrer" className={TEXT_LINK}>
+                  Report a bug on GitHub
+                </a>
+                <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className={TEXT_LINK}>
+                  Find us on LinkedIn
+                </a>
+              </p>
+            </div>
+          </section>
+
+          <section className={SECTION}>
+            <h2 className={`${HEADING} flex items-center gap-3 self-start`}>
+              <GitHubLogo className="h-7 w-7 shrink-0 md:h-8 md:w-8" />
+              Star it on GitHub
+            </h2>
+            <div className="md:col-span-2">
+              <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
+                No ads, no paid plans. If <Wordmark /> helped you, a star helps others find it.
+              </p>
+              <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={`group ${INK_PILL} mt-6`}>
+                {/* Yellow under the pointer, as the header's star is. */}
+                <Star
+                  className="h-4 w-4 transition-colors duration-200 group-hover:fill-[#facc15] group-hover:text-[#facc15] motion-reduce:transition-none"
+                  aria-hidden="true"
+                />
+                Star on GitHub
+              </a>
+            </div>
+          </section>
+        </main>
+        <div className="about-pin-room" />
+      </div>
       <SiteFooter />
     </div>
   )

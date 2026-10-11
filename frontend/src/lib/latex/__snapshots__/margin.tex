@@ -1,0 +1,223 @@
+%-------------------------
+% Resume in LaTeX, from resumezip
+% resumezip's Margin template
+%-------------------------
+
+\documentclass[letterpaper]{article}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+\fi
+% Charis SIL for the text, Linux Biolinum for the headings
+\usepackage{CharisSIL}
+\ifPDFTeX
+  \usepackage[sf]{libertine}
+  % The headings are letterspaced (microtype's \textls) and outlined a little
+  % (pdfrender), as in the PDF
+  \usepackage[protrusion=false, expansion=false]{microtype}
+  \usepackage{pdfrender}
+  \newcommand{\nameStyle}[1]{\textls[10]{#1}}
+  \newcommand{\headingStyle}[1]{%
+    \textpdfrender{TextRenderingMode=FillStroke, LineWidth=0.15bp}{\biolinum\scshape\textls[30]{#1}}%
+  }
+\else
+  % XeLaTeX or LuaLaTeX: Biolinum's OpenType file, letterspaced and outlined
+  % by fontspec
+  \newfontfamily\biolinum{LinBiolinum}[Extension=.otf, UprightFont=*_R, LetterSpace=3, FakeBold=1.39]
+  \newcommand{\nameStyle}[1]{{\addfontfeatures{LetterSpace=1}#1}}
+  \newcommand{\headingStyle}[1]{{\biolinum\scshape #1}}
+\fi
+% The headings' column (0.98in) is the margin for notes, on the left
+\usepackage[top=0.55in, bottom=0.45in, left=0.55in, right=0.55in,
+  marginparwidth=70.56bp, marginparsep=0.2in, reversemp, includemp]{geometry}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Rafael Conde}}
+\urlstyle{same}
+\ifPDFTeX
+  \input{glyphtounicode}
+  \pdfgentounicode=1
+  \pdfinterwordspaceon
+\fi
+\ifXeTeX
+  \XeTeXgenerateactualtext=1
+\fi
+
+% Text size and line spacing, as Fine-tune sets them. Lines are a fixed
+% distance apart, whatever letters they have, as in the PDF.
+\renewcommand{\normalsize}{\fontsize{9.6bp}{11.24bp}\selectfont}
+\normalsize
+\setlength{\lineskiplimit}{-\maxdimen}
+\setlength{\topskip}{6.44bp}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\raggedright
+\raggedbottom
+\pagestyle{empty}
+\definecolor{grey}{gray}{0.36}
+
+%-------------------------
+% Custom commands
+
+% The name, its capitals' tops on the top margin whatever its letters: an
+% empty line goes on the margin, and the name a line below it, moved up. Then
+% how to reach you, in grey.
+\newcommand{\resumeHeader}[2]{%
+  \null\nobreak\kern-18.94bp\relax
+  {\fontsize{25bp}{29.28bp}\selectfont\leavevmode\nameStyle{#1}\par}%
+  \if\relax\detokenize{#2}\relax\else
+    \vspace{2.5bp}%
+    {\fontsize{9bp}{10.54bp}\selectfont\color{grey}#2\par}%
+  \fi
+  \vspace{2bp}%
+}
+\newcommand{\contactSep}{\nobreak\hspace{0.5em}\textperiodcentered\hspace{0.5em}}
+
+% A section's heading, in the margin and level with the section's first line.
+% Its lines below the first take no room, so a section shorter than its
+% heading moves the next one down, clear of it.
+\newsavebox{\resumeHeadingBox}
+\newlength{\resumeHeadingEnd} % the last heading's last baseline, on its page
+\newcount\resumeHeadingPage
+\newif\ifresumeFirst
+\newcommand{\resumeSection}[1]{%
+  \par
+  \ifnum\value{page}=\resumeHeadingPage
+    \ifdim\dimexpr\pagetotal+\pagedepth-\prevdepth\relax<\resumeHeadingEnd
+      \vspace{\dimexpr\resumeHeadingEnd-\pagetotal-\pagedepth+\prevdepth\relax}%
+    \fi
+  \fi
+  \vspace{7.7bp}%
+  % The heading, as deep as its last baseline is below its first
+  \sbox{\resumeHeadingBox}{\parbox[t]{\marginparwidth}{\raggedleft\hyphenpenalty=10000
+    \fontsize{10.8bp}{12.51bp}\selectfont\leavevmode\headingStyle{#1}\par\kern-\prevdepth}}%
+  % Lowered, so its capitals' tops are level with the text's
+  \noindent\llap{\raisebox{-0.66bp}[0pt][0pt]{\usebox{\resumeHeadingBox}}\hspace{\marginparsep}}\par
+  \global\resumeHeadingPage=\value{page}%
+  \global\resumeHeadingEnd=\dimexpr\pagetotal+0.66bp+\dp\resumeHeadingBox\relax
+  % The section's first line goes on the heading's
+  \kern-\baselineskip\nobreak
+  \global\resumeFirsttrue
+}
+
+% Space between two parts of a section, none before the first
+\newcommand{\resumeSpace}[1]{\ifresumeFirst\global\resumeFirstfalse\else\vspace{#1}\fi}
+
+% A line with one part on the left and one on the right. A long left part
+% wraps, and the right one ends its last line.
+\newcommand{\resumeRow}[2]{\leavevmode#1\nobreak\hspace{0.8em plus 1fill}\mbox{#2}\par}
+
+% An entry: the organization and its dates, then the role and the place (when
+% there's either). Its bullets follow.
+\newcommand{\resumeEntry}[4]{%
+  \resumeSpace{3.2bp}%
+  \resumeRow{\textbf{#1}}{#2}%
+  \if\relax\detokenize{#3#4}\relax\else
+    \nopagebreak\vspace{-1.3bp}%
+    \resumeRow{\textit{#3}}{\textcolor{grey}{#4}}%
+  \fi
+}
+\newcommand{\resumeProject}[2]{\resumeSpace{3.2bp}\resumeRow{#1}{#2}}
+\newcommand{\projectSep}{\nobreak\hspace{0.4em}\textperiodcentered\hspace{0.4em}}
+\newcommand{\resumeSkill}[2]{%
+  \resumeSpace{-0.9bp}%
+  \leavevmode\if\relax\detokenize{#1}\relax\else\textbf{#1}: \fi#2\par
+}
+\newcommand{\resumeAward}[3]{%
+  \resumeSpace{-0.3bp}%
+  \resumeRow{\textbf{#1}\if\relax\detokenize{#2}\relax\else, #2\fi}{#3}%
+}
+
+% Bullets: grey dashes, kept with the lines above them. The space above them
+% is a \kern, as a list's own space can't be less than none.
+\newenvironment{resumeBullets}{%
+  \par\nopagebreak
+  \ifresumeFirst\global\resumeFirstfalse\kern3.8bp\else\kern-1bp\fi
+  \begin{itemize}[label={\textcolor{grey}{\textendash}}, leftmargin=*, labelsep=6pt, topsep=0pt, partopsep=0pt,
+    parsep=0pt, itemsep=-0.9bp, beginpenalty=10000]%
+}{\end{itemize}}
+
+% Paragraphs, as the summary's, a little further apart than lines
+\newenvironment{resumeText}{\setlength{\parskip}{0.96bp}\vspace{-\parskip}}{\par}
+
+% Publications: the space between them
+\newcommand{\citationSpace}{0.2bp}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\resumeHeader{Rafael Conde}{%
+  \mbox{Austin, TX}\contactSep
+  \mbox{(555) 010-2299}\contactSep
+  \mbox{\href{mailto:rafael@example.com}{rafael@example.com}}\newline
+  \mbox{\href{https://linkedin.com/in/rconde}{linkedin.com/in/rconde}}\contactSep
+  \mbox{\href{https://github.com/rconde}{github.com/rconde}}
+}
+
+\resumeSection{Summary}
+  \begin{resumeText}
+    Backend engineer who likes fast, boring systems.
+  \end{resumeText}
+
+\resumeSection{Education}
+  \resumeEntry{University of Texas at Austin}{Aug 2019 - May 2023}{B.S. in Computer Science, GPA 3.8}{Austin, TX}
+  \begin{resumeBullets}
+    \item Coursework: Operating Systems, Distributed Systems
+  \end{resumeBullets}
+
+\resumeSection{Experience}
+  \resumeEntry{Cloudflare}{Jun 2023 - Present}{Software Engineer}{Austin, TX}
+  \begin{resumeBullets}
+    \item Cut p99 latency of the \textbf{cache purge} API by \textit{40\%}
+    \item Owned on-call for R\&D's \textbf{\textit{edge}} fleet
+  \end{resumeBullets}
+
+\resumeSection{Projects}
+  \resumeProject{\textbf{tinykv}\projectSep \emph{Rust, Raft}\projectSep \href{https://github.com/rconde/tinykv}{github.com/rconde/tinykv}}{2024}
+  \begin{resumeBullets}
+    \item A key\_value store with \textbf{snapshots}
+  \end{resumeBullets}
+
+\resumeSection{Publications}
+  \begin{enumerate}[label={[\arabic*]}, widest=2, align=left, leftmargin=*, labelsep=0.7em, topsep=0pt, parsep=0pt, itemsep=\citationSpace, beginpenalty=10000]
+    \item \textbf{R. Conde}, J. Smith, and A. Lee, “Purging caches at the edge,” \textit{Proc. NSDI}, pp. 1-14, 2025, doi: \href{https://doi.org/10.1145/3580305}{10.1145/3580305}.
+    \item “Notes on consistent hashing?” \href{https://rconde.dev/hashing}{rconde.dev/hashing}.
+  \end{enumerate}
+
+\resumeSection{Skills}
+  \resumeSkill{Languages}{Rust, Go, C++}
+  \resumeSkill{Tools}{Linux, eBPF}
+
+\resumeSection{Talks}
+  \begin{resumeBullets}
+    \item \textit{Boring} systems, \textbf{fast}
+  \end{resumeBullets}
+
+\resumeSection{Leadership}
+  \resumeEntry{Longhorn Developers}{2021 - 2022}{President}{Austin, TX}
+  \begin{resumeBullets}
+    \item Ran 12 workshops
+  \end{resumeBullets}
+
+\resumeSection{Volunteer}
+  \resumeEntry{Code2040}{}{Mentor}{}
+  \begin{resumeBullets}
+    \item Mentored 4 students
+  \end{resumeBullets}
+
+\resumeSection{Awards \& Certifications}
+  \resumeAward{Dean's List}{UT Austin}{2022}
+
+\resumeSection{Interests}
+  \begin{resumeText}
+    Climbing, film photography\newline
+    and bread.
+
+    Ask me about sourdough.
+  \end{resumeText}
+
+\end{document}

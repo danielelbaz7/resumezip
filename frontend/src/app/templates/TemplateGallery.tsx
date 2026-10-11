@@ -5,9 +5,14 @@ import { useEffect, useId, useRef, useState } from "react"
 import { ArrowUpRight, Search } from "lucide-react"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import { OUTLINE_PILL } from "@/components/pills"
+import { SLIDING_PILL, useSlidingPill } from "@/components/useSlidingPill"
 import { TEMPLATE_TAGS, TEMPLATES, templateMatches, type TemplateId, type TemplateTag } from "@/lib/templates"
 
 const names = new Intl.ListFormat("en", { type: "conjunction" })
+
+const STYLES = [undefined, ...TEMPLATE_TAGS]
+// A style chip's box, which the picked one's copy (SLIDING_PILL) shares to line up with it.
+const CHIP = "inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-[15px] font-medium tracking-[-0.01em]"
 
 // Whether a key pressed in this element is typing, which "/" mustn't take over.
 const typingIn = (target: EventTarget | null) =>
@@ -27,6 +32,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
   const [changed, setChanged] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const searchId = useId()
+  const { group, pill, placed } = useSlidingPill(tag ?? "")
 
   // The search is in the page's HTML, so it can be typed in before this script runs. React keeps
   // what's in the box as it hydrates, but `search` starts empty, and the list would ignore it.
@@ -112,26 +118,31 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
         <span aria-hidden="true" className="mx-1 hidden h-7 w-px shrink-0 bg-ink/15 xl:block" />
 
         <div
+          ref={group}
           role="group"
           aria-label="Filter by style"
-          className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="relative flex min-w-0 flex-1 gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {[undefined, ...TEMPLATE_TAGS].map((option) => {
-            const pressed = tag === option
-            return (
-              <button
-                key={option ?? "all"}
-                type="button"
-                aria-pressed={pressed}
-                onClick={() => pick(option)}
-                className={`h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-[15px] font-medium tracking-[-0.01em] transition-[background-color,color] ${
-                  pressed ? "bg-ink text-white" : "text-ink hover:bg-ink/[0.06]"
-                }`}
-              >
+          {STYLES.map((option) => (
+            <button
+              key={option ?? "all"}
+              type="button"
+              aria-pressed={tag === option}
+              onClick={() => pick(option)}
+              className={`${CHIP} transition-[background-color,color] ${
+                tag !== option ? "text-ink hover:bg-ink/[0.06]" : placed ? "text-ink" : "bg-ink text-white"
+              }`}
+            >
+              {option ?? "All"}
+            </button>
+          ))}
+          <div ref={pill} aria-hidden="true" className={`${SLIDING_PILL} flex w-max min-w-full gap-0.5 ${placed ? "" : "invisible"}`}>
+            {STYLES.map((option) => (
+              <span key={option ?? "all"} className={CHIP}>
                 {option ?? "All"}
-              </button>
-            )
-          })}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* The status below says it to screen readers, once the list changes. */}

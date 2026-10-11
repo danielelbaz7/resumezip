@@ -118,6 +118,39 @@ export async function settled(locator: Locator): Promise<void> {
 }
 
 /**
+ * Whether the ink in a row of chips, the pill on the picked one, covers that
+ * chip to within a pixel, and is the only ink there. The pill is cut down to
+ * the chip by its clip-path, an inset().
+ */
+export async function inkCovers(row: Locator, chip: Locator): Promise<boolean> {
+  const box = (await chip.boundingBox())!
+  const ink = await row.evaluate((row) =>
+    [...row.querySelectorAll("*")].flatMap((element) => {
+      const style = getComputedStyle(element)
+      if (style.backgroundColor !== "rgb(17, 19, 24)" || style.visibility !== "visible") return []
+      // inset(top right bottom left), which may be written shorter, as margins are.
+      const sides = /^inset\(([^)]*?)(?: round [^)]*)?\)$/.exec(style.clipPath)?.[1].split(" ").map(parseFloat) ?? [0]
+      const [top, right = top, bottom = top, left = right] = sides
+      const { x, y, width, height } = element.getBoundingClientRect()
+      return [{ x: x + left, y: y + top, width: width - left - right, height: height - top - bottom }]
+    }),
+  )
+  return ink.length === 1 && (["x", "y", "width", "height"] as const).every((side) => Math.abs(ink[0][side] - box[side]) < 1)
+}
+
+/** Counts the slides of the pill in a row of chips from now on: the clip-path transitions that start in it. */
+export async function countSlides(row: Locator): Promise<() => Promise<number>> {
+  const count = await row.evaluateHandle((row) => {
+    const count = { slides: 0 }
+    row.addEventListener("transitionrun", (event) => {
+      if ((event as TransitionEvent).propertyName === "clip-path") count.slides++
+    })
+    return count
+  })
+  return () => count.evaluate((count) => count.slides)
+}
+
+/**
  * The page's serious and critical problems under WCAG 2.1 A and AA, as
  * readable lines, leaving out the parts matching `exclude`.
  */
