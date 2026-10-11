@@ -1988,7 +1988,9 @@ export function parseResume(file: Line[]): ParsedResume {
     }
     // Justified text: the long lines of a column all end at the same edge, at
     // its right side, as text set ragged hardly ever does. A hyphen breaking a
-    // word can reach a little past it. Short lines, like titles, don't count
+    // word can reach a little past it, but no further: in a column as narrow
+    // as Deedy's left one, ragged lines can end together by chance, with
+    // others running on past them. Short lines, like titles, don't count
     // either way, nor do short lines that end together ("Chicago, IL" under
     // each job).
     for (const line of page) {
@@ -2002,7 +2004,7 @@ export function parseResume(file: Line[]): ParsedResume {
       const atEdge = (end: number) => end >= edge - 1.5 && end <= edge + 4
       const long = ends.filter((end) => end >= edge - 20 && end <= edge + 4)
       const exact = long.filter(atEdge)
-      line.full = edge >= line.margin! - 20 && exact.length >= 3 && exact.length >= 0.6 * long.length && atEdge(line.box![2])
+      line.full = edge >= line.margin! - 4 && exact.length >= 3 && exact.length >= 0.6 * long.length && atEdge(line.box![2])
     }
   }
 
