@@ -29,6 +29,8 @@ import {
 import type { Run, TemplateData } from "@/lib/typst/resumeData"
 
 const minus = (length: string) => `-${length}`
+/** The longer of two lengths that `Units` gave, as the .typ's `calc.max`. */
+const longer = (a: string, b: string) => (parseFloat(a) >= parseFloat(b) ? a : b)
 
 /** Links print as plain text, kept whole, as the .typ boxes them. */
 const whole = (body: string) => `\\mbox{${body}}`
@@ -41,6 +43,12 @@ function preamble(units: Units, title: string): string {
   // EB Garamond's cap height is 0.65em: the .typ measures each space to a line's capitals.
   const leading = units.space(5.78)
   const line = (size: number) => sum(units.size(size * 0.65), leading)
+  // As in the .typ, the first heading sits a little closer to the contact
+  // line than later ones to each other, but no closer than the contact line
+  // is to the name, counting the gap \resumeSection adds: a fixed 3.5pt less
+  // would pull it into the contact line's descenders at the tightest section
+  // spacing.
+  const toFirstHeading = longer(units.size(-3.5), sum(units.size(6.38), minus(units.gap(17.85))))
   return `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
@@ -88,7 +96,7 @@ ${links(title)}
 % Custom commands
 
 % The name in capitals, and the contact line under it
-\\newenvironment{resumeHeader}{\\centering\\lineskiplimit=-\\maxdimen}{\\par\\vspace{${units.size(-3.5)}}}
+\\newenvironment{resumeHeader}{\\centering\\lineskiplimit=-\\maxdimen}{\\par\\vspace{${toFirstHeading}}}
 % An empty box takes the page's first line, so the name's capitals sit at the
 % top margin however tall its accents are.
 \\newcommand{\\resumeName}[1]{\\hbox{}\\vspace{${minus(line(10.8))}}{\\resumeNameFont\\textcolor{resumeDark}{\\MakeUppercase{#1}}\\par}}
