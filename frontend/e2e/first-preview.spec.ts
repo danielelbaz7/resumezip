@@ -195,11 +195,12 @@ test("a mouse resting on Start writing starts the editor's downloads before the 
   expect(errors).toEqual([])
 })
 
-test("pressing a template's picture starts the compiler before the click", async ({ page }) => {
+test("pressing a template's Use starts the compiler before the click", async ({ page }) => {
   const errors = pageErrors(page)
   const workers = compilerWorkers(page)
   await page.goto("/templates")
   await page.getByRole("link", { name: /^Harvard template/ }).hover()
+  await page.getByRole("link", { name: "Use Harvard" }).hover()
   await page.waitForTimeout(500)
   expect(workers).toEqual([])
 

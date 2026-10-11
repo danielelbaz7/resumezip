@@ -216,3 +216,15 @@ export async function chooseTemplate(page: Page, name: string): Promise<void> {
 
 /** What names the resume's template on screen: the header's Template button. */
 export const templateShown = (page: Page): Locator => page.getByRole("button", { name: /^Template/ })
+
+/**
+ * What names the resume's template on screen, once the editor is open. On
+ * wide screens it's in the left panel's Style tab, so that's opened first;
+ * narrower, the header's Template button says it.
+ */
+export async function templateChosen(page: Page): Promise<Locator> {
+  const style = page.getByRole("tab", { name: "Style" })
+  await expect(style).toBeVisible()
+  if (await templateShown(page).isHidden()) await style.click()
+  return templateShown(page)
+}

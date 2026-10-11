@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect, test } from "@playwright/test"
 import { pageErrors, seriousAccessibilityProblems } from "./helpers"
 
-const PAGES = ["/", "/templates", "/about", "/terms", "/create/dashboard", "/does-not-exist"]
+const PAGES = ["/", "/templates", "/templates/jakes", "/about", "/terms", "/create/dashboard", "/does-not-exist"]
 
 test("contact, on the about page, gives the support address to write to or copy", async ({ page, context, browserName }) => {
   // Contact is part of About now; its old address still leads to it.
