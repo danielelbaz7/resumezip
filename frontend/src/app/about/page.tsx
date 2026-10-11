@@ -58,9 +58,9 @@ const FOLDER = { src: "/about/manila-folder.webp", width: 1041, height: 640 }
 const FOLDER_HEIGHT = FOLDER.height / FOLDER.width
 // The front flap's top edge in the folder picture, measured from it, as a share of its height.
 const FLAP_EDGE = 79 / FOLDER.height
-// The page sits right of center, so the folder's tab shows on the left. Only its
-// top stands out of the folder, so it's no taller than it needs to be to stay inside.
-const PAGE = { left: 0.16, width: 0.79, height: 0.6 }
+// The page sits in the middle of the folder. Only its top stands out of it, so
+// it's no taller than it needs to be to stay inside.
+const PAGE = { width: 0.79, height: 0.6 }
 // How far the page stands out above the folder: enough for everything written on it.
 const FOLDER_TOP = 0.325
 const FIGURE_HEIGHT = FOLDER_TOP + FOLDER_HEIGHT
@@ -76,7 +76,7 @@ const down = (share: number) => `${(100 * share) / FIGURE_HEIGHT}%`
  */
 function OwnResume() {
   const folder = "absolute left-0 w-full h-auto"
-  const page = { left: `${100 * PAGE.left}%`, width: `${100 * PAGE.width}%` }
+  const page = { left: `${(100 * (1 - PAGE.width)) / 2}%`, width: `${100 * PAGE.width}%` }
   return (
     <figure
       className="relative w-full max-w-[520px] xl:w-[500px] xl:max-w-none 2xl:w-[580px]"
@@ -129,7 +129,7 @@ export default function AboutPage() {
     <div className="desk flex min-h-screen flex-col">
       <SiteHeader />
       <main className={SHEET}>
-        <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-12">
+        <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:gap-12">
           <div className="flex flex-col gap-5">
             <span className="label-mono text-ink-2">About</span>
             <h1 className="font-serif text-5xl leading-[1.02] tracking-[-0.03em] md:text-[80px] md:leading-[0.95]">
@@ -139,23 +139,22 @@ export default function AboutPage() {
               Many resume builders charge you to download your own resume, and keep a copy. <Wordmark /> doesn’t: every template is free and
               made for the hiring software (ATS) that reads it, and your resume stays in your browser.
             </p>
+            {/* One plain line, set apart by hairlines, rather than a logo wall. */}
+            <p className="mt-3 inline-flex self-start flex-wrap items-center gap-x-3 gap-y-1 border-y border-ink/15 py-3 pr-2">
+              <span className="label-mono text-ink-2">Part of</span>
+              <a
+                href={MICROSOFT_STARTUPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2.5 underline-offset-4 hover:underline"
+              >
+                <MicrosoftLogo />
+                <span className="font-serif text-[22px] leading-none tracking-[-0.01em]">Microsoft for Startups</span>
+              </a>
+            </p>
           </div>
           <OwnResume />
         </div>
-
-        {/* One plain line, set apart by hairlines, rather than a logo wall. */}
-        <p className="mt-10 inline-flex flex-wrap items-center gap-x-3 gap-y-1 border-y border-ink/15 py-3 pr-2">
-          <span className="label-mono text-ink-2">Part of</span>
-          <a
-            href={MICROSOFT_STARTUPS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2.5 underline-offset-4 hover:underline"
-          >
-            <MicrosoftLogo />
-            <span className="font-serif text-[22px] leading-none tracking-[-0.01em]">Microsoft for Startups</span>
-          </a>
-        </p>
 
         <section className={SECTION} aria-labelledby="promises">
           <h2 id="promises" className={HEADING}>
