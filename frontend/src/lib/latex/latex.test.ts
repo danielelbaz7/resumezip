@@ -341,6 +341,10 @@ describe("a LaTeX file in Jake's layout", () => {
     expect(text).toContain(
       "\\href{https://example.com/a_b~c/\\%7Bd\\%7D?x=1\\&y=50\\%\\#top}{\\underline{example.com/a\\_b\\textasciitilde{}c/\\{d\\}?x=1\\&y=50\\%\\#top}}",
     )
+    // A backslash or a space can't be escaped there either, so it's percent-encoded, and its % escaped.
+    expect(latexOf({ selectedTemplate: "jake", profileSection: { email: "a\\b c@example.com" } })).toContain(
+      "\\href{mailto:a\\%5Cb\\%20c@example.com}",
+    )
   })
 
   test("sets bold and italic as the bullets mark them", () => {

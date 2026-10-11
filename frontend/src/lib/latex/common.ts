@@ -103,9 +103,11 @@ export const itemText = (text: string) => text.replace(/^\[/, "{}[")
 /**
  * An address as hyperref reads it inside another command's argument, where %,
  * # and & still need a backslash. What can't be escaped there (a backslash,
- * braces, spaces) is percent-encoded.
+ * braces, spaces) is percent-encoded, and that % escaped in turn. One pass, so
+ * nothing it writes is read again.
  */
-const address = (url: string) => url.replace(/[\\{}\s]/g, (character) => encodeURIComponent(character)).replace(/[%#&]/g, "\\$&")
+const address = (url: string) =>
+  url.replace(/[\\{}\s%#&]/g, (character) => `\\${/[%#&]/.test(character) ? character : encodeURIComponent(character)}`)
 
 /** The address a link goes to, or null for one that isn't an address, which is printed without a link. */
 function linkTarget(url: string): string | null {
