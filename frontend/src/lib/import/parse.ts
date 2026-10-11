@@ -610,7 +610,10 @@ function mergeLines(a: ParseLine, b: ParseLine): ParseLine {
 /**
  * Whether `line` carries on a detail line ("Relevant Coursework: ...") that
  * was cut off mid-list: it starts at the same left edge, without the indent a
- * bullet's text has, and in the style the line above ended in.
+ * bullet's text has, and in the style the line above ended in. In a narrow
+ * column a list wraps between any two words ("Society of Women" then
+ * "Engineers, ..."), so a line whose first word didn't fit above carries on
+ * too.
  */
 function detailCarriesOn(line: ParseLine, item: Item, above: ParseLine): boolean {
   const end = item.pieces[item.pieces.length - 1]
@@ -623,7 +626,7 @@ function detailCarriesOn(line: ParseLine, item: Item, above: ParseLine): boolean
     Math.abs(line.left - item.left) < 3 &&
     start.bold === Boolean(end?.bold) &&
     start.italic === Boolean(end?.italic) &&
-    (CONNECTOR.test(item.text) || above.full === true)
+    (CONNECTOR.test(item.text) || above.full === true || wrapsInto(above, line))
   )
 }
 
@@ -693,11 +696,15 @@ function groupEntries(lines: ParseLine[], isBody: (line: Line) => boolean = () =
     lastWasBullet = false
     const header = group?.header ?? []
     const first = header[0]
-    // A title line that wrapped: "Bachelor of Arts in Computer Science," then "Minor in Business".
+    // A title line that wrapped: "Bachelor of Arts in Computer Science," then
+    // "Minor in Business". In a narrow column one with its date can wrap too,
+    // mid-place: "Aug 2022 - May 2026 | Pittsburgh," then "PA".
     const lastTitle = group && group.body.length === 0 ? header[header.length - 1] : undefined
     if (
       lastTitle &&
-      (!hasDate(lastTitle) || (CUT_DATE.test(lastTitle.text) && YEAR_FIRST.test(line.text))) &&
+      (!hasDate(lastTitle) ||
+        (CUT_DATE.test(lastTitle.text) && YEAR_FIRST.test(line.text)) ||
+        (lastTitle.text.endsWith(",") && !hasDate(line))) &&
       sameStyle(lastTitle, line) &&
       (wrapsInto(lastTitle, line) || CONNECTOR.test(lastTitle.text) || /^[a-z(]/.test(line.text))
     ) {
