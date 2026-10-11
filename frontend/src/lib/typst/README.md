@@ -19,7 +19,9 @@ server to build a PDF.
   and fonts download (each bit that arrives counts, so slow connections finish),
   20 s once it has loaded, or at once if the compiler breaks. The worker also
   checks in as each slow step starts (building the compiler, each compile), so
-  the limit applies to one step at a time. Previews compile one at a time:
+  the limit applies to one step at a time. A worker's memory only grows, so
+  once its compiler holds over 256 MB it's replaced too, as soon as nothing is
+  in flight or waiting, and the new one starts loading at once. Previews compile one at a time:
   while one runs, only the newest waits, and downloads never wait behind them. Failures say why
   (`PdfFailure`), so the page can say what to do. `loadCompiler` starts the
   download before the first PDF: "Start writing" links call it as a mouse

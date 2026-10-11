@@ -84,8 +84,12 @@
     items.map(box).join([ | ])
   }
 })
-// The first heading sits a little closer to the contact line than later ones to each other.
-#v(sized(-3.5pt))
+// The first heading sits a little closer to the contact line than later ones
+// to each other, but no closer than the contact line is to the name (6.38pt,
+// once `section` adds its gapped(17.85pt)). The space between sections
+// shrinks that gap, and a fixed 3.5pt off it at the tightest settings would
+// pull the heading up into the contact line's descenders.
+#v(calc.max(sized(-3.5pt), sized(6.38pt) - gapped(17.85pt)))
 
 // ---------- Sections ----------
 

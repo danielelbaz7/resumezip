@@ -27,8 +27,14 @@ import {
 } from "../common"
 import type { TemplateData } from "@/lib/typst/resumeData"
 
+/**
+ * A link's text, never hyphenated, as the .typ's links aren't: TeX only
+ * hyphenates a word that follows a space, and the kern stands between them.
+ */
+const whole = (body: string) => `\\kern0pt ${body}`
+
 /** A link printed as its own text, plain, as the .typ's are. */
-const plain: ShowLink = (url, text) => shownLink(url, text)
+const plain: ShowLink = (url, text) => shownLink(url, text, whole)
 
 // Typst measures a space from one line's baseline down to the next line's cap
 // height, and sets a paragraph's lines `LEADING` apart that way; TeX measures
@@ -112,9 +118,17 @@ ${ROW}
   \\prevdepth=0pt\\vspace{${space.above(units.size(15.8))}}%
 }
 
-% How to reach you on the left, a profile on the right
+% How to reach you on the left, a profile on the right: on one line, 12pt or
+% more apart, when they fit on it, and on a line each when they don't
+\\newlength{\\resumeReach}
+\\newlength{\\resumeProfile}
 \\newcommand{\\resumeContact}[2]{%
-  \\parbox[t]{0.5\\linewidth}{\\raggedright #1}\\parbox[t]{0.5\\linewidth}{\\raggedleft #2}\\par
+  \\settowidth{\\resumeReach}{#1}\\settowidth{\\resumeProfile}{#2}%
+  \\ifdim\\dimexpr\\resumeReach+12pt+\\resumeProfile\\relax>\\linewidth
+    {\\raggedright #1\\par}{\\raggedleft #2\\par}%
+  \\else
+    {\\noindent #1\\hspace{12pt plus 1fill}#2\\par}%
+  \\fi
 }
 
 % Entries, [the space between them] apart
@@ -125,11 +139,31 @@ ${ROW}
 % An entry: what and where on the left, the dates in bold on the right
 \\newcommand{\\resumeEntry}[2]{\\item\\resumeRow{#1}{\\textbf{#2}}}
 
-% A job: the role, the organization centred on the page, and the dates
+% A job: the role, the organization centred on the page, and the dates. Each
+% side keeps room for the dates and for the role up to a fifth of the line, at
+% most a third of it; an organization wider than what's left wraps there.
+\\newlength{\\resumeSide}
+\\newlength{\\resumeMiddle}
+\\newlength{\\resumeOrganization}
 \\newcommand{\\resumeRole}[3]{%
   \\item
-  \\begin{tabularx}{\\linewidth}{@{}>{\\raggedright\\arraybackslash}X@{\\hspace{12pt}}c@{\\hspace{12pt}}>{\\raggedleft\\arraybackslash}X@{}}%
-    \\textbf{#1} & #2 & \\textbf{#3}%
+  \\settowidth{\\resumeSide}{\\textbf{#1}}%
+  \\ifdim\\resumeSide>0.2\\linewidth \\setlength{\\resumeSide}{0.2\\linewidth}\\fi
+  \\settowidth{\\resumeMiddle}{\\textbf{#3}}%
+  \\ifdim\\resumeMiddle>\\resumeSide \\setlength{\\resumeSide}{\\resumeMiddle}\\fi
+  \\ifdim\\resumeSide>\\dimexpr(\\linewidth-24pt)/3\\relax \\setlength{\\resumeSide}{\\dimexpr(\\linewidth-24pt)/3\\relax}\\fi
+  \\setlength{\\resumeMiddle}{\\dimexpr\\linewidth-2\\resumeSide-24pt\\relax}%
+  \\settowidth{\\resumeOrganization}{#2}%
+  \\ifdim\\resumeOrganization>\\resumeMiddle
+    \\resumeColumns{>{\\centering\\arraybackslash}b{\\resumeMiddle}}{#1}{#2}{#3}%
+  \\else
+    \\resumeColumns{c}{#1}{#2}{#3}%
+  \\fi
+}
+% The role, the organization in the middle column it's given, and the dates
+\\newcommand{\\resumeColumns}[4]{%
+  \\begin{tabularx}{\\linewidth}{@{}>{\\raggedright\\arraybackslash}X@{\\hspace{12pt}}#1@{\\hspace{12pt}}>{\\raggedleft\\arraybackslash}X@{}}%
+    \\textbf{#2} & #3 & \\textbf{#4}%
   \\end{tabularx}%
 }
 
@@ -188,8 +222,8 @@ function body(data: TemplateData, units: Units): string {
 
   // Where you are and how to reach you on the left, your profiles on the right.
   const { profile } = data
-  const reach = [latex(profile.location), latex(profile.phone), profile.email && emailLink(profile.email)].filter(Boolean)
-  const profiles = [profile.linkedin, profile.github, profile.website].filter(Boolean).map((url) => webLink(url))
+  const reach = [latex(profile.location), latex(profile.phone), profile.email && emailLink(profile.email, whole)].filter(Boolean)
+  const profiles = [profile.linkedin, profile.github, profile.website].filter(Boolean).map((url) => webLink(url, whole))
   if (profile.name || reach.length || profiles.length) {
     add(`\\resumeName{${latex(profile.name)}}`)
     for (let row = 0; row < Math.max(reach.length, profiles.length); row++) {
