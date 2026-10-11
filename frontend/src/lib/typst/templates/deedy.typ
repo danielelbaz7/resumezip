@@ -30,8 +30,18 @@
 #set par(justify: false, leading: 0.5em * tune.leading, spacing: 0pt)
 
 // Raleway, with lining figures rather than its default old-style ones, and its
-// own word spaces rather than the text's.
-#let raleway(body, size: sized(9.7pt), fill: headings) = text(font: "Raleway-v4020", weight: 500, size: size, fill: fill, number-type: "lining", spacing: 100%, body)
+// own word spaces rather than the text's. It has no Greek but π, which would
+// break up a Greek word, so all of Greek comes from Lato, as do other letters
+// Raleway lacks.
+#let raleway(body, size: sized(9.7pt), fill: headings) = text(
+  font: ((name: "Raleway-v4020", covers: regex("\P{Greek}")), "Lato"),
+  weight: 500,
+  size: size,
+  fill: fill,
+  number-type: "lining",
+  spacing: 100%,
+  body,
+)
 // Deedy's \descript: the role or degree in small capitals.
 #let descript(body) = raleway(smallcaps(body), size: sized(10.4pt), fill: subheadings)
 // Deedy's \location: dates and places.

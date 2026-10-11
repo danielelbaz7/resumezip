@@ -3,7 +3,7 @@ import path from "node:path"
 import { beforeAll, describe, expect, test } from "vitest"
 import { CompileFormatEnum, createTypstCompiler, createTypstFontBuilder, type TypstCompiler } from "@myriaddreamin/typst.ts/compiler"
 import { loadFonts } from "@myriaddreamin/typst.ts/options.init"
-import { fontsOf, TEMPLATES } from "@/lib/templates"
+import { fontsOf, templateById, TEMPLATES } from "@/lib/templates"
 import { covers, FONT_FILES, FONT_INFO, FONT_URLS, filesOf, fontsFor, lazyFonts } from "./fontFiles"
 import { toTemplateData } from "./resumeData"
 
@@ -66,6 +66,40 @@ describe("coverage", () => {
   test("a character no font has brings nothing more", () => {
     expect(fontsFor([{ family: "EB Garamond" }], "张伟 😀").sort()).toEqual(filesOf("EB Garamond").sort())
   })
+
+  describe("with a fallback", () => {
+    const heros = filesOf("TeX Gyre Heros")
+    const sourceSans = filesOf("Source Sans 3", [400, 700])
+    const blueprint = fontsOf(templateById("levelsfyi"))
+    const needs = (text: string) => fontsFor(blueprint, text).sort()
+
+    test("is Blueprint's, in the weights it prints in", () => {
+      expect(blueprint).toEqual([
+        { family: "TeX Gyre Heros" },
+        { family: "Source Sans 3", weights: [400, 700], fallback: true, script: "Greek" },
+      ])
+    })
+
+    test("a resume in plain English doesn't need it", () => {
+      expect(needs("Ada Lovelace, London · ada@example.com")).toEqual(heros.sort())
+    })
+
+    test("a character the family lacks and the fallback has brings only the fallback", () => {
+      expect(needs("Иван Петров, Москва")).toEqual([...heros, ...sourceSans].sort())
+    })
+
+    test("a letter of the script left to the fallback brings it, even one the family has", () => {
+      const alpha = "α".codePointAt(0)!
+      expect(heros.every((file) => FONT_INFO[file].info.some((face) => covers(face.coverage, alpha)))).toBe(true)
+      expect(needs("α")).toEqual([...heros, ...sourceSans].sort())
+    })
+
+    test("a character the fallback lacks too brings it, and every font that has it", () => {
+      // Linux Biolinum has a star; neither Heros nor Source Sans 3 does.
+      expect(needs("★")).toEqual([...heros, ...sourceSans, "LinBiolinum_R.otf"].sort())
+      expect(needs("张伟")).toEqual([...heros, ...sourceSans].sort())
+    })
+  })
 })
 
 describe("the font files", () => {
@@ -92,13 +126,68 @@ describe("the font files", () => {
 
   test("each template's font is the one its text is set in, and its fonts are among the files", () => {
     for (const template of TEMPLATES) {
-      const source = readFileSync(path.join(TYPST, "templates", `${template.id}.typ`), "utf8")
-      expect(source.match(/#set text\(font: "([^"]+)"/)?.[1], template.id).toBe(template.font)
+      const [text] = fontLists(sourceOf(template.id), "#set text(font: ")
+      expect(text?.families[0], template.id).toBe(template.font)
       for (const { family, weights } of fontsOf(template))
         expect(filesOf(family, weights).length, `${template.id}: ${family}`).toBeGreaterThan(0)
     }
   })
+
+  // fontsFor counts on this: a letter the fonts before the fallback lack, or
+  // leave to it, is printed in the fallback whatever words it's in.
+  test("each of a template's font lists ends with its fallback, and leaves it only the script it says", () => {
+    for (const template of TEMPLATES) {
+      const fonts = fontsOf(template)
+      const named = fonts.map(({ family }) => family)
+      const fallback = fonts.find((font) => font.fallback)
+      const lists = fontLists(sourceOf(template.id))
+      expect(lists.length, template.id).toBeGreaterThan(0)
+      for (const { families, leaves } of lists) {
+        expect(named, template.id).toEqual(expect.arrayContaining(families))
+        if (fallback) expect(families.at(-1), template.id).toBe(fallback.family)
+        else expect(families, template.id).toHaveLength(1)
+        for (const script of leaves) expect(script, template.id).toBe(fallback?.script)
+      }
+      if (fallback?.script)
+        expect(
+          lists.flatMap(({ leaves }) => leaves),
+          template.id,
+        ).toContain(fallback.script)
+    }
+  })
 })
+
+const sourceOf = (template: string) => readFileSync(path.join(TYPST, "templates", `${template}.typ`), "utf8")
+
+/**
+ * The font lists a template's source sets, after each `start` it has: the
+ * families each names, in order, and the scripts any of them leaves to the
+ * families after it, as `(name: "Charis SIL", covers: regex("\P{Greek}"))`.
+ */
+function fontLists(source: string, start = "font: "): { families: string[]; leaves: string[] }[] {
+  return source
+    .split(start)
+    .slice(1)
+    .map((rest) => {
+      // A family's name, or a list of them in brackets, which may hold brackets of its own.
+      let depth = 0
+      let end = 0
+      do {
+        if (rest[end] === "(") depth++
+        else if (rest[end] === ")") depth--
+        else if (rest[end] === '"') end = rest.indexOf('"', end + 1)
+        end++
+      } while (depth > 0 && end < rest.length)
+      const list = rest.slice(0, end)
+      return {
+        families: [...list.replace(/regex\("[^"]*"\)/g, "").matchAll(/"([^"]+)"/g)].map(([, family]) => family),
+        // Any other `covers` stays as it's written, to fail the test.
+        leaves: [...list.matchAll(/covers: ("[^"]*"|regex\("[^"]*"\))/g)].map(
+          ([, value]) => value.match(/^regex\("\\P\{(\w+)\}"\)$/)?.[1] ?? value,
+        ),
+      }
+    })
+}
 
 describe("printing with only the fonts a resume needs", () => {
   let compiler: TypstCompiler
@@ -156,14 +245,49 @@ describe("printing with only the fonts a resume needs", () => {
       },
     ],
   })
+  // One script at a time, where a template's fallback is all fontsFor adds.
+  const ONE_SCRIPT = {
+    Cyrillic: "Иван Петров · Москва",
+    Greek: "Αλέξανδρος Παπαδόπουλος · Θεσσαλονίκη",
+    // The one Greek letter IBM Plex Mono and Raleway have, which TeX Gyre Heros
+    // and Charis SIL have too, but leave to their fallbacks.
+    "π alone": "π = 3.14159",
+    Vietnamese: "Nguyễn Thị Ánh · Hà Nội",
+  }
+  // The text in each place a template prints, in bold and italic too.
+  const inOneScript = (template: string, text: string) => {
+    const [first] = text.split(" · ")
+    return {
+      selectedTemplate: template,
+      profileSection: { fullName: first, location: text, email: "anh@example.com", summary: text },
+      headings: { work: first },
+      workExperienceSection: [
+        {
+          companyName: first,
+          workRole: text,
+          workLocation: text,
+          workStartDate: "Jan 2024",
+          workEndDate: first,
+          workDescription: [`• ${text}`, `• **${text}**`, `• *${text}*`, `• ***${text}***`].join("\n"),
+        },
+      ],
+    }
+  }
   const cases = [
     ...samples.map((resume) => ({ name: `${resume.selectedTemplate}'s sample`, resume, sample: true })),
     ...TEMPLATES.map((template) => ({ name: `${template.id} with mixed scripts`, resume: mixed(template.id), sample: false })),
+    ...TEMPLATES.flatMap((template) =>
+      Object.entries(ONE_SCRIPT).map(([script, text]) => ({
+        name: `${template.id} in ${script}`,
+        resume: inOneScript(template.id, text),
+        sample: false,
+      })),
+    ),
   ]
 
   test.each(cases)("$name prints the same, reading only the fonts expected", async ({ resume, sample }) => {
     const data = toTemplateData(resume)
-    // The mixed-script job has to reach the template, or only the profile is printed.
+    // The job has to reach the template, or only the profile is printed.
     if (!sample) expect(data.work).toHaveLength(1)
     const template = TEMPLATES.find((each) => each.id === resume.selectedTemplate)!
     await useFonts("all")
@@ -178,7 +302,10 @@ describe("printing with only the fonts a resume needs", () => {
     // The worker downloads these before compiling, so Typst never waits for one.
     const expected = fontsFor(fontsOf(template), JSON.stringify(data))
     expect([...read].filter((file) => !expected.includes(file))).toEqual([])
-    if (sample)
-      expect([...read].every((file) => fontsOf(template).some(({ family, weights }) => filesOf(family, weights).includes(file)))).toBe(true)
+    // A sample, in English, needs only the template's own fonts, not even its fallback.
+    if (sample) {
+      const own = fontsOf(template).flatMap(({ family, weights, fallback }) => (fallback ? [] : filesOf(family, weights)))
+      expect(expected.sort()).toEqual([...new Set(own)].sort())
+    }
   })
 })

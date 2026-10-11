@@ -5,9 +5,11 @@
 // the sample resume in src/lib/typst/preview-samples/<id>.json. `font` is
 // the family its text is set in, `weights` the weights of it the template
 // uses when its family has more, and `alsoFonts` any other family it sets
-// some words in; they're downloaded before its first PDF. `firstColumn` names
-// the sections a template prints in a column of its own on the left, which
-// its PDF holds before the rest; keep it in step with the template.
+// some words in; they're downloaded before its first PDF. One of `alsoFonts`
+// may be its fallback (see FontUse), downloaded only for a resume with a
+// letter it prints. `firstColumn` names the sections a template prints in a
+// column of its own on the left, which its PDF holds before the rest; keep it
+// in step with the template.
 // `added` is the day it reached the site (the first four were there by
 // 2025-04-20), which marks the newest as new for a while: see newTemplate.
 // `tags` are what the templates page filters by, and must be true of the
@@ -32,12 +34,17 @@ interface TemplateInfo {
   image: string
   font: string
   weights?: readonly number[]
-  alsoFonts?: readonly string[]
+  alsoFonts?: readonly (string | FontUse)[]
   firstColumn?: readonly string[]
   /** YYYY-MM-DD. */
   added: string
   tags: readonly TemplateTag[]
 }
+
+// For TeX Gyre Heros, which has no Cyrillic, and for Greek, which it and IBM
+// Plex Mono have little of. Their templates print at 400, and at 600 to 900,
+// for which Typst picks Source Sans 3's Regular and Bold, never its Light.
+const SOURCE_SANS_FALLBACK = { family: "Source Sans 3", weights: [400, 700], fallback: true, script: "Greek" } as const
 
 export const TEMPLATES = [
   {
@@ -62,6 +69,7 @@ export const TEMPLATES = [
     name: "Blueprint",
     image: "/previews/levelsfyi.webp",
     font: "TeX Gyre Heros",
+    alsoFonts: [SOURCE_SANS_FALLBACK],
     added: "2025-04-20",
     tags: ["Sans-serif", "Color headings", "Fits a lot"],
   },
@@ -70,6 +78,7 @@ export const TEMPLATES = [
     name: "Compact",
     image: "/previews/referme.webp",
     font: "TeX Gyre Heros",
+    alsoFonts: [SOURCE_SANS_FALLBACK],
     added: "2025-04-20",
     tags: ["Sans-serif", "Fits a lot"],
   },
@@ -95,7 +104,7 @@ export const TEMPLATES = [
     name: "Margin",
     image: "/previews/margin.webp",
     font: "Charis SIL",
-    alsoFonts: ["Linux Biolinum O"],
+    alsoFonts: ["Linux Biolinum O", { family: "EB Garamond", fallback: true, script: "Greek" }],
     added: "2026-10-10",
     tags: ["Serif"],
   },
@@ -104,6 +113,7 @@ export const TEMPLATES = [
     name: "Swiss",
     image: "/previews/swiss.webp",
     font: "TeX Gyre Heros",
+    alsoFonts: [SOURCE_SANS_FALLBACK],
     added: "2026-10-10",
     tags: ["Sans-serif"],
   },
@@ -112,6 +122,7 @@ export const TEMPLATES = [
     name: "Mono",
     image: "/previews/mono.webp",
     font: "IBM Plex Mono",
+    alsoFonts: [SOURCE_SANS_FALLBACK],
     added: "2026-10-10",
     tags: [],
   },
@@ -128,7 +139,7 @@ export const TEMPLATES = [
     name: "Deedy",
     image: "/previews/deedy.webp",
     font: "Lato",
-    alsoFonts: ["Raleway-v4020"],
+    alsoFonts: ["Raleway-v4020", { family: "Lato", fallback: true, script: "Greek" }],
     firstColumn: ["Education", "Skills"],
     added: "2026-10-10",
     tags: ["Sans-serif"],
@@ -144,13 +155,26 @@ export const DEFAULT_TEMPLATE: TemplateId = "jake"
 export interface FontUse {
   family: string
   weights?: readonly number[]
+  /**
+   * Whether it's the template's fallback: the family each of its font lists
+   * ends with, which prints the letters the fonts before it lack.
+   */
+  fallback?: boolean
+  /**
+   * A script, such as "Greek", that the fonts before the fallback leave to it
+   * with `covers`, even the letters they have, so a word isn't drawn from two fonts.
+   */
+  script?: string
 }
 
 /** Every font family a template prints in: its text's first. */
-export const fontsOf = (template: Template): FontUse[] => [
-  "weights" in template ? { family: template.font, weights: template.weights } : { family: template.font },
-  ...("alsoFonts" in template ? template.alsoFonts.map((family) => ({ family })) : []),
-]
+export function fontsOf(template: Template): FontUse[] {
+  const also: readonly (string | FontUse)[] = "alsoFonts" in template ? template.alsoFonts : []
+  return [
+    "weights" in template ? { family: template.font, weights: template.weights } : { family: template.font },
+    ...also.map((font) => (typeof font === "string" ? { family: font } : font)),
+  ]
+}
 
 /** The sections a template prints in a column on the left, before the rest. */
 export const firstColumnOf = (template: Template): readonly string[] => ("firstColumn" in template ? template.firstColumn : [])
