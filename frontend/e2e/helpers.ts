@@ -82,6 +82,10 @@ export async function transitionsDone(page: Page): Promise<void> {
  * or on what's in it, as a dialog growing into place, so a box read next is
  * its final one. Each look comes two frames on: a transition can start with
  * the next frame, and its transitionrun event comes with the one after.
+ * A view transition counts too: until it ends, what shows of the element is
+ * its picture, moving from where it was. Its animations are on the root's
+ * ::view-transition pseudo-elements, and start as the browser pictures the
+ * new view, at the next frame after it's rendered.
  */
 export async function settled(locator: Locator): Promise<void> {
   await expect
@@ -90,8 +94,10 @@ export async function settled(locator: Locator): Promise<void> {
         locator.evaluate(async (element) => {
           await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
           return document.getAnimations().filter((animation) => {
-            const target = (animation.effect as KeyframeEffect | null)?.target
-            return "transitionProperty" in animation && !!target && (target.contains(element) || element.contains(target))
+            const effect = animation.effect as KeyframeEffect | null
+            const target = effect?.target
+            if (!target || !(target.contains(element) || element.contains(target))) return false
+            return "transitionProperty" in animation || !!effect.pseudoElement?.startsWith("::view-transition")
           }).length
         }),
       { message: "nothing on, in or around it is transitioning" },
