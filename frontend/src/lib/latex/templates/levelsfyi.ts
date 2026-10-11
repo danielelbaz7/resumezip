@@ -125,11 +125,31 @@ ${ROW}
 % An entry: what and where on the left, the dates in bold on the right
 \\newcommand{\\resumeEntry}[2]{\\item\\resumeRow{#1}{\\textbf{#2}}}
 
-% A job: the role, the organization centred on the page, and the dates
+% A job: the role, the organization centred on the page, and the dates. Each
+% side keeps room for the dates and for the role up to a fifth of the line, at
+% most a third of it; an organization wider than what's left wraps there.
+\\newlength{\\resumeSide}
+\\newlength{\\resumeMiddle}
+\\newlength{\\resumeOrganization}
 \\newcommand{\\resumeRole}[3]{%
   \\item
-  \\begin{tabularx}{\\linewidth}{@{}>{\\raggedright\\arraybackslash}X@{\\hspace{12pt}}c@{\\hspace{12pt}}>{\\raggedleft\\arraybackslash}X@{}}%
-    \\textbf{#1} & #2 & \\textbf{#3}%
+  \\settowidth{\\resumeSide}{\\textbf{#1}}%
+  \\ifdim\\resumeSide>0.2\\linewidth \\setlength{\\resumeSide}{0.2\\linewidth}\\fi
+  \\settowidth{\\resumeMiddle}{\\textbf{#3}}%
+  \\ifdim\\resumeMiddle>\\resumeSide \\setlength{\\resumeSide}{\\resumeMiddle}\\fi
+  \\ifdim\\resumeSide>\\dimexpr(\\linewidth-24pt)/3\\relax \\setlength{\\resumeSide}{\\dimexpr(\\linewidth-24pt)/3\\relax}\\fi
+  \\setlength{\\resumeMiddle}{\\dimexpr\\linewidth-2\\resumeSide-24pt\\relax}%
+  \\settowidth{\\resumeOrganization}{#2}%
+  \\ifdim\\resumeOrganization>\\resumeMiddle
+    \\resumeColumns{>{\\centering\\arraybackslash}b{\\resumeMiddle}}{#1}{#2}{#3}%
+  \\else
+    \\resumeColumns{c}{#1}{#2}{#3}%
+  \\fi
+}
+% The role, the organization in the middle column it's given, and the dates
+\\newcommand{\\resumeColumns}[4]{%
+  \\begin{tabularx}{\\linewidth}{@{}>{\\raggedright\\arraybackslash}X@{\\hspace{12pt}}#1@{\\hspace{12pt}}>{\\raggedleft\\arraybackslash}X@{}}%
+    \\textbf{#2} & #3 & \\textbf{#4}%
   \\end{tabularx}%
 }
 

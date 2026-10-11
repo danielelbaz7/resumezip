@@ -22,17 +22,27 @@
 
 // \threecolumns: left, page-centred middle, and right. The outer columns share
 // the leftover width equally, so the middle stays centred and a long role
-// wraps instead of running into it.
-#let three-columns(start, middle, end) = {
+// wraps instead of running into it. A long `auto` middle would squeeze them to
+// a word a line, then run over them, so each keeps room for the dates,
+// unbroken, and for the role up to a fifth of the line (never more than a
+// third), and a middle wider than what's left wraps. Only up to a fifth: a long
+// role that wraps beside a middle on one line keeps the words in reading order.
+#let three-columns(start, middle, end) = layout(size => {
   set par(justify: false)
   set text(hyphenate: false)
+  let gutter = 12pt
+  let side = calc.min(
+    calc.max(measure(end).width, calc.min(measure(start).width, size.width / 5)),
+    (size.width - 2 * gutter) / 3,
+  )
+  let room = size.width - 2 * side - 2 * gutter
   grid(
-    columns: (1fr, auto, 1fr),
-    column-gutter: 12pt,
+    columns: (1fr, if measure(middle).width <= room { auto } else { room }, 1fr),
+    column-gutter: gutter,
     align: (left + bottom, center + bottom, right + bottom),
     start, middle, end,
   )
-}
+})
 
 // Sticky so a heading is never left alone at the bottom of a page.
 #let section(title, body) = {
