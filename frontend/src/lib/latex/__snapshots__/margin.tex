@@ -77,11 +77,37 @@
 
 % A section's heading, in the margin and level with the section's first line.
 % Its lines below the first take no room, so a section shorter than its
-% heading moves the next one down, clear of it.
+% heading moves the next one down, clear of it. Its lines stay on one page:
+% when they don't fit above the foot of one, the section starts on the next.
+%
+% A word too wide for the margin is hyphenated, which TeX only does when a
+% line can't fit otherwise; the glue before the first word lets it hyphenate
+% that one too. When a line is too wide all the same, as a word with nowhere
+% to hyphenate is, the heading is set again smaller, to fit, so a line too
+% wide isn't reported (\hfuzz).
 \newsavebox{\resumeHeadingBox}
 \newlength{\resumeHeadingEnd} % the last heading's last baseline, on its page
+\newlength{\resumeHeadingWidest}
 \newcount\resumeHeadingPage
 \newif\ifresumeFirst
+% The heading #2 at size #1, as deep as its last baseline is below its first.
+% A line may run 0.65bp past the margin rather than hyphenate, as the
+% sample's "Certifications" does. A plain \hbox, as \sbox's ends with color
+% specials, after the \parbox that \resumeHeadingMeasure takes off its end.
+\newcommand{\resumeHeadingAt}[2]{%
+  \setbox\resumeHeadingBox=\hbox{\parbox[t]{\marginparwidth}{\raggedleft\rightskip=0pt minus 0.65bp\hfuzz=\maxdimen
+    \fontsize{#1}{12.51bp}\selectfont\leavevmode\headingStyle{\nobreak\hspace{0pt}#2}\par\kern-\prevdepth}}%
+}
+% Its widest line, taking the lines off a copy of it one by one
+\newcommand{\resumeHeadingMeasure}{%
+  \setbox0=\hbox{\unhcopy\resumeHeadingBox\global\setbox1=\lastbox}%
+  \global\resumeHeadingWidest=0pt
+  \setbox0=\vbox{\unvbox1
+    \loop\unskip\unpenalty\unkern\setbox2=\lastbox\ifhbox2
+      \setbox2=\hbox{\unhbox2}%
+      \ifdim\wd2>\resumeHeadingWidest\global\resumeHeadingWidest=\wd2\fi
+    \repeat}%
+}
 \newcommand{\resumeSection}[1]{%
   \par
   \ifnum\value{page}=\resumeHeadingPage
@@ -90,9 +116,16 @@
     \fi
   \fi
   \vspace{7.7bp}%
-  % The heading, as deep as its last baseline is below its first
-  \sbox{\resumeHeadingBox}{\parbox[t]{\marginparwidth}{\raggedleft\hyphenpenalty=10000
-    \fontsize{10.8bp}{12.51bp}\selectfont\leavevmode\headingStyle{#1}\par\kern-\prevdepth}}%
+  \resumeHeadingAt{10.8bp}{#1}%
+  \resumeHeadingMeasure
+  \ifdim\resumeHeadingWidest>\dimexpr\marginparwidth+0.65bp\relax
+    \resumeHeadingAt{\dimexpr10.8bp*\marginparwidth/\resumeHeadingWidest\relax}{#1}%
+  \fi
+  % Its last baseline above the foot of the page, or a new page. The penalty,
+  % where no page breaks, puts the space above on the page, so \pagetotal
+  % counts it.
+  \penalty10000
+  \ifdim\dimexpr\pagetotal+\pagedepth-\prevdepth+\baselineskip+0.66bp+\dp\resumeHeadingBox\relax>\pagegoal\newpage\fi
   % Lowered, so its capitals' tops are level with the text's
   \noindent\llap{\raisebox{-0.66bp}[0pt][0pt]{\usebox{\resumeHeadingBox}}\hspace{\marginparsep}}\par
   \global\resumeHeadingPage=\value{page}%
