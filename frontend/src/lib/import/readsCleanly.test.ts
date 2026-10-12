@@ -109,18 +109,24 @@ function readingProblems(resume: Record<string, unknown>, { lines, characters }:
   // A heading is on a line of its own: hiring software that finds a heading
   // by its line doesn't find one run into the text beside it.
   const headings = printedHeadings(resume, data)
+  // One that shares its line still marks where its section starts, so the
+  // order and contact checks don't pass for want of headings to go by.
   const at = headings.map((heading) => {
-    const line = flat.indexOf(comparable(heading))
-    if (line < 0) {
-      const shared = texts.find((text) => comparable(text).startsWith(comparable(heading)))
-      fail("headings", shared ? `heading "${heading}" shares a line: "${shared}"` : `heading "${heading}" isn't on a line of its own`)
-    }
-    return line
+    const alone = flat.indexOf(comparable(heading))
+    if (alone >= 0) return alone
+    const shared = flat.findIndex((line) => line.startsWith(comparable(heading)))
+    fail(
+      "headings",
+      shared >= 0 ? `heading "${heading}" shares a line: "${texts[shared]}"` : `heading "${heading}" isn't on a line of its own`,
+    )
+    return shared
   })
   const found = at.filter((line) => line >= 0)
   if (found.some((line, index) => index > 0 && line < found[index - 1])) {
-    const read = headings.filter((_, index) => at[index] >= 0).sort((a, b) => flat.indexOf(comparable(a)) - flat.indexOf(comparable(b)))
-    fail("order", `sections read as ${read.join(", ")}, printed as ${headings.join(", ")}`)
+    const read = headings
+      .flatMap((heading, index) => (at[index] >= 0 ? [{ heading, line: at[index] }] : []))
+      .sort((a, b) => a.line - b.line)
+    fail("order", `sections read as ${read.map(({ heading }) => heading).join(", ")}, printed as ${headings.join(", ")}`)
   }
 
   // The name, email and phone, before the first heading.
@@ -265,7 +271,31 @@ describe("what reads wrongly is found, naming the text", () => {
     expect(readingProblems(resume, { lines, characters: [] })).toEqual([
       { check: "dates", message: '"Jul 2024" and "Present" aren\'t on one line' },
       { check: "headings", message: 'heading "Skills" shares a line: "Skills Maths: Analysis"' },
-      { check: "order", message: "sections read as Experience, Education, printed as Education, Experience, Skills" },
+      { check: "order", message: "sections read as Experience, Education, Skills, printed as Education, Experience, Skills" },
+      { check: "contact", message: 'the email, "ada@example.com", isn\'t read before the first heading' },
+      { check: "contact", message: 'the phone, "555 0100", isn\'t read before the first heading' },
+    ])
+  })
+
+  test("headings that share their lines still mark where their sections start, for the order and contact checks", () => {
+    // As Margin prints them, in the margin beside each section's first line.
+    const resume = {
+      selectedTemplate: "jake",
+      profileSection: { fullName: "Ada Lovelace", email: "ada@example.com", phoneNumber: "555 0100" },
+      sectionOrder: ["Education", "Work"],
+      educationSection: [{ id: 1, schoolName: "London", schoolStartDate: "Sep 2020", schoolEndDate: "Jun 2024" }],
+      workExperienceSection: [{ id: 1, companyName: "Babbage & Co", workStartDate: "Jul 2024", workEndDate: "Present" }],
+    }
+    const lines = [
+      "Ada Lovelace",
+      "Experience Babbage & Co Jul 2024 - Present",
+      "Education London Sep 2020 - Jun 2024",
+      "ada@example.com | 555 0100",
+    ].map((text) => ({ text })) as Line[]
+    expect(readingProblems(resume, { lines, characters: [] })).toEqual([
+      { check: "headings", message: 'heading "Education" shares a line: "Education London Sep 2020 - Jun 2024"' },
+      { check: "headings", message: 'heading "Experience" shares a line: "Experience Babbage & Co Jul 2024 - Present"' },
+      { check: "order", message: "sections read as Experience, Education, printed as Education, Experience" },
       { check: "contact", message: 'the email, "ada@example.com", isn\'t read before the first heading' },
       { check: "contact", message: 'the phone, "555 0100", isn\'t read before the first heading' },
     ])
