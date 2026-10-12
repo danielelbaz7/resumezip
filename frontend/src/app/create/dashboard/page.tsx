@@ -475,7 +475,7 @@ export default function DashboardPage() {
               ? `${count(total, "resume")} · ${saveStatus === "saved" ? "stored in this browser" : "not saved"}`
               : "Stored in this browser"
           }
-          title="Your resumes"
+          title="Your Resumes"
           // The same with no resumes, so the page doesn't change shape when the first arrives.
           actions={
             loaded ? (

@@ -25,15 +25,15 @@ export const INK_GLASS_PILL = `${SHAPE} ink-glass`
 /**
  * The glass bar a page's search and filters share (the templates page, Your
  * resumes): one pane, rounded at the ends on a wide screen's single line and
- * at the corners where it wraps. 8px round what's in it: a 48px search and
- * 40px chips (FILTER_CHIP).
+ * at the corners where it wraps. 6px round what's in it: a 44px search and
+ * 36px chips (FILTER_CHIP).
  */
 export const GLASS_BAR =
-  "search-field rounded-[28px] p-2 [--search-blur:16px] [--search-fill:linear-gradient(180deg,rgb(255_255_255/0.72),rgb(255_255_255/0.52))] xl:rounded-full"
+  "search-field rounded-[25px] p-1.5 [--search-blur:16px] [--search-fill:linear-gradient(180deg,rgb(255_255_255/0.72),rgb(255_255_255/0.52))] xl:rounded-full"
 
 /** A filter chip in a GLASS_BAR, which the picked one's copy (SLIDING_PILL) shares to line up with it. */
 export const FILTER_CHIP =
-  "inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[15px] font-medium tracking-[-0.01em]"
+  "inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[15px] font-medium tracking-[-0.01em]"
 
 /** For a choice that deletes something for good. */
 export const DANGER_PILL = `${PILL} bg-alert text-white hover:bg-[#912018]`

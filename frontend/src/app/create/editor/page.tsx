@@ -483,7 +483,7 @@ function Editor({ id }: { id: string }) {
                 className="-ml-2 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-sm text-ink-2 transition-colors hover:bg-ink/[0.05] hover:text-ink"
               >
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                Your resumes
+                Your Resumes
               </Link>
               <span className="h-5 w-px shrink-0 bg-ink/15" aria-hidden="true" />
               <ResumeName />

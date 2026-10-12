@@ -92,7 +92,7 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
               onView(next)
               event.currentTarget.querySelector<HTMLElement>(`[data-view="${next}"]`)?.focus()
             }}
-            className="inline-flex h-10 rounded-full bg-ink/[0.06] p-[3px]"
+            className="inline-flex h-9 rounded-full bg-ink/[0.06] p-[3px]"
           >
             <ViewButton
               view="pages"
@@ -131,7 +131,7 @@ function SortMenu({ sort, onSort }: { sort: Sort; onSort: (sort: Sort) => void }
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         onClick={() => setOpen((open) => !open)}
-        className="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] text-ink transition-colors duration-200 hover:bg-ink/[0.06] motion-reduce:transition-none"
+        className="inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] text-ink transition-colors duration-200 hover:bg-ink/[0.06] motion-reduce:transition-none"
       >
         <span className="text-ink-2">Sort</span> {current.name}
         <ChevronDown

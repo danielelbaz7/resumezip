@@ -104,7 +104,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
             placeholder="Search templates"
             autoComplete="off"
             spellCheck={false}
-            className="peer h-12 w-full rounded-full bg-white/55 pl-12 pr-14 text-[16px] text-ink ring-1 ring-inset ring-ink/[0.06] transition-[box-shadow,background-color] placeholder:text-ink-2 focus:bg-white/80 focus:outline-none focus:ring-ink/20 [&::-webkit-search-cancel-button]:hidden"
+            className="peer h-11 w-full rounded-full bg-white/55 pl-12 pr-14 text-[16px] text-ink ring-1 ring-inset ring-ink/[0.06] transition-[box-shadow,background-color] placeholder:text-ink-2 focus:bg-white/80 focus:outline-none focus:ring-ink/20 [&::-webkit-search-cancel-button]:hidden"
           />
           {/* Only a hint for a keyboard; it goes once the search has focus. */}
           <kbd
