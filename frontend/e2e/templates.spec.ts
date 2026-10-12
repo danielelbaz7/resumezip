@@ -25,7 +25,7 @@ test("/ goes to the search, which finds templates by name, font or style", async
   await expect(cards(page)).toHaveAccessibleName(/^Harvard template/)
 
   await search.fill("serif")
-  await expect(cards(page)).toHaveCount(3)
+  await expect(cards(page)).toHaveCount(4)
   await expect(cards(page).first()).toHaveAccessibleName(/^Jake's template/)
 
   // Escape clears it.

@@ -104,4 +104,12 @@ export const ABOUT: Record<TemplateId, TemplateAbout> = {
     ],
     latex: true,
   },
+  zero2sudo: {
+    description:
+      "zero2sudo resume template: a plain Times page with your name in bold on the left and headings over thin rules. Free, in your browser.",
+    text: [
+      "zero2sudo is set in a Times-style serif, like a page from a word processor: your name large and bold on the left, headings in capitals over thin rules, and each job’s role and company in bold on one line with its dates.",
+      "It’s plain and familiar, and fits a lot on a page. It suits software engineers and anyone with several jobs and projects to show.",
+    ],
+  },
 }

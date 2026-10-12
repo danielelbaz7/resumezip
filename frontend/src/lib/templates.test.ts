@@ -34,7 +34,7 @@ describe("the templates page's search", () => {
   })
 
   test("finds the starts of words, so serif isn't sans-serif", () => {
-    expect(names("serif")).toEqual(["Jake's", "Harvard", "Margin"])
+    expect(names("serif")).toEqual(["Jake's", "Harvard", "Margin", "zero2sudo"])
     expect(names("gar")).toEqual(["Harvard"])
     expect(names("arvard")).toEqual([])
   })
@@ -42,7 +42,7 @@ describe("the templates page's search", () => {
   test("with nothing typed, shows every template, or every one with the tag picked", () => {
     expect(names("")).toHaveLength(TEMPLATES.length)
     expect(names("  ")).toHaveLength(TEMPLATES.length)
-    expect(names("", "Serif")).toEqual(["Jake's", "Harvard", "Margin"])
+    expect(names("", "Serif")).toEqual(["Jake's", "Harvard", "Margin", "zero2sudo"])
     expect(names("jake", "Sans-serif")).toEqual(["Modern Jake's"])
   })
 })
@@ -55,15 +55,14 @@ test("each tag picks out some templates, not all of them", () => {
 })
 
 describe("the template marked new", () => {
-  const added = Date.parse(templateById("deedy").added)
+  const added = Date.parse(templateById("zero2sudo").added)
 
-  test("is the one added last, the later in the list of two added the same day", () => {
-    expect(templateById("accent").added).toBe(templateById("deedy").added)
-    expect(newTemplate(added + DAY_MS)?.id).toBe("deedy")
+  test("is the one added last", () => {
+    expect(newTemplate(added + DAY_MS)?.id).toBe("zero2sudo")
   })
 
   test("isn't new for ever", () => {
-    expect(newTemplate(added + 59 * DAY_MS)?.id).toBe("deedy")
+    expect(newTemplate(added + 59 * DAY_MS)?.id).toBe("zero2sudo")
     expect(newTemplate(added + 60 * DAY_MS)).toBeUndefined()
   })
 })

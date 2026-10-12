@@ -18,6 +18,7 @@ import mono from "./templates/mono.typ"
 import referme from "./templates/referme.typ"
 import resumeworded from "./templates/resumeworded.typ"
 import swiss from "./templates/swiss.typ"
+import zero2sudo from "./templates/zero2sudo.typ"
 import type { CompileRequest, CompileResponse, WorkerMessage, WorkerRequest } from "./compile"
 import { COMPILER_CDN_URL, COMPILER_INTEGRITY, COMPILER_SIZE, compileChecked, downloadChecked } from "./compilerSource"
 import { FONT_URLS, fontsFor, lazyFonts } from "./fontFiles"
@@ -35,6 +36,7 @@ const SOURCES: Record<string, string> = {
   "/referme.typ": referme,
   "/resumeworded.typ": resumeworded,
   "/swiss.typ": swiss,
+  "/zero2sudo.typ": zero2sudo,
 }
 
 // Downloads wrap the template in a file that also attaches a copy of the
