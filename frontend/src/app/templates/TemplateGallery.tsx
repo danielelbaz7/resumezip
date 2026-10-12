@@ -174,10 +174,13 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
                     New
                   </span>
                 )}
-                {/* Frosted glass over the foot of the page: what it's set in, and Use, which starts a resume with it. */}
+                {/* Frosted glass over the foot of the page: what it's set in, and Use, which starts a resume with it.
+                    The whole plate is the Use link, so pointed at, it whitens and is outlined in ink, and its Use
+                    lightens and grows, its arrow nudged on: apart from the picture above it, which opens the
+                    template's page. */}
                 <StartWritingLink
                   template={template.id}
-                  className="template-use search-field absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-[18px] py-2.5 pl-4 pr-2.5 [--search-blur:14px] [--search-fill:linear-gradient(180deg,rgb(255_255_255/0.66),rgb(255_255_255/0.46))]"
+                  className="template-use search-field group/use absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-[18px] py-2.5 pl-4 pr-2.5 [--search-blur:14px] [--search-fill:linear-gradient(180deg,rgb(255_255_255/0.66),rgb(255_255_255/0.46))] hover:outline hover:outline-[1.5px] hover:-outline-offset-1 hover:outline-ink/45 hover:[--search-fill:linear-gradient(180deg,rgb(255_255_255/0.9),rgb(255_255_255/0.76))]"
                 >
                   <span className="sr-only">Use {template.name}</span>
                   <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col gap-1">
@@ -186,9 +189,10 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
                   </span>
                   <span
                     aria-hidden="true"
-                    className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 text-[14px] font-medium tracking-[-0.01em] text-white shadow-[0_10px_24px_-12px_rgb(17_19_24/0.6)]"
+                    className="ink-glass inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium tracking-[-0.01em] transition-[filter,scale] duration-200 group-hover/use:scale-[1.04] group-hover/use:brightness-[1.75] group-active/use:scale-[0.97] motion-reduce:group-hover/use:scale-100"
                   >
-                    Use <ArrowUpRight className="h-4 w-4" />
+                    Use{" "}
+                    <ArrowUpRight className="h-4 w-4 transition-transform duration-200 ease-glide group-hover/use:-translate-y-[3px] group-hover/use:translate-x-[3px] motion-reduce:transition-none motion-reduce:group-hover/use:translate-x-0 motion-reduce:group-hover/use:translate-y-0" />
                   </span>
                 </StartWritingLink>
               </div>
