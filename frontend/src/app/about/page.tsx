@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import { Star } from "lucide-react"
 import EmailContact from "@/components/site/EmailContact"
-import { INK_PILL } from "@/components/pills"
+import { INK_GLASS_PILL } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
@@ -247,12 +247,9 @@ export default function AboutPage() {
               <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
                 No ads, no paid plans. If <Wordmark /> helped you, a star helps others find it.
               </p>
-              <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={`group ${INK_PILL} mt-6`}>
-                {/* Yellow under the pointer, as the header's star is. */}
-                <Star
-                  className="h-4 w-4 transition-colors duration-200 group-hover:fill-[#facc15] group-hover:text-[#facc15] motion-reduce:transition-none"
-                  aria-hidden="true"
-                />
+              <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={`${INK_GLASS_PILL} mt-6`}>
+                {/* Gold, as the header's star is. */}
+                <Star className="h-4 w-4 fill-[#facc15] text-[#facc15]" aria-hidden="true" />
                 Star on GitHub
               </a>
             </div>

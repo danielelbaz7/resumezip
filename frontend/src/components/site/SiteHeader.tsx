@@ -46,7 +46,7 @@ function toTopIfHere(pathname: string, href: string) {
 
 /**
  * The site's header: a glass pill with the logo, the links and one button,
- * Star on GitHub, whose star turns yellow under the pointer. The home page places it itself
+ * Star on GitHub, glass with a gold star. The home page places it itself
  * (components/home/HomeChrome.tsx); every other page has it in SiteHeader's strip.
  */
 export function SitePill({ tone = "light", tucked = false }: SitePillProps) {
@@ -83,10 +83,8 @@ export function SitePill({ tone = "light", tucked = false }: SitePillProps) {
     }
   }, [menuOpen])
 
-  // An ink pill on light glass; over the video's dark glass, a white one.
-  const primary = `${PILL} gap-2 px-[18px] ${
-    dark ? "bg-white text-ink transition-colors hover:bg-white/85 active:bg-white/75" : "ink-button lift-button"
-  }`
+  // Ink glass on light glass; over the video's dark glass, white glass: the opposite of what's behind it.
+  const primary = `${PILL} gap-2 px-[18px] ${dark ? "white-glass" : "ink-glass"}`
 
   const star = (className: string, inMenu = false) => (
     <a
@@ -98,10 +96,7 @@ export function SitePill({ tone = "light", tucked = false }: SitePillProps) {
         if (inMenu) setMenuOpen(false)
       }}
     >
-      <Star
-        className="h-4 w-4 transition-colors duration-200 group-hover:fill-[#facc15] group-hover:text-[#facc15] motion-reduce:transition-none"
-        aria-hidden="true"
-      />
+      <Star className="h-4 w-4 fill-[#facc15] text-[#facc15]" aria-hidden="true" />
       Star on GitHub
     </a>
   )
