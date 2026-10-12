@@ -175,6 +175,9 @@ export function StyledBox({ kind, id, value, onChange, labelId, describedBy, inv
     let pending: { at: number; style: Style } | null = null
     // Where the selection was as an input method started composing.
     let beforeComposing: Range = selected
+    // The pending style there, for the words composed. It's kept apart, as the
+    // cursor moves on as the words go in, which takes `pending` away.
+    let composedStyle: Style | null = null
     let readSoon = 0
 
     const current = () => shown.current!
@@ -257,6 +260,8 @@ export function StyledBox({ kind, id, value, onChange, labelId, describedBy, inv
     /** Reads back what the browser changed itself, and makes it an edit. */
     const readBack = (before: Range) => {
       unread.current = false
+      const style = composedStyle
+      composedStyle = null
       const points = []
       const domSelection = box.ownerDocument.getSelection()
       if (domSelection?.anchorNode && domSelection.focusNode) {
@@ -264,11 +269,18 @@ export function StyledBox({ kind, id, value, onChange, labelId, describedBy, inv
         points.push({ node: domSelection.focusNode, offset: domSelection.focusOffset })
       }
       const { styled: read, offsets } = readBox(box, points)
-      if (sameStyled(read, current().styled)) return
+      const was = current().styled
+      if (sameStyled(read, was)) return
       const found = offsets.filter((offset) => offset >= 0)
       const start = found.length ? Math.min(...found) : read.text.length
       const end = found.length ? Math.max(...found) : start
-      commit({ ...read, start, end }, "type", before)
+      // The browser puts composed words in the style of the text they're
+      // typed into. Where ⌘B or ⌘I chose another for them, they take that.
+      const at = before.start
+      const added = read.text.length - was.text.length
+      const inserted = style !== null && added > 0 && read.text.startsWith(was.text.slice(0, at)) && read.text.endsWith(was.text.slice(at))
+      const styles = inserted ? read.styles.map((old, index) => (index >= at && index < at + added ? style : old)) : read.styles
+      commit({ text: read.text, styles, start, end }, "type", before)
     }
 
     const onBeforeInput = (event: InputEvent) => {
@@ -344,6 +356,8 @@ export function StyledBox({ kind, id, value, onChange, labelId, describedBy, inv
       composing.current = true
       setComposingWords(true)
       beforeComposing = selection()
+      const { start, end } = beforeComposing
+      composedStyle = pending && start === end && pending.at === start ? pending.style : null
     }
 
     const onCompositionEnd = () => {

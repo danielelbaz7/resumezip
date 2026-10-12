@@ -316,6 +316,28 @@ test("words composed go in once, in the order Safari sends them: composing ends,
   expect(errors).toEqual([])
 })
 
+test("words composed after ⌘B with nothing selected go in bold", async ({ page }) => {
+  const errors = pageErrors(page)
+  const box = await openBox(page, "")
+  await box.evaluate((element) => getSelection()!.setBaseAndExtent(element.firstElementChild!, 0, element.firstElementChild!, 0))
+  await page.keyboard.press("ControlOrMeta+b")
+  // As Chrome sends them: the words go in as they're composed, in the style of the text around them, then composing ends.
+  await box.evaluate((element) => {
+    const line = element.firstElementChild!
+    element.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }))
+    line.replaceChildren("日本")
+    getSelection()!.setBaseAndExtent(line.firstChild!, 2, line.firstChild!, 2)
+    element.dispatchEvent(new InputEvent("input", { inputType: "insertCompositionText", data: "日本", isComposing: true, bubbles: true }))
+    element.dispatchEvent(new CompositionEvent("compositionend", { data: "日本", bubbles: true }))
+  })
+  await expect.poll(() => saved(page)).toBe("• **日本**")
+  await expect(box.getByRole("strong")).toHaveText(["日本"])
+  await page.keyboard.type("!")
+  await expect.poll(() => saved(page)).toBe("• **日本!**")
+
+  expect(errors).toEqual([])
+})
+
 test("typing changes a line's words where they are, so an input method or a screen reader keeps its place", async ({ page }) => {
   const errors = pageErrors(page)
   const box = await openBox(page, BULLETS)
