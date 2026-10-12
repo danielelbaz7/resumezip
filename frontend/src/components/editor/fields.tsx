@@ -4,6 +4,7 @@ import type React from "react"
 import { Fragment, useEffect, useId, useRef, useState } from "react"
 import { ArrowDown, ArrowUp, ArrowUpDown, Pencil } from "lucide-react"
 import type { Finding } from "@/lib/check/engine"
+import { onMac, shortcut } from "@/lib/keys"
 import { markedPieces } from "@/lib/typst/resumeData"
 import { bulletLines, moveBullet, nextAnnouncement, setLeftOutLine, withBullets } from "./arrange"
 import { selectLineIn } from "./boxDom"
@@ -198,11 +199,6 @@ export function MoveButtons({ name, first, last, onMove }: { name: string; first
     </span>
   )
 }
-
-const onMac = () => /Mac|iPhone|iPad/.test(navigator.platform)
-
-// A keyboard shortcut as this device writes it: ⌘B on a Mac, Ctrl+B elsewhere.
-const shortcut = (key: string) => (onMac() ? `⌘${key}` : `Ctrl+${key}`)
 
 // With Option on a Mac, Alt elsewhere: ⌥↑, Alt+↑.
 const altShortcut = (key: string) => (onMac() ? `⌥${key}` : `Alt+${key}`)

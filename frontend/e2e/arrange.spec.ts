@@ -429,3 +429,69 @@ test("the text box shows every bullet after arranging, and a deleted entry's mod
 
   expect(errors).toEqual([])
 })
+
+test("asked whether to delete an entry, it shows its name and its fields fade, and Keep backs out", async ({ page }) => {
+  const errors = pageErrors(page)
+  await openSection(page, "Experience")
+  await page.getByRole("button", { name: "Edit entry 2" }).click()
+  await page.getByRole("button", { name: "Delete entry 2" }).click()
+  await expect(page.getByRole("status").filter({ hasText: "Delete it?" })).toBeVisible()
+  await expect(page.getByText("Intern, Initech", { exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Keep" })).toBeFocused()
+  // Its fields can't be typed in meanwhile (inert, which Playwright doesn't count as hidden).
+  const role = page.getByRole("textbox", { name: "Role" }).nth(1)
+  expect(await role.evaluate((box) => box.closest("[inert]") !== null)).toBe(true)
+
+  await page.getByRole("button", { name: "Keep" }).click()
+  await expect(page.getByRole("button", { name: "Delete entry 2" })).toBeFocused()
+  await expect(page.getByText("Intern, Initech", { exact: true })).toHaveCount(0)
+  expect(await role.evaluate((box) => box.closest("[inert]") !== null)).toBe(false)
+  expect(errors).toEqual([])
+})
+
+test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in its place and open", async ({ page }) => {
+  const errors = pageErrors(page)
+  await openSection(page, "Experience")
+  const before = (await saved(page)).workExperienceSection
+  // Each entry's Role box, closed ones too (inert, which Playwright doesn't count as hidden).
+  const role = (index: number) => page.getByRole("textbox", { name: "Role" }).nth(index)
+  const deleteEntry2 = async () => {
+    await page.getByRole("button", { name: "Delete entry 2" }).click()
+    await page.getByRole("button", { name: "Delete", exact: true }).click()
+    await expect(page.getByRole("button", { name: "Edit entry 3" })).toHaveCount(0)
+  }
+
+  // Deleted, it's said aloud and Undo has the focus. Undo puts it back as it
+  // was, in its place, open with the cursor in it.
+  await page.getByRole("button", { name: "Edit entry 2" }).click()
+  await deleteEntry2()
+  await expect(page.getByRole("status").filter({ hasText: "deleted" })).toHaveText("“Intern, Initech” deleted")
+  const undo = page.getByRole("button", { name: "Undo" })
+  await expect(undo).toBeFocused()
+  await expect(undo).toHaveAttribute("aria-keyshortcuts", /^(Meta|Control)\+Z$/)
+  await undo.click()
+  await expect(page.getByRole("status").filter({ hasText: "back" })).toHaveText("“Intern, Initech” is back")
+  await expect(role(1)).toBeFocused()
+  await expect(role(1)).toHaveValue("Intern")
+  await expect.poll(async () => (await saved(page)).workExperienceSection).toEqual(before)
+
+  // In a field, the shortcut takes back typing and leaves the entry deleted.
+  await deleteEntry2()
+  await page.getByRole("button", { name: "Edit entry 1" }).click()
+  await role(0).focus()
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(undo).toBeVisible()
+  await expect(page.getByRole("button", { name: "Edit entry 3" })).toHaveCount(0)
+
+  // From another section, the shortcut brings the entry back in its own.
+  await page
+    .getByRole("navigation", { name: "Sections" })
+    .getByRole("button", { name: /^\d+ Skills$/ })
+    .click()
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Experience/)
+  await expect(page.getByRole("button", { name: "Done editing entry 2" })).toBeVisible()
+  await expect(undo).toHaveCount(0)
+  await expect.poll(async () => (await saved(page)).workExperienceSection).toEqual(before)
+  expect(errors).toEqual([])
+})

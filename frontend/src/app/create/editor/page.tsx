@@ -1,10 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { usePathname } from "next/navigation"
 import { ArrowLeft, Eye, PencilLine } from "lucide-react"
 import { OpenResumeProvider, useOpenResume, useResumeActions, useResumeField, useResumeState } from "@/context/ResumeContext"
+import DeletedToast from "@/components/dashboard/DeletedToast"
 import { DownloadIcon } from "@/components/dashboard/RowActions"
 import { CheckProvider } from "@/components/editor/CheckContext"
 import { DriveIcon, JsonIcon, LatexIcon, ShareIcon, WordIcon } from "@/components/editor/FormatIcons"
@@ -14,7 +15,7 @@ import PdfPreview from "@/components/editor/PdfPreview"
 import Loader from "@/components/site/Loader"
 import ProfileForm from "@/components/editor/ProfileForm"
 import Replaced from "@/components/editor/Replaced"
-import SectionForm from "@/components/editor/SectionForm"
+import SectionForm, { type DeletedEntry } from "@/components/editor/SectionForm"
 import ExtraSectionForm from "@/components/editor/ExtraSectionForm"
 import { reducedMotion, WIDE_SCREEN } from "@/components/editor/layout"
 import SectionNav, { type ActiveSection } from "@/components/editor/SectionNav"
@@ -121,10 +122,20 @@ function Editor({ id }: { id: string }) {
   // Said to screen readers once another format is downloaded, or the PDF is shared or saved to Google Drive.
   const [savedAs, setSavedAs] = useState("")
   // Said again, even when it's the same as last time.
-  const announce = (message: string) => {
+  const announce = useCallback((message: string) => {
     setSavedAs("")
     requestAnimationFrame(() => setSavedAs(message))
-  }
+  }, [])
+  // The entry deleted last, while Undo can put it back: until the time's up,
+  // or another entry or a section is deleted. It's gone from the resume
+  // meanwhile, so the preview and the checker are without it.
+  const [deletedEntry, setDeletedEntry] = useState<(DeletedEntry & { key: number }) | null>(null)
+  const deletions = useRef(0)
+  // The entry Undo put back, until its section has opened it.
+  const [restored, setRestored] = useState<{ section: SectionName; id: number } | null>(null)
+  // On wide screens the message sits at the foot of the form's panel rather than the window's middle.
+  const formRef = useRef<HTMLDivElement>(null)
+  const [toastSpan, setToastSpan] = useState<CSSProperties | undefined>(undefined)
   // The PDF that Share PDF and Save to Google Drive hand on, made once per change.
   const preparePdf = usePdfFile()
   const sharePdf = useSharePdf(preparePdf, () => announce("PDF shared"))
@@ -316,6 +327,7 @@ function Editor({ id }: { id: string }) {
   // Takes the section shown off the resume, and shows the one before it, or else after it.
   const remove = useCallback(() => {
     if (selected === "Profile") return
+    setDeletedEntry(null)
     const index = sections.indexOf(selected)
     const next: ActiveSection = sections[index - 1] ?? sections[index + 1] ?? "Profile"
     const key = extraKey(selected)
@@ -327,6 +339,46 @@ function Editor({ id }: { id: string }) {
     )
   }, [sections, selected, id, deleteSection, removeSection, select])
   const chooseTemplate = useCallback((template: TemplateId) => update("selectedTemplate", template), [update])
+  const entryDeleted = useCallback(
+    (deleted: DeletedEntry) => {
+      setDeletedEntry({ ...deleted, key: ++deletions.current })
+      announce(`“${deleted.title}” deleted`)
+    },
+    [announce],
+  )
+  const forgetRestored = useCallback(() => setRestored(null), [])
+  // Puts the entry back where it was, in its section as it is now, and shows it there.
+  const undoDelete = () => {
+    const pending = deletedEntry
+    if (!pending) return
+    setDeletedEntry(null)
+    const { dataKey } = SECTIONS[pending.section]
+    const saved = read()?.[dataKey]
+    const entries = Array.isArray(saved) ? saved : []
+    // An entry added since can have taken its id.
+    const taken = entries.some((entry) => entry.id === pending.entry.id)
+    const id = taken ? Math.max(...entries.map((entry) => entry.id)) + 1 : pending.entry.id
+    const next = [...entries]
+    next.splice(Math.min(pending.index, next.length), 0, { ...pending.entry, id })
+    update(dataKey, next)
+    setRestored({ section: pending.section, id })
+    if (selected !== pending.section) select(pending.section)
+    announce(`“${pending.title}” is back`)
+  }
+
+  // Measured, as the panels' widths follow the window's.
+  const toastShown = deletedEntry !== null
+  useLayoutEffect(() => {
+    if (!toastShown) return
+    const wide = window.matchMedia(WIDE_SCREEN)
+    const measure = () => {
+      const form = formRef.current?.getBoundingClientRect()
+      setToastSpan(wide.matches && form ? { left: form.left, right: document.documentElement.clientWidth - form.right } : undefined)
+    }
+    measure()
+    window.addEventListener("resize", measure)
+    return () => window.removeEventListener("resize", measure)
+  }, [toastShown])
   // The same elements while what they show is, so the left bar (memo) doesn't re-render with a new preview.
   const nav = useMemo(
     () => (
@@ -628,6 +680,7 @@ function Editor({ id }: { id: string }) {
               comfortable to write in, and scrolls inside it (useKeepFormPlace keeps the place
               across the two). In Style mode on narrower screens, Style takes its place. */}
           <div
+            ref={formRef}
             className={`editor-form glass glass-frost mx-3 mt-3 rounded-panel sm:mx-auto sm:w-[calc(100%-48px)] sm:max-w-[720px] xl:m-0 xl:flex xl:w-[clamp(536px,38vw,640px)] xl:max-w-none xl:shrink-0 xl:flex-col xl:overflow-hidden ${
               view === "preview" ? "hidden" : ""
             }`}
@@ -656,6 +709,9 @@ function Editor({ id }: { id: string }) {
                       section={SECTIONS[selected as SectionName]}
                       position={position(sections.indexOf(selected) + 2)}
                       onDelete={remove}
+                      onEntryDeleted={entryDeleted}
+                      restored={restored}
+                      onRestored={forgetRestored}
                     />
                   )}
                 </div>
@@ -672,6 +728,17 @@ function Editor({ id }: { id: string }) {
           </section>
         </div>
       </CheckProvider>
+
+      {deletedEntry && (
+        <DeletedToast
+          key={deletedEntry.key}
+          title={deletedEntry.title}
+          onUndo={undoDelete}
+          onDone={() => setDeletedEntry(null)}
+          className="in-editor"
+          style={toastSpan}
+        />
+      )}
 
       <div
         data-covers="bottom"

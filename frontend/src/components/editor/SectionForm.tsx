@@ -9,11 +9,22 @@ import type { Entry } from "@/lib/resume"
 import { useCheckActions, useCheckTarget } from "./CheckContext"
 import { loadDragAndDrop, loadedDragAndDrop } from "./dragAndDrop"
 import { DoneIcon, EyeIcon, PencilIcon, RowAction, RowToggle, TrashIcon } from "@/components/dashboard/RowActions"
+import { DANGER_PILL, OUTLINE_PILL } from "@/components/pills"
 import { BulletsField, Field, FlagNote, SectionHeading, selectLine } from "./fields"
 import { reducedMotion, reveal, scrollerOf } from "./layout"
 import DeleteSection from "./DeleteSection"
 import PaperFromLink from "./PaperFromLink"
-import { FIELD_SPAN, type ChoiceDef, type ChoiceKey, type FieldKey, type SectionDef } from "./sections"
+import { FIELD_SPAN, type ChoiceDef, type ChoiceKey, type FieldKey, type SectionDef, type SectionName } from "./sections"
+
+/** An entry just deleted, with what Undo needs to put it back. */
+export interface DeletedEntry {
+  section: SectionName
+  entry: Entry
+  /** Where it was in its section. */
+  index: number
+  /** What the message calls it: its one-line summary, or "Entry 2" when it has none. */
+  title: string
+}
 
 interface SectionFormProps {
   section: SectionDef
@@ -21,6 +32,12 @@ interface SectionFormProps {
   position: string
   /** Takes the section off the resume. */
   onDelete?: () => void
+  /** An entry was deleted, and can be put back. */
+  onEntryDeleted?: (deleted: DeletedEntry) => void
+  /** An entry Undo put back, which its section opens again once it's shown. */
+  restored?: { section: SectionName; id: number } | null
+  /** The section has opened the entry put back. */
+  onRestored?: () => void
 }
 
 // How long an entry takes to slide open, closed or away (matches duration-300).
@@ -94,8 +111,20 @@ function slide(entries: Map<number, HTMLElement>, list: HTMLElement | null, move
   }
 }
 
+/** An entry's one-line summary: its summary fields, or its first filled field when they're empty, like a paper's link added by hand. */
+function summaryOf(section: SectionDef, entry: Entry): string {
+  return (
+    section.summary
+      .map((key) => entry[key]?.trim())
+      .filter(Boolean)
+      .join(", ") ||
+    section.fields.map((field) => entry[field.key]?.trim()).find(Boolean) ||
+    ""
+  )
+}
+
 /** The form for one list section (education, experience, ...): its title and entries. */
-function SectionForm({ section, position, onDelete }: SectionFormProps) {
+function SectionForm({ section, position, onDelete, onEntryDeleted, restored, onRestored }: SectionFormProps) {
   const { read, update: updateResume } = useOpenResume()
   const saved = useResumeField(section.dataKey)
   const headings = useResumeField("headings")
@@ -191,6 +220,34 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
   useEffect(() => {
     if (confirmingId !== null) cancelButton.current?.focus()
   }, [confirmingId])
+
+  // An entry Undo put back opens again, lit up like a moved one, with the
+  // cursor in it, or on its Done button on a touch screen, where a field
+  // would pop up the keyboard. The timer outlives the effect, which runs again
+  // as the editor forgets the entry put back, so it checks the entry is still
+  // on the page.
+  const restoredDone = useRef(onRestored)
+  restoredDone.current = onRestored
+  useEffect(() => {
+    if (!restored || restored.section !== section.name) return
+    const { id } = restored
+    restoredDone.current?.()
+    setConfirmingId(null)
+    setOpenId(id)
+    setShownId(id)
+    setTimeout(
+      () => {
+        const element = elements.current.get(id)
+        if (!element?.isConnected) return
+        slide(elements.current, list.current, id, new Map())
+        reveal(element, scrollerOf(element), reducedMotion())
+        const first = element.querySelector<HTMLElement>(FIRST_FIELD)
+        if (first && window.matchMedia("(pointer: fine)").matches) first.focus({ preventScroll: true })
+        else element.querySelector<HTMLElement>("[data-done]")?.focus({ preventScroll: true })
+      },
+      reducedMotion() ? 0 : SLIDE_MS,
+    )
+  }, [restored, section.name])
 
   const cancelDelete = (id: number) => {
     setConfirmingId(null)
@@ -288,12 +345,19 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
 
   // The others keep their ids, so React doesn't give the next entry what was
   // the deleted one's: its place in the slide, or a bullets field's mode.
+  // Focus that was in it goes to Undo (DeletedToast), or else to Add.
   const remove = (id: number) => {
-    const hadFocus = elements.current.get(id)?.contains(document.activeElement) ?? false
-    save(latest.current.filter((entry) => entry.id !== id))
     setRemovingId(null)
-    setOpenId((current) => (current === id ? null : current))
-    if (hadFocus) addButton.current?.focus({ preventScroll: true })
+    const current = latest.current
+    const index = current.findIndex((entry) => entry.id === id)
+    if (index < 0) return
+    const hadFocus = elements.current.get(id)?.contains(document.activeElement) ?? false
+    save(current.filter((entry) => entry.id !== id))
+    setOpenId((open) => (open === id ? null : open))
+    if (onEntryDeleted) {
+      const entry = current[index]
+      onEntryDeleted({ section: section.name, entry, index, title: summaryOf(section, entry) || `Entry ${index + 1}` })
+    } else if (hadFocus) addButton.current?.focus({ preventScroll: true })
   }
 
   // The entry slides away, then it's deleted.
@@ -336,7 +400,6 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
   const title = headings?.[section.headingKey] || section.title
   // "Add experience", or "Add to Work History" once the person has renamed the section.
   const addLabel = title === section.title ? section.addLabel : `Add to ${title}`
-  const quiet = "py-2 text-sm text-ink-2 transition-colors hover:text-ink"
 
   const addButtonElement = (
     <button
@@ -354,12 +417,7 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
   const renderEntry = (entry: Entry, index: number, drag?: DraggableProvided, dragging = false) => {
     const isOpen = entry.id === openId
     const confirming = entry.id === confirmingId
-    // Its first filled field stands in when the usual ones are empty, like a paper's link added by hand.
-    const summary =
-      section.summary
-        .map((key) => entry[key]?.trim())
-        .filter(Boolean)
-        .join(", ") || section.fields.map((field) => entry[field.key]?.trim()).find(Boolean)
+    const summary = summaryOf(section, entry)
     const name = `entry ${index + 1}`
     const leftOut = isLeftOut(entry)
 
@@ -378,17 +436,26 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
       >
         {/* Room on the sides so focus outlines aren't clipped while it slides. */}
         <section className="-mx-1 min-h-0 overflow-hidden px-1">
-          <div className={`border-t pb-7 pt-4 transition-colors duration-300 ${isOpen ? "border-ink" : "border-rule"}`}>
+          {/* Asked whether to delete it, its line turns red (two pixels' worth, without moving
+              anything), its name shows, and its fields fade, so it's clear what would go. */}
+          <div
+            className={`border-t pb-7 pt-4 transition-[border-color,box-shadow] duration-300 ${
+              confirming ? "border-alert shadow-[inset_0_1px_0_var(--color-alert)]" : isOpen ? "border-ink" : "border-rule"
+            }`}
+          >
             <div className="flex items-start justify-between gap-4">
               {/* A click on an entry's heading also opens it, or closes it if it's open. From the keyboard, it's Edit and Done. */}
               <div
                 className="group flex min-w-0 flex-1 cursor-pointer flex-col gap-1"
                 onClick={() => open(isOpen ? null : entry.id, entry.id)}
               >
-                <span className={`label-mono text-ink-2 ${isOpen ? "transition-colors group-hover:text-ink" : ""}`}>
+                <span
+                  className={`label-mono ${confirming ? "text-alert" : "text-ink-2"} ${isOpen && !confirming ? "transition-colors group-hover:text-ink" : ""}`}
+                >
                   Entry {index + 1}
                   {leftOut && " · Left out"}
                 </span>
+                {confirming && <span className="truncate text-[15px] text-ink">{summary || "Empty entry"}</span>}
                 {!isOpen && (
                   <span
                     className={`truncate text-[15px] underline-offset-4 group-hover:underline ${summary && !leftOut ? "text-ink" : "text-ink-2"}`}
@@ -435,21 +502,18 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
                   </RowAction>
                 ) : confirming ? (
                   // The question fades in where the buttons were (`starting:` is CSS @starting-style), as tall as them.
+                  // On a phone only its buttons show, leaving the entry's name room.
                   <span
                     key="confirming"
-                    className="flex h-10 items-center gap-4 transition-opacity duration-200 motion-reduce:transition-none starting:opacity-0"
+                    className="flex h-10 items-center gap-2 transition-opacity duration-200 motion-reduce:transition-none starting:opacity-0"
                   >
-                    <span className="py-2 text-sm text-ink" role="status">
-                      Delete this entry?
+                    <span className="mr-1.5 text-sm text-ink max-sm:sr-only" role="status">
+                      Delete it?
                     </span>
-                    <button ref={cancelButton} type="button" onClick={() => cancelDelete(entry.id)} className={quiet}>
-                      Cancel
+                    <button ref={cancelButton} type="button" onClick={() => cancelDelete(entry.id)} className={OUTLINE_PILL}>
+                      Keep
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => confirmRemove(entry.id)}
-                      className="py-2 text-sm font-medium text-[#b42318] underline-offset-4 hover:underline"
-                    >
+                    <button type="button" onClick={() => confirmRemove(entry.id)} className={DANGER_PILL}>
                       Delete
                     </button>
                   </span>
@@ -466,7 +530,15 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
                     >
                       <TrashIcon />
                     </RowAction>
-                    <RowAction key="done" label={`Done editing ${name}`} tip="Done" onClick={() => open(null, entry.id)} tipBelow tipAtEnd>
+                    <RowAction
+                      key="done"
+                      data-done=""
+                      label={`Done editing ${name}`}
+                      tip="Done"
+                      onClick={() => open(null, entry.id)}
+                      tipBelow
+                      tipAtEnd
+                    >
                       <DoneIcon />
                     </RowAction>
                   </>
@@ -483,7 +555,12 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
               {/* The container whose width lays out the fields (FIELD_SPAN). It's here rather than
                   around the whole form: Safari before 26 doesn't place a fixed element inside a
                   query container right (WebKit bug 284945), and an entry being dragged is fixed. */}
-              <div className="@container -mx-1 min-h-0 overflow-hidden px-1" inert={!isOpen}>
+              <div
+                className={`@container -mx-1 min-h-0 overflow-hidden px-1 transition-[opacity,filter] duration-200 motion-reduce:transition-none ${
+                  confirming ? "opacity-30 grayscale" : ""
+                }`}
+                inert={!isOpen || confirming}
+              >
                 <div className="grid grid-cols-2 gap-x-7 gap-y-6 pb-1 pt-5 @lg:grid-cols-4">
                   {leftOut && (
                     <p className="col-span-2 text-[13px] leading-normal text-ink-2 @lg:col-span-4">
