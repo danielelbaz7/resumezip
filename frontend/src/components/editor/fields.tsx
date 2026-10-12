@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from "react"
+import { Fragment, useEffect, useId, useRef, useState } from "react"
 import { ArrowDown, ArrowUp, ArrowUpDown, Pencil } from "lucide-react"
 import type { Finding } from "@/lib/check/engine"
 import { markedPieces } from "@/lib/typst/resumeData"
@@ -27,7 +27,7 @@ interface FieldProps {
   autoComplete?: string
   /** A web address: phones show the keyboard for one, with no spelling marks and no capital first letter. */
   web?: boolean
-  /** A few lines of prose: a box that grows with them, where Enter starts a new line. */
+  /** A few lines of prose, as the summary: a box that grows with them, where Enter starts a new line, with bold and italic words. */
   multiline?: boolean
 }
 
@@ -73,7 +73,11 @@ export function FlagNote({ id, finding }: { id?: string; finding: Finding }) {
   )
 }
 
-/** A labelled, underlined text input, or a box for a few lines of prose. */
+/**
+ * A labelled, underlined text input, or a box for a few lines of prose with
+ * bold and italic words. A label can't be for that box, a div, so it's a div
+ * too, and a click on its name puts the cursor in the box.
+ */
 export function Field({
   label,
   value,
@@ -88,21 +92,22 @@ export function Field({
   multiline,
 }: FieldProps) {
   const noteId = useId()
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  useFitHeight(textareaRef, value)
-  const shared = {
-    value,
-    placeholder,
-    "aria-describedby": flag ? noteId : undefined,
-    "aria-invalid": flag?.level === "fix" || undefined,
-    className: `relative w-full min-w-0 border-0 bg-transparent py-2 text-base text-ink outline-none transition-colors placeholder:text-ink-2/50 focus-visible:outline-none ${
-      !flag ? "border-b border-rule-strong" : "border-b-2 border-accent"
-    }`,
-  }
+  const boxId = useId()
+  const hintId = useId()
+  const look = `relative w-full min-w-0 border-0 bg-transparent py-2 text-base text-ink outline-none transition-colors focus-visible:outline-none ${
+    !flag ? "border-b border-rule-strong" : "border-b-2 border-accent"
+  }`
+  const Labelled = multiline ? "div" : "label"
   return (
     <div data-field={name} className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
-      <label className="group/field relative flex min-w-0 flex-col gap-1.5">
-        <span className="label-mono text-ink-2 transition-colors group-focus-within/field:text-accent">{label}</span>
+      <Labelled className="group/field relative flex min-w-0 flex-col gap-1.5">
+        <span
+          id={`${boxId}-label`}
+          onClick={multiline ? () => document.getElementById(boxId)?.focus() : undefined}
+          className="label-mono text-ink-2 transition-colors group-focus-within/field:text-accent"
+        >
+          {label}
+        </span>
         {/* A soft blue light rises from the line while the field has focus. It's under the box (which
             is `relative`, and later), so the text stays crisp, and nothing moves. */}
         <span
@@ -110,22 +115,31 @@ export function Field({
           className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-t-[6px] bg-linear-to-t from-accent/[0.09] to-accent/0 opacity-0 transition-opacity duration-200 ease-out group-focus-within/field:opacity-100 motion-reduce:transition-none"
         />
         {multiline ? (
-          <textarea
-            ref={textareaRef}
-            rows={3}
-            onChange={(event) => onChange(event.target.value)}
-            {...shared}
-            className={`${shared.className} resize-none leading-relaxed`}
+          <StyledBox
+            kind="prose"
+            id={boxId}
+            value={value}
+            onChange={onChange}
+            labelId={`${boxId}-label`}
+            describedBy={flag ? `${hintId} ${noteId}` : hintId}
+            invalid={flag?.level === "fix"}
+            placeholder={placeholder}
+            // As tall as three lines, as the text box it replaced was.
+            className={`${look} min-h-24 leading-relaxed`}
           />
         ) : (
           <input
             type={type}
+            value={value}
+            placeholder={placeholder}
+            aria-describedby={flag ? noteId : undefined}
+            aria-invalid={flag?.level === "fix" || undefined}
             autoComplete={autoComplete}
             inputMode={web ? "url" : undefined}
             spellCheck={web ? false : undefined}
             autoCapitalize={web ? "off" : undefined}
             onChange={(event) => onChange(event.target.value)}
-            {...shared}
+            className={`${look} placeholder:text-ink-2/50`}
           />
         )}
         {/* The field being typed in is underlined in blue, drawn out from the left, with a glow. */}
@@ -133,7 +147,12 @@ export function Field({
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-accent shadow-[0_0_10px_rgb(46_91_230/0.55)] transition-transform duration-300 ease-glide group-focus-within/field:scale-x-100 motion-reduce:transition-none"
         />
-      </label>
+      </Labelled>
+      {multiline && (
+        <span id={hintId} className="text-[13px] leading-normal text-ink-2">
+          <FormatHint />
+        </span>
+      )}
       {flag && <FlagNote id={noteId} finding={flag} />}
     </div>
   )
@@ -178,45 +197,6 @@ export function MoveButtons({ name, first, last, onMove }: { name: string; first
       })}
     </span>
   )
-}
-
-// Sets a textarea's height to show all its text, so it never scrolls inside.
-function fitHeight(textarea: HTMLTextAreaElement) {
-  textarea.style.height = "auto"
-  textarea.style.height = `${textarea.scrollHeight + 2}px`
-}
-
-/**
- * Keeps a textarea as tall as its text as the text changes, and as its width
- * does: a narrower box wraps onto more lines, as when the window is resized, a
- * tablet turned, or the box shows after being hidden.
- */
-function useFitHeight(ref: React.RefObject<HTMLTextAreaElement | null>, text: string) {
-  useLayoutEffect(() => {
-    if (ref.current) fitHeight(ref.current)
-  }, [ref, text])
-
-  useEffect(() => {
-    const textarea = ref.current
-    if (!textarea) return
-    let width = textarea.clientWidth
-    let frame = 0
-    const observer = new ResizeObserver(() => {
-      const next = textarea.clientWidth
-      // Hidden while the preview shows on small screens: nothing to fit until it's back.
-      if (!next || next === width) return
-      width = next
-      // On the next frame: changing the box's height while it's being
-      // measured would make the browser report a ResizeObserver loop.
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => fitHeight(textarea))
-    })
-    observer.observe(textarea)
-    return () => {
-      observer.disconnect()
-      cancelAnimationFrame(frame)
-    }
-  }, [ref])
 }
 
 const onMac = () => /Mac|iPhone|iPad/.test(navigator.platform)
