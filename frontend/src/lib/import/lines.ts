@@ -4,8 +4,8 @@
 
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { TextContent } from "pdfjs-dist/types/src/display/api"
-import { zipDirectory } from "@/lib/zip"
-import { MAX_CHARACTERS, MAX_WORD_XML_BYTES, TooMuchTextError } from "./limits"
+import { unzip, zip } from "@/lib/zip"
+import { MAX_CHARACTERS, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
 
 /** A stretch of text in one style; `start` and `end` index into its part's text. */
 export interface Run {
@@ -675,27 +675,6 @@ export function linesFromHtml(html: string): Line[] {
   return lines
 }
 
-/**
- * How big a Word file's XML (its text, styles and lists) is once unzipped, as
- * the zip's directory says. Infinity when the zip says it's too big for the
- * usual place and keeps it elsewhere (ZIP64, for files over 4 GB), which no
- * resume needs. Null when there's no directory to read, which leaves mammoth
- * to say whether it's a Word file at all.
- */
-export function unzippedXmlSize(data: ArrayBuffer): number | null {
-  const files = zipDirectory(data)
-  if (files === "zip64") return Infinity
-  if (!files) return null
-  let total = 0
-  for (const { name, size } of files) {
-    if (!/\.(?:xml|rels)$/i.test(name)) continue
-    // The real size is kept elsewhere (ZIP64).
-    if (size === 0xffffffff) return Infinity
-    total += size
-  }
-  return total
-}
-
 interface Mammoth {
   convertToHtml: (
     input: { arrayBuffer: ArrayBuffer; buffer: ArrayBuffer },
@@ -712,14 +691,19 @@ export class UnreadableWordFileError extends Error {}
  * a failed download is thrown as it is, since it's no fault of the file.
  */
 export async function linesFromDocx(data: ArrayBuffer): Promise<Line[]> {
-  if ((unzippedXmlSize(data) ?? 0) > MAX_WORD_XML_BYTES) throw new TooMuchTextError()
+  // mammoth's unzipper believes the sizes a zip gives until it has unzipped
+  // everything, so it gets a copy unzipped here, under the limit, and stored.
+  const files = await unzip(data, MAX_UNZIPPED_BYTES)
+  if (files === "too big") throw new TooMuchTextError()
+  if (!files) throw new UnreadableWordFileError("not a zip resumezip can read")
+  const unzipped = zip(files).buffer
   const loaded = (await import("mammoth")) as unknown as Partial<Mammoth> & { default?: Mammoth }
   const mammoth = loaded.convertToHtml ? (loaded as Mammoth) : loaded.default!
   let html: string
   try {
     ;({ value: html } = await mammoth.convertToHtml(
       // Browsers get mammoth's browser build, which reads `arrayBuffer`; tests in Node get the one that reads `buffer`.
-      { arrayBuffer: data, buffer: data },
+      { arrayBuffer: unzipped, buffer: unzipped },
       // Pictures aren't read, since only text is kept. By default mammoth copies each into the HTML.
       { convertImage: mammoth.images.imgElement(() => ({ src: "" })) },
     ))

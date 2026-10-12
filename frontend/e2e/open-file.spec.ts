@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
-import { MAX_PAGES, MAX_WORD_XML_BYTES } from "../src/lib/import/limits"
+import { MAX_PAGES, MAX_UNZIPPED_BYTES } from "../src/lib/import/limits"
 import { textPdf, wordFile } from "../src/lib/import/testFiles"
 import { pageErrors, seriousAccessibilityProblems } from "./helpers"
 
@@ -239,7 +239,7 @@ test("a Word file is read in a worker, which then ends", async ({ page }) => {
 
 test("a Word file that unzips to too much text says so", async ({ page }) => {
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles(docx(wordFile(RESUME, { padding: MAX_WORD_XML_BYTES })))
+  await page.locator('input[type="file"]').setInputFiles(docx(wordFile(RESUME, { padding: MAX_UNZIPPED_BYTES })))
   await expect(page.getByRole("dialog", { name: "Couldn't open that file" })).toContainText("This file has too much text to be a resume.")
 })
 

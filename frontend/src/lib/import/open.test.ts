@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { ATTACHMENT_NAME, cleanResume, MAX_LENGTH, toAttachment, toJson, toJsonOfAll } from "@/lib/resumeFile"
 import { toWordFile } from "@/lib/word"
 import { crc32, storedFile, zip, zipDirectory, type ZipEntry } from "@/lib/zip"
-import { MAX_CHARACTERS, MAX_PAGES, TIME_LIMIT_MS } from "./limits"
+import { MAX_CHARACTERS, MAX_PAGES, MAX_UNZIPPED_BYTES, TIME_LIMIT_MS } from "./limits"
 import { readFile, type ReadRequest } from "./read"
 import { wordFile } from "./testFiles"
 
@@ -383,7 +383,7 @@ describe("a Word file", () => {
   })
 
   test("that unzips to too much text says so", async () => {
-    await expect(openResumeFile(docx(wordFile(["Mara Lin"], { padding: 11 * 1024 * 1024 })))).rejects.toThrow(
+    await expect(openResumeFile(docx(wordFile(["Mara Lin"], { padding: MAX_UNZIPPED_BYTES })))).rejects.toThrow(
       new OpenFileError("This file has too much text to be a resume."),
     )
   })

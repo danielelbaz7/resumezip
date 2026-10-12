@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
 import { wordFile } from "@/lib/import/testFiles"
-import { crc32, storedFile, zip, zipDirectory, type ZipEntry } from "./zip"
+import { crc32, storedFile, unzip, zip, zipDirectory, type ZipEntry } from "./zip"
 
 const encode = (text: string) => new TextEncoder().encode(text)
 const decode = (bytes: Uint8Array | null) => (bytes ? new TextDecoder().decode(bytes) : null)
@@ -65,5 +65,33 @@ describe("a zip", () => {
 
   test("a file that isn't a zip has no directory", () => {
     expect(zipDirectory(encode("not a zip").buffer)).toBeNull()
+  })
+})
+
+describe("unzipping", () => {
+  test("reads stored and deflated files alike", async () => {
+    const stored = await unzip(zip({ "a.xml": "<a/>", "notes.bin": new Uint8Array([0, 1, 255]) }).buffer, 100)
+    expect(stored && stored !== "too big" && { a: decode(stored["a.xml"]), notes: [...stored["notes.bin"]] }).toEqual({
+      a: "<a/>",
+      notes: [0, 1, 255],
+    })
+    const deflated = await unzip(new Uint8Array(wordFile(["Mara Lin"])).buffer, 10_000)
+    expect(deflated && deflated !== "too big" && decode(deflated["word/document.xml"])).toContain("Mara Lin")
+  })
+
+  test("stops once what it's unzipped passes the limit, whatever the zip says", async () => {
+    const data = new Uint8Array(wordFile(["Mara Lin"], { padding: 1_000_000 }))
+    // The directory's last record, for word/document.xml, says it unzips to 10 bytes.
+    new DataView(data.buffer).setUint32(data.length - 22 - 46 - "word/document.xml".length + 24, 10, true)
+    expect(listed(data.buffer)[2].size).toBe(10)
+    expect(await unzip(data.buffer, 100_000)).toBe("too big")
+  })
+
+  test("a file that isn't a zip, or deflated data that's damaged, can't be unzipped", async () => {
+    expect(await unzip(encode("not a zip").buffer, 100)).toBeNull()
+    const data = new Uint8Array(wordFile(["Mara Lin"]))
+    const entry = listed(data.buffer)[2]
+    data.fill(0xff, entry.offset + 30 + entry.name.length, entry.offset + 30 + entry.name.length + entry.packedSize)
+    expect(await unzip(data.buffer, 10_000)).toBeNull()
   })
 })
