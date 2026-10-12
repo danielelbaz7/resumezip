@@ -396,14 +396,8 @@
       margin-right: 2px;
       padding: 0 16px;
       border-radius: 999px;
-      background: var(--color-ink);
-      color: white;
       font-size: 14px;
       font-weight: 500;
-      transition: background-color 150ms;
-    }
-    .tile-open:hover {
-      background: black;
     }
   }
   @media (min-width: 40rem) and (hover: none) {

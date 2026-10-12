@@ -4,7 +4,10 @@ import type React from "react"
 import { useRef, useState } from "react"
 import { Check, Copy, Mail } from "lucide-react"
 import { CONTACT_EMAIL } from "@/lib/contact"
-import { SMALL_PILL } from "@/components/pills"
+
+// Frosted glass, as the address beside it is, a size smaller.
+const COPY_PILL =
+  "glass glass-float inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-sm text-ink transition-[filter] hover:brightness-[1.03]"
 
 // How long Copy says Copied, in milliseconds.
 const COPIED_MS = 2000
@@ -51,7 +54,7 @@ export default function EmailContact() {
         }}
         onPointerMove={follow}
         onPointerLeave={() => setOver(false)}
-        className={`relative inline-flex h-12 items-center rounded-full bg-sheet px-6 text-[17px] text-ink ring-1 ring-ink/10 transition-shadow hover:ring-ink/25 ${
+        className={`glass glass-float relative inline-flex h-12 items-center rounded-full px-6 text-[17px] text-ink ${
           over ? "cursor-none" : ""
         }`}
       >
@@ -68,7 +71,7 @@ export default function EmailContact() {
           Email
         </span>
       </a>
-      <button type="button" onClick={copy} className={SMALL_PILL}>
+      <button type="button" onClick={copy} className={COPY_PILL}>
         {copied ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
         {copied ? "Copied" : "Copy email"}
       </button>
