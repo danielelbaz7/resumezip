@@ -60,6 +60,10 @@ export const FONT_URLS: Record<string, string> = {
   "texgyreheros-bolditalic.otf": new URL("./fonts/texgyreheros-bolditalic.otf", import.meta.url).href,
   "texgyreheros-italic.otf": new URL("./fonts/texgyreheros-italic.otf", import.meta.url).href,
   "texgyreheros-regular.otf": new URL("./fonts/texgyreheros-regular.otf", import.meta.url).href,
+  "texgyretermes-bold.otf": new URL("./fonts/texgyretermes-bold.otf", import.meta.url).href,
+  "texgyretermes-bolditalic.otf": new URL("./fonts/texgyretermes-bolditalic.otf", import.meta.url).href,
+  "texgyretermes-italic.otf": new URL("./fonts/texgyretermes-italic.otf", import.meta.url).href,
+  "texgyretermes-regular.otf": new URL("./fonts/texgyretermes-regular.otf", import.meta.url).href,
 }
 
 /** The files of a font family, such as "EB Garamond", in only `weights` when given. */

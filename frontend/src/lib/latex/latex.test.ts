@@ -288,6 +288,12 @@ const FALLBACKS: Record<TemplateId, Fallbacks> = {
     lualatex: ["Lato", "CharisSIL"],
     greek: { fonts: ["Raleway-Medium"], to: "Lato" },
   },
+  // TeX Gyre Termes, which has no Cyrillic and only some Greek, as Heros.
+  zero2sudo: {
+    xelatex: { И: "EBGaramond", λ: "EBGaramond", ộ: null, "₹": "EBGaramond", "₽": "EBGaramond", "₿": "CharisSIL" },
+    lualatex: ["EBGaramond", "CharisSIL"],
+    greek: { fonts: ["texgyretermes", "ztm"], to: "EBGaramond" },
+  },
   // Charis SIL for the text, Linux Biolinum, which lacks ₹ ₽ ₿, for headings.
   margin: {
     xelatex: { И: null, λ: "EBGaramond", ộ: null, "₹": "EBGaramond", "₽": "EBGaramond", "₿": "CharisSIL" },

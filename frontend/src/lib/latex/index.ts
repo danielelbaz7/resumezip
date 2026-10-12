@@ -36,6 +36,7 @@ import { mono } from "./templates/mono"
 import { referme } from "./templates/referme"
 import { resumeworded } from "./templates/resumeworded"
 import { swiss } from "./templates/swiss"
+import { zero2sudo } from "./templates/zero2sudo"
 
 /** A LaTeX file's type, for a download. */
 export const LATEX_TYPE = "application/x-tex"
@@ -53,6 +54,7 @@ const TEMPLATES: Record<TemplateId, LatexTemplate> = {
   referme,
   resumeworded,
   swiss,
+  zero2sudo,
 }
 
 export interface LatexFile {

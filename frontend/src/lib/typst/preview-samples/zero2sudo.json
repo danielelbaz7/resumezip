@@ -1,0 +1,105 @@
+{
+  "id": "preview-zero2sudo",
+  "resumeTitle": "Jordan Nguyen",
+  "resumeTag": "professional",
+  "updatedAt": "2026-10-12T12:00:00.000Z",
+  "selectedTemplate": "zero2sudo",
+  "sectionOrder": ["Skills", "Work", "Projects", "Education", "Publications", "Leadership", "Volunteership", "Awards"],
+  "headings": {},
+  "profileSection": {
+    "fullName": "Jordan Nguyen",
+    "email": "jordan.nguyen@example.com",
+    "phoneNumber": "(555) 014-2290",
+    "location": "Los Angeles, CA",
+    "linkedin": "linkedin.com/in/jordannguyen",
+    "profileGithub": "github.com/jnguyen",
+    "personalWebsite": "",
+    "summary": ""
+  },
+  "educationSection": [
+    {
+      "id": 1,
+      "schoolName": "University of California, Irvine",
+      "schoolLocation": "",
+      "degree": "M.S. in Computer Science",
+      "gpa": "3.8 / 4.0",
+      "schoolStartDate": "",
+      "schoolEndDate": "2020",
+      "coursework": "",
+      "involvement": ""
+    },
+    {
+      "id": 2,
+      "schoolName": "University of California, Riverside",
+      "schoolLocation": "",
+      "degree": "B.S. in Computer Science",
+      "gpa": "3.7 / 4.0",
+      "schoolStartDate": "",
+      "schoolEndDate": "2019",
+      "coursework": "",
+      "involvement": ""
+    }
+  ],
+  "workExperienceSection": [
+    {
+      "id": 1,
+      "workRole": "Backend Software Engineer",
+      "companyName": "Hulu",
+      "workLocation": "Santa Monica, CA",
+      "workStartDate": "Jan 2023",
+      "workEndDate": "Present",
+      "workDescription": "• Moved the watch history service from one PostgreSQL primary to 12 shards, which now handles 360,000 requests a minute at under 20 ms\n• Found the slowest queries with k6 load tests and added a Redis cache in front of them, raising throughput by **7x**\n• Cut the nightly billing export from 6 hours to 40 minutes by batching writes and adding the indexes it was missing\n• Mentor two new engineers through their first on-call rotation"
+    },
+    {
+      "id": 2,
+      "workRole": "Software Engineer",
+      "companyName": "Coursera",
+      "workLocation": "Remote",
+      "workStartDate": "Jul 2020",
+      "workEndDate": "Dec 2022",
+      "workDescription": "• Built the API behind course quizzes in Go, serving 4 million learners a month with a 99.98% success rate\n• Led the move from server-rendered pages to Next.js for the course catalog, bringing its Lighthouse score from 62 to 98\n• Wrote the team's guide to designing APIs, which three other teams now follow"
+    },
+    {
+      "id": 3,
+      "workRole": "Software Engineering Intern",
+      "companyName": "Snap",
+      "workLocation": "Los Angeles, CA",
+      "workStartDate": "Jun 2019",
+      "workEndDate": "Sep 2019",
+      "workDescription": "• Added compression and lazy loading to the ads dashboard, cutting its load time in half for 20,000 advertisers\n• Wrote end-to-end tests for the campaign editor that caught three bugs before launch"
+    }
+  ],
+  "projectsSection": [
+    {
+      "id": 1,
+      "projectName": "Reviewly",
+      "projectDate": "2024",
+      "techStack": "TypeScript, React, Express, PostgreSQL",
+      "projectGithub": "github.com/jnguyen/reviewly",
+      "additionalLink": "",
+      "projectDescription": "• A ratings and reviews service for small online shops, with search by keyword and sorting by helpfulness, date or stars\n• Used by 40 shops, handling 2,000 reviews a week on a single small server"
+    },
+    {
+      "id": 2,
+      "projectName": "Tidepool",
+      "projectDate": "2021",
+      "techStack": "Go, Docker, Terraform, AWS",
+      "projectGithub": "github.com/jnguyen/tidepool",
+      "additionalLink": "",
+      "projectDescription": "• A command-line tool that spins up a throwaway copy of a web app's database and servers on AWS for each test run"
+    }
+  ],
+  "publicationsSection": [],
+  "skillsSection": [
+    { "id": 1, "skillName": "Languages", "skillDetails": "Go, TypeScript, JavaScript, Java, Python, SQL" },
+    { "id": 2, "skillName": "Back End", "skillDetails": "Node.js, Express, PostgreSQL, Redis, Kafka, gRPC" },
+    { "id": 3, "skillName": "Front End", "skillDetails": "React, Next.js, CSS" },
+    { "id": 4, "skillName": "Tools", "skillDetails": "Docker, Kubernetes, Terraform, AWS, Git, k6, Jest" }
+  ],
+  "leadershipExperienceSection": [],
+  "volunteerExperienceSection": [],
+  "awardsSection": [
+    { "id": 1, "awardName": "AWS Certified Developer", "awardOrg": "Amazon Web Services", "awardDate": "2023" },
+    { "id": 2, "awardName": "Best Developer Tool", "awardOrg": "HackLA", "awardDate": "2018" }
+  ]
+}

@@ -1,6 +1,7 @@
 // Letters a template's fonts lack, printed in the fallback it names rather
 // than in whatever font Typst finds: Cyrillic in Source Sans 3 where TeX Gyre
-// Heros has none, and Greek in Source Sans 3, Lato or EB Garamond where IBM
+// Heros has none, Cyrillic and Greek in EB Garamond where TeX Gyre Termes has
+// none or only some, and Greek in Source Sans 3, Lato or EB Garamond where IBM
 // Plex Mono, Raleway and Charis SIL have only a few Greek letters. Before,
 // these came from a serif (Charis SIL, EB Garamond), then from Lato, a few
 // letters of a word from one font and the rest from another.
@@ -116,6 +117,15 @@ test("Margin prints a Greek word in EB Garamond, all of it, as Charis SIL has on
   expect(fonts.filter((font) => !font.startsWith("EBGaramond-"))).toEqual([])
   expect(fonts).toEqual(expect.arrayContaining(["EBGaramond-Regular", "EBGaramond-Bold", "EBGaramond-Italic"]))
   expect(missing).toEqual([])
+})
+
+describe.each([CYRILLIC, GREEK])("zero2sudo", (text) => {
+  test(`prints ${text} in EB Garamond, regular, bold and italic, as TeX Gyre Termes has none of it or only some`, async () => {
+    const { fonts, missing } = await fontsOfLetters(resumeIn("zero2sudo", text), text, /^EBGaramond-/)
+    expect(fonts.filter((font) => !font.startsWith("EBGaramond-"))).toEqual([])
+    expect(fonts).toEqual(expect.arrayContaining(["EBGaramond-Regular", "EBGaramond-Bold", "EBGaramond-Italic"]))
+    expect(missing).toEqual([])
+  })
 })
 
 test("Margin's headings keep Greek in Linux Biolinum, which has it all", async () => {

@@ -95,6 +95,7 @@ is served under a name with its content's hash, which changes when the font does
 | `NewCM10-*.otf` | New Computer Modern | [typst-assets](https://github.com/typst/typst-assets) | GUST Font License |
 | `Lato-*.ttf` | Lato 2.015 | [TeX Live's `lato`](https://ctan.org/pkg/lato), the same files as [latofonts.com](https://www.latofonts.com/)'s | SIL Open Font License 1.1 |
 | `texgyreheros-*.otf` | TeX Gyre Heros | [CTAN](https://ctan.org/pkg/tex-gyre) | GUST Font License |
+| `texgyretermes-*.otf` | TeX Gyre Termes | [CTAN](https://ctan.org/pkg/tex-gyre) | GUST Font License |
 | `EBGaramond-*.ttf` | EB Garamond | [EBGaramond12](https://github.com/octaviopardo/EBGaramond12) | SIL Open Font License 1.1 |
 | `CharisSIL-*.ttf` | Charis SIL | [Google Fonts](https://fonts.google.com/specimen/Charis+SIL) | SIL Open Font License 1.1 |
 | `LinBiolinum_R.otf` | Linux Biolinum, as "Linux Biolinum O" | [CTAN](https://ctan.org/pkg/libertine) | SIL Open Font License 1.1, or GPL with the font exception |
@@ -128,11 +129,12 @@ font Typst finds, often a serif:
 | Mono | IBM Plex Mono | Source Sans 3 | Greek. No bundled monospaced font has it, and a sans sits better than a serif in a monospaced page |
 | Deedy | Raleway, in roles, dates and places | Lato, its other font | Greek |
 | Margin | Charis SIL, and Linux Biolinum in headings | EB Garamond, a serif | Greek |
+| zero2sudo | TeX Gyre Termes | EB Garamond, a serif | Cyrillic, which Termes has none of, and Greek |
 
 A font with only some of a script's letters would draw a word from two fonts:
 Plex Mono and Raleway have only π of Greek, Charis SIL only the Greek letters
-phonetics uses, and Heros's Greek has no accented letters and is spaced for
-maths. So these leave all of Greek to the fallback, with
+phonetics uses, and Heros's and Termes's Greek has no accented letters and is
+spaced for maths. So these leave all of Greek to the fallback, with
 `(name: "Charis SIL", covers: regex("\P{Greek}"))` in the font list. Linux
 Biolinum has all of Greek, so keeps it. `src/lib/templates.ts` lists the fallback
 in `alsoFonts`, with `fallback: true`, the weights the template prints it in,
@@ -140,11 +142,11 @@ and the script the others leave to it, as `script: "Greek"`. It's downloaded
 only for a resume with a letter it prints. `fontFiles.test.ts` checks each of
 a template's font lists ends with its fallback, as `fontsFor` counts on that.
 
-New Computer Modern, TeX Gyre Heros and EB Garamond are trimmed copies, keeping
+New Computer Modern, TeX Gyre Heros, TeX Gyre Termes and EB Garamond are trimmed copies, keeping
 what each has of Latin (with Vietnamese), Greek, Cyrillic, punctuation, currency
 and common symbols, with kerning, ligatures, accents and small caps, without
-hinting. That halves their size. TeX Gyre Heros never had Cyrillic, and its
-Greek has no accented letters. Each trimmed font says so in its description
+hinting. That halves their size. TeX Gyre Heros and Termes never had Cyrillic,
+and their Greek has no accented letters. Each trimmed font says so in its description
 (name ID 10), as the GUST Font License asks. The rest are left as they were,
 because their licenses reserve their names ("Lato", "Charis" and "SIL", "Plex",
 "Source", "Raleway", "Biolinum") for unmodified copies. Raleway comes from its own project rather than Google

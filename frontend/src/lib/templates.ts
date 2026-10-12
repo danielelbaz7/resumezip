@@ -18,7 +18,7 @@
 /** What the templates page filters by. A tag that fits every template, or none, filters nothing, so isn't one. */
 // prettier-ignore
 export const TEMPLATE_TAGS = [
-  "Serif",          // Computer Modern, Garamond, Charis
+  "Serif",          // Computer Modern, Garamond, Charis, Termes
   "Sans-serif",     // Lato, Heros, Source Sans
   "Color headings", // headings printed in a color
   "Fits a lot",     // 10pt text or smaller, on margins of half an inch or less
@@ -143,6 +143,15 @@ export const TEMPLATES = [
     firstColumn: ["Education", "Skills"],
     added: "2026-10-10",
     tags: ["Sans-serif"],
+  },
+  {
+    id: "zero2sudo",
+    name: "zero2sudo",
+    image: "/previews/zero2sudo.webp",
+    font: "TeX Gyre Termes",
+    alsoFonts: [{ family: "EB Garamond", weights: [400, 700], fallback: true, script: "Greek" }],
+    added: "2026-10-12",
+    tags: ["Serif"],
   },
 ] as const satisfies readonly TemplateInfo[]
 
