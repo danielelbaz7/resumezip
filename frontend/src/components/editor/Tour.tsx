@@ -273,7 +273,7 @@ function Miniature({ parts }: { parts: readonly Part[] }) {
   )
 
   return (
-    <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(180deg,#9fb5ee,#c9d6f7_55%,#e6dcf0)]">
+    <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(180deg,#5e9cfb,#8cbcfa_55%,#c4dcfb)]">
       {/* The sky, drawn in characters, its clouds at the foot as on the desk. */}
       <pre className="pointer-events-none absolute bottom-0 left-1/2 m-0 -translate-x-1/2 select-none font-mono text-[6px] leading-[7px] text-white sm:text-[11px] sm:leading-[9.5px]">
         {ASCII_SKY}
