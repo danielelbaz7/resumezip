@@ -1,9 +1,10 @@
 // Every template's sample, read as plain text the way hiring software reads a
-// PDF: its text in reading order, before anything resumezip's own reader
-// works out (issue #186). What breaks search or parsing there can't be seen
-// on the page: a letter pair the font drew as one sign, a date range split
-// over two lines, sections read out of order, the contact details below the
-// first heading, a heading run into the text beside it.
+// PDF: its text in lines, grouped by where it sits on the page and in which
+// column (linesFromPages), before resumezip's reader sorts the lines into
+// sections and fields (issue #186). What breaks search or parsing there can't
+// be seen on the page: a letter pair the font drew as one sign, a date range
+// split over two lines, sections read out of order, the contact details below
+// the first heading, a heading run into the text beside it.
 
 import { readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
@@ -21,7 +22,7 @@ import { render, samples } from "./testRender"
 
 /** What hiring software reads of a PDF. */
 interface PlainText {
-  /** Its lines in reading order, nothing more. */
+  /** Its lines, as linesFromPages groups pdf.js's text by baseline and column, before any parsing. */
   lines: Line[]
   /** Its text, a piece at a time, exactly as the PDF maps it to characters. */
   characters: string[]
