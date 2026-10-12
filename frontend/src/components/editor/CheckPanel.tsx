@@ -122,7 +122,7 @@ export default function CheckPanel() {
       )}
 
       {shown.length > 0 ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3.5">
           {shown.map((category) => (
             <CategoryRow
               key={category.id}
@@ -369,8 +369,9 @@ function CategoryRow({
   const Icon = ICONS[category.id]
 
   return (
-    // Clipped to its corners, so its buttons' focus outlines are drawn inside them.
-    <section aria-labelledby={`${id}-name`} className="flex flex-col overflow-hidden rounded-panel bg-sheet ring-1 ring-ink/[0.08]">
+    // Frosted glass with a lit rim and a soft shadow (.check-box in editor.css), so each box stands
+    // apart. Clipped to its corners, so its buttons' focus outlines are drawn inside them.
+    <section aria-labelledby={`${id}-name`} className="check-box glass flex flex-col overflow-hidden rounded-panel">
       <h2>
         <button
           type="button"
