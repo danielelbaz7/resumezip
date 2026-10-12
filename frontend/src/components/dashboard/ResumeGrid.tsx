@@ -33,9 +33,9 @@ interface ResumeGridProps {
   onDelete: (resume: ResumeWithId) => void
   /** Opens the dialog to change its type. */
   onRetype: (resume: ResumeWithId) => void
-  /** Resumes being deleted, which crumple up and go. */
+  /** Resumes just deleted, which keep their place for a moment, unseen, as their page lifts off (flight.ts). */
   leaving: ReadonlySet<string>
-  /** A resume just put back, which smooths out again. */
+  /** A resume Undo just put back, whose page is still flying back to it. */
   returning: string | null
   onChooseFile: () => void
   /** A file is being dragged over the page. */
@@ -62,8 +62,9 @@ export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leavi
         return (
           <li
             key={resume.id}
+            data-glide={resume.id}
             inert={leaving.has(resume.id)}
-            className={`tile relative min-w-0 ${leaving.has(resume.id) ? "is-crumpling" : resume.id === returning ? "is-returning" : ""} ${
+            className={`tile relative min-w-0 ${leaving.has(resume.id) ? "is-leaving" : resume.id === returning ? "is-returning" : ""} ${
               resume.id === copied ? "is-copied" : ""
             }`}
           >
@@ -157,7 +158,7 @@ export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leavi
           </li>
         )
       })}
-      <li className={`min-w-0 ${dragging ? "relative z-[45]" : ""}`}>
+      <li data-glide="drop" className={`min-w-0 ${dragging ? "relative z-[45]" : ""}`}>
         <DropTile onChooseFile={onChooseFile} dragging={dragging} />
       </li>
     </ul>

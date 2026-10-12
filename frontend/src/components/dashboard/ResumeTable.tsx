@@ -28,9 +28,9 @@ interface ResumeTableProps {
   onDelete: (resume: ResumeWithId) => void
   /** Opens the dialog to change its type. */
   onRetype: (resume: ResumeWithId) => void
-  /** Resumes being deleted, which fold up and go. */
+  /** Resumes just deleted, which keep their place for a moment, unseen, as their small page lifts off (flight.ts). */
   leaving: ReadonlySet<string>
-  /** A resume just put back, which unfolds. */
+  /** A resume Undo just put back, whose small page is still flying back to it. */
   returning: string | null
 }
 
@@ -117,8 +117,7 @@ export default function ResumeTable({ resumes, actions, onDelete, onRetype, leav
     </>
   )
 
-  // A row being deleted folds up (dashboard.css); one put back unfolds.
-  const motion = (resume: ResumeWithId) => (leaving.has(resume.id) ? "is-folding" : resume.id === returning ? "is-unfolding" : "")
+  const motion = (resume: ResumeWithId) => (leaving.has(resume.id) ? "is-leaving" : resume.id === returning ? "is-returning" : "")
 
   return (
     <>
@@ -127,22 +126,19 @@ export default function ResumeTable({ resumes, actions, onDelete, onRetype, leav
         {resumes.map((resume, index) => (
           <li
             key={resume.id}
+            data-glide={resume.id}
             inert={leaving.has(resume.id)}
-            className={`fold-row group/row border-b border-rule transition-colors duration-700 motion-reduce:transition-none ${resume.id === copied ? "bg-accent/5" : ""} ${motion(resume)}`}
+            className={`group/row border-b border-rule transition-colors duration-700 motion-reduce:transition-none ${resume.id === copied ? "bg-accent/5" : ""} ${motion(resume)}`}
           >
-            <div className="fold-cell">
-              <div className="flex gap-4 pb-3 pt-5">
-                {thumbnail(resume, index)}
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  {name(resume, index, "line-clamp-2 font-serif text-[21px] leading-tight wrap-anywhere")}
-                  <span className="text-[13px] text-ink-2">
-                    {[resume.resumeTag && tagName(resume.resumeTag), templateById(resume.selectedTemplate).name]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </span>
-                  <span className="font-mono text-[12px] text-ink-2">{formatEdited(resume.updatedAt)}</span>
-                  <div className="-ml-2.5 mt-1 flex gap-1">{buttons(resume)}</div>
-                </div>
+            <div className="flex gap-4 pb-3 pt-5">
+              {thumbnail(resume, index)}
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                {name(resume, index, "line-clamp-2 font-serif text-[21px] leading-tight wrap-anywhere")}
+                <span className="text-[13px] text-ink-2">
+                  {[resume.resumeTag && tagName(resume.resumeTag), templateById(resume.selectedTemplate).name].filter(Boolean).join(" · ")}
+                </span>
+                <span className="font-mono text-[12px] text-ink-2">{formatEdited(resume.updatedAt)}</span>
+                <div className="-ml-2.5 mt-1 flex gap-1">{buttons(resume)}</div>
               </div>
             </div>
           </li>
@@ -172,43 +168,31 @@ export default function ResumeTable({ resumes, actions, onDelete, onRetype, leav
             {resumes.map((resume, index) => (
               <tr
                 key={resume.id}
+                data-glide={resume.id}
                 inert={leaving.has(resume.id)}
-                className={`fold-row group/row transition-colors duration-700 motion-reduce:transition-none ${resume.id === copied ? "bg-accent/5" : ""} ${motion(resume)}`}
+                className={`group/row transition-colors duration-700 motion-reduce:transition-none ${resume.id === copied ? "bg-accent/5" : ""} ${motion(resume)}`}
               >
                 {/* A name breaks anywhere it has to, so however long it is, it can't
                     widen the table and push the other columns off the screen. Past
-                    two lines it's cut short, and shown in full on hover. Each cell's
-                    content is in a fold-cell, which closes up as the row folds. */}
+                    two lines it's cut short, and shown in full on hover. */}
                 <td className={`${cell} pr-8`}>
-                  <div className="fold-cell">
-                    <div className="flex items-center gap-[18px] py-[18px]">
-                      {thumbnail(resume, index)}
-                      <div className="flex min-w-0 flex-1 flex-col gap-1">
-                        {name(
-                          resume,
-                          index,
-                          "line-clamp-2 font-serif text-[21px] leading-tight wrap-anywhere hover:underline hover:underline-offset-4",
-                        )}
-                        {resume.resumeTag && <span className="text-[13px] text-ink-2">{tagName(resume.resumeTag)}</span>}
-                      </div>
+                  <div className="flex items-center gap-[18px] py-[18px]">
+                    {thumbnail(resume, index)}
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      {name(
+                        resume,
+                        index,
+                        "line-clamp-2 font-serif text-[21px] leading-tight wrap-anywhere hover:underline hover:underline-offset-4",
+                      )}
+                      {resume.resumeTag && <span className="text-[13px] text-ink-2">{tagName(resume.resumeTag)}</span>}
                     </div>
                   </div>
                 </td>
                 {/* On one line each, so the name gets the rest of the row. */}
-                <td className={`${cell} whitespace-nowrap pr-6 text-[15px]`}>
-                  <div className="fold-cell">
-                    <div>{templateById(resume.selectedTemplate).name}</div>
-                  </div>
-                </td>
-                <td className={`${cell} whitespace-nowrap pr-6 font-mono text-[13px] text-ink-2`}>
-                  <div className="fold-cell">
-                    <div>{formatEdited(resume.updatedAt)}</div>
-                  </div>
-                </td>
+                <td className={`${cell} whitespace-nowrap pr-6 text-[15px]`}>{templateById(resume.selectedTemplate).name}</td>
+                <td className={`${cell} whitespace-nowrap pr-6 font-mono text-[13px] text-ink-2`}>{formatEdited(resume.updatedAt)}</td>
                 <td className={cell}>
-                  <div className="fold-cell">
-                    <div className="flex justify-end gap-1">{buttons(resume)}</div>
-                  </div>
+                  <div className="flex justify-end gap-1">{buttons(resume)}</div>
                 </td>
               </tr>
             ))}
