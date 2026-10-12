@@ -44,7 +44,10 @@ describe("extra checker views and stable editor addresses", () => {
         .join(" "),
     ).not.toMatch(/Secret|Hidden|Private/)
     expect(JSON.stringify(runChecks(resume).view)).not.toMatch(/Secret|Hidden|Private/)
-    expect(textsOf(view).find(({ place }) => place.kind === "extra-text" && place.sectionId === third)?.text).toContain("**prose**")
+    // A text section's words as printed, without the marks that make them bold or italic.
+    expect(textsOf(view).find(({ place }) => place.kind === "extra-text" && place.sectionId === third)?.text).toBe(
+      "Literal prose.\n\nAnother paragraph.",
+    )
     expect(hasEnoughToCheck(viewOf({ profileSection: resume.profileSection, extraSections: { [second]: hidden } }))).toBe(false)
   })
 

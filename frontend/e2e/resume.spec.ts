@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { expect, test } from "@playwright/test"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { boxText, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 test("a new visitor writes a resume, sees it, downloads it and opens it again", async ({ page, browser }, testInfo) => {
   const errors = pageErrors(page)
@@ -204,7 +204,7 @@ test("an older PDF of a resume in this browser says it's older, and replacing th
   await expect(page.getByText("This resume now has what's in the PDF.")).toBeVisible()
   await openExperience()
   await expect(role).toHaveValue("Engineer")
-  await expect(bullets).toHaveValue("• Built the search index")
+  await expect.poll(() => boxText(bullets)).toBe("• Built the search index")
   expect(await saved()).toMatchObject({ updatedAt: resume.updatedAt, workExperienceSection: [{ workRole: "Engineer" }] })
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
 
@@ -219,7 +219,7 @@ test("an older PDF of a resume in this browser says it's older, and replacing th
   await expect(page.getByText("It's back as it was before you opened the PDF.")).toBeFocused()
   await openExperience()
   await expect(role).toHaveValue("Senior Engineer")
-  await expect(bullets).toHaveValue("• Built the search index\n• Shipped the new ranking")
+  await expect.poll(() => boxText(bullets)).toBe("• Built the search index\n• Shipped the new ranking")
   await expect.poll(async () => (await saved()).workExperienceSection[0]).toMatchObject({ workRole: "Senior Engineer" })
 
   // Kept after a reload, where there's nothing left to undo.

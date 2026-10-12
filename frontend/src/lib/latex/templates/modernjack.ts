@@ -27,7 +27,7 @@ import {
   type ShowLink,
   type Units,
 } from "../common"
-import type { Run, TemplateData } from "@/lib/typst/resumeData"
+import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 
 const underline = (body: string) => `\\underline{${body}}`
 /** A link printed as its own text, underlined. */
@@ -186,7 +186,7 @@ function body(data: TemplateData, units: Units): string {
     write()
     add("  \\resumeSubHeadingListEnd")
   }
-  const text = (texts: string[]) => add("  \\resumeTextStart", paragraphs(texts), "  \\resumeTextEnd")
+  const text = (texts: Paragraph[]) => add("  \\resumeTextStart", paragraphs(texts), "  \\resumeTextEnd")
   const heading = (title: string) => add("", `\\section{${title}}`)
 
   const { profile } = data

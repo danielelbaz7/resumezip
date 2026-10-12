@@ -69,6 +69,27 @@ describe("flexible section import review", () => {
     expect(none.profileSection.summary).toBe("")
   })
 
+  test("a summary keeps its bold and italic words, but not a style it's all set in, which is the layout's", () => {
+    const text = "Builds fast tools in Rust."
+    const styled = (...runs: Line["parts"][number]["runs"]): Line => ({ ...line(text), parts: [{ text, x: 72, runs }] })
+    const summaryOf = (summary: Line) =>
+      toResumeContent(parseResume([line("Mara Lin"), line("Summary", true), summary])).profileSection.summary
+    expect(summaryOf(styled({ start: 7, end: 11, bold: true, italic: false }, { start: 21, end: 25, bold: false, italic: true }))).toBe(
+      "Builds **fast** tools in *Rust*.",
+    )
+    expect(summaryOf(styled({ start: 0, end: text.length, bold: false, italic: true }))).toBe(text)
+  })
+
+  test("a styled word at either end of a summary line keeps its style when what's tidied off that end is in it", () => {
+    const summaryOf = (text: string, ...runs: Line["parts"][number]["runs"]) =>
+      toResumeContent(parseResume([line("Mara Lin"), line("Summary", true), { ...line(text), parts: [{ text, x: 72, runs }] }]))
+        .profileSection.summary
+    expect(summaryOf("Builds fast tools in Rust:", { start: 21, end: 26, bold: true, italic: false })).toBe("Builds fast tools in **Rust**")
+    expect(summaryOf("• Rust engineer building tools.", { start: 0, end: 6, bold: false, italic: true })).toBe(
+      "*Rust* engineer building tools.",
+    )
+  })
+
   test("page-number removal retains original heading and body provenance", () => {
     const rows = [
       line("Mara Lin"),

@@ -5,8 +5,9 @@ import { useOpenResume, useResumeActions, useResumeField } from "@/context/Resum
 import { extraHeading, type ExtraSection } from "@/lib/resumeSections"
 import { useCheckActions, useCheckTarget } from "./CheckContext"
 import DeleteSection from "./DeleteSection"
-import { BulletsField, FlagNote, SectionHeading, selectLine } from "./fields"
+import { BulletsField, FlagNote, FormatHint, SectionHeading, selectLine } from "./fields"
 import { reducedMotion } from "./layout"
+import { StyledBox } from "./StyledBox"
 
 /** A section the person added, found by its key rather than its title, which can be anyone's. */
 export default function ExtraSectionForm({ sectionId, position, onDelete }: { sectionId: string; position: string; onDelete: () => void }) {
@@ -26,10 +27,11 @@ export default function ExtraSectionForm({ sectionId, position, onDelete }: { se
     if (!target || !place || !("sectionId" in place) || place.sectionId !== sectionId || !pending(target.request)) return
     const timer = setTimeout(() => {
       if (!claim(target.request)) return
-      const selector = place.kind === "extra-heading" ? 'button[aria-label="Rename section"]' : `[data-field="${place.field}"] textarea`
+      const selector =
+        place.kind === "extra-heading" ? 'button[aria-label="Rename section"]' : `[data-field="${place.field}"] [contenteditable="true"]`
       const field = root.current?.querySelector<HTMLElement>(selector)
       field?.focus({ preventScroll: true })
-      if (field instanceof HTMLTextAreaElement && place.kind === "extra-text" && place.line !== undefined) selectLine(field, place.line)
+      if (field && place.kind === "extra-text" && place.line !== undefined) selectLine(field, place.line)
       field?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" })
     }, 0)
     return () => clearTimeout(timer)
@@ -60,21 +62,31 @@ export default function ExtraSectionForm({ sectionId, position, onDelete }: { se
       </div>
       {section.leftOut && <p className="text-sm text-ink-2">This section stays saved here and is left out of the PDF and checks.</p>}
       {section.kind === "text" && (
-        <div data-field="text" className="flex flex-col gap-2">
-          {/* Its label turns blue while typing in the box, as a field's does. */}
-          <label className="group/field flex flex-col gap-2">
-            <span className="label-mono text-ink-2 transition-colors group-focus-within/field:text-accent">Text</span>
-            <textarea
-              value={section.text}
-              onChange={(event) => editSection(id, sectionId, { text: event.target.value })}
-              rows={8}
-              aria-invalid={flagAt("text")?.level === "fix" || undefined}
-              aria-describedby={flagAt("text") ? `extra-text-note-${sectionId}` : undefined}
-              className="w-full resize-y rounded-[4px] border border-rule bg-sheet px-4 py-3.5 text-base leading-relaxed outline-none focus:border-accent"
-            />
-          </label>
+        <div data-field="text" className="group/field flex flex-col gap-2">
+          {/* Its label turns blue while typing in the box, as a field's does. A label can't be
+              for the box, a div, so a click on it puts the cursor in the box itself. */}
+          <span
+            id={`extra-text-label-${sectionId}`}
+            onClick={() => document.getElementById(`extra-text-${sectionId}`)?.focus()}
+            className="label-mono text-ink-2 transition-colors group-focus-within/field:text-accent"
+          >
+            Text
+          </span>
+          <StyledBox
+            kind="prose"
+            id={`extra-text-${sectionId}`}
+            value={section.text}
+            onChange={(text) => editSection(id, sectionId, { text })}
+            labelId={`extra-text-label-${sectionId}`}
+            describedBy={flagAt("text") ? `extra-text-hint-${sectionId} extra-text-note-${sectionId}` : `extra-text-hint-${sectionId}`}
+            invalid={flagAt("text")?.level === "fix"}
+            // As tall as eight lines, as the text box it replaced was.
+            className="min-h-[238px] w-full rounded-[4px] border border-rule bg-sheet px-4 py-3.5 text-base leading-relaxed outline-none focus:border-accent"
+          />
           {flagAt("text") && <FlagNote id={`extra-text-note-${sectionId}`} finding={flagAt("text")!} />}
-          <p className="text-[13px] text-ink-2">Paragraph breaks are kept. Text prints exactly as written.</p>
+          <p id={`extra-text-hint-${sectionId}`} className="text-[13px] text-ink-2">
+            Paragraph breaks are kept. <FormatHint />
+          </p>
         </div>
       )}
       {section.kind === "list" && (

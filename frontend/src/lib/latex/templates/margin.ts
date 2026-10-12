@@ -37,7 +37,7 @@ import {
   type ShowLink,
   type Units,
 } from "../common"
-import type { Run, TemplateData } from "@/lib/typst/resumeData"
+import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 
 /** Links print as their text, as the rest of the line. */
 const plain: ShowLink = (url, text) => shownLink(url, text)
@@ -266,7 +266,7 @@ function body(data: TemplateData): string {
   }
   const experience = (title: string, start: string, end: string, subtitle: string, place: string, items: Run[][]) =>
     entry(title, dateRange(start, end), subtitle, place, items.map(runs))
-  const text = (texts: string[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
+  const text = (texts: Paragraph[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
   const heading = (title: string) => add("", `\\resumeSection{${title}}`)
 
   const { profile } = data

@@ -160,9 +160,7 @@ test("extra-only checking targets original list lines and deletion restores focu
   await issue.click()
   const field = page.getByRole("textbox", { name: "Bullet points", exact: true })
   await expect(field).toBeFocused()
-  expect(await field.evaluate((element: HTMLTextAreaElement) => element.value.slice(element.selectionStart, element.selectionEnd))).toBe(
-    "Wrote the the notes",
-  )
+  expect(await page.evaluate(() => String(getSelection()))).toBe("Wrote the the notes")
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused()
   await page.getByRole("button", { name: "Delete section", exact: true }).click()

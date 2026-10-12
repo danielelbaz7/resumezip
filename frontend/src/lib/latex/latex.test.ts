@@ -562,6 +562,17 @@ describe("a LaTeX file in Jake's layout", () => {
     expect(text).toContain("\\item {}[Invited] talk.")
   })
 
+  test("sets bold and italic words in the summary and a text section in bold and italics, a line at a time", () => {
+    const text = latexOf({
+      selectedTemplate: "jake",
+      profileSection: { summary: "Builds **fast** tools\nin *Rust*" },
+      sectionOrder: [`extra:${notes}`],
+      extraSections: { [notes]: { kind: "text", heading: "Notes", text: "Ran ***both*** ways" } },
+    })
+    expect(text).toContain("    Builds \\textbf{fast} tools\\newline\n    in \\textit{Rust}")
+    expect(text).toContain("    Ran \\textbf{\\textit{both}} ways")
+  })
+
   test("of an empty resume is still a page", () => {
     expect(bodyOf(latexOf({}))).toBe("\\begin{document}\n\n\\mbox{}\n\n")
   })

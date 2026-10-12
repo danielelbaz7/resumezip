@@ -31,9 +31,9 @@
   margin * tune.margin
 }
 
-// A bullet: its runs from resumeData.ts, with the words the user marked
-// **bold** or *italic* set that way. Bullets a template builds itself (like
-// "Relevant Coursework: ...") are content already and pass through.
+// A bullet, or a line of prose: its runs from resumeData.ts, with the words
+// the user marked **bold** or *italic* set that way. Bullets a template builds
+// itself (like "Relevant Coursework: ...") are content already and pass through.
 #let rich(item) = if type(item) == array {
   item.map(run => {
     let body = run.text
@@ -126,8 +126,9 @@
 }
 
 // Optional sections share content formatting, while every template supplies
-// its own heading and bullet styles. Prose is literal text, not markup.
-// Keep paragraphs breakable so long sections span pages.
+// its own heading and bullet styles. Prose is the user's text, never Typst
+// markup, with the words they marked **bold** or *italic* set that way, a
+// line at a time (`rich`). Keep paragraphs breakable so long sections span pages.
 //
 // A blank line leaves 0.6em more than a line break does. Between two
 // paragraphs, the template's paragraph spacing stands in for its leading, and
@@ -137,7 +138,7 @@
 #let extra-body(extra, show-bullets) = {
   if extra.kind == "text" {
     let gap = context v(par.leading + 0.6em, weak: true)
-    extra.paragraphs.map(value => par(value.split("\n").join(linebreak()))).join(gap)
+    extra.paragraphs.map(lines => par(lines.map(rich).join(linebreak()))).join(gap)
   } else if extra.kind == "list" {
     show-bullets(extra.bullets)
   }

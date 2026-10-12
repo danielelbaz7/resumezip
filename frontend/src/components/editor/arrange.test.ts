@@ -8,7 +8,6 @@ import {
   nextAnnouncement,
   pastedList,
   setLeftOutLine,
-  toggleMark,
   typedList,
   withBullets,
 } from "./arrange"
@@ -168,16 +167,6 @@ describe("typing bullets", () => {
     expect(typedList("• -", "5")).toBe("• -5")
     expect(typedList("• **", " ")).toBe("• ** ")
     expect(typedList("• Cut costs -", " ")).toBe("• Cut costs - ")
-  })
-
-  test("bold and italic marks go around the words, never the bullet, so a left-out bullet stays left out", () => {
-    // As when the whole line is selected.
-    const bold = toggleMark("○ Fed the cat", 0, 13, 2)
-    expect(bold).toEqual(at("○ **Fed the cat**", 4, 15))
-    expect(toggleMark(bold.text, bold.start, bold.end, 2)).toEqual(at("○ Fed the cat", 2, 13))
-    expect(toggleMark("• Built a loom\n", 0, 15, 1)).toEqual(at("• *Built a loom*\n", 3, 15))
-    // With nothing selected, the marks go where the words start, ready to type in.
-    expect(toggleMark("○ Fed the cat", 0, 0, 2)).toEqual(at("○ ****Fed the cat", 4, 4))
   })
 })
 

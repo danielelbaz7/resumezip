@@ -1,7 +1,9 @@
 // The resume as checks read it: each field as trimmed text, each bullet on
 // its own without the editor's "• " or its bold and italic marks, and the
-// resume's type. It's built once per run, so rules don't each pick the saved
-// data apart, and none of them has to guard against older or broken shapes.
+// resume's type. Prose (the summary, a text section) reaches the rules that
+// read its words without its marks too (textsOf). It's built once per run, so
+// rules don't each pick the saved data apart, and none of them has to guard
+// against older or broken shapes.
 // Only what's printed is here: entries and bullets the person left out of
 // the PDF (lib/leftOut.ts) aren't, so the checks don't flag them.
 
@@ -9,7 +11,7 @@ import { PROFILE_FIELDS, SECTION_NAMES, SECTIONS, type FieldKey, type ProfileKey
 import { isLeftOut, isLeftOutLine } from "@/lib/leftOut"
 import { firstColumnOf, templateById } from "@/lib/templates"
 import type { Resume } from "@/lib/resume"
-import { plainText } from "@/lib/typst/resumeData"
+import { plainProse, plainText } from "@/lib/typst/resumeData"
 import {
   extraHasBody,
   extraHeading,
@@ -189,13 +191,15 @@ export const entryAt = (view: ResumeView, section: SectionName, index: number): 
 /**
  * Every piece of typed text and where it is, in the order it's printed:
  * profile values, renamed section titles, entry fields, and each bullet on its
- * own. Empty ones are left out. For rules that read all of it, like spelling.
+ * own, with the words of the summary and bullets as printed, without their
+ * bold and italic marks. Empty ones are left out. For rules that read all of
+ * it, like spelling.
  */
 export function textsOf(view: ResumeView): { place: Place; text: string }[] {
   const texts: { place: Place; text: string }[] = []
   for (const field of PROFILE_FIELDS) {
     const value = view.profile[field.key]
-    if (value) texts.push({ place: { kind: "profile", field: field.key }, text: value })
+    if (value) texts.push({ place: { kind: "profile", field: field.key }, text: field.multiline ? plainProse(value) : value })
   }
   for (const ref of view.allOrder) {
     const id = extraKey(ref)
@@ -223,7 +227,7 @@ export function textsOf(view: ResumeView): { place: Place; text: string }[] {
   return texts
 }
 
-/** Extra prose stays literal; only custom list bullets use the editor's inline formatting. */
+/** A section the person added: its title, then each bullet, or its text, as printed, without bold and italic marks. */
 export function extraTexts(view: ResumeView, sectionId: string): { place: Place; text: string }[] {
   const extra = view.extras[sectionId]
   if (!extra || extra.blank) return []
@@ -232,6 +236,7 @@ export function extraTexts(view: ResumeView, sectionId: string): { place: Place;
   if (section.kind === "list") {
     for (const bullet of extra.bullets)
       result.push({ place: { kind: "extra-text", sectionId, field: "bullets", line: bullet.line }, text: bullet.text })
-  } else if (section.text.trim()) result.push({ place: { kind: "extra-text", sectionId, field: "text" }, text: section.text.trim() })
+  } else if (section.text.trim())
+    result.push({ place: { kind: "extra-text", sectionId, field: "text" }, text: plainProse(section.text.trim()) })
   return result
 }

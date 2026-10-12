@@ -13,7 +13,10 @@ const empty = "05fb2807-bb55-45fd-a44a-376e408df6cc"
 const hidden = "654f555c-269a-4c18-b89e-a396bf7d8391"
 // With a section order that repeats and misses sections, as the editor never saves one.
 const mixed = asSaved({
-  profileSection: { fullName: "Ada Example", summary: "Summary first paragraph.\nSecond line.\n\nLiteral #strong[words] and *asterisks*." },
+  profileSection: {
+    fullName: "Ada Example",
+    summary: "Summary first paragraph.\nSecond line.\n\nLiteral #strong[words] and *italic* words.",
+  },
   workExperienceSection: [{ id: 1, companyName: "Legacy Company", workRole: "Engineer", workDescription: "• Legacy printed detail" }],
   extraSections: {
     [first]: { kind: "text", heading: "Work", text: "Custom first body." },
@@ -25,10 +28,14 @@ const mixed = asSaved({
 })
 
 describe("optional section template data", () => {
-  test("keeps built-in identity separate from repeated custom headings and literal prose", () => {
+  test("keeps built-in identity separate from repeated custom headings, and prose's lines with their bold and italic words", () => {
     const data = toTemplateData(mixed)
     expect(data.order.slice(0, 3)).toEqual(["Work", `extra:${first}`, `extra:${second}`])
-    expect(data.summary).toEqual(["Summary first paragraph.\nSecond line.", "Literal #strong[words] and *asterisks*."])
+    const plain = (text: string) => ({ text, bold: false, italic: false })
+    expect(data.summary).toEqual([
+      [[plain("Summary first paragraph.")], [plain("Second line.")]],
+      [[plain("Literal #strong[words] and "), { text: "italic", bold: false, italic: true }, plain(" words.")]],
+    ])
     expect(data.extras[`extra:${first}`].heading).toBe("Work")
     expect(data.extras[`extra:${second}`].heading).toBe("Work")
     expect(data.work[0].company).toBe("Legacy Company")
@@ -60,7 +67,8 @@ describe.each(TEMPLATES)("$id optional sections", ({ id }) => {
     for (const value of [
       "Summary first paragraph.",
       "Second line.",
-      "Literal #strong[words] and *asterisks*.",
+      // Typst markup typed in prose is printed as typed, never run.
+      "Literal #strong[words] and italic words.",
       "Legacy Company",
       "Custom first body.",
       "Custom bold and italic detail",
@@ -74,6 +82,9 @@ describe.each(TEMPLATES)("$id optional sections", ({ id }) => {
     const marked = lines.find((line) => line.text.includes("Custom bold"))
     expect(marked?.parts.some((part) => part.runs.some((run) => run.bold))).toBe(true)
     expect(marked?.parts.some((part) => part.runs.some((run) => run.italic))).toBe(true)
+    // The summary's *italic* word is set in italics, like a bullet's.
+    const summary = lines.find((line) => line.text.includes("Literal #strong"))
+    expect(summary?.parts.some((part) => part.runs.some((run) => run.italic))).toBe(true)
   })
 
   test("flows long prose and lists across pages without losing text", async () => {

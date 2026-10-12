@@ -1,27 +1,15 @@
 "use client"
 
 import type React from "react"
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react"
+import { Fragment, useEffect, useId, useRef, useState } from "react"
 import { ArrowDown, ArrowUp, ArrowUpDown, Pencil } from "lucide-react"
 import type { Finding } from "@/lib/check/engine"
 import { onMac, shortcut } from "@/lib/keys"
-import { plainText } from "@/lib/typst/resumeData"
-import {
-  bulletLines,
-  cursorWithBullets,
-  lineStartOf,
-  moveBullet,
-  moveLine,
-  newBullet,
-  nextAnnouncement,
-  pastedList,
-  setLeftOutLine,
-  toggleMark,
-  typedList,
-  withBullets,
-  type Edited,
-} from "./arrange"
+import { markedPieces } from "@/lib/typst/resumeData"
+import { bulletLines, moveBullet, nextAnnouncement, setLeftOutLine, withBullets } from "./arrange"
+import { selectLineIn } from "./boxDom"
 import { reducedMotion, reveal, scrollerOf } from "./layout"
+import { StyledBox } from "./StyledBox"
 
 interface FieldProps {
   label: string
@@ -40,7 +28,7 @@ interface FieldProps {
   autoComplete?: string
   /** A web address: phones show the keyboard for one, with no spelling marks and no capital first letter. */
   web?: boolean
-  /** A few lines of prose: a box that grows with them, where Enter starts a new line. */
+  /** A few lines of prose, as the summary: a box that grows with them, where Enter starts a new line, with bold and italic words. */
   multiline?: boolean
 }
 
@@ -86,7 +74,11 @@ export function FlagNote({ id, finding }: { id?: string; finding: Finding }) {
   )
 }
 
-/** A labelled, underlined text input, or a box for a few lines of prose. */
+/**
+ * A labelled, underlined text input, or a box for a few lines of prose with
+ * bold and italic words. A label can't be for that box, a div, so it's a div
+ * too, and a click on its name puts the cursor in the box.
+ */
 export function Field({
   label,
   value,
@@ -101,21 +93,22 @@ export function Field({
   multiline,
 }: FieldProps) {
   const noteId = useId()
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  useFitHeight(textareaRef, value)
-  const shared = {
-    value,
-    placeholder,
-    "aria-describedby": flag ? noteId : undefined,
-    "aria-invalid": flag?.level === "fix" || undefined,
-    className: `relative w-full min-w-0 border-0 bg-transparent py-2 text-base text-ink outline-none transition-colors placeholder:text-ink-2/50 focus-visible:outline-none ${
-      !flag ? "border-b border-rule-strong" : "border-b-2 border-accent"
-    }`,
-  }
+  const boxId = useId()
+  const hintId = useId()
+  const look = `relative w-full min-w-0 border-0 bg-transparent py-2 text-base text-ink outline-none transition-colors focus-visible:outline-none ${
+    !flag ? "border-b border-rule-strong" : "border-b-2 border-accent"
+  }`
+  const Labelled = multiline ? "div" : "label"
   return (
     <div data-field={name} className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
-      <label className="group/field relative flex min-w-0 flex-col gap-1.5">
-        <span className="label-mono text-ink-2 transition-colors group-focus-within/field:text-accent">{label}</span>
+      <Labelled className="group/field relative flex min-w-0 flex-col gap-1.5">
+        <span
+          id={`${boxId}-label`}
+          onClick={multiline ? () => document.getElementById(boxId)?.focus() : undefined}
+          className="label-mono text-ink-2 transition-colors group-focus-within/field:text-accent"
+        >
+          {label}
+        </span>
         {/* A soft blue light rises from the line while the field has focus. It's under the box (which
             is `relative`, and later), so the text stays crisp, and nothing moves. */}
         <span
@@ -123,22 +116,31 @@ export function Field({
           className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-t-[6px] bg-linear-to-t from-accent/[0.09] to-accent/0 opacity-0 transition-opacity duration-200 ease-out group-focus-within/field:opacity-100 motion-reduce:transition-none"
         />
         {multiline ? (
-          <textarea
-            ref={textareaRef}
-            rows={3}
-            onChange={(event) => onChange(event.target.value)}
-            {...shared}
-            className={`${shared.className} resize-none leading-relaxed`}
+          <StyledBox
+            kind="prose"
+            id={boxId}
+            value={value}
+            onChange={onChange}
+            labelId={`${boxId}-label`}
+            describedBy={flag ? `${hintId} ${noteId}` : hintId}
+            invalid={flag?.level === "fix"}
+            placeholder={placeholder}
+            // As tall as three lines, as the text box it replaced was.
+            className={`${look} min-h-24 leading-relaxed`}
           />
         ) : (
           <input
             type={type}
+            value={value}
+            placeholder={placeholder}
+            aria-describedby={flag ? noteId : undefined}
+            aria-invalid={flag?.level === "fix" || undefined}
             autoComplete={autoComplete}
             inputMode={web ? "url" : undefined}
             spellCheck={web ? false : undefined}
             autoCapitalize={web ? "off" : undefined}
             onChange={(event) => onChange(event.target.value)}
-            {...shared}
+            className={`${look} placeholder:text-ink-2/50`}
           />
         )}
         {/* The field being typed in is underlined in blue, drawn out from the left, with a glow. */}
@@ -146,26 +148,20 @@ export function Field({
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-accent shadow-[0_0_10px_rgb(46_91_230/0.55)] transition-transform duration-300 ease-glide group-focus-within/field:scale-x-100 motion-reduce:transition-none"
         />
-      </label>
+      </Labelled>
+      {multiline && (
+        <span id={hintId} className="text-[13px] leading-normal text-ink-2">
+          <FormatHint />
+        </span>
+      )}
       {flag && <FlagNote id={noteId} finding={flag} />}
     </div>
   )
 }
 
-/** Where a line starts in a textarea's text. */
-const lineStart = (text: string, line: number) =>
-  text
-    .split("\n")
-    .slice(0, line)
-    .reduce((total, words) => total + words.length + 1, 0)
-
-/** Selects a line's words in a bullets textarea, after its "• ", to point at one bullet. */
-export function selectLine(textarea: HTMLTextAreaElement, line: number) {
-  const lines = textarea.value.split("\n")
-  if (line < 0 || line >= lines.length) return
-  const start = lineStart(textarea.value, line)
-  const bullet = lines[line].match(/^[•○]\s*/)?.[0].length ?? 0
-  textarea.setSelectionRange(start + bullet, start + lines[line].length)
+/** Selects a line's words in a bullets box, after its "• ", to point at one bullet. */
+export function selectLine(field: HTMLElement, line: number) {
+  if (field.isContentEditable) selectLineIn(field, line)
 }
 
 /**
@@ -204,101 +200,43 @@ export function MoveButtons({ name, first, last, onMove }: { name: string; first
   )
 }
 
-// Sets a textarea's height to show all its text, so it never scrolls inside.
-function fitHeight(textarea: HTMLTextAreaElement) {
-  textarea.style.height = "auto"
-  textarea.style.height = `${textarea.scrollHeight + 2}px`
-}
-
-/**
- * Keeps a textarea as tall as its text as the text changes, and as its width
- * does: a narrower box wraps onto more lines, as when the window is resized, a
- * tablet turned, or the box shows after being hidden. `shown` is whatever
- * swaps the textarea for another element and back, so it's measured afresh.
- */
-function useFitHeight(ref: React.RefObject<HTMLTextAreaElement | null>, text: string, shown?: unknown) {
-  useLayoutEffect(() => {
-    if (ref.current) fitHeight(ref.current)
-  }, [ref, text, shown])
-
-  useEffect(() => {
-    const textarea = ref.current
-    if (!textarea) return
-    let width = textarea.clientWidth
-    let frame = 0
-    const observer = new ResizeObserver(() => {
-      const next = textarea.clientWidth
-      // Hidden while the preview shows on small screens: nothing to fit until it's back.
-      if (!next || next === width) return
-      width = next
-      // On the next frame: changing the box's height while it's being
-      // measured would make the browser report a ResizeObserver loop.
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => fitHeight(textarea))
-    })
-    observer.observe(textarea)
-    return () => {
-      observer.disconnect()
-      cancelAnimationFrame(frame)
-    }
-  }, [ref, shown])
-}
-
-const isLowSurrogate = (code: number) => code >= 0xdc00 && code <= 0xdfff
-
-// True while typeInto types, so what it types goes in as it is.
-let typing = false
-
-// What was last copied or cut from a bullets box. Pasted back, its "○" bullets
-// stay left out; a "○" pasted from anywhere else is a sub-bullet, and printed.
-let copied: string | undefined
-
-const rememberCopied = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
-  const { selectionStart, selectionEnd, value } = event.currentTarget
-  copied = value.slice(selectionStart, selectionEnd)
-}
-
-/**
- * Changes a text box's text to `next` as typing would, replacing only the part
- * that changed, so the browser can undo it with the person's own typing.
- * Setting the text any other way clears the browser's undo history. False if
- * the browser can't: execCommand is deprecated, but there's nothing else yet.
- */
-function typeInto(textarea: HTMLTextAreaElement, next: string): boolean {
-  const current = textarea.value
-  let from = 0
-  while (from < current.length && from < next.length && current[from] === next[from]) from++
-  let same = 0
-  while (same < current.length - from && same < next.length - from && current[current.length - 1 - same] === next[next.length - 1 - same])
-    same++
-  // Never half an emoji: a character made of two code units is replaced whole.
-  if (from > 0 && (isLowSurrogate(current.charCodeAt(from)) || isLowSurrogate(next.charCodeAt(from)))) from--
-  if (same > 0 && isLowSurrogate(current.charCodeAt(current.length - same))) same--
-  textarea.setSelectionRange(from, current.length - same)
-  const typed = next.slice(from, next.length - same)
-  typing = true
-  try {
-    return typed ? document.execCommand("insertText", false, typed) : document.execCommand("delete")
-  } catch {
-    return false
-  } finally {
-    typing = false
-  }
-}
-
 // With Option on a Mac, Alt elsewhere: ⌥↑, Alt+↑.
 const altShortcut = (key: string) => (onMac() ? `⌥${key}` : `Alt+${key}`)
 
 /**
- * A textarea for bullet points: one per line, and Enter starts a new bullet.
- * **Bold**, *italic* and ***both*** print that way; ⌘B and ⌘I add or remove
- * the marks. Alt+↑ and Alt+↓ move the line the cursor is on. "Arrange" shows
- * the bullets as a list instead, to move them and leave them out of the PDF.
+ * The keys for bold and italic, and with `moveLines`, for moving a line. A
+ * touch screen has no keys, so it shows the marks to type, which turn bold and
+ * italic as they're typed.
+ */
+export function FormatHint({ moveLines = false }: { moveLines?: boolean }) {
+  return window.matchMedia("(pointer: coarse)").matches ? (
+    <>
+      <span className="font-mono">**bold**</span> · <span className="font-mono">*italic*</span>
+    </>
+  ) : (
+    <>
+      <kbd className="font-mono">{shortcut("B")}</kbd> <strong className="font-semibold text-ink">bold</strong> ·{" "}
+      <kbd className="font-mono">{shortcut("I")}</kbd> <em className="text-ink">italic</em>
+      {moveLines && (
+        <>
+          {" "}
+          · <kbd className="font-mono">{altShortcut("↑")}</kbd> <kbd className="font-mono">{altShortcut("↓")}</kbd> move a line
+        </>
+      )}
+    </>
+  )
+}
+
+/**
+ * A box for bullet points: one per line, and Enter starts a new bullet. Bold
+ * and italic words show as they print, and are saved as **bold**, *italic*
+ * and ***both***; ⌘B and ⌘I add or remove them. Alt+↑ and Alt+↓ move the line
+ * the cursor is on. "Arrange" shows the bullets as a list instead, to move
+ * them and leave them out of the PDF.
  */
 export function BulletsField({ label, value, placeholder, className = "", onChange, name, flag, request }: FieldProps) {
   const text = withBullets(value)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const textareaId = useId()
+  const boxId = useId()
   const hintId = useId()
   const noteId = useId()
   const bullets = bulletLines(text)
@@ -311,103 +249,16 @@ export function BulletsField({ label, value, placeholder, className = "", onChan
     setShownRequest(request)
     setArranging(false)
   }
-  // Where the cursor goes once the box shows the text it was just given.
-  const selection = useRef<[number, number] | null>(null)
-
-  // Grow to fit the text instead of scrolling inside the box (and again when
-  // it's back from arranging), then put the cursor where it goes.
-  useFitHeight(textareaRef, text, arranging)
-  useLayoutEffect(() => {
-    if (selection.current) textareaRef.current?.setSelectionRange(...selection.current)
-    selection.current = null
-  }, [text, arranging])
-
-  const change = useRef(onChange)
-  change.current = onChange
-
-  // Gives the box new text, with the cursor (or a selection) where it says. It's
-  // typed in, so Ctrl+Z takes it back as it would the person's own typing. If
-  // the browser can't type it, it's set through React, which can't be undone.
-  const edit = useCallback((textarea: HTMLTextAreaElement, { text: next, start, end }: Edited) => {
-    if (next === textarea.value || typeInto(textarea, next)) {
-      textarea.setSelectionRange(start, end)
-      return
-    }
-    selection.current = [start, end]
-    change.current(next)
-  }, [])
-
-  // Words typed or pasted on a line with no bullet get one in the same edit, so
-  // Ctrl+Z takes back both at once. (Left to React, the bullet would be added
-  // after the edit, which clears the browser's undo history.) A pasted list's
-  // own markers become its bullets, so it doesn't get two, and a "- " typed
-  // after a bullet goes.
-  useEffect(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-    const onBeforeInput = (event: InputEvent) => {
-      // Not words still being composed (Chinese, Japanese, a phone's keyboard): those are the input method's.
-      if (typing || event.isComposing || (event.inputType !== "insertText" && event.inputType !== "insertFromPaste")) return
-      const given = (event.data ?? event.dataTransfer?.getData("text/plain"))?.replace(/\r\n?/g, "\n")
-      if (!given) return
-      const { selectionStart: start, selectionEnd: end, value } = textarea
-      const from = lineStartOf(value, start)
-      const before = value.slice(from, start)
-      // The line up to the cursor once it's typed or pasted in.
-      const head = event.inputType === "insertFromPaste" ? pastedList(given, before, given === copied) : typedList(before, given)
-      const typed = value.slice(0, from) + head + value.slice(end)
-      const next = withBullets(typed)
-      // Nothing to change: the browser puts it in as it is.
-      if (next === typed && head === before + given) return
-      event.preventDefault()
-      const cursor = cursorWithBullets(typed, from + head.length)
-      edit(textarea, { text: next, start: cursor, end: cursor })
-    }
-    textarea.addEventListener("beforeinput", onBeforeInput)
-    return () => textarea.removeEventListener("beforeinput", onBeforeInput)
-  }, [arranging, edit])
-
-  // Moves the line the cursor is on, keeping the cursor where it was in it. False if it's at that end already.
-  const moveCursorLine = (textarea: HTMLTextAreaElement, by: -1 | 1) => {
-    const before = text.slice(0, textarea.selectionStart)
-    const line = before.split("\n").length - 1
-    const column = before.length - (before.lastIndexOf("\n") + 1)
-    const to = line + by
-    if (to < 0 || to >= text.split("\n").length) return false
-    const next = moveLine(text, line, by)
-    const cursor = lineStart(next, to) + column
-    edit(textarea, { text: next, start: cursor, end: cursor })
-    return true
-  }
-
-  const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const textarea = event.currentTarget
-    const { selectionStart: start, selectionEnd: end } = textarea
-    const key = event.key.toLowerCase()
-    if ((event.metaKey || event.ctrlKey) && !event.altKey && (key === "b" || key === "i")) {
-      event.preventDefault()
-      edit(textarea, toggleMark(text, start, end, key === "b" ? 2 : 1))
-      return
-    }
-    if (event.nativeEvent.isComposing) return
-    // With Shift, Alt+↑ and Alt+↓ select (on a Mac); at either end they move the cursor as usual.
-    if (event.altKey && !event.shiftKey && !event.metaKey && !event.ctrlKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
-      if (moveCursorLine(textarea, event.key === "ArrowUp" ? -1 : 1)) event.preventDefault()
-      return
-    }
-    if (event.key !== "Enter") return
-    event.preventDefault()
-    edit(textarea, newBullet(text, start, end))
-  }
 
   return (
     <div data-field={name} className={`group/field flex min-w-0 flex-col gap-2 ${className}`}>
       <div className="flex items-center justify-between gap-3">
-        {/* Blue while typing in the box, as a field's label is; not while on Arrange. */}
+        {/* Blue while typing in the box, as a field's label is; not while on Arrange. A
+            label can't be for a div, so a click on it puts the cursor in the box itself. */}
         <label
-          htmlFor={textareaId}
-          id={`${textareaId}-label`}
-          className="label-mono text-ink-2 transition-colors group-has-[textarea:focus]/field:text-accent"
+          id={`${boxId}-label`}
+          onClick={() => document.getElementById(boxId)?.focus()}
+          className="label-mono text-ink-2 transition-colors group-has-[[contenteditable]:focus]/field:text-accent"
         >
           {label}
         </label>
@@ -430,22 +281,19 @@ export function BulletsField({ label, value, placeholder, className = "", onChan
         )}
       </div>
       {arranging ? (
-        <ArrangedBullets labelId={`${textareaId}-label`} text={text} onChange={onChange} />
+        <ArrangedBullets labelId={`${boxId}-label`} text={text} onChange={onChange} />
       ) : (
-        <textarea
-          id={textareaId}
-          ref={textareaRef}
-          aria-describedby={flag ? `${hintId} ${noteId}` : hintId}
-          aria-invalid={flag?.level === "fix" || undefined}
-          value={text}
-          placeholder={placeholder ? `• ${placeholder}` : undefined}
-          rows={4}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={onKeyDown}
-          onCopy={rememberCopied}
-          onCut={rememberCopied}
+        <StyledBox
+          kind="bullets"
+          id={boxId}
+          value={value}
+          onChange={onChange}
+          labelId={`${boxId}-label`}
+          describedBy={flag ? `${hintId} ${noteId}` : hintId}
+          invalid={flag?.level === "fix"}
+          placeholder={placeholder}
           // A soft blue halo while it has focus, as a field's glow: a shadow, so nothing moves.
-          className={`w-full resize-none overflow-hidden rounded-[4px] border bg-sheet px-4 py-3.5 text-[15px] leading-[1.7] text-ink outline-none transition-[border-color,box-shadow] duration-200 ease-out placeholder:text-ink-2/50 focus:shadow-[0_0_0_4px_rgb(46_91_230/0.1),0_10px_28px_-12px_rgb(46_91_230/0.5)] focus-visible:outline-none motion-reduce:transition-none ${
+          className={`min-h-[132px] w-full rounded-[4px] border bg-sheet px-4 py-3.5 text-[15px] leading-[1.7] text-ink outline-none transition-[border-color,box-shadow] duration-200 ease-out focus:shadow-[0_0_0_4px_rgb(46_91_230/0.1),0_10px_28px_-12px_rgb(46_91_230/0.5)] focus-visible:outline-none motion-reduce:transition-none ${
             !flag ? "border-rule focus:border-accent" : "border-accent ring-1 ring-accent"
           }`}
         />
@@ -453,23 +301,26 @@ export function BulletsField({ label, value, placeholder, className = "", onChan
       {flag && <FlagNote id={noteId} finding={flag} />}
       {!arranging && (
         <span id={hintId} className="text-[13px] leading-normal text-ink-2">
-          {window.matchMedia("(pointer: coarse)").matches ? (
-            // No keyboard shortcuts on a touch screen, so show the marks to type.
-            <>
-              <span className="font-mono">**bold**</span> · <span className="font-mono">*italic*</span>
-            </>
-          ) : (
-            <>
-              <kbd className="font-mono">{shortcut("B")}</kbd> <strong className="font-semibold text-ink">bold</strong> ·{" "}
-              <kbd className="font-mono">{shortcut("I")}</kbd> <em className="text-ink">italic</em> ·{" "}
-              <kbd className="font-mono">{altShortcut("↑")}</kbd> <kbd className="font-mono">{altShortcut("↓")}</kbd> move a line
-            </>
-          )}
+          <FormatHint moveLines />
           {bullets.some((bullet) => bullet.leftOut) && " · Lines starting with ○ are left out of the PDF."}
         </span>
       )}
     </div>
   )
+}
+
+/** A bullet's words, bold and italic where they're marked, as they print. */
+function MarkedWords({ words }: { words: string }) {
+  return markedPieces(words).map(({ text, bold, italic }, index) => {
+    const shown = italic ? <em>{text}</em> : text
+    return bold ? (
+      <strong key={index} className="font-semibold">
+        {shown}
+      </strong>
+    ) : (
+      <Fragment key={index}>{shown}</Fragment>
+    )
+  })
 }
 
 /**
@@ -501,7 +352,7 @@ function ArrangedBullets({ labelId, text, onChange }: { labelId: string; text: s
               className="mt-1.5 h-4 w-4 shrink-0 accent-accent"
             />
             <span className={`min-w-0 flex-1 py-0.5 text-[15px] leading-[1.6] ${bullet.leftOut ? "text-ink-2" : "text-ink"}`}>
-              {plainText(bullet.words)}
+              <MarkedWords words={bullet.words} />
               {bullet.leftOut && <span className="label-mono ml-2 whitespace-nowrap text-ink-2">Left out</span>}
             </span>
             <MoveButtons

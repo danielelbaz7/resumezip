@@ -44,7 +44,7 @@ import {
   type ShowLink,
   type Units,
 } from "../common"
-import type { Run, TemplateData } from "@/lib/typst/resumeData"
+import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 
 const minus = (length: string) => `-${length}`
 
@@ -267,7 +267,7 @@ function body(data: TemplateData, units: Units): string {
     if (!items.length) return
     add("  \\begin{tightemize}", ...items.map((item) => `    \\item\\relax ${runs(item)}`), "  \\end{tightemize}")
   }
-  const text = (texts: string[]) => add("\\begin{paragraphs}", paragraphs(texts, "  "), "\\end{paragraphs}")
+  const text = (texts: Paragraph[]) => add("\\begin{paragraphs}", paragraphs(texts, "  "), "\\end{paragraphs}")
 
   /** An entry on the right: its name and role, its dates and place, its bullets. */
   const entry = (name: string, role: string, when: string, items: Run[][]) => {

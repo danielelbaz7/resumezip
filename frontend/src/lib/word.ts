@@ -23,7 +23,7 @@ import { SECTIONS, type SectionName } from "@/components/editor/sections"
 import type { Resume } from "@/lib/resume"
 import { ATTACHMENT_NAME, toAttachment, WORD_DOCUMENT, WORD_RELATIONSHIPS } from "@/lib/resumeFile"
 import { TEMPLATE_SETTINGS, type Paper } from "@/lib/tune"
-import { templateIdOf, toTemplateData, type TemplateData } from "@/lib/typst/resumeData"
+import { templateIdOf, toTemplateData, type Paragraph, type TemplateData } from "@/lib/typst/resumeData"
 import { crc32, zip } from "@/lib/zip"
 
 /** A Word file's type, for a download. */
@@ -198,7 +198,14 @@ function documentOf(data: TemplateData, page: Page): { xml: string; links: strin
   }
 
   const heading = (text: string) => add("Heading1", [{ text }])
-  const prose = (texts: string[]) => texts.forEach((text) => add("BodyText", [{ text }]))
+  // A paragraph's lines in one paragraph, with a line break between them.
+  const prose = (paragraphs: Paragraph[]) =>
+    paragraphs.forEach((lines) =>
+      add(
+        "BodyText",
+        lines.flatMap((line, index) => (index ? [{ text: "\n" }, ...line] : line)),
+      ),
+    )
   const bullets = (items: Piece[][]) => items.forEach((item) => add("ListBullet", item, { list: BULLETS }))
   /**
    * An entry: its lines, each with something on the left and on the right

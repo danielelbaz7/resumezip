@@ -1,0 +1,384 @@
+// The text of a box that shows bold and italic words (StyledBox.tsx), as it
+// shows it: the words without their marks, with each character's style. It's
+// saved with the marks the PDF reads (markedPieces in lib/typst/resumeData.ts),
+// **bold**, *italic* and ***both***, and read back with the same code, so the
+// box always shows a line as it prints. A bullets box's lines start with a
+// bullet ("• ", or "○ " when left out), as plain text, and follow arrange.ts's
+// rules for Enter, pasting and typing; a box for prose has no bullets.
+
+import { markedPieces } from "@/lib/typst/resumeData"
+import { cursorWithBullets, lineStartOf, newBullet, pastedList, typedList, withBullets } from "./arrange"
+
+export const BOLD = 1
+export const ITALIC = 2
+
+/** A character's style: 0, BOLD, ITALIC, or both added together. */
+export type Style = number
+
+export interface Styled {
+  /** The words as the box shows them, a line each, bullets and all. */
+  text: string
+  /** Each character's style, one per UTF-16 code unit of `text`. */
+  styles: Style[]
+}
+
+/** A bullets box, or a box for prose, whose lines have no bullets. */
+export type Kind = "bullets" | "prose"
+
+/** Styled text with the cursor, or a selection, in it. */
+export interface StyledEdit extends Styled {
+  start: number
+  end: number
+}
+
+/** `text` all in one style. */
+export const styled = (text: string, style: Style = 0): Styled => ({ text, styles: new Array<Style>(text.length).fill(style) })
+
+export const slice = ({ text, styles }: Styled, start: number, end = text.length): Styled => ({
+  text: text.slice(start, end),
+  styles: styles.slice(start, end),
+})
+
+export const concat = (...parts: Styled[]): Styled => ({
+  text: parts.map((part) => part.text).join(""),
+  styles: parts.flatMap((part) => part.styles),
+})
+
+export function linesOf(s: Styled): Styled[] {
+  let from = 0
+  return s.text.split("\n").map((line) => {
+    const part = slice(s, from, from + line.length)
+    from += line.length + 1
+    return part
+  })
+}
+
+export const joinLines = (lines: Styled[]): Styled => concat(...lines.flatMap((line, index) => (index ? [styled("\n"), line] : [line])))
+
+export const sameStyled = (a: Styled, b: Styled) => a.text === b.text && a.styles.every((style, index) => style === b.styles[index])
+
+/** How long a line's bullet is, with the spaces after it, which are never bold or italic. */
+export const bulletLength = (line: string) => line.match(/^[•○][^\S\n]*/)?.[0].length ?? 0
+
+// Where a line's words start: after its bullet in a bullets box.
+const wordsStart = (line: string, kind: Kind) => (kind === "bullets" ? bulletLength(line) : 0)
+
+// A bullets box's lines each start with a bullet; a prose box's are as typed.
+const lined = (text: string, kind: Kind) => (kind === "bullets" ? withBullets(text) : text)
+
+const isSpace = (character: string) => /\s/.test(character)
+
+/** A line as it was typed, marks and all, as the box shows it, with where each character it shows is in it. */
+function readLine(typed: string): { line: Styled; at: number[] } {
+  let text = ""
+  const styles: Style[] = []
+  const at: number[] = []
+  for (const piece of markedPieces(typed)) {
+    text += piece.text
+    for (let index = 0; index < piece.text.length; index++) {
+      styles.push((piece.bold ? BOLD : 0) + (piece.italic ? ITALIC : 0))
+      at.push(piece.at + index)
+    }
+  }
+  return { line: { text, styles }, at }
+}
+
+/** A field's saved text as its box shows it. */
+export const styledOf = (saved: string, kind: Kind = "bullets"): Styled =>
+  joinLines(
+    lined(saved, kind)
+      .split("\n")
+      .map((line) => readLine(line).line),
+  )
+
+// By style: **bold**, *italic*, ***both***.
+const MARKS = ["", "**", "*", "***"]
+
+/**
+ * A line in marks, with where each of its characters went. A mark has to
+ * touch its words, so spaces at either end of bold or italic words go outside
+ * it. With no asterisks typed in the words, every line reads back as it was
+ * styled; asterisks typed next to bold or italic words can pair up with a
+ * mark, and `settled` then shows what that prints.
+ */
+function writeLine({ text, styles }: Styled, kind: Kind): { typed: string; at: number[] } {
+  let typed = ""
+  const at: number[] = []
+  const add = (from: number, to: number) => {
+    for (let index = from; index < to; index++) {
+      at.push(typed.length)
+      typed += text[index]
+    }
+  }
+  let start = wordsStart(text, kind)
+  add(0, start)
+  while (start < text.length) {
+    let end = start + 1
+    while (end < text.length && styles[end] === styles[start]) end++
+    let from = start
+    let to = end
+    if (styles[start]) {
+      while (from < to && isSpace(text[from])) from++
+      while (to > from && isSpace(text[to - 1])) to--
+    }
+    if (from === to) add(start, end)
+    else {
+      add(start, from)
+      typed += MARKS[styles[start]]
+      add(from, to)
+      typed += MARKS[styles[start]]
+      add(to, end)
+    }
+    start = end
+  }
+  return { typed, at }
+}
+
+const keyOf = (line: Styled) => `${line.styles.join("")}:${line.text}`
+
+/**
+ * Marks typed as words in a line, read a stretch of one style at a time, as
+ * the PDF reads them, with where each character that's left came from.
+ * "*Spanish*" typed among bold words is bold and italic: saved as typed,
+ * inside the bold words' marks, it wouldn't read that way.
+ */
+function readTyped(line: Styled, kind: Kind): { line: Styled; at: number[] } {
+  const words = wordsStart(line.text, kind)
+  const out: Styled = { text: line.text.slice(0, words), styles: new Array<Style>(words).fill(0) }
+  const at = Array.from({ length: words }, (_, index) => index)
+  let start = words
+  while (start < line.text.length) {
+    let end = start + 1
+    while (end < line.text.length && line.styles[end] === line.styles[start]) end++
+    const style = line.styles[start]
+    for (const piece of markedPieces(line.text.slice(start, end), (style & BOLD) > 0, (style & ITALIC) > 0)) {
+      out.text += piece.text
+      for (let index = 0; index < piece.text.length; index++) {
+        out.styles.push((piece.bold ? BOLD : 0) + (piece.italic ? ITALIC : 0))
+        at.push(start + piece.at + index)
+      }
+    }
+    start = end
+  }
+  return { line: out, at }
+}
+
+/** `line` with its start changed to make `text`: the words at its end keep their styles, and what's new is plain. */
+function restyled(line: Styled, text: string): Styled {
+  let same = 0
+  while (same < line.text.length && same < text.length && line.text[line.text.length - 1 - same] === text[text.length - 1 - same]) same++
+  return { text, styles: [...styled(text.slice(0, text.length - same)).styles, ...line.styles.slice(line.text.length - same)] }
+}
+
+/** An edit settled: as the box shows it, as it's saved, and the style of what's typed next at the cursor, when it isn't the usual one. */
+export interface Settled {
+  edit: StyledEdit
+  saved: string
+  next?: Style
+}
+
+/**
+ * An edit as the box shows it and as it's saved: every line starts with a
+ * bullet (withBullets), and shows what it prints, so marks typed as words,
+ * like "**Rust**", turn bold. The cursor moves with the words, and after a
+ * closing mark typed there, what's typed next is outside it, as it was in a
+ * text box. Lines that are the same as in `previous`, the saved text before
+ * the edit, are saved as they were typed, so an edit only rewrites the lines
+ * it changes.
+ */
+export function settled(edit: StyledEdit, previous: string, kind: Kind = "bullets"): Settled {
+  const kept = new Map<string, string>()
+  for (const line of lined(previous, kind).split("\n")) kept.set(keyOf(readLine(line).line), line)
+
+  const bulleted = linesOf(edit).map((line) => restyled(line, lined(line.text, kind)))
+  const start = kind === "bullets" ? cursorWithBullets(edit.text, edit.start) : edit.start
+  const end = kind === "bullets" ? cursorWithBullets(edit.text, edit.end) : edit.end
+  const shown: Styled[] = []
+  const typed: string[] = []
+  let next = { start, end }
+  let nextStyle: Style | undefined
+  let from = 0
+  let to = 0
+  for (const line of bulleted) {
+    const length = line.text.length
+    const cursorHere = start === end && start >= from && start <= from + length
+    let offset = (at: number) => at
+    let printed = line
+    let written = kept.get(keyOf(line))
+    if (written === undefined) {
+      const marks = readTyped(line, kind)
+      const write = writeLine(marks.line, kind)
+      const read = readLine(write.typed)
+      written = write.typed
+      // Where `at` in the line is once the marks typed in it are read.
+      const marked = (at: number) => marks.at.filter((index) => index < at).length
+      const same = read.line.text === marks.line.text
+      if (same) {
+        // Spaces keep the style they were typed in, as a mark can't hold them:
+        // a space typed after a bold word, and the next word, stay bold.
+        const words = wordsStart(marks.line.text, kind)
+        printed = {
+          text: marks.line.text,
+          styles: marks.line.styles.map((style, index) =>
+            index < words ? 0 : isSpace(marks.line.text[index]) ? style : read.line.styles[index],
+          ),
+        }
+        offset = marked
+      } else {
+        // Asterisks typed next to bold or italic words paired up with a mark:
+        // the line as it prints, with the cursor before the same characters.
+        printed = read.line
+        const placeOf = (at: number) => (at < marks.line.text.length ? write.at[at] : write.typed.length)
+        offset = (at: number) => read.at.filter((index) => index < placeOf(marked(at))).length
+      }
+      // Right after a mark that closed, what's typed next takes the style of the words before the ones it marked.
+      const at = start - from
+      const typedAt = cursorHere ? marks.at.indexOf(at - 1) : -1
+      const printedBefore = typedAt >= 0 && (same || read.at.includes(write.at[typedAt]))
+      const shownAt = cursorHere ? offset(at) : 0
+      if (cursorHere && line.text[at - 1] === "*" && !printedBefore && shownAt > 0 && printed.styles[shownAt - 1] !== 0) {
+        let run = shownAt - 1
+        while (run > 0 && printed.styles[run - 1] === printed.styles[shownAt - 1]) run--
+        nextStyle = run > wordsStart(printed.text, kind) ? printed.styles[run - 1] : 0
+      }
+    }
+    next = {
+      start: start >= from && start <= from + length ? to + offset(start - from) : next.start,
+      end: end >= from && end <= from + length ? to + offset(end - from) : next.end,
+    }
+    shown.push(printed)
+    typed.push(written)
+    from += length + 1
+    to += printed.text.length + 1
+  }
+  return { edit: { ...joinLines(shown), ...next }, saved: typed.join("\n"), next: nextStyle }
+}
+
+/**
+ * The style a character typed at `at` gets: the one before it on its line, or
+ * at the start of a line's words, the one after it, as in word processors.
+ */
+export function styleAt({ text, styles }: Styled, at: number, kind: Kind = "bullets"): Style {
+  const from = lineStartOf(text, at)
+  const words = from + wordsStart(text.slice(from), kind)
+  if (at > words) return styles[at - 1]
+  return at === words && at < text.length && text[at] !== "\n" ? styles[at] : 0
+}
+
+/** The style words typed over a selection get: its first word's, as in word processors. */
+export function styleOver(s: Styled, start: number, end: number, kind: Kind = "bullets"): Style {
+  for (let index = start; index < end; index++) {
+    if (!isSpace(s.text[index]) && !inBullet(s.text, index, kind)) return s.styles[index]
+  }
+  return styleAt(s, start, kind)
+}
+
+/** Whether the character at `at` is a line's bullet, or a space after it. */
+const inBullet = (text: string, at: number, kind: Kind) => {
+  const from = lineStartOf(text, at)
+  return at < from + wordsStart(text.slice(from), kind)
+}
+
+/**
+ * `words` typed from start to end, in `style`. As in arrange.ts, a "- " typed
+ * after a bullet goes, as the bullet's there already.
+ */
+export function typed(s: Styled, start: number, end: number, words: string, style: Style, kind: Kind = "bullets"): StyledEdit {
+  const from = lineStartOf(s.text, start)
+  const before = slice(s, from, start)
+  const typedHere = concat(before, styled(words, style))
+  const head = kind === "bullets" ? restyled(typedHere, typedList(before.text, words)) : typedHere
+  const cursor = from + head.text.length
+  return { ...concat(slice(s, 0, from), head, slice(s, end)), start: cursor, end: cursor }
+}
+
+/**
+ * `words` pasted from start to end. In a bullets box, each list marker gets a
+ * bullet in its place (pastedList), and words copied from a bullets box
+ * (`copiedHere`) keep their bullets. Words copied from a box keep their bold
+ * and italic words.
+ */
+export function pasted(s: Styled, start: number, end: number, words: Styled, copiedHere: boolean, kind: Kind = "bullets"): StyledEdit {
+  const from = lineStartOf(s.text, start)
+  const before = slice(s, from, start)
+  const given = linesOf(words)
+  const head =
+    kind === "bullets"
+      ? joinLines(
+          pastedList(words.text, before.text, copiedHere)
+            .split("\n")
+            .map((line, index) => restyled(index ? given[index] : concat(before, given[0]), line)),
+        )
+      : concat(before, words)
+  const cursor = from + head.text.length
+  return { ...concat(slice(s, 0, from), head, slice(s, end)), start: cursor, end: cursor }
+}
+
+/**
+ * What Enter does: in a bullets box, the words after the cursor go on a new
+ * bullet below, in their styles (newBullet); in prose, a new line.
+ */
+export function split(s: Styled, start: number, end: number, kind: Kind = "bullets"): StyledEdit {
+  if (kind === "prose") return { ...concat(slice(s, 0, start), styled("\n"), slice(s, end)), start: start + 1, end: start + 1 }
+  const next = newBullet(s.text, start, end)
+  if (start === lineStartOf(s.text, start)) return { ...next, styles: [...s.styles.slice(0, start), ...s.styles.slice(end)] }
+  // The text after the cursor, less the spaces newBullet drops, ends both texts.
+  const rest = next.text.length - next.start
+  return { ...next, styles: [...s.styles.slice(0, start), 0, 0, 0, ...s.styles.slice(s.text.length - rest)] }
+}
+
+export const removed = (s: Styled, start: number, end: number): StyledEdit => ({
+  ...concat(slice(s, 0, start), slice(s, end)),
+  start,
+  end: start,
+})
+
+/**
+ * What Backspace at `at` deletes when it's at the start of a line's words, or
+ * of the line: back to the end of the line above, bullet and all, so the
+ * words join that line, as in word processors. Undefined anywhere else, and
+ * on the first line, whose bullet would only come back.
+ */
+export function joinedBack(text: string, at: number): [number, number] | undefined {
+  const from = lineStartOf(text, at)
+  const words = from + bulletLength(text.slice(from))
+  if (from > 0 && (at === from || at === words)) return [from - 1, words]
+}
+
+/** What Delete at the end of a line deletes: the line break, and the bullet of the line below, whose words join this one. */
+export function joinedForward(text: string, at: number): [number, number] | undefined {
+  if (text[at] === "\n") return [at, at + 1 + bulletLength(text.slice(at + 1))]
+}
+
+/**
+ * Bold (BOLD) or italic (ITALIC) on the words from start to end, or off if
+ * they all have it already. Bullets, and spaces at either end, are left as
+ * they are, and each line gets its own marks when it's saved. Undefined when
+ * there are no words in it.
+ */
+export function toggled(s: Styled, start: number, end: number, style: Style, kind: Kind = "bullets"): StyledEdit | undefined {
+  const all: number[] = []
+  for (let index = start; index < end; index++) {
+    if (s.text[index] !== "\n" && !inBullet(s.text, index, kind)) all.push(index)
+  }
+  const first = all.findIndex((index) => !isSpace(s.text[index]))
+  if (first < 0) return undefined
+  const last = all.findLastIndex((index) => !isSpace(s.text[index]))
+  const words = all.slice(first, last + 1)
+  const on = words.some((index) => !isSpace(s.text[index]) && !(s.styles[index] & style))
+  const styles = [...s.styles]
+  for (const index of words) styles[index] = on ? styles[index] | style : styles[index] & ~style
+  return { text: s.text, styles, start: words[0], end: words[words.length - 1] + 1 }
+}
+
+/** Swaps the line with `at` in it with the one above (-1) or below (1), as Alt+↑ and Alt+↓ do, keeping the cursor in it. */
+export function movedLine(s: Styled, at: number, by: -1 | 1): StyledEdit | undefined {
+  const lines = linesOf(s)
+  const line = s.text.slice(0, at).split("\n").length - 1
+  const to = line + by
+  if (to < 0 || to >= lines.length) return undefined
+  const column = at - lineStartOf(s.text, at)
+  ;[lines[line], lines[to]] = [lines[to], lines[line]]
+  const cursor = lines.slice(0, to).reduce((total, words) => total + words.text.length + 1, 0) + column
+  return { ...joinLines(lines), start: cursor, end: cursor }
+}

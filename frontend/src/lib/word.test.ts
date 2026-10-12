@@ -101,6 +101,18 @@ describe("a Word file", () => {
     )
   })
 
+  test("sets the summary's bold and italic words in bold and italics, its lines in one paragraph", () => {
+    const resume = asSaved({
+      selectedTemplate: "jake",
+      profileSection: { fullName: "Mara Lin", summary: "Builds **fast** tools\nin *Rust*" },
+    })
+    const document = partsOf(toWordFile(resume))["word/document.xml"]
+    const paragraph = document.match(/<w:p>(?:(?!<w:p>).)*?Builds.*?<\/w:p>/)?.[0] ?? ""
+    expect(paragraph).toContain('<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t xml:space="preserve">fast</w:t></w:r>')
+    expect(paragraph).toContain("<w:br/>")
+    expect(paragraph).toContain('<w:r><w:rPr><w:i/><w:iCs/></w:rPr><w:t xml:space="preserve">Rust</w:t></w:r>')
+  })
+
   test("drops what XML can't hold, and keeps everything else as typed", async () => {
     const name = `Ada <Lovelace> & "Co" 🎉`
     const file = toWordFile(asSaved({ selectedTemplate: "jake", profileSection: { fullName: `${name}\u0001\uD800` } }))

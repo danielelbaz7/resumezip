@@ -418,6 +418,20 @@ main > * {
   }
 }
 
+/* A box that shows bold and italic words (components/editor/StyledBox.tsx),
+   empty: its placeholder, over the line the cursor is on and as wide as it.
+   It's a div, which has no placeholder of its own. */
+.styled-box[data-empty] > div:first-child {
+  position: relative;
+}
+.styled-box[data-empty] > div:first-child::before {
+  content: var(--placeholder);
+  position: absolute;
+  inset-inline: 0;
+  color: color-mix(in oklab, var(--color-ink-2) 50%, transparent);
+  pointer-events: none;
+}
+
 /* Dragging sections and entries (@hello-pangea/dnd) */
 [data-rfd-drag-handle-context-id] {
   cursor: grab;
