@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type CSSProperties } from "react"
 import { onMac, shortcut, typingIn } from "@/lib/keys"
 
 /** How long the message stays, in milliseconds, unless it's pointed at or has the keyboard's focus. */
@@ -11,6 +11,9 @@ interface DeletedToastProps {
   onUndo: () => void
   /** The time to undo is up. */
   onDone: () => void
+  /** Added to the dock's class and style, to place it somewhere other than the foot of the screen's middle. */
+  className?: string
+  style?: CSSProperties
 }
 
 /**
@@ -19,7 +22,7 @@ interface DeletedToastProps {
  * time to read it, and starts its time again afterwards. ⌘Z (Ctrl+Z) undoes
  * too, while it's up. Give it a key per deletion, so each gets its full time.
  */
-export default function DeletedToast({ title, onUndo, onDone }: DeletedToastProps) {
+export default function DeletedToast({ title, onUndo, onDone, className = "", style }: DeletedToastProps) {
   const [held, setHeld] = useState({ pointer: false, keyboard: false })
   const undoButton = useRef<HTMLButtonElement>(null)
   const done = useRef(onDone)
@@ -53,7 +56,7 @@ export default function DeletedToast({ title, onUndo, onDone }: DeletedToastProp
   }, [])
 
   return (
-    <div className="deleted-toast-dock">
+    <div className={`deleted-toast-dock ${className}`} style={style}>
       <div
         className="deleted-toast glass glass-clear"
         onPointerEnter={() => setHeld((held) => ({ ...held, pointer: true }))}

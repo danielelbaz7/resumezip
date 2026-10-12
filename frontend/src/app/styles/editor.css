@@ -1,6 +1,18 @@
 /* Styles for the editor (components under src/components/editor and its pages). */
 
 @layer components {
+  /* "Deleted · Undo" (DeletedToast.tsx, dashboard.css) for an entry: above the
+     Edit | Preview switch at the foot of a narrow screen, and on a wide one
+     inside the foot of the form's panel, which the editor centres it on. */
+  .deleted-toast-dock.in-editor {
+    bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 3.5rem);
+  }
+  @media (min-width: 80rem) {
+    .deleted-toast-dock.in-editor {
+      bottom: 2rem;
+    }
+  }
+
   /* A Check tab category's box (CheckPanel.tsx): frosted glass (.glass in
      glass.css), a little clearer than a panel's, with a lighter shadow, as
      several sit stacked in the panel. */

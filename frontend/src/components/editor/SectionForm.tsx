@@ -14,7 +14,17 @@ import { BulletsField, Field, FlagNote, SectionHeading, selectLine } from "./fie
 import { reducedMotion, reveal, scrollerOf } from "./layout"
 import DeleteSection from "./DeleteSection"
 import PaperFromLink from "./PaperFromLink"
-import { FIELD_SPAN, type ChoiceDef, type ChoiceKey, type FieldKey, type SectionDef } from "./sections"
+import { FIELD_SPAN, type ChoiceDef, type ChoiceKey, type FieldKey, type SectionDef, type SectionName } from "./sections"
+
+/** An entry just deleted, with what Undo needs to put it back. */
+export interface DeletedEntry {
+  section: SectionName
+  entry: Entry
+  /** Where it was in its section. */
+  index: number
+  /** What the message calls it: its one-line summary, or "Entry 2" when it has none. */
+  title: string
+}
 
 interface SectionFormProps {
   section: SectionDef
@@ -22,6 +32,12 @@ interface SectionFormProps {
   position: string
   /** Takes the section off the resume. */
   onDelete?: () => void
+  /** An entry was deleted, and can be put back. */
+  onEntryDeleted?: (deleted: DeletedEntry) => void
+  /** An entry Undo put back, which its section opens again once it's shown. */
+  restored?: { section: SectionName; id: number } | null
+  /** The section has opened the entry put back. */
+  onRestored?: () => void
 }
 
 // How long an entry takes to slide open, closed or away (matches duration-300).
@@ -95,8 +111,20 @@ function slide(entries: Map<number, HTMLElement>, list: HTMLElement | null, move
   }
 }
 
+/** An entry's one-line summary: its summary fields, or its first filled field when they're empty, like a paper's link added by hand. */
+function summaryOf(section: SectionDef, entry: Entry): string {
+  return (
+    section.summary
+      .map((key) => entry[key]?.trim())
+      .filter(Boolean)
+      .join(", ") ||
+    section.fields.map((field) => entry[field.key]?.trim()).find(Boolean) ||
+    ""
+  )
+}
+
 /** The form for one list section (education, experience, ...): its title and entries. */
-function SectionForm({ section, position, onDelete }: SectionFormProps) {
+function SectionForm({ section, position, onDelete, onEntryDeleted, restored, onRestored }: SectionFormProps) {
   const { read, update: updateResume } = useOpenResume()
   const saved = useResumeField(section.dataKey)
   const headings = useResumeField("headings")
@@ -192,6 +220,34 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
   useEffect(() => {
     if (confirmingId !== null) cancelButton.current?.focus()
   }, [confirmingId])
+
+  // An entry Undo put back opens again, lit up like a moved one, with the
+  // cursor in it, or on its Done button on a touch screen, where a field
+  // would pop up the keyboard. The timer outlives the effect, which runs again
+  // as the editor forgets the entry put back, so it checks the entry is still
+  // on the page.
+  const restoredDone = useRef(onRestored)
+  restoredDone.current = onRestored
+  useEffect(() => {
+    if (!restored || restored.section !== section.name) return
+    const { id } = restored
+    restoredDone.current?.()
+    setConfirmingId(null)
+    setOpenId(id)
+    setShownId(id)
+    setTimeout(
+      () => {
+        const element = elements.current.get(id)
+        if (!element?.isConnected) return
+        slide(elements.current, list.current, id, new Map())
+        reveal(element, scrollerOf(element), reducedMotion())
+        const first = element.querySelector<HTMLElement>(FIRST_FIELD)
+        if (first && window.matchMedia("(pointer: fine)").matches) first.focus({ preventScroll: true })
+        else element.querySelector<HTMLElement>("[data-done]")?.focus({ preventScroll: true })
+      },
+      reducedMotion() ? 0 : SLIDE_MS,
+    )
+  }, [restored, section.name])
 
   const cancelDelete = (id: number) => {
     setConfirmingId(null)
@@ -289,12 +345,19 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
 
   // The others keep their ids, so React doesn't give the next entry what was
   // the deleted one's: its place in the slide, or a bullets field's mode.
+  // Focus that was in it goes to Undo (DeletedToast), or else to Add.
   const remove = (id: number) => {
-    const hadFocus = elements.current.get(id)?.contains(document.activeElement) ?? false
-    save(latest.current.filter((entry) => entry.id !== id))
     setRemovingId(null)
-    setOpenId((current) => (current === id ? null : current))
-    if (hadFocus) addButton.current?.focus({ preventScroll: true })
+    const current = latest.current
+    const index = current.findIndex((entry) => entry.id === id)
+    if (index < 0) return
+    const hadFocus = elements.current.get(id)?.contains(document.activeElement) ?? false
+    save(current.filter((entry) => entry.id !== id))
+    setOpenId((open) => (open === id ? null : open))
+    if (onEntryDeleted) {
+      const entry = current[index]
+      onEntryDeleted({ section: section.name, entry, index, title: summaryOf(section, entry) || `Entry ${index + 1}` })
+    } else if (hadFocus) addButton.current?.focus({ preventScroll: true })
   }
 
   // The entry slides away, then it's deleted.
@@ -354,12 +417,7 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
   const renderEntry = (entry: Entry, index: number, drag?: DraggableProvided, dragging = false) => {
     const isOpen = entry.id === openId
     const confirming = entry.id === confirmingId
-    // Its first filled field stands in when the usual ones are empty, like a paper's link added by hand.
-    const summary =
-      section.summary
-        .map((key) => entry[key]?.trim())
-        .filter(Boolean)
-        .join(", ") || section.fields.map((field) => entry[field.key]?.trim()).find(Boolean)
+    const summary = summaryOf(section, entry)
     const name = `entry ${index + 1}`
     const leftOut = isLeftOut(entry)
 
@@ -472,7 +530,15 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
                     >
                       <TrashIcon />
                     </RowAction>
-                    <RowAction key="done" label={`Done editing ${name}`} tip="Done" onClick={() => open(null, entry.id)} tipBelow tipAtEnd>
+                    <RowAction
+                      key="done"
+                      data-done=""
+                      label={`Done editing ${name}`}
+                      tip="Done"
+                      onClick={() => open(null, entry.id)}
+                      tipBelow
+                      tipAtEnd
+                    >
                       <DoneIcon />
                     </RowAction>
                   </>
