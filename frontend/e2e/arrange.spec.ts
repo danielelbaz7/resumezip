@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import { boxText, cursorInBox, pageErrors, selectInBox, seriousAccessibilityProblems } from "./helpers"
+import { boxText, cursorInBox, editorTitle, pageErrors, selectInBox, seriousAccessibilityProblems } from "./helpers"
 
 // Entries and bullets can be moved, and left out of the PDF without being
 // deleted, to tailor one resume to a job.
@@ -489,7 +489,7 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
     .getByRole("button", { name: /^\d+ Skills$/ })
     .click()
   await page.keyboard.press("ControlOrMeta+z")
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Experience/)
+  await expect(editorTitle(page)).toHaveText(/Experience/)
   await expect(page.getByRole("button", { name: "Done editing entry 2" })).toBeVisible()
   await expect(undo).toHaveCount(0)
   await expect.poll(async () => (await saved(page)).workExperienceSection).toEqual(before)

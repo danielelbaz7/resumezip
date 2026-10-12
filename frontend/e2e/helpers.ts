@@ -225,6 +225,9 @@ export const templateShown = (page: Page): Locator => page.getByRole("button", {
 export const editorHeading = (page: Page, name: string, options: { exact?: boolean } = {}): Locator =>
   page.getByRole("main").getByRole("heading", { name, ...options })
 
+/** The editor's title, the open section's heading: its own H1, not the preview's, which is the resume's name. */
+export const editorTitle = (page: Page): Locator => page.getByRole("main").getByRole("heading", { level: 1 })
+
 /**
  * What names the resume's template on screen, once the editor is open. On
  * wide screens it's in the left panel's Style tab, so that's opened first;
