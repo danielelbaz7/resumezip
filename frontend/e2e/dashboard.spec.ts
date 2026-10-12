@@ -338,7 +338,7 @@ test("switching to the list moves each resume's page and name to its row, with f
   const moving = (await page.evaluate(() => (window as unknown as Watched).running)).filter(({ part }) =>
     part.startsWith("::view-transition"),
   )
-  // The two resumes' pages and names each move on their own, in about a third of a second. The rest
+  // The two resumes' pages and names each move on their own, in a little under half a second. The rest
   // of the page isn't pictured: Safari shows such a picture of the whole page in slightly different
   // colors, so the page would change shade until it ended. It stays live, and the new view fades in.
   const parts = moving.map(({ part }) => part)
@@ -346,8 +346,8 @@ test("switching to the list moves each resume's page and name to its row, with f
   expect(new Set(parts.filter((part) => part.startsWith("::view-transition-group("))).size).toBe(4)
   expect(await page.evaluate(() => (window as unknown as Watched).fadingIn)).toBe(true)
   for (const { ms } of moving) {
-    expect(ms).toBeGreaterThanOrEqual(250)
-    expect(ms).toBeLessThanOrEqual(350)
+    expect(ms).toBeGreaterThanOrEqual(380)
+    expect(ms).toBeLessThanOrEqual(460)
   }
 
   await expect(page.getByRole("table").getByRole("link", { name: "Ada", exact: true })).toBeVisible()

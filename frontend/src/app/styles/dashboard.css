@@ -582,9 +582,11 @@
   }
 
   /* Switching between the pages and the list (viewSwitch.ts): the new view
-     fades in, under the moving pages where the browser has view transitions. */
+     fades in, under the moving pages where the browser has view transitions.
+     Evenly, over as long as they take to move: on ease-glide it was most of
+     the way in within 50ms, and read as a pop. */
   .view-fade {
-    transition: opacity 240ms var(--ease-glide);
+    transition: opacity 420ms ease-out;
     @starting-style {
       opacity: 0;
     }
@@ -648,8 +650,10 @@
 :root:active-view-transition-type(resume-view)::view-transition-group(*),
 :root:active-view-transition-type(resume-view)::view-transition-old(*),
 :root:active-view-transition-type(resume-view)::view-transition-new(*) {
-  animation-duration: 300ms;
-  animation-timing-function: var(--ease-glide);
+  /* Starting and stopping gently, rather than ease-glide's fast start, which
+     covered most of the way in the first 70ms: the pages jumped, then crawled. */
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.2, 1);
 }
 /* A click goes through the moving pictures to the page under them, so the
    switch can be pressed again straight away. */
