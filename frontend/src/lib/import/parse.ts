@@ -15,6 +15,7 @@ import {
 } from "@/components/editor/sections"
 import type { CompleteContent, ResumeContent } from "@/lib/resume"
 import { extraKey, resolveSections, type ExtraSections, type SectionRef } from "@/lib/resumeSections"
+import { plainText } from "@/lib/typst/resumeData"
 import { SOFT_HYPHEN, toLine, type Line, type Part, type Run } from "./lines"
 
 /** An entry's values, keyed by its section's field names. */
@@ -50,6 +51,8 @@ export interface FoundExtraGroup {
   lines: number[]
   sourceLines: number[]
   text: string[]
+  /** The same lines with words set in bold or italic in the editor's marks, for the profile's summary. */
+  marked: string[]
 }
 
 export interface ParsedResume {
@@ -492,15 +495,16 @@ function extendItem(item: Item, line: ParseLine) {
 const hasWords = (text: string) => /[\p{L}\p{N}]/u.test(text)
 
 /**
- * An item as a bullet, with its bold and italic words in the editor's marks
- * (**bold**, *italic*, ***both***), so keywords set in bold or italic inside
- * a bullet stay that way. A style the whole item is in isn't marked.
+ * Text with its bold and italic words in the editor's marks (**bold**,
+ * *italic*, ***both***), so keywords set in bold or italic stay that way. A
+ * style all of `whole`, the text the pieces are part of, is in isn't marked:
+ * it's the layout's, as a summary set in italics is.
  */
-function described(item: Item): string {
-  const words = item.pieces.filter((piece) => hasWords(piece.text))
+function marked(pieces: Piece[], whole: Piece[] = pieces): string {
+  const words = whole.filter((piece) => hasWords(piece.text))
   const allBold = words.every((piece) => piece.bold)
   const allItalic = words.every((piece) => piece.italic)
-  return item.pieces
+  return pieces
     .map(({ text, bold, italic }) => {
       const strong = bold && !allBold
       const emph = italic && !allItalic
@@ -512,6 +516,9 @@ function described(item: Item): string {
     })
     .join("")
 }
+
+/** An item as a bullet, with its bold and italic words marked. A style the whole item is in isn't. */
+const described = (item: Item) => marked(item.pieces)
 
 /**
  * A long line that reads like a sentence, not an entry's title. A title can
@@ -567,17 +574,51 @@ function wrapsInto(line: ParseLine, next: ParseLine): boolean {
 /**
  * Prose as it was written rather than as it was printed: a line that ran to
  * its column's edge is joined back up with the line it wrapped onto, so each
- * line here is one the person typed (or a bullet). Word files have no
- * wrapping to undo.
+ * line here is one the person typed (or a bullet), with its text in plain,
+ * bold and italic pieces too. Word files have no wrapping to undo.
  */
-function unwrapped(lines: ParseLine[]): string[] {
-  const written: string[] = []
+function written(lines: ParseLine[]): { text: string; pieces: Piece[] }[] {
+  const out: { text: string; pieces: Piece[] }[] = []
   lines.forEach((line, i) => {
-    if (i > 0 && !line.bullet && wrapsInto(lines[i - 1], line))
-      written[written.length - 1] = joinWrapped(written[written.length - 1], line.text)
-    else written.push(line.text)
+    const last = out[out.length - 1]
+    if (!last || line.bullet || !wrapsInto(lines[i - 1], line)) {
+      out.push({ text: line.text, pieces: stylePieces(line) })
+      return
+    }
+    // Joined as joinWrapped joins the text: a word broken in two with no space.
+    const soft = last.text.endsWith(SOFT_HYPHEN)
+    const together = soft || (/\w-$/.test(last.text) && /^[a-z]/.test(line.text)) || /\w\/$/.test(last.text)
+    last.text = joinWrapped(last.text, line.text)
+    const end = last.pieces[last.pieces.length - 1]
+    if (soft && end) end.text = end.text.replace(/\u00AD$/, "")
+    if (!together) addPiece(last.pieces, " ", end?.bold ?? false, end?.italic ?? false)
+    for (const piece of stylePieces(line)) addPiece(last.pieces, piece.text, piece.bold, piece.italic)
   })
-  return written.map(tidy).filter(Boolean)
+  return out
+}
+
+/** Prose as it was written (`written`), a line at a time. */
+const unwrapped = (lines: ParseLine[]) =>
+  written(lines)
+    .map((line) => tidy(line.text))
+    .filter(Boolean)
+
+/**
+ * A summary as it was written, a line at a time, as plain text and with its
+ * bold and italic words marked. A line whose marks would change its words
+ * once tidied is left plain.
+ */
+function summaryLines(lines: ParseLine[]): { text: string[]; marked: string[] } {
+  const prose = written(lines)
+  const whole = prose.flatMap((line) => line.pieces)
+  const kept = prose
+    .map((line) => {
+      const text = tidy(line.text)
+      const withMarks = tidy(marked(line.pieces, whole))
+      return { text, marked: plainText(withMarks) === text ? withMarks : text }
+    })
+    .filter((line) => line.text)
+  return { text: kept.map((line) => line.text), marked: kept.map((line) => line.marked) }
 }
 
 /** A date laid out the way an entry's is: set apart from the rest of its line, or alone on it. */
@@ -2197,7 +2238,7 @@ export function parseResume(file: Line[]): ParsedResume {
     if (sectionLines.length === 0) return
 
     if (kind === "summary") {
-      extraGroups.push({ ...occurrence, kind, text: unwrapped(sectionLines) })
+      extraGroups.push({ ...occurrence, kind, ...summaryLines(sectionLines) })
       return
     }
 
@@ -2274,10 +2315,10 @@ export function toResumeContent(parsed: ParsedResume, skip: Set<string> = new Se
   for (const occurrence of parsed.occurrences ?? []) {
     if (occurrence.section && !positions.has(occurrence.section)) positions.set(occurrence.section, occurrence.headingLine)
   }
-  // The summaries ticked go in the profile's summary, a paragraph each, in the file's order.
+  // The summaries ticked go in the profile's summary, a paragraph each, in the file's order, with their bold and italic words.
   const summaries = (parsed.extraGroups ?? []).filter((group) => group.kind === "summary" && !skip.has(extraGroupKey(group.id)))
   if (summaries.length)
-    resume.profileSection = { ...resume.profileSection, summary: summaries.map((group) => group.text.join("\n")).join("\n\n") }
+    resume.profileSection = { ...resume.profileSection, summary: summaries.map((group) => group.marked.join("\n")).join("\n\n") }
   parsed.unplaced.forEach((group, index) => {
     const kind = choices.keepAs?.[unplacedKey(group, index)]
     if (!kind) return

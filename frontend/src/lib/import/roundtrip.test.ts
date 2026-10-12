@@ -153,6 +153,16 @@ test("bold and italic words in bullets come back marked, in every template", asy
   }
 })
 
+test("bold and italic words in the summary come back marked, in every template", async () => {
+  // Long enough to wrap, so its lines are joined back up with their styles.
+  const summary =
+    "Builds **fast**, reliable tools in *Rust* for teams that ship every day, with ***care for the people*** who use them and the engineers who keep them running."
+  for (const sample of samples) {
+    const { resume: got } = await readBack(await render({ ...sample, profileSection: { ...sample.profileSection, summary } }))
+    expect(got.profileSection?.summary, sample.selectedTemplate).toBe(summary)
+  }
+})
+
 test("a phone number with a plus written apart keeps the plus", async () => {
   const sample = samples.find((resume) => resume.selectedTemplate === "ian")
   const resume = { ...sample, profileSection: { ...sample.profileSection, phoneNumber: "+ (352) 284-0205" } }
