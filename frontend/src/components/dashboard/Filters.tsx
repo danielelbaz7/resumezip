@@ -3,7 +3,7 @@
 import { Check, ChevronDown, LayoutGrid, List } from "lucide-react"
 import { useId, type ReactNode } from "react"
 import { MENU_ITEM, MENU_PANEL, useMenu } from "./MoreMenu"
-import { SMALL_PILL } from "@/components/pills"
+import { GLASS_DOCK } from "@/components/pills"
 import { SLIDING_PILL, useSlidingPill } from "@/components/useSlidingPill"
 
 export type View = "pages" | "list"
@@ -11,6 +11,9 @@ export type Sort = "edited" | "name"
 
 // A tag chip's box, which the picked one's copy (SLIDING_PILL) shares to line up with it.
 const TAG = "inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm"
+// The chips and the sort and view controls each sit in a pane of glass, as a toolbar,
+// a little lower than the page's own (GLASS_DOCK), with smaller buttons in it.
+const DOCK = `${GLASS_DOCK} p-1`
 
 const SORTS: { id: Sort; name: string }[] = [
   { id: "edited", name: "Last edited" },
@@ -40,69 +43,74 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
   return (
     <div className="dash-toolbar border-b border-ink pb-5">
       <div className="dash-toolbar-search">{search}</div>
-      <div ref={group} role="group" aria-label="Show" className="dash-toolbar-chips relative flex flex-wrap gap-2">
-        {tags.map((option) => {
-          const pressed = tag === option.id
-          // Until the pill is placed, the pressed chip draws itself as picked. Under the pill, it has
-          // no line round it to show at the pill's edge.
-          const look = !pressed
-            ? "bg-sheet/70 text-ink ring-1 ring-ink/15 hover:bg-sheet hover:ring-ink/40"
-            : placed
-              ? "bg-sheet/70 text-ink ring-1 ring-transparent"
-              : "bg-ink text-white"
-          return (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={pressed}
-              onClick={() => onTag(option.id)}
-              className={`${TAG} transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none ${look}`}
-            >
-              {option.name}{" "}
-              <span className={`font-mono text-[11px] ${pressed && !placed ? "text-white/70" : "text-ink-2"}`}>{option.count}</span>
-            </button>
-          )
-        })}
-        <div ref={pill} aria-hidden="true" className={`${SLIDING_PILL} inset-0 flex flex-wrap gap-2 ${placed ? "" : "invisible"}`}>
-          {tags.map((option) => (
-            <span key={option.id} className={TAG}>
-              {option.name} <span className="font-mono text-[11px] text-white/70">{option.count}</span>
-            </span>
-          ))}
+      <div className="dash-toolbar-chips">
+        <div ref={group} role="group" aria-label="Show" className={`${DOCK} relative`}>
+          {tags.map((option) => {
+            const pressed = tag === option.id
+            // Until the pill is placed, the pressed chip draws itself as picked. Under the pill, it has
+            // no line round it to show at the pill's edge.
+            const look = !pressed ? "text-ink hover:bg-ink/[0.06]" : placed ? "text-ink" : "ink-glass"
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={pressed}
+                onClick={() => onTag(option.id)}
+                className={`${TAG} transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none ${look}`}
+              >
+                {option.name}{" "}
+                <span className={`font-mono text-[11px] ${pressed && !placed ? "text-white/70" : "text-ink-2"}`}>{option.count}</span>
+              </button>
+            )
+          })}
+          {/* Each chip in the copy is ink glass over the copy's ink, so the one the cut shows has its own gloss. */}
+          <div
+            ref={pill}
+            aria-hidden="true"
+            className={`${SLIDING_PILL} inset-0 flex flex-wrap items-center gap-1 p-1 ${placed ? "" : "invisible"}`}
+          >
+            {tags.map((option) => (
+              <span key={option.id} className={`${TAG} ink-glass`}>
+                {option.name} <span className="font-mono text-[11px] text-white/70">{option.count}</span>
+              </span>
+            ))}
+          </div>
         </div>
       </div>
       <div className="dash-toolbar-controls">
-        <SortMenu sort={sort} onSort={onSort} />
-        {/* Left and right switch between the two, as the editor's Write / Check / Style do. Only the
+        <div className={DOCK}>
+          <SortMenu sort={sort} onSort={onSort} />
+          {/* Left and right switch between the two, as the editor's Write / Check / Style do. Only the
             chosen one is in the Tab order, so focus is always on the white pill and needs no ring. */}
-        <div
-          role="group"
-          aria-label="View"
-          onKeyDown={(event) => {
-            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
-            event.preventDefault()
-            const next = view === "pages" ? "list" : "pages"
-            onView(next)
-            event.currentTarget.querySelector<HTMLElement>(`[data-view="${next}"]`)?.focus()
-          }}
-          className="inline-flex h-9 rounded-full bg-sheet/50 p-[3px] ring-1 ring-ink/15"
-        >
-          <ViewButton
-            view="pages"
-            pressed={view === "pages"}
-            onClick={() => onView("pages")}
-            icon={<LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />}
+          <div
+            role="group"
+            aria-label="View"
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
+              event.preventDefault()
+              const next = view === "pages" ? "list" : "pages"
+              onView(next)
+              event.currentTarget.querySelector<HTMLElement>(`[data-view="${next}"]`)?.focus()
+            }}
+            className="inline-flex h-9 rounded-full bg-ink/[0.06] p-[3px]"
           >
-            Pages
-          </ViewButton>
-          <ViewButton
-            view="list"
-            pressed={view === "list"}
-            onClick={() => onView("list")}
-            icon={<List className="h-3.5 w-3.5" aria-hidden="true" />}
-          >
-            List
-          </ViewButton>
+            <ViewButton
+              view="pages"
+              pressed={view === "pages"}
+              onClick={() => onView("pages")}
+              icon={<LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />}
+            >
+              Pages
+            </ViewButton>
+            <ViewButton
+              view="list"
+              pressed={view === "list"}
+              onClick={() => onView("list")}
+              icon={<List className="h-3.5 w-3.5" aria-hidden="true" />}
+            >
+              List
+            </ViewButton>
+          </div>
         </div>
       </div>
     </div>
@@ -123,7 +131,7 @@ function SortMenu({ sort, onSort }: { sort: Sort; onSort: (sort: Sort) => void }
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         onClick={() => setOpen((open) => !open)}
-        className={SMALL_PILL}
+        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm text-ink transition-colors duration-200 hover:bg-ink/[0.06] motion-reduce:transition-none"
       >
         <span className="text-ink-2">Sort</span> {current.name}
         <ChevronDown
