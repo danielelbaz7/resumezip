@@ -205,6 +205,24 @@ test("bullets are moved and left out from the Arrange list, or moved with Alt an
   expect(errors).toEqual([])
 })
 
+test("the Arrange list shows bold and italic words as they print, without their marks", async ({ page }) => {
+  const errors = pageErrors(page)
+  const [job, ...rest] = RESUME.workExperienceSection
+  await openSection(page, "Experience", {
+    ...RESUME,
+    id: "tailored-marks",
+    workExperienceSection: [{ ...job, workDescription: "• Built the **search** index\n• Cut costs by *30%*" }, ...rest],
+  })
+  const field = page.locator('[data-field="workDescription"]').first()
+  await field.getByRole("button", { name: "Arrange bullets" }).click()
+  const list = field.getByRole("list", { name: BULLETS })
+  await expect(list.getByRole("listitem")).toHaveText(["Built the search index", "Cut costs by 30%"])
+  await expect(list.getByRole("strong")).toHaveText("search")
+  await expect(list.getByRole("emphasis")).toHaveText("30%")
+
+  expect(errors).toEqual([])
+})
+
 test("a section with every entry left out isn't printed, title and all", async ({ page }) => {
   const errors = pageErrors(page)
   await openSection(page, "Skills")

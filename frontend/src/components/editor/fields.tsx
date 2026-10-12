@@ -1,10 +1,10 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react"
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import { ArrowDown, ArrowUp, ArrowUpDown, Pencil } from "lucide-react"
 import type { Finding } from "@/lib/check/engine"
-import { plainText } from "@/lib/typst/resumeData"
+import { markedPieces } from "@/lib/typst/resumeData"
 import { bulletLines, moveBullet, nextAnnouncement, setLeftOutLine, withBullets } from "./arrange"
 import { selectLineIn } from "./boxDom"
 import { reducedMotion, reveal, scrollerOf } from "./layout"
@@ -333,6 +333,20 @@ export function BulletsField({ label, value, placeholder, className = "", onChan
   )
 }
 
+/** A bullet's words, bold and italic where they're marked, as they print. */
+function MarkedWords({ words }: { words: string }) {
+  return markedPieces(words).map(({ text, bold, italic }, index) => {
+    const shown = italic ? <em>{text}</em> : text
+    return bold ? (
+      <strong key={index} className="font-semibold">
+        {shown}
+      </strong>
+    ) : (
+      <Fragment key={index}>{shown}</Fragment>
+    )
+  })
+}
+
 /**
  * The bullets as a list, each with a box to leave it out of the PDF and
  * buttons to move it. A bullet keeps the focus as it moves, so it can be
@@ -362,7 +376,7 @@ function ArrangedBullets({ labelId, text, onChange }: { labelId: string; text: s
               className="mt-1.5 h-4 w-4 shrink-0 accent-accent"
             />
             <span className={`min-w-0 flex-1 py-0.5 text-[15px] leading-[1.6] ${bullet.leftOut ? "text-ink-2" : "text-ink"}`}>
-              {plainText(bullet.words)}
+              <MarkedWords words={bullet.words} />
               {bullet.leftOut && <span className="label-mono ml-2 whitespace-nowrap text-ink-2">Left out</span>}
             </span>
             <MoveButtons
