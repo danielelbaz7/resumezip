@@ -17,15 +17,14 @@ const WIDE_HEADER = "(min-width: 48rem)"
 
 const REPO_URL = "https://github.com/ian-hoang/resumezip"
 
-// The phone menu's fill: nearly solid, so the hero's words don't show through its links.
-const MENU_FILL_DARK = "[--glass-fill:linear-gradient(180deg,rgb(28_30_36/0.96),rgb(17_19_24/0.94))]"
+// The light phone menu's fill: nearly solid, so the page's words don't show through its links.
 const MENU_FILL_LIGHT = "[--glass-fill:linear-gradient(180deg,rgb(255_255_255/0.96),rgb(255_255_255/0.92))]"
 
 // No display of its own: beside the logo these show from sm up, and in the menu below that.
 const PILL = "items-center justify-center whitespace-nowrap rounded-full text-[15px] font-medium tracking-[-0.01em]"
 
 interface SitePillProps {
-  /** Dark glass over the home page's video and footer; light glass everywhere else. */
+  /** Ink over the home page's video and footer; light glass everywhere else. */
   tone?: "dark" | "light"
   /** Slides the pill up out of the way, as the page scrolls down. Keyboard focus brings it back. */
   tucked?: boolean
@@ -83,7 +82,7 @@ export function SitePill({ tone = "light", tucked = false }: SitePillProps) {
     }
   }, [menuOpen])
 
-  // Ink glass on light glass; over the video's dark glass, white glass: the opposite of what's behind it.
+  // Ink glass on light glass; on the ink header over the video, white glass: the opposite of what's behind it.
   const primary = `${PILL} gap-2 px-[18px] ${dark ? "white-glass" : "ink-glass"}`
 
   const star = (className: string, inMenu = false) => (
@@ -108,7 +107,7 @@ export function SitePill({ tone = "light", tucked = false }: SitePillProps) {
       className={`site-pill relative w-full md:w-auto ${dark ? "site-pill-dark text-white" : "text-ink"}`}
     >
       <div
-        className={`glass ${dark ? "glass-smoke" : "glass-frost"} flex h-[52px] items-center justify-between gap-4 rounded-full pl-5 pr-1.5 md:gap-7 lg:gap-10`}
+        className={`glass ${dark ? "glass-ink" : "glass-frost"} flex h-[52px] items-center justify-between gap-4 rounded-full pl-5 pr-1.5 md:gap-7 lg:gap-10`}
       >
         <Link
           href="/"
@@ -162,7 +161,7 @@ export function SitePill({ tone = "light", tucked = false }: SitePillProps) {
         inert={!menuOpen}
         data-open={menuOpen || undefined}
         className={`menu-card glass ${
-          dark ? `glass-smoke ${MENU_FILL_DARK}` : `glass-frost ${MENU_FILL_LIGHT}`
+          dark ? "glass-ink" : `glass-frost ${MENU_FILL_LIGHT}`
         } absolute inset-x-0 top-full mt-2 flex flex-col rounded-panel px-5 pb-4 pt-2 md:hidden`}
       >
         {LINKS.map((link, index) => (

@@ -23,6 +23,23 @@ test("on a phone, the home page's menu asks for the star", async ({ page }) => {
   )
 })
 
+// Over the video, the header and its phone menu are flat ink, as the black buttons are, not
+// dark glass, whose shine reads as grey. ::before draws the fill (glass.css).
+test("on a phone, the home page's header and its menu are ink over the video", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/")
+  await page.getByRole("button", { name: "Open menu" }).click()
+  const menu = page.getByRole("navigation", { name: "Main" })
+  await expect(menu.getByRole("link", { name: "Templates" })).toBeVisible()
+  const fill = (element: Element) => getComputedStyle(element, "::before").backgroundColor
+  expect(await menu.evaluate(fill)).toBe("rgb(17, 19, 24)")
+  const bar = await page
+    .getByRole("banner")
+    .getByRole("link", { name: "resumezip" })
+    .evaluate((logo) => getComputedStyle(logo.parentElement!, "::before").backgroundColor)
+  expect(bar).toBe("rgb(17, 19, 24)")
+})
+
 // Every page's header starts where the home page's does, so it doesn't jump from page to page.
 // Scrolled, it stays where it is at the top of the screen, and the page starts under it rather than behind it.
 const pillTop = async (page: Page) => (await page.getByRole("banner").boundingBox())!.y
@@ -74,7 +91,7 @@ for (const width of [1024, 1440]) {
   })
 }
 
-// Over the video the pill is dark glass; over the page's paper it turns light, to stay readable.
+// Over the video the pill is ink; over the page's paper it turns light, to stay readable.
 test("the home page's header turns light once it's over the page rather than the video", async ({ page }) => {
   await page.goto("/")
   const logo = page.getByRole("banner").getByRole("link", { name: "resumezip" })
