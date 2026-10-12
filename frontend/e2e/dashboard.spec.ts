@@ -326,6 +326,18 @@ test("resumes show as their pages, and the list is a click away, remembered afte
   expect(errors).toEqual([])
 })
 
+test("the switch's white pill slides to the view picked", async ({ page }) => {
+  await dashboardWith(page, [resume("a", "Ada")])
+  const view = page.getByRole("group", { name: "View" })
+  await expect(view.getByRole("button", { name: "Pages" })).toHaveAttribute("aria-pressed", "true")
+  await view.getByRole("button", { name: "List" }).click()
+  // It used to be drawn by the pressed button, so it jumped.
+  const sliding = await view.evaluate((group) =>
+    group.getAnimations({ subtree: true }).some((animation) => (animation as CSSTransition).transitionProperty === "translate"),
+  )
+  expect(sliding).toBe(true)
+})
+
 test("switching to the list moves each resume's page and name to its row, with focus kept on the switch", async ({ page }) => {
   const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Ada"), resume("b", "Grace")])

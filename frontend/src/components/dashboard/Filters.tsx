@@ -1,7 +1,7 @@
 "use client"
 
 import { Check, ChevronDown, LayoutGrid, List } from "lucide-react"
-import { useId, type ReactNode } from "react"
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import { MENU_ITEM, MENU_PANEL, useMenu } from "./MoreMenu"
 import { FILTER_CHIP, GLASS_BAR } from "@/components/pills"
 import { SLIDING_PILL, useSlidingPill } from "@/components/useSlidingPill"
@@ -36,6 +36,7 @@ interface FiltersProps {
  */
 export default function Filters({ search, tags, tag, onTag, sort, onSort, view, onView }: FiltersProps) {
   const { group, pill, placed } = useSlidingPill(tag, tags.map((option) => option.id).join("\n"))
+  const views = useViewThumb(view)
   return (
     // One glass bar, as on the templates page (dashboard.css lays out what's in it).
     <div className={`dash-toolbar ${GLASS_BAR}`}>
@@ -83,6 +84,7 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
           {/* Left and right switch between the two, as the editor's Write / Check / Style do. Only the
             chosen one is in the Tab order, so focus is always on the white pill and needs no ring. */}
           <div
+            ref={views.group}
             role="group"
             aria-label="View"
             onKeyDown={(event) => {
@@ -92,11 +94,17 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
               onView(next)
               event.currentTarget.querySelector<HTMLElement>(`[data-view="${next}"]`)?.focus()
             }}
-            className="inline-flex h-9 rounded-full bg-ink/[0.06] p-[3px]"
+            className="relative inline-flex h-9 rounded-full bg-ink/[0.06] p-[3px]"
           >
+            <span
+              ref={views.thumb}
+              aria-hidden="true"
+              className={`absolute bottom-[3px] left-0 top-[3px] rounded-full bg-sheet shadow-[0_1px_3px_rgb(17_19_24/0.14)] transition-[translate,width] duration-300 ease-glide motion-reduce:transition-none ${views.placed ? "" : "invisible"}`}
+            />
             <ViewButton
               view="pages"
               pressed={view === "pages"}
+              placed={views.placed}
               onClick={() => onView("pages")}
               icon={<LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />}
             >
@@ -105,6 +113,7 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
             <ViewButton
               view="list"
               pressed={view === "list"}
+              placed={views.placed}
               onClick={() => onView("list")}
               icon={<List className="h-3.5 w-3.5" aria-hidden="true" />}
             >
@@ -171,15 +180,60 @@ function SortMenu({ sort, onSort }: { sort: Sort; onSort: (sort: Sort) => void }
   )
 }
 
+/**
+ * The white pill under the pressed View button, which slides to the other one
+ * when it's pressed. `group` goes on the buttons' parent, which is `relative`,
+ * and `thumb` on the pill, in it. Until it's `placed`, as in the page as built
+ * before React runs, the pressed button draws its own. When a button changes
+ * size, as when the font loads or the labels hide on a phone, the pill is put
+ * in place without sliding.
+ */
+function useViewThumb(view: View) {
+  const group = useRef<HTMLDivElement>(null)
+  const thumb = useRef<HTMLSpanElement>(null)
+  // The view the pill was last put on, so a new one slides it there.
+  const at = useRef<View | null>(null)
+  const [placed, setPlaced] = useState(false)
+
+  useLayoutEffect(() => {
+    const row = group.current
+    const pill = thumb.current
+    const pressed = row?.querySelector<HTMLElement>('[aria-pressed="true"]')
+    if (!row || !pill || !pressed) return
+    const spot = () => `${pressed.offsetLeft} ${pressed.offsetWidth}`
+    let placedAt = ""
+    const place = (slide: boolean) => {
+      placedAt = spot()
+      pill.style.transitionDuration = slide ? "" : "0s"
+      pill.style.translate = `${pressed.offsetLeft}px`
+      pill.style.width = `${pressed.offsetWidth}px`
+    }
+    place(at.current !== null && at.current !== view)
+    at.current = view
+    setPlaced(true)
+    // The observer also reports the sizes as it starts, which isn't a change.
+    const observer = new ResizeObserver(() => {
+      if (spot() !== placedAt) place(false)
+    })
+    for (const button of row.querySelectorAll("[aria-pressed]")) observer.observe(button)
+    return () => observer.disconnect()
+  }, [view])
+
+  return { group, thumb, placed }
+}
+
 function ViewButton({
   view,
   pressed,
+  placed,
   onClick,
   icon,
   children,
 }: {
   view: View
   pressed: boolean
+  /** Whether the sliding pill (useViewThumb) is drawn, so the pressed button needn't draw its own. */
+  placed: boolean
   onClick: () => void
   icon: ReactNode
   children: ReactNode
@@ -191,8 +245,8 @@ function ViewButton({
       aria-pressed={pressed}
       tabIndex={pressed ? 0 : -1}
       onClick={onClick}
-      className={`inline-flex h-full items-center gap-1.5 rounded-full px-3.5 text-[15px] transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none motion-reduce:transition-none ${
-        pressed ? "bg-sheet text-ink shadow-[0_1px_3px_rgb(17_19_24/0.14)]" : "text-ink-2 hover:text-ink"
+      className={`relative inline-flex h-full items-center gap-1.5 rounded-full px-3.5 text-[15px] transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none motion-reduce:transition-none ${
+        !pressed ? "text-ink-2 hover:text-ink" : placed ? "text-ink" : "bg-sheet text-ink shadow-[0_1px_3px_rgb(17_19_24/0.14)]"
       }`}
     >
       {icon}
