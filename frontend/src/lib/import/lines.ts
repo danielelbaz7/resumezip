@@ -39,6 +39,8 @@ export interface Line {
   links: string[]
   /** A Word heading. */
   heading?: boolean
+  /** Set across a PDF page's two columns, above them, like a name or a centered contact line: in neither column. */
+  spans?: boolean
   /** 1-based page, for highlighting. Word files have no pages. */
   page?: number
   /** [left, top, right, bottom] in PDF points from the page's top-left corner. */
@@ -202,6 +204,16 @@ function leftAligned(items: Item[], fewest = 5): boolean {
   return most >= 2 && most / starts.size >= 0.5
 }
 
+/** Every line ends at one place, within a point. */
+function flushRight(items: Item[]): boolean {
+  const ends = new Map<number, number>()
+  for (const item of items) {
+    const line = Math.round(item.baseline)
+    ends.set(line, Math.max(ends.get(line) ?? -Infinity, item.right))
+  }
+  return Math.max(...ends.values()) - Math.min(...ends.values()) < 1
+}
+
 /** How many times text switches between the two sides of `x`, in the order it's written. */
 function switches(items: Item[], x: number): number {
   let count = 0
@@ -275,6 +287,10 @@ function shortGutter(items: Item[], width: number): { x: number; top: number } |
     const { top, below, crossing } = sidesOf(items, x)
     if (!Number.isFinite(top) || crossing > 0 || switches(below, x) > 1 || chars(below) / total < 0.5) continue
     const columns = [below.filter((item) => item.right <= x + 1), below.filter((item) => item.x >= x - 1)]
+    // Right-aligned dates written after a one-column page's text would pass
+    // for a column of their own: they all end at one place, and a column's
+    // lines, set ragged right, don't.
+    if (columns.some(flushRight)) continue
     if (columns.every((column) => leftAligned(column, 2))) return { x, top }
   }
   return null
@@ -530,6 +546,7 @@ export function linesFromPages(pages: PdfPage[]): Line[] {
       const textX = BULLET_ONLY.test(group[0].text.trim()) && group.length > 1 ? group[1].x : undefined
       const line = toLine(parts, size, lineLinks, { page: pageNumber, box, x: textX })
       if (line) {
+        if (gutter !== null && group[0].column === 0) line.spans = true
         lines.push(line)
         placed.push({ line, baseline, left, right, size })
       }

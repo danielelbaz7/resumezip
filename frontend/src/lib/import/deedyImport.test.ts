@@ -43,6 +43,32 @@ describe("a Deedy PDF opened without its resume", () => {
     })
   })
 
+  test("keeps a school's wrapped lines with it, with Fine-tune's biggest text and widest margins", async () => {
+    // The contact lines, centered above both columns, then start near the
+    // left column's lines, but end far past them.
+    const schools = await schoolsOf({ ...sample, tune: { size: 1.15, margin: 1.4 } })
+    expect(schools).toHaveLength(1)
+    expect(schools[0]).toMatchObject({
+      schoolName: school.schoolName.toUpperCase(),
+      degree: school.degree,
+      coursework: school.coursework,
+      schoolLocation: school.schoolLocation,
+    })
+  })
+
+  test("reads a school whose name wraps, with Fine-tune's biggest text", async () => {
+    // "GEORGIA INSTITUTE OF", then "TECHNOLOGY". Lines this narrow column
+    // sets ragged can end together by chance, as justified text's do.
+    const second = { id: 2, schoolName: "Stanford University", degree: "M.S. in Computer Science", schoolEndDate: "2028" }
+    const educationSection = [{ ...school, schoolName: "Georgia Institute of Technology" }, second]
+    const schools = await schoolsOf({ ...sample, tune: { size: 1.15 }, educationSection })
+    const read = schools.map(({ schoolName, degree, schoolEndDate }) => ({ schoolName: schoolName?.toLowerCase(), degree, schoolEndDate }))
+    expect(read).toEqual(
+      educationSection.map(({ schoolName, degree, schoolEndDate }) => ({ schoolName: schoolName.toLowerCase(), degree, schoolEndDate })),
+    )
+    expect(schools[0]).toMatchObject({ coursework: school.coursework, schoolLocation: school.schoolLocation })
+  })
+
   test("reads both columns of a resume too short to fill them", async () => {
     // The columns' lines are level with each other: "EDUCATION" beside
     // "EXPERIENCE", "CMU" beside "NVIDIA | Intern".
@@ -59,5 +85,35 @@ describe("a Deedy PDF opened without its resume", () => {
     expect(got.profileSection?.fullName).toBe("Rohan Mehta")
     expect(got.educationSection).toMatchObject([{ schoolName: "CMU", degree: "B.S. CS" }])
     expect(got.workExperienceSection).toMatchObject([{ companyName: "NVIDIA", workRole: "Intern", workEndDate: "2025" }])
+  })
+
+  test("reads both columns of a short resume with a few bullets", async () => {
+    // Long enough (150 characters or more) for findGutter to look for its
+    // usual columns first, with too few lines for those: shortGutter finds these.
+    const bullets = [
+      "Wrote CUDA kernels for the attention layers",
+      "Built a benchmark suite for four GPU types",
+      "Profiled memory use across 30 models",
+    ]
+    const resume = {
+      selectedTemplate: "deedy",
+      sectionOrder: ["Education", "Skills", "Work"],
+      profileSection: { fullName: "Rohan Mehta", email: "rohan@example.com" },
+      educationSection: [{ id: 1, schoolName: "CMU", degree: "B.S. CS" }],
+      workExperienceSection: [
+        {
+          id: 1,
+          workRole: "Software Engineering Intern",
+          companyName: "NVIDIA",
+          workStartDate: "May 2025",
+          workEndDate: "Aug 2025",
+          workDescription: bullets.map((bullet) => `• ${bullet}`).join("\n"),
+        },
+      ],
+    }
+    const { parsed, resume: got } = await readBack(await render(resume))
+    expect(parsed.unplaced).toEqual([])
+    expect(got.educationSection).toMatchObject([{ schoolName: "CMU", degree: "B.S. CS" }])
+    expect(got.workExperienceSection).toMatchObject([{ companyName: "NVIDIA", workRole: "Software Engineering Intern" }])
   })
 })

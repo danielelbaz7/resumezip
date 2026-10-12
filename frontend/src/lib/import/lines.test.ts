@@ -273,11 +273,38 @@ describe("columns", () => {
     expect(texts).toEqual(["Al Li", contact.text, ...left, ...right])
   })
 
+  test("a name and contact line above both are marked as in neither, and nothing is on a page without columns", () => {
+    const contact = item("al@li.dev | (555) 012-3307 | Boston, MA", 120, 724)
+    const lines = linesFromPages([page([short, contact, ...leftItems, ...rightItems])])
+    expect(lines.filter((line) => line.spans).map((line) => line.text)).toEqual(["Al Li", contact.text])
+    expect(linesFromPages([page([short, contact, ...rightItems])]).filter((line) => line.spans)).toEqual([])
+  })
+
   test("a contact line that starts on the left of the gap is above the columns, not in them", () => {
     const contact = [item("al@li.dev", 100, 724), item("| linkedin.com/in/alli | Boston, MA", 150, 724)]
     const texts = linesFromPages([page([short, ...contact, ...leftItems, ...rightItems])]).map((line) => line.text)
     expect(texts[0]).toBe("Al Li")
     expect(texts.slice(2)).toEqual([...left, ...right])
+  })
+
+  test("dates set flush right, written after the rest of a one-column page, aren't one", () => {
+    // Too few to make a column of their own, they'd still pass for one of a
+    // short resume's two columns, like Deedy's, all starting at one place.
+    const top = [
+      item("Dana Cole", 250, 740, 20),
+      item("dana@cole.dev | (555) 012-3307 | Boston, MA", 196, 720),
+      item("Experience", 36, 696),
+    ]
+    const labs = ["A", "B", "C"].map((lab, i) => ({
+      lines: [`Research Assistant, Lab ${lab}`, "• Ran assays for the screening team", "• Wrote the plate reader scripts"],
+      dates: `20${10 + 2 * i} - 20${11 + 2 * i}`,
+      baseline: 680 - 40 * i,
+    }))
+    const entries = labs.flatMap((lab) => lab.lines.map((text, i) => item(text, i === 0 ? 36 : 46, lab.baseline - 12 * i)))
+    // Each date ends at 576, the right margin.
+    const dates = labs.map((lab) => item(lab.dates, 521, lab.baseline))
+    const texts = linesFromPages([page([...top, ...entries, ...dates])]).map((line) => line.text)
+    expect(texts.filter((text) => text.startsWith("Research Assistant"))).toEqual(labs.map((lab) => `${lab.lines[0]} ${lab.dates}`))
   })
 
   test("text written line by line across both, like dates beside entries, isn't", () => {

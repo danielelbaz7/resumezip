@@ -118,6 +118,22 @@ describe("a detail line that wraps", () => {
     ])
     expect(resume.educationSection.map((entry) => entry.schoolName)).toEqual(["State University", "Austin Community College"])
   })
+
+  test("doesn't take in a plain school name set bigger, after a line that nearly fills the column", () => {
+    // "MIT" would have fit at the end of the line above, had it been part of it.
+    const { resume } = read(
+      "Education",
+      onPage([
+        line([["Stanford University", 36]], { size: 11 }),
+        line([["B.S. in Computer Science", 36], ["2016 – 2020", 480]]),
+        line([["Relevant Coursework: Algorithms, Operating Systems, Databases, Computer Networks, Compilers,", 36]]),
+        line([["Machine Learning, Computer Vision, Distributed Systems, Programming Languages, Robotics, Security", 36]]),
+        line([["MIT", 36]], { size: 11 }),
+        line([["M.S. in Computer Science", 36], ["2020 – 2022", 480]]),
+      ]),
+    )
+    expect(resume.educationSection.map((entry) => entry.schoolName)).toEqual(["Stanford University", "MIT"])
+  })
 })
 
 describe("a year on a line that wrapped", () => {
@@ -355,6 +371,28 @@ describe("a heading it doesn't know by name", () => {
     const { resume } = read("Education", [...school, heading("Career Interests"), line([["Healthcare Consulting, Product Management", 36]])])
     expect(resume.skillsSection).toMatchObject([{ skillName: "Career Interests", skillDetails: "Healthcare Consulting, Product Management" }])
     expect(resume.workExperienceSection).toEqual([])
+  })
+
+  test("set like the others, in bold capitals the size of the text, has as much space below it as they do", () => {
+    // As Mono sets them, so a school's name in capitals looks the same.
+    const lines: [Line, number][] = [
+      [line([["Mara Lin", 36]], { size: 18, bold: true }), 60],
+      [line([["EDUCATION", 36]], { bold: true }), 100],
+      [line([["UCLA", 36]], { bold: true }), 116],
+      [line([["B.A. in Economics", 36]]), 125],
+      [line([["State University", 36], ["2016 – 2020", 480]], { bold: true }), 138],
+      [line([["B.S. in Nursing", 36]]), 147],
+      [line([["PRESS", 36]], { bold: true }), 166],
+      [line([["Interviewed by the Daily Planet", 36]]), 182],
+      [line([["SKILLS", 36]], { bold: true }), 201],
+      [line([["Python, SQL", 36]]), 217],
+    ]
+    // Boxed as lines.ts boxes them, around each line's baseline.
+    const parsed = parseResume(
+      lines.map(([each, baseline]) => ({ ...each, box: [36, baseline - 0.85 * each.size, 36 + 5 * each.text.length, baseline + 0.3 * each.size] })),
+    )
+    expect(toResumeContent(parsed).educationSection.map((school) => school.schoolName)).toEqual(["UCLA", "State University"])
+    expect(parsed.unplaced.map((group) => [group.heading, group.text])).toEqual([["Press", ["Interviewed by the Daily Planet"]]])
   })
 
   test("isn't a line that only shares a word with one", () => {

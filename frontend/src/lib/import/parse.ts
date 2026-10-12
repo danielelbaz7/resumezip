@@ -294,12 +294,17 @@ const titleCase = (text: string) =>
     ? text.toLowerCase().replace(/(^|[\s\-'\u2019.])(\S)/g, (_, before, letter: string) => before + letter.toUpperCase())
     : text
 
+/** A PDF line's baseline, in points down its page: lines.ts sets the bottom of its box 0.3 of its size below that. */
+const baseline = (line: Line) => line.box![3] - 0.3 * line.size
+
 interface Fragment {
   text: string
   bold: boolean
   italic: boolean
   /** The separator between this and the fragment before it, when they were one piece of text. */
   joint?: string
+  /** Its stretches of bold and italic, as offsets into `text`. */
+  runs?: Run[]
 }
 
 /** The style of `start`..`end` within a part, by majority of characters. */
@@ -329,7 +334,10 @@ function fragmentsOf(part: Part): (Fragment & { start: number })[] {
     const text = tidy(raw)
     if (text) {
       const offset = start + raw.indexOf(text.charAt(0))
-      pieces.push({ text, start: offset, ...styleAt(part, offset, offset + text.length), joint })
+      const runs = part.runs
+        .map((run) => ({ ...run, start: Math.max(0, run.start - offset), end: Math.min(text.length, run.end - offset) }))
+        .filter((run) => run.end > run.start)
+      pieces.push({ text, start: offset, ...styleAt(part, offset, offset + text.length), joint, runs })
     }
   }
   for (const match of part.text.matchAll(SEPARATOR)) {
@@ -626,15 +634,22 @@ function detailCarriesOn(line: ParseLine, item: Item, above: ParseLine): boolean
     Math.abs(line.left - item.left) < 3 &&
     start.bold === Boolean(end?.bold) &&
     start.italic === Boolean(end?.italic) &&
-    (CONNECTOR.test(item.text) || above.full === true || wrapsInto(above, line))
+    // Only a line the size of the one above wraps from it: a plain school
+    // name, set bigger, can follow a coursework line that nearly fills the column.
+    (CONNECTOR.test(item.text) || above.full === true || (wrapsInto(above, line) && Math.abs(line.size - above.size) < 0.5))
   )
 }
 
 /**
  * Splits a section into entries: one or more title lines (role, company,
- * dates, place) followed by bullets.
+ * dates, place) followed by bullets. `startsEntry` tells, from what the
+ * section holds, when a title line starts an entry after the title lines above it.
  */
-function groupEntries(lines: ParseLine[], isBody: (line: Line) => boolean = () => false): Group[] {
+function groupEntries(
+  lines: ParseLine[],
+  isBody: (line: Line) => boolean = () => false,
+  startsEntry: (header: ParseLine[], line: ParseLine) => boolean = () => false,
+): Group[] {
   const groups: Group[] = []
   let lastWasBullet = false
   let lastWasDetail = false
@@ -698,13 +713,15 @@ function groupEntries(lines: ParseLine[], isBody: (line: Line) => boolean = () =
     const first = header[0]
     // A title line that wrapped: "Bachelor of Arts in Computer Science," then
     // "Minor in Business". In a narrow column one with its date can wrap too,
-    // mid-place: "Aug 2022 - May 2026 | Pittsburgh," then "PA".
+    // mid-place: "Aug 2022 - May 2026 | Pittsburgh," then "PA". Only a line
+    // all in one part wraps like that; a comma typed after a date set apart
+    // on the right ("Aug 2025,") ends its line.
     const lastTitle = group && group.body.length === 0 ? header[header.length - 1] : undefined
     if (
       lastTitle &&
       (!hasDate(lastTitle) ||
         (CUT_DATE.test(lastTitle.text) && YEAR_FIRST.test(line.text)) ||
-        (lastTitle.text.endsWith(",") && !hasDate(line))) &&
+        (lastTitle.text.endsWith(",") && lastTitle.parts.length === 1 && !hasDate(line))) &&
       sameStyle(lastTitle, line) &&
       (wrapsInto(lastTitle, line) || CONNECTOR.test(lastTitle.text) || /^[a-z(]/.test(line.text))
     ) {
@@ -716,7 +733,8 @@ function groupEntries(lines: ParseLine[], isBody: (line: Line) => boolean = () =
       group.body.length > 0 ||
       (detailOnly(line) ? false : header.length >= 3) ||
       (header.some(hasDate) && hasDate(line)) ||
-      (first !== undefined && !detailOnly(line) && (header.some(hasDate) || header.length >= 2) && sameStyle(first, line))
+      (first !== undefined && !detailOnly(line) && (header.some(hasDate) || header.length >= 2) && sameStyle(first, line)) ||
+      startsEntry(header, line)
     if (startsNew) groups.push({ header: [line], body: [] })
     else group.header.push(line)
   }
@@ -1136,12 +1154,34 @@ function readExperience(name: ExperienceName, lines: ParseLine[]): SectionResult
   return { entries, leftover, calls, splits }
 }
 
+/**
+ * "B.A. in Economics, UCLA": a degree and a school with no word for one in
+ * its name, told apart by their styles ("**B.A. in Economics,** UCLA"). Splits
+ * at the first comma the style changes across, with a degree on one side only.
+ */
+function splitAtStyle(fragment: Fragment): Fragment[] {
+  const part = { text: fragment.text, x: 0, runs: fragment.runs ?? [] }
+  for (const comma of fragment.text.matchAll(/,\s+/g)) {
+    const end = comma.index! + comma[0].length
+    const [before, after] = [styleAt(part, 0, comma.index!), styleAt(part, end, part.text.length)]
+    const [first, second] = [part.text.slice(0, comma.index!), part.text.slice(end)]
+    if ((before.bold !== after.bold || before.italic !== after.italic) && isDegree(first) !== isDegree(second)) {
+      return [
+        { ...fragment, text: first, ...before },
+        { ...fragment, text: second, ...after, joint: comma[0] },
+      ]
+    }
+  }
+  return [fragment]
+}
+
 /** "B.S. in Biology, Stanford University" is a degree and a school. */
 function splitDegreeAndSchool(fragment: Fragment): Fragment[] {
   const pieces = fragment.text.split(/\s*,\s+/)
   if (pieces.length < 2) return [fragment]
   const at = pieces.findIndex((piece) => SCHOOL_WORDS.test(piece) && !isDegree(piece))
-  if (at < 0 || !pieces.some((piece, i) => i !== at && isDegree(piece))) return [fragment]
+  if (at < 0) return splitAtStyle(fragment)
+  if (!pieces.some((piece, i) => i !== at && isDegree(piece))) return [fragment]
   if (at === 0)
     return [
       { ...fragment, text: pieces[0] },
@@ -1168,8 +1208,15 @@ function readEducation(lines: ParseLine[]): SectionResult {
   const leftover: SectionResult["leftover"] = { lines: [], text: [] }
   // "Relevant Coursework: ...", "GPA: ..." and "Advisor: ..." lines are details of the school above.
   const details = (line: Line) => LABEL.test(line.text) || /^(?:cumulative\s+)?gpa\b/i.test(line.text) || detailLabel(line.text)
+  // "B.A. in Economics, UCLA" with no date, then "M.S. in Computer Science,
+  // Georgia Tech" with its date set apart, both in one style: two schools.
+  const anotherDegree = (header: ParseLine[], line: ParseLine) =>
+    datedLikeTitle(line) &&
+    isDegree(line.text) &&
+    !header.some(hasDate) &&
+    header.some((title) => sameStyle(title, line) && isDegree(title.text))
   let schoolAbove: { name: string; location: string; left: number } | undefined
-  const entries = groupEntries(lines, details).map((group) => {
+  const entries = groupEntries(lines, details, anotherDegree).map((group) => {
     const fields = blankEntry("Education")
     // The GPA can be anywhere: "(GPA: 3.9)", "GPA 3.9/4.0", "3.8/4.0".
     for (const line of [...group.header, ...group.body]) {
@@ -1819,7 +1866,6 @@ function splitSideHeadings(lines: SourceLine[]): SourceLine[] {
   // text beside it in the column, or nothing. Alone on its line, a word set
   // against the column's right side can start further left than any heading
   // with text beside it: "Certifications" under "Awards &", beside one award.
-  const baseline = (line: Line) => line.box![3] - 0.3 * line.size
   const wrapsOnto = (above: Line, below: Line) =>
     above.box !== undefined &&
     below.box !== undefined &&
@@ -1935,28 +1981,32 @@ export function parseResume(file: Line[]): ParsedResume {
     if (page) page.push(line)
     else pages.set(line.page, [line])
   }
+  // A contact line centered over two columns (`spans`) can start near the
+  // left one's lines, as in Deedy with wide margins, but isn't one of them.
+  const sameColumn = (line: Line, other: Line) =>
+    Math.abs(other.left - line.left) < 60 && Math.abs(other.size - line.size) < 1.5 && Boolean(other.spans) === Boolean(line.spans)
   for (const page of pages.values()) {
     for (const line of page) {
-      const column = page.filter((other) => Math.abs(other.left - line.left) < 60 && Math.abs(other.size - line.size) < 1.5)
+      const column = page.filter((other) => sameColumn(line, other))
       line.margin = column.reduce((edge, other) => Math.max(edge, other.box![2]), -Infinity)
     }
     // Justified text: the long lines of a column all end at the same edge, at
     // its right side, as text set ragged hardly ever does. A hyphen breaking a
-    // word can reach a little past it. Short lines, like titles, don't count
+    // word can reach a little past it, but no further: in a column as narrow
+    // as Deedy's left one, ragged lines can end together by chance, with
+    // others running on past them. Short lines, like titles, don't count
     // either way, nor do short lines that end together ("Chicago, IL" under
     // each job).
     for (const line of page) {
       if (line.parts.length !== 1) continue
-      const ends = page
-        .filter((other) => other.parts.length === 1 && Math.abs(other.left - line.left) < 60 && Math.abs(other.size - line.size) < 1.5)
-        .map((other) => other.box![2])
+      const ends = page.filter((other) => other.parts.length === 1 && sameColumn(line, other)).map((other) => other.box![2])
       const counts = new Map<number, number>()
       for (const end of ends) counts.set(Math.round(end), (counts.get(Math.round(end)) ?? 0) + 1)
       const edge = [...counts].sort((a, b) => b[1] - a[1])[0][0]
       const atEdge = (end: number) => end >= edge - 1.5 && end <= edge + 4
       const long = ends.filter((end) => end >= edge - 20 && end <= edge + 4)
       const exact = long.filter(atEdge)
-      line.full = edge >= line.margin! - 20 && exact.length >= 3 && exact.length >= 0.6 * long.length && atEdge(line.box![2])
+      line.full = edge >= line.margin! - 4 && exact.length >= 3 && exact.length >= 0.6 * long.length && atEdge(line.box![2])
     }
   }
 
@@ -2009,6 +2059,21 @@ export function parseResume(file: Line[]): ParsedResume {
   // if entry titles look the same (all bold, same size), it doesn't.
   const lookalikes = lines.filter((line, i) => i > 0 && !known.has(line.index) && !line.side && headingShaped(line) && headingStyle(line))
   const guessHeadings = lookalikes.length <= Math.max(2, knownLines.length / 2)
+  // How far down the page the next line is, when it's below this one: in
+  // columns, the next line can be the top of another.
+  const spaceBelow = (line: ParseLine) => {
+    const next = lines[line.index + 1]
+    const space = line.box && next?.box && next.page === line.page ? baseline(next) - baseline(line) : 0
+    return space > 0 ? space : undefined
+  }
+  const headingSpace = Math.min(...knownLines.filter((line) => !line.side).flatMap((line) => spaceBelow(line) ?? []))
+  // Where only capitals set the headings apart, as in Mono, a title written
+  // in capitals ("UCLA") looks just like one. A heading also has as much
+  // space below it as the others, more than there is between a title's lines.
+  const spacedLikeHeadings = (line: ParseLine) => {
+    const space = spaceBelow(line)
+    return space === undefined || !Number.isFinite(headingSpace) || space >= 0.9 * headingSpace
+  }
   const headings = new Map<number, { meaning: HeadingMeaning; label: string }>()
   lines.forEach((line, i) => {
     const meaning = known.get(line.index)
@@ -2016,7 +2081,7 @@ export function parseResume(file: Line[]): ParsedResume {
     // A section of the person's own, like "Things I Built".
     else if (line.side) headings.set(line.index, { meaning: { section: null }, label: line.text.replace(/:$/, "") })
     // The first line is usually the name, which can look like a heading.
-    else if (guessHeadings && i > 0 && headingShaped(line) && headingStyle(line) && !looksLikeName(line.text)) {
+    else if (guessHeadings && i > 0 && headingShaped(line) && headingStyle(line) && !looksLikeName(line.text) && spacedLikeHeadings(line)) {
       headings.set(line.index, { meaning: { section: null }, label: line.text.replace(/:$/, "") })
     }
   })

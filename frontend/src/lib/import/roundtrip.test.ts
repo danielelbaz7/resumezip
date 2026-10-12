@@ -115,6 +115,34 @@ test("a school with its place on the right starts a new entry, even right after 
   ])
 })
 
+// Mono sets a school's name in bold, as it does its headings, which are in
+// capitals; Blueprint (levelsfyi) sets "**Degree,** School" and the dates on one line.
+test.each(["mono", "levelsfyi"])("in %s, a school with no dates and no word for one in its name is read whole", async (template) => {
+  const sample = samples.find((resume) => resume.selectedTemplate === template)
+  const ucla = { id: 9, schoolName: "UCLA", degree: "B.A. in Economics" }
+  for (const educationSection of [
+    [ucla, ...sample.educationSection],
+    [...sample.educationSection, ucla],
+  ]) {
+    const { parsed, resume: got } = await readBack(await render({ ...sample, educationSection }))
+    expect(parsed.unplaced).toEqual([])
+    const read = got.educationSection?.map(({ schoolName, degree, schoolEndDate }) => ({ schoolName, degree, schoolEndDate }))
+    expect(read).toEqual(educationSection.map(({ schoolName, degree, schoolEndDate = "" }) => ({ schoolName, degree, schoolEndDate })))
+  }
+})
+
+test.each(["levelsfyi", "referme"])(
+  "in %s, an entry with no date stays apart from one whose date ends in a typed comma",
+  async (template) => {
+    // A title line ending in a comma may have wrapped, but not when the comma is after a date set apart on the right.
+    const sample = samples.find((resume) => resume.selectedTemplate === template)
+    const comma = { id: 1, companyName: "NVIDIA", workRole: "Intern", workStartDate: "May 2025", workEndDate: "Aug 2025," }
+    const undated = { id: 2, companyName: "Microsoft", workRole: "Intern", workDescription: "• Built a reviewer suggester" }
+    const { resume: got } = await readBack(await render({ ...sample, sectionOrder: ["Work"], workExperienceSection: [comma, undated] }))
+    expect(got.workExperienceSection?.map((job) => job.companyName)).toEqual(["NVIDIA", "Microsoft"])
+  },
+)
+
 test("bold and italic words in bullets come back marked, in every template", async () => {
   const bullet = "Led **Project Atlas** to a *record* quarter with ***zero*** outages, plus a plain ending"
   for (const sample of samples) {
