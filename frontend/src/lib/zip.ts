@@ -1,11 +1,12 @@
 // Writes zip files, and reads what resumezip needs from them: a Word file is
-// a zip of XML files (lib/word.ts). Files are stored as they are, not
+// a zip of XML files (lib/word.ts). Files are written stored as they are, not
 // compressed. A resume is small, and compressing would take a package or the
 // browser's CompressionStream, which is async; every app that opens zips
 // reads stored files.
 
-/** How a file is kept in a zip: as it is. Deflated (compressed) is 8. */
+/** How a file is kept in a zip: as it is, or deflated (compressed). */
 const STORED = 0
+const DEFLATED = 8
 
 // Each file is dated 1 January 1980, the earliest date a zip can hold, as Word
 // dates the files in its own: the same resume always makes the same file.
@@ -134,17 +135,84 @@ export function zipDirectory(data: ArrayBuffer): ZipEntry[] | "zip64" | null {
   return null
 }
 
+/** A file as its own (local) header names it, and its bytes as the zip keeps them. Null when they aren't where the directory says. */
+function packed(data: ArrayBuffer, entry: ZipEntry): { name: string; bytes: Uint8Array<ArrayBuffer> } | null {
+  const view = new DataView(data)
+  const at = entry.offset
+  if (at < 0 || at + 30 > view.byteLength || view.getUint32(at, true) !== LOCAL_HEADER) return null
+  const nameLength = view.getUint16(at + 26, true)
+  const start = at + 30 + nameLength + view.getUint16(at + 28, true)
+  if (start + entry.packedSize > view.byteLength) return null
+  return { name: new TextDecoder().decode(new Uint8Array(data, at + 30, nameLength)), bytes: new Uint8Array(data, start, entry.packedSize) }
+}
+
 /**
  * A file's contents, if the zip stores it as it is, as resumezip's own zips
  * do. Null for a deflated file, or one that doesn't match its CRC-32.
  */
 export function storedFile(data: ArrayBuffer, entry: ZipEntry): Uint8Array | null {
   if (entry.method !== STORED || entry.size !== entry.packedSize) return null
-  const view = new DataView(data)
-  const at = entry.offset
-  if (at < 0 || at + 30 > view.byteLength || view.getUint32(at, true) !== LOCAL_HEADER) return null
-  const start = at + 30 + view.getUint16(at + 26, true) + view.getUint16(at + 28, true)
-  if (start + entry.size > view.byteLength) return null
-  const contents = new Uint8Array(data, start, entry.size)
-  return crc32(contents) === entry.crc ? contents : null
+  const contents = packed(data, entry)?.bytes
+  return contents && crc32(contents) === entry.crc ? contents : null
+}
+
+/** How much of a deflated file is fed to the unzipper at once. Deflate packs at most about 1,032 bytes into one, so a piece unzips to 4 MB at most. */
+const PIECE = 4096
+
+/** `bytes` inflated, or "too big" as soon as that passes `limit` bytes. Null when they aren't deflated data. */
+async function inflated(bytes: Uint8Array<ArrayBuffer>, limit: number): Promise<Uint8Array | "too big" | null> {
+  // Fed a piece at a time: the stream inflates each piece it's given in one go,
+  // and only takes the next once the last one's output has been read.
+  let at = 0
+  const source = new ReadableStream<BufferSource>({
+    pull(controller) {
+      if (at < bytes.length) controller.enqueue(bytes.subarray(at, (at += PIECE)))
+      else controller.close()
+    },
+  })
+  const reader = source.pipeThrough(new DecompressionStream("deflate-raw")).getReader()
+  const pieces: Uint8Array[] = []
+  let size = 0
+  try {
+    for (let read = await reader.read(); !read.done; read = await reader.read()) {
+      size += read.value.length
+      if (size > limit) {
+        reader.cancel().catch(() => {})
+        return "too big"
+      }
+      pieces.push(read.value)
+    }
+  } catch {
+    return null
+  }
+  const out = new Uint8Array(size)
+  pieces.reduce((offset, piece) => (out.set(piece, offset), offset + piece.length), 0)
+  return out
+}
+
+/**
+ * Every file in a zip, unzipped, by the names their own headers give, as
+ * mammoth's unzipper (JSZip) reads them. "too big" as soon as they come to
+ * more than `limit` bytes, or for ZIP64. Null when it isn't a zip this can
+ * read: not a zip, damaged, or packed some way other than stored or deflated.
+ *
+ * The sizes the zip gives aren't used: they're only what it claims, and an
+ * unzipper that believes them can unzip far more than it planned for.
+ */
+export async function unzip(data: ArrayBuffer, limit: number): Promise<Record<string, Uint8Array> | "too big" | null> {
+  const entries = zipDirectory(data)
+  if (entries === "zip64") return "too big"
+  if (!entries) return null
+  const files: [string, Uint8Array][] = []
+  let left = limit
+  for (const entry of entries) {
+    const file = packed(data, entry)
+    if (!file) return null
+    const contents = entry.method === STORED ? file.bytes : entry.method === DEFLATED ? await inflated(file.bytes, left) : null
+    if (contents === null || contents === "too big") return contents
+    left -= contents.length
+    if (left < 0) return "too big"
+    files.push([file.name, contents])
+  }
+  return Object.fromEntries(files)
 }

@@ -3,8 +3,8 @@ import { describe, expect, test, vi } from "vitest"
 import { convertToHtml } from "mammoth"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"
-import { MAX_CHARACTERS, MAX_PAGES, MAX_WORD_XML_BYTES, TooMuchTextError } from "./limits"
-import { cleanLink, linesFromDocx, linesFromPages, readPdf, UnreadableWordFileError, unzippedXmlSize } from "./lines"
+import { MAX_CHARACTERS, MAX_PAGES, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
+import { cleanLink, linesFromDocx, linesFromPages, readPdf, UnreadableWordFileError } from "./lines"
 import { pdfOf, textPdf, wordFile } from "./testFiles"
 
 // mammoth as it is, with its converter watched.
@@ -15,11 +15,26 @@ vi.mock("mammoth", async (importOriginal) => {
 
 const bytes = (buffer: Buffer) => new Uint8Array(buffer).buffer
 
-/** A zip whose directory keeps `name`'s unzipped size elsewhere, as ZIP64 does: there, it says 0xFFFFFFFF. */
-function sizeKeptElsewhere(zip: Buffer, name: string): Buffer {
+/** A zip whose headers say `name` unzips to 100 bytes, whatever it really unzips to. */
+function sizeUnderstated(zip: Buffer, name: string): Buffer {
+  const copy = Buffer.from(zip)
+  for (const [signature, sizeAt, nameAt] of [
+    ["PK\x03\x04", 22, 30],
+    ["PK\x01\x02", 24, 46],
+  ] as const) {
+    for (let at = copy.indexOf(signature, 0, "latin1"); at >= 0; at = copy.indexOf(signature, at + 4, "latin1")) {
+      const nameLength = copy.readUInt16LE(at + nameAt - (signature === "PK\x03\x04" ? 4 : 18))
+      if (copy.toString("latin1", at + nameAt, at + nameAt + nameLength) === name) copy.writeUInt32LE(100, at + sizeAt)
+    }
+  }
+  return copy
+}
+
+/** A zip whose directory lists `name` as `listed`, while the file's own header still says `name`. */
+function listedAs(zip: Buffer, name: string, listed: string): Buffer {
   const copy = Buffer.from(zip)
   for (let at = copy.indexOf("PK\x01\x02", 0, "latin1"); at >= 0; at = copy.indexOf("PK\x01\x02", at + 4, "latin1")) {
-    if (copy.toString("latin1", at + 46, at + 46 + copy.readUInt16LE(at + 28)) === name) copy.writeUInt32LE(0xffffffff, at + 24)
+    if (copy.toString("latin1", at + 46, at + 46 + copy.readUInt16LE(at + 28)) === name) copy.write(listed, at + 46, "latin1")
   }
   return copy
 }
@@ -119,44 +134,49 @@ describe("reading a PDF", () => {
 })
 
 describe("reading a Word file", () => {
-  test("its unzipped size is read from the zip's directory", () => {
-    const size = (padding: number) => unzippedXmlSize(bytes(wordFile(["Mara Lin"], { padding })))
-    expect(size(5000)! - size(0)!).toBe(5000)
-  })
-
-  test("a file that isn't a zip has no size to read", () => {
-    expect(unzippedXmlSize(bytes(Buffer.from("not a zip")))).toBeNull()
-  })
-
   test("one that unzips to too much text isn't converted", async () => {
     vi.mocked(convertToHtml).mockClear()
-    await expect(linesFromDocx(bytes(wordFile(["Mara Lin"], { padding: MAX_WORD_XML_BYTES })))).rejects.toThrow(TooMuchTextError)
+    await expect(linesFromDocx(bytes(wordFile(["Mara Lin"], { padding: MAX_UNZIPPED_BYTES })))).rejects.toThrow(TooMuchTextError)
     expect(convertToHtml).not.toHaveBeenCalled()
   })
 
-  test("one whose zip keeps the size elsewhere (ZIP64) isn't converted either", async () => {
+  test("one that says it unzips to less than it does isn't converted", async () => {
     vi.mocked(convertToHtml).mockClear()
-    for (const file of [sizeKeptElsewhere(wordFile(["Mara Lin"]), "word/document.xml"), zip64(wordFile(["Mara Lin"]))]) {
-      expect(unzippedXmlSize(bytes(file))).toBe(Infinity)
-      await expect(linesFromDocx(bytes(file))).rejects.toThrow(TooMuchTextError)
-    }
+    const file = sizeUnderstated(wordFile(["Mara Lin"], { padding: MAX_UNZIPPED_BYTES }), "word/document.xml")
+    await expect(linesFromDocx(bytes(file))).rejects.toThrow(TooMuchTextError)
     expect(convertToHtml).not.toHaveBeenCalled()
   })
 
-  test("one with something else before the zip is measured all the same", async () => {
+  test("one whose directory lists its text as a picture isn't converted", async () => {
     vi.mocked(convertToHtml).mockClear()
+    // mammoth's unzipper goes by the name in the file's own header.
+    const file = listedAs(wordFile(["Mara Lin"], { padding: MAX_UNZIPPED_BYTES }), "word/document.xml", "word/media/a1.png")
+    await expect(linesFromDocx(bytes(file))).rejects.toThrow(TooMuchTextError)
+    expect(convertToHtml).not.toHaveBeenCalled()
+  })
+
+  test("one that says it's over 4 GB (ZIP64) isn't converted either", async () => {
+    vi.mocked(convertToHtml).mockClear()
+    await expect(linesFromDocx(bytes(zip64(wordFile(["Mara Lin"]))))).rejects.toThrow(TooMuchTextError)
+    expect(convertToHtml).not.toHaveBeenCalled()
+  })
+
+  test("one with something else before the zip is read and measured all the same", async () => {
     const prefixed = (zip: Buffer) => Buffer.concat([Buffer.from("Something else first. "), zip])
-    expect(unzippedXmlSize(bytes(prefixed(wordFile(["Mara Lin"]))))).toBe(unzippedXmlSize(bytes(wordFile(["Mara Lin"]))))
-    await expect(linesFromDocx(bytes(prefixed(wordFile(["Mara Lin"], { padding: MAX_WORD_XML_BYTES }))))).rejects.toThrow(TooMuchTextError)
+    await expect(linesFromDocx(bytes(prefixed(wordFile(["Mara Lin"]))))).resolves.toMatchObject([{ text: "Mara Lin" }])
+    vi.mocked(convertToHtml).mockClear()
+    await expect(linesFromDocx(bytes(prefixed(wordFile(["Mara Lin"], { padding: MAX_UNZIPPED_BYTES }))))).rejects.toThrow(TooMuchTextError)
     expect(convertToHtml).not.toHaveBeenCalled()
   })
 
-  test("a damaged zip is left to mammoth, which can't read it", async () => {
+  test("a damaged zip, or a file that isn't one, can't be read", async () => {
+    vi.mocked(convertToHtml).mockClear()
     const file = wordFile(["Mara Lin"])
     // Says the directory is bigger than the whole file.
     file.writeUInt32LE(file.length, file.length - 22 + 12)
-    expect(unzippedXmlSize(bytes(file))).toBeNull()
     await expect(linesFromDocx(bytes(file))).rejects.toThrow(UnreadableWordFileError)
+    await expect(linesFromDocx(bytes(Buffer.from("not a zip")))).rejects.toThrow(UnreadableWordFileError)
+    expect(convertToHtml).not.toHaveBeenCalled()
   })
 
   test("its paragraphs become lines", async () => {
