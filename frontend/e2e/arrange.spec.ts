@@ -385,7 +385,7 @@ test("the checker skips what's left out, and opens the right entry after it", as
   const box = field.getByLabel(BULLETS)
   const selected = () => page.evaluate(() => String(getSelection()))
   await expect(box).toBeFocused()
-  expect(await selected()).toBe("Responsible for the search index")
+  await expect.poll(selected).toBe("Responsible for the search index")
 
   // Arranging the bullets while the finding shows: the list stays open as the checker looks again.
   await field.getByRole("button", { name: "Arrange bullets" }).click()
@@ -402,7 +402,7 @@ test("the checker skips what's left out, and opens the right entry after it", as
   // Choosing the finding again goes back to the text, at its bullet.
   await panel.getByRole("button", { name: weak("Google") }).click()
   await expect(box).toBeFocused()
-  expect(await selected()).toBe("Responsible for the search index")
+  await expect.poll(selected).toBe("Responsible for the search index")
 
   expect(errors).toEqual([])
 })
