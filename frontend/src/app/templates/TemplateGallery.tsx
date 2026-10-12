@@ -5,15 +5,14 @@ import Link from "next/link"
 import { useEffect, useId, useRef, useState } from "react"
 import { ArrowUpRight, Search } from "lucide-react"
 import { StartWritingLink } from "@/components/site/StartWriting"
-import { OUTLINE_PILL } from "@/components/pills"
+import { FILTER_CHIP, GLASS_BAR, OUTLINE_PILL } from "@/components/pills"
 import { SLIDING_PILL, useSlidingPill } from "@/components/useSlidingPill"
 import { TEMPLATE_TAGS, TEMPLATES, templateMatches, templatePath, type TemplateId, type TemplateTag } from "@/lib/templates"
 
 const names = new Intl.ListFormat("en", { type: "conjunction" })
 
 const STYLES = [undefined, ...TEMPLATE_TAGS]
-// A style chip's box, which the picked one's copy (SLIDING_PILL) shares to line up with it.
-const CHIP = "inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-[15px] font-medium tracking-[-0.01em]"
+const CHIP = FILTER_CHIP
 
 // Whether a key pressed in this element is typing, which "/" mustn't take over.
 const typingIn = (target: EventTarget | null) =>
@@ -78,7 +77,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
   return (
     <div className="flex flex-col gap-12">
       {/* On wide screens it's one line; narrower, the chips go under the search and scroll sideways. */}
-      <div className="search-field flex flex-col gap-1 rounded-[28px] p-2 [--search-blur:16px] [--search-fill:linear-gradient(180deg,rgb(255_255_255/0.72),rgb(255_255_255/0.52))] xl:flex-row xl:items-center xl:gap-2 xl:rounded-full">
+      <div className={`${GLASS_BAR} flex flex-col gap-1 xl:flex-row xl:items-center xl:gap-2`}>
         <div className="relative w-full shrink-0 xl:w-[300px]">
           <label htmlFor={searchId} className="sr-only">
             Search templates

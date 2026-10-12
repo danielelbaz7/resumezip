@@ -3,13 +3,13 @@
 import { Check, ChevronDown, LayoutGrid, List } from "lucide-react"
 import { useId, type ReactNode } from "react"
 import { MENU_ITEM, MENU_PANEL, useMenu } from "./MoreMenu"
+import { FILTER_CHIP, GLASS_BAR } from "@/components/pills"
 import { SLIDING_PILL, useSlidingPill } from "@/components/useSlidingPill"
 
 export type View = "pages" | "list"
 export type Sort = "edited" | "name"
 
-// A tag chip's box, which the picked one's copy (SLIDING_PILL) shares to line up with it.
-const TAG = "inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm"
+const TAG = FILTER_CHIP
 
 const SORTS: { id: Sort; name: string }[] = [
   { id: "edited", name: "Last edited" },
@@ -37,11 +37,17 @@ interface FiltersProps {
 export default function Filters({ search, tags, tag, onTag, sort, onSort, view, onView }: FiltersProps) {
   const { group, pill, placed } = useSlidingPill(tag, tags.map((option) => option.id).join("\n"))
   return (
-    <div className="dash-toolbar border-b border-ink pb-5">
+    // One glass bar, as on the templates page (dashboard.css lays out what's in it).
+    <div className={`dash-toolbar ${GLASS_BAR}`}>
       <div className="dash-toolbar-search">{search}</div>
-      {/* Words on the page rather than pills, so the search is the one glass thing in the row. */}
       <div className="dash-toolbar-chips">
-        <div ref={group} role="group" aria-label="Show" className="relative flex flex-wrap gap-1">
+        {/* One line that scrolls sideways where it's too narrow, as the templates page's styles do. */}
+        <div
+          ref={group}
+          role="group"
+          aria-label="Show"
+          className="relative flex min-w-0 gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {tags.map((option) => {
             const pressed = tag === option.id
             // Until the pill is placed, the pressed chip draws itself as picked. Under the pill, it has
@@ -56,14 +62,16 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
                 className={`${TAG} transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none ${look}`}
               >
                 {option.name}{" "}
-                <span className={`font-mono text-[11px] ${pressed && !placed ? "text-white/70" : "text-ink-2"}`}>{option.count}</span>
+                <span className={`font-mono text-[11px] font-normal ${pressed && !placed ? "text-white/70" : "text-ink-2"}`}>
+                  {option.count}
+                </span>
               </button>
             )
           })}
-          <div ref={pill} aria-hidden="true" className={`${SLIDING_PILL} inset-0 flex flex-wrap gap-1 ${placed ? "" : "invisible"}`}>
+          <div ref={pill} aria-hidden="true" className={`${SLIDING_PILL} flex w-max min-w-full gap-0.5 ${placed ? "" : "invisible"}`}>
             {tags.map((option) => (
               <span key={option.id} className={TAG}>
-                {option.name} <span className="font-mono text-[11px] text-white/70">{option.count}</span>
+                {option.name} <span className="font-mono text-[11px] font-normal text-white/70">{option.count}</span>
               </span>
             ))}
           </div>
@@ -84,7 +92,7 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
               onView(next)
               event.currentTarget.querySelector<HTMLElement>(`[data-view="${next}"]`)?.focus()
             }}
-            className="inline-flex h-9 rounded-full bg-ink/[0.06] p-[3px]"
+            className="inline-flex h-10 rounded-full bg-ink/[0.06] p-[3px]"
           >
             <ViewButton
               view="pages"
@@ -123,7 +131,7 @@ function SortMenu({ sort, onSort }: { sort: Sort; onSort: (sort: Sort) => void }
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         onClick={() => setOpen((open) => !open)}
-        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm text-ink transition-colors duration-200 hover:bg-ink/[0.06] motion-reduce:transition-none"
+        className="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] text-ink transition-colors duration-200 hover:bg-ink/[0.06] motion-reduce:transition-none"
       >
         <span className="text-ink-2">Sort</span> {current.name}
         <ChevronDown
@@ -183,12 +191,13 @@ function ViewButton({
       aria-pressed={pressed}
       tabIndex={pressed ? 0 : -1}
       onClick={onClick}
-      className={`inline-flex h-full items-center gap-1.5 rounded-full px-3 text-sm transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none motion-reduce:transition-none ${
+      className={`inline-flex h-full items-center gap-1.5 rounded-full px-3.5 text-[15px] transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none motion-reduce:transition-none ${
         pressed ? "bg-sheet text-ink shadow-[0_1px_3px_rgb(17_19_24/0.14)]" : "text-ink-2 hover:text-ink"
       }`}
     >
       {icon}
-      {children}
+      {/* Said, but not shown, on phones, where the bar's last line has room only for the icons. */}
+      <span className="max-sm:sr-only">{children}</span>
     </button>
   )
 }
