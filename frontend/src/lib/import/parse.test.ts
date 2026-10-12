@@ -134,6 +134,32 @@ describe("a detail line that wraps", () => {
     )
     expect(resume.educationSection.map((entry) => entry.schoolName)).toEqual(["Stanford University", "MIT"])
   })
+
+  // Coursework lines with their right edges: 560 is the column's edge.
+  test.each<[string, [string, number][]]>([
+    ["ends in a comma", [["Relevant Coursework: Algorithms, Operating Systems, Databases,", 346]]],
+    [
+      "runs to the edge of justified text",
+      [
+        ["Relevant Coursework: Algorithms, Operating Systems, Databases, Computer Networks, Compilers,", 560],
+        ["Machine Learning, Computer Vision, Distributed Systems, Programming Languages, Robotics,", 560],
+        ["Security, Cryptography, Computer Graphics, Human-Computer Interaction and Numerical Analysis", 560],
+      ],
+    ],
+  ])("doesn't take in a plain school name set bigger, after a line that %s", (_, coursework) => {
+    const lines: [Line, number][] = [
+      [line([["Stanford University", 36]], { size: 11 }), 131],
+      [line([["B.S. in Computer Science", 36], ["2016 – 2020", 480]]), 535],
+      ...coursework.map(([text, right]): [Line, number] => [line([[text, 36]]), right]),
+      [line([["MIT", 36]], { size: 11 }), 51],
+      [line([["M.S. in Computer Science", 36], ["2020 – 2022", 480]]), 535],
+    ]
+    const { resume } = read(
+      "Education",
+      lines.map(([each, right], i) => ({ ...each, box: [each.left, 100 + 12 * i, right, 110 + 12 * i] })),
+    )
+    expect(resume.educationSection.map((entry) => entry.schoolName)).toEqual(["Stanford University", "MIT"])
+  })
 })
 
 describe("a year on a line that wrapped", () => {
@@ -619,6 +645,18 @@ describe("degrees under one school", () => {
       line([["Certificate in Data Analytics", 36], ["2024", 480]], { bold: true }),
     ])
     expect(resume.educationSection.map((school) => school.schoolName)).toEqual(["Purdue University", ""])
+  })
+
+  test("each keep the school at its own indent, when only the last has a date", () => {
+    const { resume } = read("Education", [
+      line([["UCLA", 36]], { bold: true }),
+      line([["B.A. in Economics", 36]]),
+      line([["M.A. in Statistics", 36], ["2020 – 2022", 480]]),
+    ])
+    expect(resume.educationSection.map(({ schoolName, degree, schoolEndDate }) => [schoolName, degree, schoolEndDate])).toEqual([
+      ["UCLA", "B.A. in Economics", ""],
+      ["UCLA", "M.A. in Statistics", "2022"],
+    ])
   })
 })
 
