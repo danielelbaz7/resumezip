@@ -31,7 +31,7 @@ import {
   type LatexTemplate,
   type Units,
 } from "../common"
-import type { Run, TemplateData } from "@/lib/typst/resumeData"
+import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 
 const SIZE = 8.4
 /** IBM Plex Mono's capital height, in em: where Typst measures a line's top from. */
@@ -188,7 +188,7 @@ function body(data: TemplateData, units: Units): string {
     add(`  \\resumeEntry{${latex(org)}}{${latex(dateRange(start, end))}}{${latex(role)}}{${latex(place)}}`)
     items(bullets.map(runs))
   }
-  const text = (texts: string[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
+  const text = (texts: Paragraph[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
   const heading = (title: string) => add("", `\\resumeSection{${title}}`)
 
   const { profile } = data

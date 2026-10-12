@@ -17,7 +17,7 @@ export interface TemplateData {
   tune: PrintedTune
   profile: { name: string; location: string; phone: string; email: string; linkedin: string; github: string; website: string }
   /** The profile's summary, printed under its own heading above the sections. */
-  summary: string[]
+  summary: Paragraph[]
   headings: {
     education: string
     work: string
@@ -53,14 +53,17 @@ export interface TemplateData {
 }
 
 export type ExtraTemplateSection =
-  { kind: "text"; heading: string; paragraphs: string[] } | { kind: "list"; heading: string; bullets: Run[][] }
+  { kind: "text"; heading: string; paragraphs: Paragraph[] } | { kind: "list"; heading: string; bullets: Run[][] }
 
-/** A stretch of a bullet's text: **bold**, *italic* or ***both*** where the user marked it. */
+/** A stretch of a bullet's or a paragraph's text: **bold**, *italic* or ***both*** where the user marked it. */
 export interface Run {
   text: string
   bold: boolean
   italic: boolean
 }
+
+/** A paragraph of prose (a summary's, or a text section's): its lines, each in runs. */
+export type Paragraph = Run[][]
 
 /** A piece of an author list: a name, or the text between names. `me` marks the resume owner's name. */
 interface AuthorPiece {
@@ -106,12 +109,15 @@ function text(value: unknown): string {
   return INVISIBLE.test(printed) ? "" : printed
 }
 
-// Prose as paragraphs, split at blank lines. A single line break stays in its paragraph.
-const paragraphs = (value: unknown) =>
+// Prose as paragraphs, split at blank lines. A single line break stays in its
+// paragraph. Each line is read for **bold** and *italic* words on its own, as
+// a bullet is, and as the editor's box saves them.
+const paragraphs = (value: unknown): Paragraph[] =>
   text(value)
     .split(/\r?\n\s*\r?\n/)
     .map(text)
     .filter(Boolean)
+    .map((paragraph) => paragraph.split("\n").map((line) => runs(line)))
 
 // Links are displayed without their scheme, "www." or a trailing slash; the
 // templates add https:// back.
@@ -176,6 +182,9 @@ export const plainText = (line: string) =>
   runs(line)
     .map((run) => run.text)
     .join("")
+
+/** Prose (a summary, a text section) as printed, line by line, without its bold and italic marks. */
+export const plainProse = (value: string) => value.split("\n").map(plainText).join("\n")
 
 // For matching names: lower case, without accents.
 const plain = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()

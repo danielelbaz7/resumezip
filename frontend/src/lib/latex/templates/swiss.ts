@@ -31,7 +31,7 @@ import {
   type ShowLink,
   type Units,
 } from "../common"
-import type { Run, TemplateData } from "@/lib/typst/resumeData"
+import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 
 const SIZE = 9.2
 const TITLE = 15
@@ -193,7 +193,7 @@ function body(data: TemplateData, units: Units): string {
   }
   const experience = (org: string, start: string, end: string, role: string, place: string, bullets: Run[][]) =>
     entry(org, dateRange(start, end), role, place, bullets.map(runs))
-  const text = (texts: string[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
+  const text = (texts: Paragraph[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
   const heading = (title: string) => add("", `\\resumeSection{${title}}`)
 
   const { profile } = data

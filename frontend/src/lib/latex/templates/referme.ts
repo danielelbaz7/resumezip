@@ -29,7 +29,7 @@ import {
   type ShowLink,
   type Units,
 } from "../common"
-import type { Run, TemplateData } from "@/lib/typst/resumeData"
+import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 
 const minus = (length: string) => `-${length}`
 
@@ -136,7 +136,7 @@ function body(data: TemplateData, units: Units): string {
   const bullets = (items: Run[][]) => {
     if (items.length) add("  \\begin{resumeItems}", ...items.map((item) => `    \\item ${itemText(runs(item))}`), "  \\end{resumeItems}")
   }
-  const text = (texts: string[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
+  const text = (texts: Paragraph[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
   // "Organization, Place: Role" and the dates, then bullets: work, leadership and volunteering.
   const experience = (entries: { organization: string; location: string; role: string; start: string; end: string; bullets: Run[][] }[]) =>
     entries.forEach((entry, index) => {

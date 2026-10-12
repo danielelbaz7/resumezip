@@ -26,7 +26,7 @@ import {
   type ShowLink,
   type Units,
 } from "../common"
-import type { TemplateData } from "@/lib/typst/resumeData"
+import type { Paragraph, TemplateData } from "@/lib/typst/resumeData"
 
 /**
  * A link's text, never hyphenated, as the .typ's links aren't: TeX only
@@ -204,7 +204,7 @@ function body(data: TemplateData, units: Units): string {
     write()
     add("  \\end{resumeEntries}")
   }
-  const text = (texts: string[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
+  const text = (texts: Paragraph[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
   const heading = (title: string) => add("", `\\section{${title}}`)
 
   // Role / organization / dates entries: work, leadership and volunteering.

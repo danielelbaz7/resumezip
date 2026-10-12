@@ -9,7 +9,7 @@
 // starts a new line (an entry, a list, a paragraph) first takes back the
 // leading above it, which ian.typ's gaps don't count.
 
-import type { TemplateData } from "@/lib/typst/resumeData"
+import type { Paragraph, TemplateData } from "@/lib/typst/resumeData"
 import {
   bold,
   CHARIS,
@@ -209,7 +209,7 @@ function body(data: TemplateData, units: Units): string {
     else add(`  \\resumeEntryTop{${organization}}{${when}}`)
     items(bullets)
   }
-  const text = (texts: string[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
+  const text = (texts: Paragraph[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
   const heading = (title: string, after?: number) => add("", `\\resumeSection${after ? `[${size(after)}]` : ""}{${title}}`)
 
   const { profile } = data
