@@ -20,7 +20,7 @@ const STEPS = [
   {
     word: "Send",
     text: "Download an ATS-friendly PDF so hiring software can read every word.",
-    art: { src: "/how-it-works/send-screen.webp", width: 688, height: 760 },
+    art: { src: "/how-it-works/send-screen.webp", width: 760, height: 920 },
   },
 ]
 
