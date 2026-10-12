@@ -53,6 +53,7 @@ export const TEMPLATE_SETTINGS: Record<TemplateId, { size: number; margin: numbe
   mono:         { size: 8.4,  margin: 0.55, paper: "us-letter" },
   accent:       { size: 10.5, margin: 0.6,  paper: "us-letter" },
   deedy:        { size: 10.3, margin: 0.5,  paper: "us-letter" },
+  zero2sudo:    { size: 11,   margin: 0.45, paper: "us-letter" },
 }
 
 /** A tune as the templates read it (see templates/common.typ): every multiple, 1 when unset, and "" for the template's own paper. */

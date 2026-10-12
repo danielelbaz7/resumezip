@@ -32,6 +32,7 @@ const KNOWN_GAPS: Record<string, string[]> = {
   referme: ["awards[0].name", "awards[0].organization"],
   resumeworded: [],
   swiss: [],
+  zero2sudo: [],
 }
 
 // What a resume prints, minus differences that print the same or are

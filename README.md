@@ -81,7 +81,10 @@
     <td align="center"><a href="https://www.tryresumezip.com/templates/mono"><img src="frontend/public/previews/mono.webp" width="190" alt="A resume in the Mono template"></a><br>Mono</td>
     <td align="center"><a href="https://www.tryresumezip.com/templates/accent"><img src="frontend/public/previews/accent.webp" width="190" alt="A resume in the Accent template"></a><br>Accent</td>
     <td align="center"><a href="https://www.tryresumezip.com/templates/deedy"><img src="frontend/public/previews/deedy.webp" width="190" alt="A resume in the Deedy template"></a><br>Deedy</td>
-    <td align="center" valign="middle"><a href="https://www.tryresumezip.com/templates"><b>See them all →</b></a></td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/zero2sudo"><img src="frontend/public/previews/zero2sudo.webp" width="190" alt="A resume in the zero2sudo template"></a><br>zero2sudo</td>
+  </tr>
+  <tr>
+    <td align="center" valign="middle" colspan="4"><a href="https://www.tryresumezip.com/templates"><b>See them all →</b></a></td>
   </tr>
 </table>
 
