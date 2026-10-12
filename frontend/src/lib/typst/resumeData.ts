@@ -91,6 +91,9 @@ type Saved = Partial<Entry>
 // surrogate that isn't part of a pair, so whole emoji are kept.
 const UNPRINTABLE = /[\p{Cs}\0-\x08\x0B\x0C\x0E-\x1F\x7F]/gu
 
+// ﬀ ﬁ ﬂ ﬃ ﬄ ﬅ ﬆ, which NFKC spells out as letters.
+const LIGATURES = /[\uFB00-\uFB06]/gu
+
 // Characters that print nothing, of which trim() only removes U+FEFF. A field
 // of only these is empty, so it doesn't print an empty heading or bullet.
 const INVISIBLE = /^[\s\u00AD\u200B\u2060\uFEFF]*$/
@@ -101,11 +104,19 @@ const INVISIBLE = /^[\s\u00AD\u200B\u2060\uFEFF]*$/
  * keyboards type it, prints as boxes in its templates. Control characters are
  * dropped first, so one between a letter and its accent doesn't keep them
  * apart. Typst prints a tab as nothing, so it's a space, as in the Word and
- * LaTeX files. Saved data stays as typed.
+ * LaTeX files. A ligature character (ﬁ, ﬂ, ...), as text copied from a PDF
+ * brings, prints as its letters: Typst gives a glyph one character in the PDF's
+ * text, so a typed "ﬁ" would make every "fi" the font joins read as "ﬁ", and
+ * "final" couldn't be found. Saved data stays as typed.
  */
 function text(value: unknown): string {
   if (typeof value !== "string") return ""
-  const printed = value.replace(UNPRINTABLE, "").normalize("NFC").replace(/\t/g, " ").trim()
+  const printed = value
+    .replace(UNPRINTABLE, "")
+    .normalize("NFC")
+    .replace(LIGATURES, (sign) => sign.normalize("NFKC"))
+    .replace(/\t/g, " ")
+    .trim()
   return INVISIBLE.test(printed) ? "" : printed
 }
 

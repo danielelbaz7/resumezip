@@ -8,6 +8,7 @@ import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import { fontsOf, TEMPLATES, templateBySlug, templatePath, templateSlug } from "@/lib/templates"
+import { checksPassed, READING_CHECKS } from "../how-they-read/checks"
 import { ABOUT } from "./about"
 
 // A page for each template, built ahead of time; any other address is a 404.
@@ -83,6 +84,17 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
                   <dd className="text-right text-ink">{tags.join(" · ")}</dd>
                 </div>
               )}
+              <div className={LEDGER_ROW}>
+                <dt>Read as plain text</dt>
+                <dd className="text-right text-ink">
+                  <Link
+                    href="/templates/how-they-read"
+                    className="underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
+                  >
+                    {checksPassed(template.id).length} of {READING_CHECKS.length} checks
+                  </Link>
+                </dd>
+              </div>
             </dl>
             <p className="text-[15px] leading-relaxed text-ink-2">Switch templates any time; your writing stays put.</p>
           </div>
