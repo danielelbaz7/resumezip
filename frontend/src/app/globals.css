@@ -17,6 +17,7 @@
   --color-accent: #2e5be6;
   --color-accent-soft: #a8b9f2;
   --color-alert: #b42318; /* must-fix findings (6.6:1 against white) */
+  --color-caution: #e5a50a; /* worth-a-look findings: a dot and a pill under ink text, not text itself */
 }
 
 /* Fine diagonal hatching for a quiet note, over its background color. */

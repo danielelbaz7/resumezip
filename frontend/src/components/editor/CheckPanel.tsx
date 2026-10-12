@@ -36,7 +36,7 @@ import {
 import { CATEGORIES, MUST_FIX_MAX, SCORE_BANDS, type CategoryId } from "@/lib/check/settings"
 import { hasLeftOut } from "@/lib/leftOut"
 import { useCheck, useCheckActions } from "./CheckContext"
-import { levelPill } from "./fields"
+import { levelPill, TIER_BG, TIER_NAMES, tierOf, type Tier } from "./fields"
 
 // A typo can't be dismissed, but its word can be added so it isn't flagged
 // again (rule G1, issue #66).
@@ -358,9 +358,11 @@ function CategoryRow({
 }) {
   const id = useId()
   const [open, setOpen] = useState(true)
-  const fixes = findings.filter((finding) => finding.level === "fix")
-  const looks = findings.filter((finding) => finding.level === "look")
-  const counts = [fixes.length > 0 && `${fixes.length} to fix`, looks.length > 0 && `${looks.length} to review`].filter(Boolean).join(", ")
+  // Its findings by tier, the ones that count most first.
+  const tiers = (["fix", "look", "optional"] as const)
+    .map((tier) => ({ tier, found: findings.filter((finding) => tierOf(finding) === tier) }))
+    .filter(({ found }) => found.length > 0)
+  const counts = tiers.map(({ tier, found }) => `${found.length} ${TIER_COUNTS[tier]}`).join(", ")
   // Where it stands, in a few words. While its rules wait on the PDF or the
   // text, it says so instead of a count.
   const status = checking === "pdf" ? "Reading the PDF…" : checking ? "Checking…" : counts
@@ -393,8 +395,11 @@ function CategoryRow({
               <span className="text-[12px] leading-snug text-ink-2">{status}</span>
             ) : (
               <span className="flex flex-wrap gap-1.5">
-                {fixes.length > 0 && <span className={levelPill("fix")}>{fixes.length} to fix</span>}
-                {looks.length > 0 && <span className={levelPill("look")}>{looks.length} to review</span>}
+                {tiers.map(({ tier, found }) => (
+                  <span key={tier} className={levelPill(tier)}>
+                    {found.length} {TIER_COUNTS[tier]}
+                  </span>
+                ))}
               </span>
             )}
           </span>
@@ -423,20 +428,13 @@ function CategoryRow({
         <div className="min-h-0 overflow-hidden">
           <div className="flex flex-col border-t border-rule">
             <p className="px-3.5 pt-2.5 text-[12px] leading-snug text-ink-2">{category.about}</p>
-            {fixes.length > 0 && (
-              <Group title={`To fix · ${fixes.length}`}>
-                {fixes.map((finding, index) => (
+            {tiers.map(({ tier, found }) => (
+              <Group key={tier} tier={tier} title={`${TIER_NAMES[tier]} · ${found.length}`}>
+                {found.map((finding, index) => (
                   <FindingItem key={`${finding.key}:${index}`} finding={finding} view={view} />
                 ))}
               </Group>
-            )}
-            {looks.length > 0 && (
-              <Group title={`To review · ${looks.length}`}>
-                {looks.map((finding, index) => (
-                  <FindingItem key={`${finding.key}:${index}`} finding={finding} view={view} />
-                ))}
-              </Group>
-            )}
+            ))}
           </div>
         </div>
       </div>
@@ -474,12 +472,13 @@ function Points({ name, score, checking }: { name: string; score: CategoryScore 
   )
 }
 
-/** Some of a category's findings, under a small title, as rows across its box. */
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+/** Some of a category's findings, of one tier, under a small title with the tier's colored dot, as rows across its box. */
+function Group({ tier, title, children }: { tier: Tier; title: string; children: React.ReactNode }) {
   const id = useId()
   return (
     <section aria-labelledby={id} className="flex flex-col">
-      <h3 id={id} className="label-mono px-3.5 pb-1.5 pt-3 text-ink-2">
+      <h3 id={id} className="label-mono flex items-center gap-2 px-3.5 pb-1.5 pt-3 text-ink-2">
+        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${TIER_BG[tier]}`} />
         {title}
       </h3>
       <ul className="flex flex-col">{children}</ul>
@@ -487,18 +486,26 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   )
 }
 
+// How each tier is counted in a category's summary, as "2 to fix, 1 optional".
+const TIER_COUNTS: Record<Tier, string> = { fix: "to fix", look: "to review", optional: "optional" }
+
+// The line down a finding's left side, in its tier's color.
+const TIER_LINE: Record<Tier, string> = {
+  fix: "shadow-[inset_3px_0_0_var(--color-alert)]",
+  look: "shadow-[inset_3px_0_0_var(--color-caution)]",
+  optional: "shadow-[inset_3px_0_0_var(--color-accent)]",
+}
+
 /**
  * A finding, as a row in its category's box: it opens its field, and a
- * suggestion can be dismissed. A must-fix has a red line down its left side.
+ * suggestion can be dismissed. A line down its left side is its tier's color.
  */
 function FindingItem({ finding, view }: { finding: Finding; view: ResumeView }) {
   const { open, dismiss, addWord } = useCheckActions()
   return (
     // Pointing at the finding shades the whole row, its actions too.
     <li
-      className={`flex flex-col border-t border-rule transition-colors has-[>button:first-child:hover]:bg-ink/[0.02] ${
-        finding.level === "fix" ? "shadow-[inset_3px_0_0_var(--color-alert)]" : ""
-      }`}
+      className={`flex flex-col border-t border-rule transition-colors has-[>button:first-child:hover]:bg-ink/[0.02] ${TIER_LINE[tierOf(finding)]}`}
     >
       <button
         type="button"
@@ -507,7 +514,6 @@ function FindingItem({ finding, view }: { finding: Finding; view: ResumeView }) 
       >
         <span className="w-full truncate font-mono text-[11px] text-ink-2">{describePlace(view, finding.place)}</span>
         <span className="text-sm leading-snug text-ink">{finding.message}</span>
-        {finding.advisory && <span className="text-[11px] text-ink-2">Optional advice · no score impact</span>}
       </button>
       {(finding.level === "look" || finding.rule === TYPO_RULE) && (
         <div className="-mt-0.5 flex gap-1.5 px-3.5 pb-3">
