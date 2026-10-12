@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { onMac, shortcut, typingIn } from "@/lib/keys"
 
 /** How long the message stays, in milliseconds, unless it's pointed at or has the keyboard's focus. */
 export const UNDO_MS = 6_000
@@ -15,14 +16,16 @@ interface DeletedToastProps {
 /**
  * Shows a resume was deleted, with a button to undo it, at the bottom of the
  * screen. It waits while it's pointed at or the keyboard is on it, so there's
- * time to read it, and starts its time again afterwards. Give it a key per
- * deletion, so each gets its full time.
+ * time to read it, and starts its time again afterwards. ⌘Z (Ctrl+Z) undoes
+ * too, while it's up. Give it a key per deletion, so each gets its full time.
  */
 export default function DeletedToast({ title, onUndo, onDone }: DeletedToastProps) {
   const [held, setHeld] = useState({ pointer: false, keyboard: false })
   const undoButton = useRef<HTMLButtonElement>(null)
   const done = useRef(onDone)
   done.current = onDone
+  const undo = useRef(onUndo)
+  undo.current = onUndo
   const waiting = held.pointer || held.keyboard
 
   useEffect(() => {
@@ -30,6 +33,18 @@ export default function DeletedToast({ title, onUndo, onDone }: DeletedToastProp
     const timer = setTimeout(() => done.current(), UNDO_MS)
     return () => clearTimeout(timer)
   }, [waiting])
+
+  // ⌘Z (Ctrl+Z) undoes the delete too, except in a field, where it takes back typing as usual.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.key.toLowerCase() !== "z" || event.shiftKey || event.altKey) return
+      if (!(onMac() ? event.metaKey : event.ctrlKey) || typingIn(event.target)) return
+      event.preventDefault()
+      undo.current()
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
 
   // Focus that was on what's being deleted goes to Undo, rather than being lost.
   useEffect(() => {
@@ -57,9 +72,17 @@ export default function DeletedToast({ title, onUndo, onDone }: DeletedToastProp
             setHeld((held) => ({ ...held, keyboard }))
           }}
           onBlur={() => setHeld((held) => ({ ...held, keyboard: false }))}
-          className="ink-button h-9 shrink-0 rounded-full px-4 text-sm font-medium"
+          aria-keyshortcuts={onMac() ? "Meta+Z" : "Control+Z"}
+          className="ink-button inline-flex h-9 shrink-0 items-center gap-2 rounded-full pl-4 pr-2.5 text-sm font-medium [@media(hover:none)]:pr-4"
         >
           Undo
+          {/* Only a hint for a keyboard, so not on touch screens. */}
+          <kbd
+            aria-hidden="true"
+            className="rounded-[5px] px-[5px] py-[3px] font-mono text-[11px] leading-none tracking-[0.04em] text-white/75 ring-1 ring-inset ring-white/30 [@media(hover:none)]:hidden"
+          >
+            {shortcut("Z")}
+          </kbd>
         </button>
       </div>
     </div>

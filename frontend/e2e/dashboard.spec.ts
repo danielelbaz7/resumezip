@@ -409,6 +409,29 @@ for (const [layout, width] of [
   })
 }
 
+test("⌘Z (Ctrl+Z) puts back the resume just deleted, except in the search, where it's the search's own", async ({ page }) => {
+  const errors = pageErrors(page)
+  await dashboardWith(page, [resume("a", "Ada"), resume("b", "Grace")])
+  const before = await saved(page, "a")
+  await tile(page, "Ada").getByRole("button", { name: "More for “Ada”" }).click()
+  await page.getByRole("menuitem", { name: "Delete" }).click()
+  await expect(pages(page).getByRole("link", { name: "Ada", exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Undo" })).toHaveAttribute("aria-keyshortcuts", /^(Meta|Control)\+Z$/)
+
+  const search = page.getByRole("combobox", { name: "Search your resumes" })
+  await search.focus()
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(page.getByRole("button", { name: "Undo" })).toBeVisible()
+  await expect(pages(page).getByRole("link", { name: "Ada", exact: true })).toHaveCount(0)
+
+  await search.blur()
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(pages(page).getByRole("link", { name: "Ada", exact: true })).toBeFocused()
+  await expect(page.getByRole("button", { name: "Undo" })).toHaveCount(0)
+  expect(await saved(page, "a")).toBe(before)
+  expect(errors).toEqual([])
+})
+
 test("on a phone, a page's More menu opens on screen, in front of the page beside it", async ({ page }) => {
   const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Ada"), resume("b", "Grace")])
