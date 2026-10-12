@@ -5,13 +5,16 @@
 // over two lines, sections read out of order, the contact details below the
 // first heading, a heading run into the text beside it.
 
+import { readFileSync, writeFileSync } from "node:fs"
+import path from "node:path"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { TextItem } from "pdfjs-dist/types/src/display/api"
 import { describe, expect, test } from "vitest"
+import { READING_CHECKS, WHY_NOT, type ReadingCheck, type ReadingResults } from "@/app/templates/how-they-read/checks"
 import { SECTIONS, type SectionName } from "@/components/editor/sections"
 import { comparable } from "@/lib/check/pdf"
-import { firstColumnOf, templateById, TEMPLATES } from "@/lib/templates"
+import { firstColumnOf, templateById, TEMPLATES, type TemplateId } from "@/lib/templates"
 import { toTemplateData, type TemplateData } from "@/lib/typst/resumeData"
 import { linesFromPages, readPdf, type Line } from "./lines"
 import { render, samples } from "./testRender"
@@ -77,21 +80,28 @@ function printedHeadings(resume: Record<string, unknown>, data: TemplateData): s
   ].map(({ heading }) => heading)
 }
 
-/** What would read wrongly as plain text, each naming the text that broke. */
-function readingProblems(resume: Record<string, unknown>, { lines, characters }: PlainText): string[] {
-  const problems: string[] = []
+/** Something that reads wrongly as plain text: the check it fails, naming the text that broke. */
+interface Problem {
+  check: ReadingCheck
+  message: string
+}
+
+/** What would read wrongly as plain text. */
+function readingProblems(resume: Record<string, unknown>, { lines, characters }: PlainText): Problem[] {
+  const problems: Problem[] = []
+  const fail = (check: ReadingCheck, message: string) => problems.push({ check, message })
   const texts = lines.map((line) => line.text)
   const flat = texts.map(comparable)
 
   for (const text of characters) {
     const signs = text.match(UNREADABLE)
-    if (signs) problems.push(`unreadable ${signs.map((sign) => JSON.stringify(sign)).join(", ")} in "${text}"`)
+    if (signs) fail("letters", `unreadable ${signs.map((sign) => JSON.stringify(sign)).join(", ")} in "${text}"`)
   }
 
   const data = toTemplateData(resume)
   for (const { start, end } of [...data.education, ...data.work, ...data.leadership, ...data.volunteer]) {
     if (start && end && !flat.some((line) => line.includes(comparable(start) + comparable(end)))) {
-      problems.push(`"${start}" and "${end}" aren't on one line`)
+      fail("dates", `"${start}" and "${end}" aren't on one line`)
     }
   }
 
@@ -102,14 +112,14 @@ function readingProblems(resume: Record<string, unknown>, { lines, characters }:
     const line = flat.indexOf(comparable(heading))
     if (line < 0) {
       const shared = texts.find((text) => comparable(text).startsWith(comparable(heading)))
-      problems.push(shared ? `heading "${heading}" shares a line: "${shared}"` : `heading "${heading}" isn't on a line of its own`)
+      fail("headings", shared ? `heading "${heading}" shares a line: "${shared}"` : `heading "${heading}" isn't on a line of its own`)
     }
     return line
   })
   const found = at.filter((line) => line >= 0)
   if (found.some((line, index) => index > 0 && line < found[index - 1])) {
     const read = headings.filter((_, index) => at[index] >= 0).sort((a, b) => flat.indexOf(comparable(a)) - flat.indexOf(comparable(b)))
-    problems.push(`sections read as ${read.join(", ")}, printed as ${headings.join(", ")}`)
+    fail("order", `sections read as ${read.join(", ")}, printed as ${headings.join(", ")}`)
   }
 
   // The name, email and phone, before the first heading.
@@ -120,7 +130,7 @@ function readingProblems(resume: Record<string, unknown>, { lines, characters }:
     ["phone", data.profile.phone],
   ]
   for (const [label, value] of contact) {
-    if (value && !top.includes(comparable(value))) problems.push(`the ${label}, "${value}", isn't read before the first heading`)
+    if (value && !top.includes(comparable(value))) fail("contact", `the ${label}, "${value}", isn't read before the first heading`)
   }
   return problems
 }
@@ -145,22 +155,41 @@ const KNOWN_PROBLEMS: Record<string, string[]> = {
   ],
 }
 
+const WORDS = "Certified in office workflow and fluent in efficient, affine shuffles"
+
+/**
+ * What a template's sample reads wrongly as plain text: as printed, and with
+ * a bullet of words whose fi, fl and ff its font may join. Each sample is
+ * printed once for the whole file.
+ */
+const reading = new Map<string, Promise<Problem[]>>()
+function readingOf(sample: Record<string, unknown>): Promise<Problem[]> {
+  const id = sample.selectedTemplate as string
+  if (!reading.has(id)) {
+    reading.set(
+      id,
+      (async () => {
+        const [job] = sample.workExperienceSection as Record<string, unknown>[]
+        const words = { ...sample, workExperienceSection: [{ ...job, workDescription: `• ${WORDS}` }] }
+        const read = await plainText(await render(words))
+        const joined = read.characters.join(" ").replace(/\s+/g, " ")
+        return [
+          ...readingProblems(sample, await plainText(await render(sample))),
+          ...readingProblems(words, read).filter(({ check }) => check === "letters"),
+          ...(joined.includes(WORDS) ? [] : [{ check: "letters" as const, message: `"${WORDS}" isn't read as typed` }]),
+        ]
+      })(),
+    )
+  }
+  return reading.get(id)!
+}
+
 describe.each(samples.map((sample) => [sample.selectedTemplate as string, sample]))(
   "the %s sample, read as plain text",
   (template, sample) => {
-    test("reads as it was printed", async () => {
-      expect(readingProblems(sample, await plainText(await render(sample))), template).toEqual(KNOWN_PROBLEMS[template] ?? [])
-    })
-
-    test("keeps fi, fl and ff as letters where its font joins them", async () => {
-      const words = "Certified in office workflow and fluent in efficient, affine shuffles"
-      const resume = { ...sample, workExperienceSection: [{ ...sample.workExperienceSection[0], workDescription: `• ${words}` }] }
-      const read = await plainText(await render(resume))
-      expect(
-        read.characters.filter((text) => text.match(UNREADABLE)),
-        template,
-      ).toEqual([])
-      expect(read.characters.join(" ").replace(/\s+/g, " "), template).toContain(words)
+    test("reads as it was printed, and keeps fi, fl and ff as letters where its font joins them", async () => {
+      const problems = (await readingOf(sample)).map(({ message }) => message)
+      expect(problems, template).toEqual(KNOWN_PROBLEMS[template] ?? [])
     })
   },
 )
@@ -168,6 +197,25 @@ describe.each(samples.map((sample) => [sample.selectedTemplate as string, sample
 test("every template has a sample to read", () => {
   expect(samples.map((sample) => sample.selectedTemplate).sort()).toEqual(TEMPLATES.map((template) => template.id).sort())
 })
+
+// What /templates/how-they-read shows. After a change to what a sample reads,
+// run with UPDATE_READ_RESULTS=1 to write it again.
+test("the page's results are what each sample reads", async () => {
+  const results = {} as ReadingResults
+  for (const { id } of TEMPLATES) {
+    const problems = await readingOf(samples.find((sample) => sample.selectedTemplate === id))
+    results[id] = Object.fromEntries(
+      READING_CHECKS.map((check) => [check.id, problems.filter((problem) => problem.check === check.id).map(({ message }) => message)]),
+    ) as ReadingResults[TemplateId]
+  }
+  const file = path.resolve("src/app/templates/how-they-read/results.json")
+  if (process.env.UPDATE_READ_RESULTS) writeFileSync(file, `${JSON.stringify(results, null, 2)}\n`)
+  // Read afresh, so a file just written is the one checked.
+  expect(JSON.parse(readFileSync(file, "utf8")), "run with UPDATE_READ_RESULTS=1 to write it again").toEqual(results)
+  // The page says why for each template that doesn't pass every check, and only for those.
+  const failing = TEMPLATES.filter(({ id }) => READING_CHECKS.some((check) => results[id][check.id].length > 0)).map(({ id }) => id)
+  expect(Object.keys(WHY_NOT).sort()).toEqual(failing.sort())
+}, 120_000)
 
 test("a ligature character, as text copied from a PDF brings, prints as its letters, and other fi's stay whole", async () => {
   // Typst gives each glyph one character in the PDF's text. A typed "ﬁ" used
@@ -187,7 +235,7 @@ describe("what reads wrongly is found, naming the text", () => {
   test("a ligature, a glyph pdf.js can't map, and the replacement character", () => {
     const [fi, replacement] = [0xfb01, 0xfffd].map((point) => String.fromCodePoint(point))
     const characters = [`AWS certi${fi}ed`, "Led (cid:12)ve teams", `Cut costs by 40 ${replacement}`]
-    expect(readingProblems({ selectedTemplate: "jake" }, { lines: [], characters })).toEqual([
+    expect(readingProblems({ selectedTemplate: "jake" }, { lines: [], characters }).map(({ message }) => message)).toEqual([
       `unreadable "${fi}" in "AWS certi${fi}ed"`,
       'unreadable "(cid:12)" in "Led (cid:12)ve teams"',
       `unreadable "${replacement}" in "Cut costs by 40 ${replacement}"`,
@@ -214,11 +262,11 @@ describe("what reads wrongly is found, naming the text", () => {
       "ada@example.com | 555 0100",
     ].map((text) => ({ text })) as Line[]
     expect(readingProblems(resume, { lines, characters: [] })).toEqual([
-      '"Jul 2024" and "Present" aren\'t on one line',
-      'heading "Skills" shares a line: "Skills Maths: Analysis"',
-      "sections read as Experience, Education, printed as Education, Experience, Skills",
-      'the email, "ada@example.com", isn\'t read before the first heading',
-      'the phone, "555 0100", isn\'t read before the first heading',
+      { check: "dates", message: '"Jul 2024" and "Present" aren\'t on one line' },
+      { check: "headings", message: 'heading "Skills" shares a line: "Skills Maths: Analysis"' },
+      { check: "order", message: "sections read as Experience, Education, printed as Education, Experience, Skills" },
+      { check: "contact", message: 'the email, "ada@example.com", isn\'t read before the first heading' },
+      { check: "contact", message: 'the phone, "555 0100", isn\'t read before the first heading' },
     ])
   })
 })

@@ -93,6 +93,16 @@ there. It does the same with each sample's Word file, read as if Word had saved
 it without its attachment (`src/lib/import/wordRoundtrip.test.ts`). A new
 template needs a sample and an entry in both lists.
 
+It also reads each sample as plain text, the way hiring software reads a PDF,
+before the importer works anything out (`src/lib/import/readsCleanly.test.ts`):
+letters a font joined into one sign, dates split over two lines, sections out
+of order, contact details below the first heading, and headings run into the
+text beside them. What a sample reads wrongly that's let be is listed in its
+`KNOWN_PROBLEMS`. It writes what it finds to
+`src/app/templates/how-they-read/results.json`, which `/templates/how-they-read`
+shows, and fails when that's out of date: run it with `UPDATE_READ_RESULTS=1`
+to write it again.
+
 `npm run test:browser` runs the browser tests in `e2e/` against the production
 build, in Chrome and in WebKit (Safari's engine). They make a resume, check the
 preview, download the PDF, reload, and open the PDF again; and they check every

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { newTemplate, TEMPLATES } from "@/lib/templates"
@@ -27,9 +28,15 @@ export default function TemplatesPage() {
               Pick a <em className="text-accent">template</em>.
             </h1>
           </div>
-          <p className="max-w-[340px] text-[17px] leading-relaxed text-ink-2 md:pb-3 md:text-right">
-            Switch any time; your writing stays put.
-          </p>
+          <div className="flex max-w-[340px] flex-col gap-2 text-[17px] leading-relaxed text-ink-2 md:items-end md:pb-3 md:text-right">
+            <p>Switch any time; your writing stays put.</p>
+            <Link
+              href="/templates/how-they-read"
+              className="text-ink underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
+            >
+              How they read as plain text
+            </Link>
+          </div>
         </div>
 
         <TemplateGallery newId={marked?.id} />
