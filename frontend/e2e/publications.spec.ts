@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { expect, test, type Page, type Route } from "@playwright/test"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { editorHeading, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 // Adding publications from their DOIs or links. Crossref and doi.org are
 // stood in for by records saved from real lookups (src/lib/papers/fixtures),
@@ -82,7 +82,7 @@ async function openPublications(page: Page) {
     .getByRole("navigation", { name: "Sections" })
     .getByRole("button", { name: /^\d+ Publications$/ })
     .click()
-  await expect(page.getByRole("heading", { name: "Publications" })).toBeVisible()
+  await expect(editorHeading(page, "Publications")).toBeVisible()
 }
 
 const saved = (page: Page) =>

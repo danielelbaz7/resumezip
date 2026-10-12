@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import { holdablePreviews, holdPreviews, pageErrors, seriousAccessibilityProblems, settled } from "./helpers"
+import { editorHeading, holdablePreviews, holdPreviews, pageErrors, seriousAccessibilityProblems, settled } from "./helpers"
 
 // The editor's left bar switches between the sections (Write) and what the
 // checker found (Check), and remembers which for the visit.
@@ -79,7 +79,7 @@ test("the left bar switches between writing and checking, and remembers which", 
   // to check yet always opens on Write.
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await sections.getByRole("button", { name: /^\d+ Experience$/ }).click()
-  await expect(page.getByRole("heading", { name: "Experience" })).toBeVisible()
+  await expect(editorHeading(page, "Experience")).toBeVisible()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Role").fill("Analyst")
 
@@ -88,7 +88,7 @@ test("the left bar switches between writing and checking, and remembers which", 
   await expect(check).toHaveAttribute("aria-selected", "true")
   await expect(sections).toBeHidden()
   await expect(page.getByRole("tabpanel", { name: /^Check/ })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Experience" })).toBeVisible()
+  await expect(editorHeading(page, "Experience")).toBeVisible()
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
 
   // Arrow keys, Home and End move between the three, as in any set of tabs.

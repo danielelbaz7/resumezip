@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { pageErrors, templateChosen } from "./helpers"
+import { editorHeading, pageErrors, templateChosen } from "./helpers"
 
 declare global {
   interface Window {
@@ -87,7 +87,7 @@ test("resumes open in the page from links and the history, each one afresh", asy
     .getByRole("navigation", { name: "Sections" })
     .getByRole("button", { name: /^\d+ Experience$/ })
     .click()
-  await expect(page.getByRole("heading", { name: "Experience" })).toBeVisible()
+  await expect(editorHeading(page, "Experience")).toBeVisible()
 
   // Two steps back is the first resume, opened at its start rather than at
   // the section the second one was on.

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
-import { chooseTemplate, pageErrors } from "./helpers"
+import { chooseTemplate, editorHeading, pageErrors } from "./helpers"
 
 // The first preview waits for the PDF compiler to download. A stand-in page
 // shows meanwhile (components/editor/PrintingPage.tsx), and the dashboard
@@ -270,7 +270,7 @@ test("the form can be used before the code that draws the preview and drags sect
   const sections = page.getByRole("navigation", { name: "Sections" })
   const experience = sections.getByRole("button", { name: /^\d+ Experience$/ })
   await experience.click()
-  await expect(page.getByRole("heading", { name: "Experience" })).toBeVisible()
+  await expect(editorHeading(page, "Experience")).toBeVisible()
   const preview = page.getByRole("region", { name: "Live preview" })
   await expect(preview.getByRole("status", { name: "Loading preview" })).toBeVisible()
   await expect(sections.getByRole("button", { name: "Reorder Experience" })).toHaveCount(0)
@@ -317,7 +317,7 @@ test("an entry being typed in when the drag and drop arrives keeps the cursor, a
   await expect(page.getByRole("button", { name: "Reorder entry 1" })).toHaveCount(0)
 
   // Once the cursor has left the entries, they can be dragged.
-  await page.getByRole("heading", { name: "Experience" }).click()
+  await editorHeading(page, "Experience").click()
   await expect(page.getByRole("button", { name: "Reorder entry 1" })).toBeVisible()
   expect(errors).toEqual([])
 })
