@@ -53,7 +53,10 @@ const paste = (box: Locator, text: string) =>
   box.evaluate((element, text) => {
     const dataTransfer = new DataTransfer()
     dataTransfer.setData("text/plain", text)
-    element.dispatchEvent(new InputEvent("beforeinput", { inputType: "insertFromPaste", dataTransfer, bubbles: true, cancelable: true }))
+    const event = new InputEvent("beforeinput", { inputType: "insertFromPaste", dataTransfer, bubbles: true, cancelable: true })
+    // WebKit's InputEvent constructor drops dataTransfer, which a paste in Safari has.
+    if (!event.dataTransfer) Object.defineProperty(event, "dataTransfer", { value: dataTransfer })
+    element.dispatchEvent(event)
   }, text)
 
 /** Opens the resume with `bullets` in its job, and focuses their box. */
