@@ -55,7 +55,7 @@
 #let section(title, body) = {
   v(gapped(15.6pt))
   block(sticky: true, {
-    text(size: sized(14pt), weight: "bold", fill: blue, title)
+    text(size: sized(14pt), weight: "bold", fill: blue, tagged-heading(section-level, title))
     v(sized(6.3pt))
     line(length: 100%, stroke: 1pt + blue)
   })
@@ -95,7 +95,7 @@
   set par(justify: false)
   set text(hyphenate: false)
   v(sized(-2.2pt))
-  align(center, text(size: sized(24pt), weight: "bold", p.name))
+  align(center, text(size: sized(24pt), weight: "bold", tagged-heading(1, p.name)))
   v(sized(15.8pt))
   // Where you are and how to reach you on the left, your profiles on the
   // right. Two share a line, a gap or more apart, when they fit on it, and

@@ -56,7 +56,7 @@
 #let section(title, body, after: 5.58pt) = {
   v(gapped(13.73pt))
   block(sticky: true, {
-    text(size: sized(11.96pt), weight: "bold", fill: blue, title)
+    text(size: sized(11.96pt), weight: "bold", fill: blue, tagged-heading(section-level, title))
     v(sized(4.4pt))
     line(length: 100%, stroke: 0.4pt + blue)
   })
@@ -67,7 +67,7 @@
 // ---------- Heading ----------
 
 #align(center, {
-  text(size: sized(24.79pt), weight: "bold", fill: blue, p.name)
+  text(size: sized(24.79pt), weight: "bold", fill: blue, tagged-heading(1, p.name))
   let items = ()
   if has(p.location) { items.push(p.location) }
   if has(p.phone) { items.push(p.phone) }

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { expect, test, type Page } from "@playwright/test"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { editorHeading, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 const initial = {
   id: "flexible",
@@ -111,7 +111,7 @@ test("a resume starts with four sections, and the optional ones are added and de
   await expect(nav(page).getByRole("button", { name: /^\d+ (Education|Experience|Skills|Projects)$/ })).toHaveCount(4)
   await expect(nav(page).getByRole("button", { name: /^\d+ Awards & Certifications$/ })).toHaveCount(0)
   await add(page, "Awards & Certifications")
-  await expect(page.getByRole("heading", { name: "Awards & Certifications", exact: true })).toBeVisible()
+  await expect(editorHeading(page, "Awards & Certifications", { exact: true })).toBeVisible()
   await expect.poll(async () => (await saved(page)).sectionOrder).toContain("Awards")
   // Added once, it's no longer offered. The menu opens over the page, and
   // Escape closes it, back on its button.
@@ -175,11 +175,11 @@ test.describe("touch", () => {
     await page.emulateMedia({ reducedMotion: "reduce" })
     await open(page)
     await add(page, "Text")
-    await expect(page.getByRole("heading", { name: "New section", exact: true })).toBeVisible()
+    await expect(editorHeading(page, "New section", { exact: true })).toBeVisible()
     await expect(page.getByRole("textbox", { name: "Text", exact: true })).not.toBeFocused()
     await page.getByRole("textbox", { name: "Text", exact: true }).fill("Narrow screen content.")
     await rename(page, "")
-    await expect(page.getByRole("heading", { name: "New section", exact: true })).toBeVisible()
+    await expect(editorHeading(page, "New section", { exact: true })).toBeVisible()
     await page.getByRole("checkbox", { name: "Include section in the PDF", exact: true }).uncheck()
     await expect.poll(async () => Object.values((await saved(page)).extraSections ?? {}).some((section: any) => section.leftOut)).toBe(true)
     await page.getByRole("button", { name: "Delete section", exact: true }).click()

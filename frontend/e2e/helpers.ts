@@ -218,6 +218,17 @@ export async function chooseTemplate(page: Page, name: string): Promise<void> {
 export const templateShown = (page: Page): Locator => page.getByRole("button", { name: /^Template/ })
 
 /**
+ * The editor's heading of a section, such as "Experience". Not the preview's:
+ * the PDF tags its section titles as headings, which pdf.js shows as headings
+ * in the page, and WebKit names them, so one of the same name is in both.
+ */
+export const editorHeading = (page: Page, name: string, options: { exact?: boolean } = {}): Locator =>
+  page.getByRole("main").getByRole("heading", { name, ...options })
+
+/** The editor's title, the open section's heading: its own H1, not the preview's, which is the resume's name. */
+export const editorTitle = (page: Page): Locator => page.getByRole("main").getByRole("heading", { level: 1 })
+
+/**
  * What names the resume's template on screen, once the editor is open. On
  * wide screens it's in the left panel's Style tab, so that's opened first;
  * narrower, the header's Template button says it.

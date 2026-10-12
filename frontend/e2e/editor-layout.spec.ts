@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import { WIDE_SCREEN } from "../src/components/editor/layout"
-import { pageErrors } from "./helpers"
+import { editorHeading, pageErrors } from "./helpers"
 
 // The editor puts the form beside the preview only where both have room
 // (components/editor/layout.ts). Narrower, an Edit / Preview switch shows one
@@ -149,9 +149,9 @@ test("resizing keeps the section, what's typed and the controls, and the bullets
     await page.getByLabel("Role", { exact: true }).focus()
     await views(page).getByRole("button", { name: "Preview" }).click()
     await expect(preview(page)).toBeVisible()
-    await expect(page.getByRole("heading", { name: "Experience" })).toBeHidden()
+    await expect(editorHeading(page, "Experience")).toBeHidden()
     await views(page).getByRole("button", { name: "Edit" }).click()
-    await expect(page.getByRole("heading", { name: "Experience" })).toBeVisible()
+    await expect(editorHeading(page, "Experience")).toBeVisible()
   }
 
   expect(errors).toEqual([])

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import { pageErrors, settled, transitionsDone } from "./helpers"
+import { editorHeading, pageErrors, settled, transitionsDone } from "./helpers"
 
 // What a click brings up fades in, rather than appearing all at once, unless
 // the visitor asks for less motion.
@@ -58,12 +58,9 @@ test("a section, Write, Check or Style, and the template gallery fade in as they
   await newResume(page)
   const sections = page.getByRole("navigation", { name: "Sections" })
 
-  const experience = await fadingIn(
-    sections.getByRole("button", { name: /^\d+ Experience$/ }),
-    page.getByRole("heading", { name: "Experience" }),
-  )
+  const experience = await fadingIn(sections.getByRole("button", { name: /^\d+ Experience$/ }), editorHeading(page, "Experience"))
   expect(experience.some((text) => text.includes("Add experience"))).toBe(true)
-  await expect(page.getByRole("heading", { name: "Experience" })).toBeVisible()
+  await expect(editorHeading(page, "Experience")).toBeVisible()
 
   const check = await fadingIn(
     page.getByRole("tablist", { name: "Write, check or style" }).getByRole("tab", { name: /^Check/ }),
@@ -206,7 +203,7 @@ test.describe("with less motion", () => {
     expect(
       await fadingIn(
         page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: /^\d+ Experience$/ }),
-        page.getByRole("heading", { name: "Experience" }),
+        editorHeading(page, "Experience"),
       ),
     ).toEqual([])
     expect(await fadingIn(page.getByRole("tab", { name: /^Check/ }), page.getByRole("heading", { name: "Resume score" }))).toEqual([])

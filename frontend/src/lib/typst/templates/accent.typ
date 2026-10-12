@@ -28,10 +28,10 @@
   block(sticky: true, {
     let letters = title.clusters()
     let split = calc.min(3, letters.len())
-    text(size: sized(13.5pt), weight: "bold", {
+    text(size: sized(13.5pt), weight: "bold", tagged-heading(section-level, {
       text(fill: accent, letters.slice(0, split).join())
       letters.slice(split).join()
-    })
+    }))
     h(6pt)
     box(width: 1fr, inset: (bottom: 0.32em), line(length: 100%, stroke: 0.6pt + luma(185)))
     v(sized(6pt))
@@ -59,11 +59,11 @@
 #align(center, {
   // First names light, the last name bold.
   let words = p.name.split(" ")
-  text(size: sized(30pt), {
+  text(size: sized(30pt), tagged-heading(1, {
     text(weight: 300, words.slice(0, calc.max(0, words.len() - 1)).join(" "))
     if words.len() > 1 { [ ] }
     text(weight: "bold", words.last(default: ""))
-  })
+  }))
   let items = ()
   if has(p.location) { items.push(p.location) }
   if has(p.phone) { items.push(p.phone) }

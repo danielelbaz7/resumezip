@@ -29,7 +29,7 @@
 #let section(title, body) = {
   v(gapped(20.1pt))
   block(sticky: true, {
-    text(size: sized(12pt), weight: "bold", upper(title))
+    text(size: sized(12pt), weight: "bold", tagged-heading(section-level, upper(title)))
     v(sized(4.05pt))
     line(length: 100%, stroke: 0.4pt)
   })
@@ -53,7 +53,7 @@
 // ---------- Heading ----------
 
 #align(center, {
-  text(size: sized(20.74pt), weight: "bold", p.name)
+  text(size: sized(20.74pt), weight: "bold", tagged-heading(1, p.name))
   let items = ()
   if has(p.location) { items.push(p.location) }
   if has(p.phone) { items.push(p.phone) }
