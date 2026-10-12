@@ -403,6 +403,13 @@ function CategoryRow({
               </span>
             )}
           </span>
+          {/* Its points, big, so each box reads by its number. Said by the meter below. */}
+          {score?.applies && (
+            <span aria-hidden="true" className="shrink-0 self-center whitespace-nowrap tabular-nums">
+              <span className="font-serif text-[28px] leading-none tracking-[-0.03em] text-ink">{wholePoints(score.earned)}</span>
+              <span className="font-mono text-[11px] text-ink-2">/{score.points}</span>
+            </span>
+          )}
           <ChevronDown
             className={`mt-1.5 h-4 w-4 shrink-0 text-ink-2 transition-transform duration-300 ease-out motion-reduce:transition-none ${
               open ? "rotate-180" : ""
@@ -442,7 +449,7 @@ function CategoryRow({
   )
 }
 
-/** A category's points, as a bar. */
+/** A category's points, as a bar; the number is in its box's header. */
 function Points({ name, score, checking }: { name: string; score: CategoryScore | null; checking: boolean }) {
   // Not checked yet: the count says it's being checked.
   if (!score?.applies) return null
@@ -465,9 +472,6 @@ function Points({ name, score, checking }: { name: string; score: CategoryScore 
           style={{ width: `${(100 * score.earned) / score.points}%` }}
         />
       </div>
-      <span className="font-mono text-[11px] tabular-nums text-ink-2" aria-hidden="true">
-        {earned}/{score.points}
-      </span>
     </div>
   )
 }
