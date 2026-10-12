@@ -4,7 +4,6 @@ import type React from "react"
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import { ArrowDown, ArrowUp, ArrowUpDown, Pencil } from "lucide-react"
 import type { Finding } from "@/lib/check/engine"
-import { LEVELS, type Level } from "@/lib/check/settings"
 import { plainText } from "@/lib/typst/resumeData"
 import {
   bulletLines,
@@ -45,12 +44,23 @@ interface FieldProps {
 }
 
 /**
- * A small pill for a finding's level: red for a must-fix, the one thing that
- * holds the score down, so it stands out; grey for a suggestion.
+ * A finding's tier, as the Check tab shows it: a must-fix (red), which costs
+ * points and holds the score down; worth a look (yellow), which costs points
+ * and can be dismissed; or optional advice (blue), which doesn't count.
  */
-export const levelPill = (level: Level) =>
-  `inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[11px] font-medium leading-none ${
-    level === "fix" ? "bg-alert text-white" : "bg-ink/[0.06] text-ink"
+export type Tier = "fix" | "look" | "optional"
+
+export const tierOf = (finding: Pick<Finding, "level" | "advisory">): Tier => (finding.advisory ? "optional" : finding.level)
+
+export const TIER_NAMES: Record<Tier, string> = { fix: "Must fix", look: "Worth a look", optional: "Optional" }
+
+/** Each tier's color, as a dot, a pill and the line down a finding's side. */
+export const TIER_BG: Record<Tier, string> = { fix: "bg-alert", look: "bg-caution", optional: "bg-accent" }
+
+/** A small pill for a finding's tier, in its color. */
+export const levelPill = (tier: Tier) =>
+  `inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[11px] font-medium leading-none ${TIER_BG[tier]} ${
+    tier === "look" ? "text-ink" : "text-white"
   }`
 
 /**
@@ -66,7 +76,7 @@ export function FlagNote({ id, finding }: { id?: string; finding: Finding }) {
       className="flex flex-col gap-2 rounded-[4px] bg-sheet px-4 py-3 text-[13px] leading-normal text-balance ring-1 ring-ink/[0.08]"
     >
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ink">
-        <span className={levelPill(finding.level)}>{LEVELS[finding.level].name}</span>
+        <span className={levelPill(tierOf(finding))}>{TIER_NAMES[tierOf(finding)]}</span>
         {finding.message}
       </p>
       <p className="text-ink-2">{finding.why}</p>

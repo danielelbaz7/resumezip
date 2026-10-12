@@ -187,6 +187,11 @@ test("the checker asks for a name and an entry first, then scores the resume and
   await expect(contact).toHaveAttribute("aria-expanded", "true")
   const email = panel.getByRole("button", { name: /Add your email address/ })
   await expect(email).toBeVisible()
+  // Its findings are grouped by tier, must-fixes first, each under its name; optional advice
+  // (here, a phone number) is its own tier, and isn't marked again on each row.
+  await expect(panel.getByRole("heading", { level: 3, name: /^Must fix · \d+$/ }).first()).toBeVisible()
+  await expect(panel.getByRole("heading", { level: 3, name: /^Optional · \d+$/ }).first()).toBeVisible()
+  await expect(panel.getByText(/no score impact/)).toHaveCount(0)
   await contact.focus()
   await page.keyboard.press("Enter")
   await expect(contact).toHaveAttribute("aria-expanded", "false")

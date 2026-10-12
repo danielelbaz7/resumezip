@@ -20,7 +20,6 @@ import { reducedMotion, WIDE_SCREEN } from "@/components/editor/layout"
 import SectionNav, { type ActiveSection } from "@/components/editor/SectionNav"
 import StylePanel from "@/components/editor/StylePanel"
 import TemplatePicker from "@/components/editor/TemplatePicker"
-import Tour from "@/components/editor/Tour"
 import { useKeepFormPlace } from "@/components/editor/useKeepFormPlace"
 import { usePdfFile } from "@/components/editor/usePdfFile"
 import { useSaveToDrive } from "@/components/editor/useSaveToDrive"
@@ -114,8 +113,6 @@ function Editor({ id }: { id: string }) {
   const [pdfResume, setPdfResume] = useState<Resume | undefined>(undefined)
   const [unbuilt, setUnbuilt] = useState<string | null>(null)
   const [compileError, setCompileError] = useState<string | null>(null)
-  // How many times Take the tour was pressed: each one opens the tour again.
-  const [tourAsked, setTourAsked] = useState(0)
   const [downloading, setDownloading] = useState(false)
   // When the last download finished, while the button says so; 0 otherwise.
   const [downloadedAt, setDownloadedAt] = useState(0)
@@ -486,7 +483,7 @@ function Editor({ id }: { id: string }) {
                 className="-ml-2 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-sm text-ink-2 transition-colors hover:bg-ink/[0.05] hover:text-ink"
               >
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                Your resumes
+                Your Resumes
               </Link>
               <span className="h-5 w-px shrink-0 bg-ink/15" aria-hidden="true" />
               <ResumeName />
@@ -494,16 +491,6 @@ function Editor({ id }: { id: string }) {
             <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
               {/* Here rather than after the name, so it stays put while the name is typed. */}
               <SavedNote />
-              {/* The first-visit tour, again, whenever it's wanted. */}
-              <button
-                type="button"
-                aria-label="Take the tour"
-                title="Take the tour"
-                onClick={() => setTourAsked((count) => count + 1)}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sheet/70 text-[15px] font-medium text-ink ring-1 ring-ink/15 transition-shadow hover:ring-ink/40"
-              >
-                ?
-              </button>
               <TemplatePicker value={selectedTemplate} onChange={chooseTemplate} />
               {/* Download PDF is the main way out; the ▾ beside it has the others. The button's
                   least width fits "Download PDF", so it doesn't shrink when it says Downloaded. */}
@@ -512,7 +499,7 @@ function Editor({ id }: { id: string }) {
                   type="button"
                   onClick={download}
                   disabled={downloading}
-                  className="download-button ink-button relative inline-flex h-10 items-center justify-center gap-2 overflow-hidden rounded-l-full pl-[18px] pr-4 text-sm font-medium disabled:cursor-wait sm:min-w-[10.5rem] sm:text-[15px] [&_svg]:size-4 xl:h-11"
+                  className="download-button ink-glass relative inline-flex h-10 items-center justify-center gap-2 overflow-hidden rounded-l-full pl-[18px] pr-4 text-sm font-medium disabled:cursor-wait sm:min-w-[10.5rem] sm:text-[15px] [&_svg]:size-4 xl:h-11"
                 >
                   <DownloadIcon state={downloading ? "busy" : downloaded ? "done" : "idle"} />
                   {/* Fills along the bottom while the PDF is made, then the rest of the way, and fades, once it's downloaded. */}
@@ -713,8 +700,6 @@ function Editor({ id }: { id: string }) {
           })}
         </div>
       </div>
-
-      <Tour asked={tourAsked} />
     </div>
   )
 }

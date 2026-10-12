@@ -83,10 +83,6 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
                   <dd className="text-right text-ink">{tags.join(" · ")}</dd>
                 </div>
               )}
-              <div className={LEDGER_ROW}>
-                <dt>Price</dt>
-                <dd className="text-right text-ink">Free, no sign-up</dd>
-              </div>
             </dl>
             <p className="text-[15px] leading-relaxed text-ink-2">Switch templates any time; your writing stays put.</p>
           </div>

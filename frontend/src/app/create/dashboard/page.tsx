@@ -18,7 +18,7 @@ import SearchBar, { matches } from "@/components/dashboard/SearchBar"
 import UnreadableData from "@/components/dashboard/UnreadableData"
 import { focusShown, nameOf, useListActions } from "@/components/dashboard/useListActions"
 import { switchView } from "@/components/dashboard/viewSwitch"
-import { INK_PILL, OUTLINE_PILL } from "@/components/pills"
+import { DOCK_PILL, GLASS_DOCK, INK_GLASS_PILL, OUTLINE_PILL } from "@/components/pills"
 import DownloadFailed from "@/components/site/DownloadFailed"
 import NotSaved from "@/components/site/NotSaved"
 import PageIntro from "@/components/site/PageIntro"
@@ -439,7 +439,7 @@ export default function DashboardPage() {
   const failedResumes = kept.filter((resume) => actions.failed[resume.id])
 
   const openFileButton = (
-    <button type="button" onClick={chooseFile} className={`${OUTLINE_PILL} h-11`}>
+    <button type="button" onClick={chooseFile} className={DOCK_PILL}>
       <FileUp className="h-4 w-4" aria-hidden="true" />
       Open a file
     </button>
@@ -450,14 +450,14 @@ export default function DashboardPage() {
       type="button"
       onClick={downloadAll}
       disabled={total === 0}
-      className={`${OUTLINE_PILL} h-11 disabled:cursor-default disabled:opacity-45 disabled:hover:bg-sheet/70 disabled:hover:ring-ink/15`}
+      className={`${DOCK_PILL} disabled:cursor-default disabled:opacity-45`}
     >
       <FileDown className="h-4 w-4" aria-hidden="true" />
       Download all
     </button>
   )
   const newResumeButton = (
-    <button type="button" onClick={() => setCreating(true)} className={`${INK_PILL} h-11`}>
+    <button type="button" onClick={() => setCreating(true)} className={`${INK_GLASS_PILL} max-sm:col-span-2`}>
       <Plus className="h-4 w-4" aria-hidden="true" />
       New resume
     </button>
@@ -475,11 +475,13 @@ export default function DashboardPage() {
               ? `${count(total, "resume")} · ${saveStatus === "saved" ? "stored in this browser" : "not saved"}`
               : "Stored in this browser"
           }
-          title="Your resumes"
+          title="Your Resumes"
           // The same with no resumes, so the page doesn't change shape when the first arrives.
           actions={
             loaded ? (
-              <div className="flex flex-wrap gap-2">
+              // One pane of glass, as a toolbar. On phones, where the three don't fit on a line,
+              // the two lesser ones share the top and New resume runs across the foot.
+              <div className={`${GLASS_DOCK} max-sm:grid max-sm:w-full max-sm:grid-cols-2`}>
                 {downloadAllButton}
                 {openFileButton}
                 {newResumeButton}

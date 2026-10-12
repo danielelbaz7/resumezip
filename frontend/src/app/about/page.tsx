@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import { Star } from "lucide-react"
 import EmailContact from "@/components/site/EmailContact"
-import { INK_PILL } from "@/components/pills"
+import { INK_GLASS_PILL } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
@@ -175,19 +175,18 @@ export default function AboutPage() {
                 Many resume builders charge you to download your own resume, and keep a copy. <Wordmark /> doesn’t: every template is free
                 and made for the hiring software (ATS) that reads it, and your resume stays in your browser.
               </p>
-              {/* One plain line, set apart by hairlines, rather than a logo wall. */}
-              <p className="mt-3 inline-flex self-start flex-wrap items-center gap-x-3 gap-y-1 border-y border-ink/15 py-3 pr-2">
+              {/* One small badge of frosted glass, as the site's buttons are, rather than a logo wall. */}
+              <a
+                href={MICROSOFT_STARTUPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="glass glass-float mt-3 inline-flex self-start items-center gap-3.5 rounded-full py-3 pl-[18px] pr-[22px] transition-[filter] hover:brightness-[1.03]"
+              >
                 <span className="label-mono text-ink-2">Part of</span>
-                <a
-                  href={MICROSOFT_STARTUPS_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2.5 underline-offset-4 hover:underline"
-                >
-                  <MicrosoftLogo />
-                  <span className="font-serif text-[22px] leading-none tracking-[-0.01em]">Microsoft for Startups</span>
-                </a>
-              </p>
+                <span aria-hidden="true" className="h-5 w-px bg-ink/15" />
+                <MicrosoftLogo />
+                <span className="font-serif text-[22px] leading-none tracking-[-0.01em]">Microsoft for Startups</span>
+              </a>
             </div>
             <OwnResume />
           </div>
@@ -248,12 +247,9 @@ export default function AboutPage() {
               <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
                 No ads, no paid plans. If <Wordmark /> helped you, a star helps others find it.
               </p>
-              <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={`group ${INK_PILL} mt-6`}>
-                {/* Yellow under the pointer, as the header's star is. */}
-                <Star
-                  className="h-4 w-4 transition-colors duration-200 group-hover:fill-[#facc15] group-hover:text-[#facc15] motion-reduce:transition-none"
-                  aria-hidden="true"
-                />
+              <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={`${INK_GLASS_PILL} mt-6`}>
+                {/* Gold, as the header's star is. */}
+                <Star className="h-4 w-4 fill-[#facc15] text-[#facc15]" aria-hidden="true" />
                 Star on GitHub
               </a>
             </div>

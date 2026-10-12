@@ -58,7 +58,7 @@ export default function FloatingStart() {
           <span className="whitespace-nowrap text-[16px] tracking-[-0.015em]">Start writing. It’s free.</span>
           <span
             aria-hidden="true"
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-ink px-4 text-[15px] font-medium text-white transition-colors group-hover:bg-[#2b2f3a]"
+            className="ink-glass inline-flex h-10 items-center gap-2 rounded-full px-4 text-[15px] font-medium group-hover:brightness-[1.35]"
           >
             Start
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">

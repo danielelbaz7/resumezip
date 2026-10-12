@@ -6,8 +6,13 @@
      sort and view. On phones each on a line of its own; then the search with
      sort and view beside it, and the chips under them; and on wide screens all
      on one line. */
+  /* It's a pane of glass (GLASS_BAR), so a layer of its own: over the pages
+     below it, as the search's panel, menus and veil in it have to be. */
   .dash-toolbar {
+    z-index: 20;
     display: grid;
+    /* Never wider than the bar, however wide what's in it would like to be. */
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "search" "chips" "controls";
     align-items: center;
     gap: 12px;
@@ -20,10 +25,12 @@
   }
   .dash-toolbar-chips {
     grid-area: chips;
+    min-width: 0;
   }
   .dash-toolbar-controls {
     grid-area: controls;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
@@ -39,15 +46,50 @@
   }
   @media (min-width: 80rem) {
     .dash-toolbar {
-      grid-template-columns: 260px minmax(0, 1fr) auto;
+      grid-template-columns: 300px minmax(0, 1fr) auto;
       grid-template-areas: "search chips controls";
-      column-gap: 16px;
+      column-gap: 8px;
+    }
+    /* A hairline before the chips and before the controls, as the templates page's bar has. */
+    .dash-toolbar-chips,
+    .dash-toolbar-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dash-toolbar-chips::before,
+    .dash-toolbar-controls::before {
+      content: "";
+      flex: none;
+      width: 1px;
+      height: 28px;
+      margin: 0 4px;
+      background: rgb(17 19 24 / 0.15);
     }
   }
+  /* In the bar, at rest (and its copy left in the bar while it's lifted),
+     the search is a plain white field, as the templates page's is, rather than
+     glass on glass; lifted, it's glass again. */
+  .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *) {
+    box-shadow: inset 0 0 0 1px rgb(17 19 24 / 0.06);
+  }
+  .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *)::before {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: rgb(255 255 255 / 0.55);
+    box-shadow: none;
+  }
+  .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *):focus-within::before {
+    background: rgb(255 255 255 / 0.8);
+  }
+  .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *)::after {
+    display: none;
+  }
 
-  /* The search field (and the templates page's bar and plates): clear glass,
-     with a lit top edge and a rim, a little whiter than the sheet it sits on. Its blur is on ::before, as .glass's is
-     (styles/glass.css), so its words stay sharp. */
+  /* The search field (and the glass bar it sits in, GLASS_BAR, and the
+     templates page's plates): clear glass, with a lit top edge and a rim. Its
+     blur is on ::before, as .glass's is (styles/glass.css), so its words stay
+     sharp. */
   .search-field {
     position: relative;
     isolation: isolate;
@@ -354,14 +396,8 @@
       margin-right: 2px;
       padding: 0 16px;
       border-radius: 999px;
-      background: var(--color-ink);
-      color: white;
       font-size: 14px;
       font-weight: 500;
-      transition: background-color 150ms;
-    }
-    .tile-open:hover {
-      background: black;
     }
   }
   @media (min-width: 40rem) and (hover: none) {

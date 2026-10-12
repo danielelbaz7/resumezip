@@ -95,7 +95,7 @@ function TemplatePicker({ value, onChange }: TemplatePickerProps) {
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (open ? hide() : show())}
-        className="inline-flex h-10 items-center gap-2.5 rounded-full bg-sheet/70 pl-4 pr-3.5 text-sm text-ink ring-1 ring-ink/15 transition-shadow hover:ring-ink/40 aria-expanded:ring-ink/40"
+        className="glass glass-float inline-flex h-10 items-center gap-2.5 rounded-full pl-4 pr-3.5 text-sm text-ink transition-[filter] hover:brightness-[1.03] aria-expanded:brightness-[0.98]"
       >
         {/* Said, but not shown, on phones, so the button fits beside Download PDF. */}
         <span className="label-mono text-ink-2 max-sm:sr-only">Template</span>
