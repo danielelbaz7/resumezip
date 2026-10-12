@@ -330,12 +330,15 @@ test("the switch's white pill slides to the view picked", async ({ page }) => {
   await dashboardWith(page, [resume("a", "Ada")])
   const view = page.getByRole("group", { name: "View" })
   await expect(view.getByRole("button", { name: "Pages" })).toHaveAttribute("aria-pressed", "true")
-  await view.getByRole("button", { name: "List" }).click()
-  // It used to be drawn by the pressed button, so it jumped.
-  const sliding = await view.evaluate((group) =>
-    group.getAnimations({ subtree: true }).some((animation) => (animation as CSSTransition).transitionProperty === "translate"),
+  // It used to be drawn by the pressed button, so it jumped. Listened for rather than looked for once:
+  // the view changes when the browser's view transition gets to it, which WebKit can take a while to.
+  await view.evaluate((group) =>
+    group.addEventListener("transitionrun", (event) => {
+      if (event instanceof TransitionEvent) group.dataset.sliding = `${group.dataset.sliding ?? ""} ${event.propertyName}`
+    }),
   )
-  expect(sliding).toBe(true)
+  await view.getByRole("button", { name: "List" }).click()
+  await expect(view).toHaveAttribute("data-sliding", /\btranslate\b/)
 })
 
 test("switching to the list moves each resume's page and name to its row, with focus kept on the switch", async ({ page }) => {
