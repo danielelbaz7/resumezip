@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { onMac } from "@/lib/keys"
 import { drawBox, htmlOf, readBox, selectIn, selectionIn, targetIn } from "./boxDom"
 import { scrollerOf, uncovered } from "./layout"
 import {
@@ -97,8 +98,6 @@ const COMPOSED = new Set(["insertCompositionText", "deleteCompositionText", "ins
  * swapping two letters with Ctrl+T, the browser does, and it's read back.
  */
 const madeHere = (type: string) => !COMPOSED.has(type) && (MADE_HERE.has(type) || type.startsWith("format") || type.startsWith("delete"))
-
-const onMac = () => /Mac|iPhone|iPad/.test(navigator.platform)
 
 /** Scrolls just enough to show the cursor clear of the pinned bars, as the browser does after its own edits. */
 function revealCursor(box: HTMLElement) {
