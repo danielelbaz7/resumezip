@@ -75,7 +75,9 @@ awards, as the editor keeps them in Awards & Certifications: "Certifications",
 Certifications" and "Skills & Certifications" into Education and Skills.
 
 The review puts the summaries ticked together, a paragraph each, in the file's
-order. Unsupported groups can be kept as text sections or bullet lists, with
+order. Words set in bold or italic in a bullet or a summary keep the editor's
+marks (`**bold**`, `*italic*`), unless all of it is in that style, which is
+the layout's. Unsupported groups can be kept as text sections or bullet lists, with
 neither choice selected initially. Durable section UUIDs are created only when
 the person confirms the import. Copy and download preserve uncertain text and the original
 text of groups or entries excluded during review.

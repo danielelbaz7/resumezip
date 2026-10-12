@@ -17,7 +17,7 @@ export interface TemplateData {
   tune: PrintedTune
   profile: { name: string; location: string; phone: string; email: string; linkedin: string; github: string; website: string }
   /** The profile's summary, printed under its own heading above the sections. */
-  summary: string[]
+  summary: Paragraph[]
   headings: {
     education: string
     work: string
@@ -53,14 +53,17 @@ export interface TemplateData {
 }
 
 export type ExtraTemplateSection =
-  { kind: "text"; heading: string; paragraphs: string[] } | { kind: "list"; heading: string; bullets: Run[][] }
+  { kind: "text"; heading: string; paragraphs: Paragraph[] } | { kind: "list"; heading: string; bullets: Run[][] }
 
-/** A stretch of a bullet's text: **bold**, *italic* or ***both*** where the user marked it. */
+/** A stretch of a bullet's or a paragraph's text: **bold**, *italic* or ***both*** where the user marked it. */
 export interface Run {
   text: string
   bold: boolean
   italic: boolean
 }
+
+/** A paragraph of prose (a summary's, or a text section's): its lines, each in runs. */
+export type Paragraph = Run[][]
 
 /** A piece of an author list: a name, or the text between names. `me` marks the resume owner's name. */
 interface AuthorPiece {
@@ -106,12 +109,15 @@ function text(value: unknown): string {
   return INVISIBLE.test(printed) ? "" : printed
 }
 
-// Prose as paragraphs, split at blank lines. A single line break stays in its paragraph.
-const paragraphs = (value: unknown) =>
+// Prose as paragraphs, split at blank lines. A single line break stays in its
+// paragraph. Each line is read for **bold** and *italic* words on its own, as
+// a bullet is, and as the editor's box saves them.
+const paragraphs = (value: unknown): Paragraph[] =>
   text(value)
     .split(/\r?\n\s*\r?\n/)
     .map(text)
     .filter(Boolean)
+    .map((paragraph) => paragraph.split("\n").map((line) => runs(line)))
 
 // Links are displayed without their scheme, "www." or a trailing slash; the
 // templates add https:// back.
@@ -133,31 +139,41 @@ const bullets = (value: unknown) =>
 // the first marker that can close it, so "**C** and **Go**" is two bold words.
 const MARKED = /\*\*\*(\S(?:[\s\S]*?\S)??)\*\*\*|\*\*(\S(?:[\s\S]*?\S)??)\*\*|\*([^\s*](?:[^*]*?[^\s*])?)\*/g
 
-// "Optimized a **Rust** engine for *low latency*" in plain, bold and italic
-// pieces. Marks can sit inside each other: "**bold with *italic* inside**".
-function runs(line: string, bold = false, italic = false): Run[] {
-  const out: Run[] = []
-  const add = (text: string) => {
-    const last = out[out.length - 1]
-    if (last && last.bold === bold && last.italic === italic) last.text += text
-    else if (text) out.push({ text, bold, italic })
-  }
+/** A stretch of a line's printed text, and where it starts in the line as typed, marks and all. */
+export interface MarkedPiece extends Run {
+  at: number
+}
+
+/**
+ * "Optimized a **Rust** engine for *low latency*" in plain, bold and italic
+ * pieces, each a stretch of the line as typed. Marks can sit inside each
+ * other: "**bold with *italic* inside**". The bullets box reads lines with
+ * this too, so it shows them as they print.
+ */
+export function markedPieces(line: string, bold = false, italic = false, offset = 0): MarkedPiece[] {
+  const out: MarkedPiece[] = []
   let at = 0
   for (const match of line.matchAll(MARKED)) {
-    add(line.slice(at, match.index))
+    if (match.index > at) out.push({ text: line.slice(at, match.index), bold, italic, at: offset + at })
     const [, both, strong, emph] = match
-    for (const run of both !== undefined
-      ? runs(both, true, true)
-      : strong !== undefined
-        ? runs(strong, true, italic)
-        : runs(emph, bold, true)) {
-      const last = out[out.length - 1]
-      if (last && last.bold === run.bold && last.italic === run.italic) last.text += run.text
-      else out.push(run)
-    }
-    at = match.index! + match[0].length
+    const start = offset + match.index + (both !== undefined ? 3 : strong !== undefined ? 2 : 1)
+    if (both !== undefined) out.push(...markedPieces(both, true, true, start))
+    else if (strong !== undefined) out.push(...markedPieces(strong, true, italic, start))
+    else out.push(...markedPieces(emph, bold, true, start))
+    at = match.index + match[0].length
   }
-  add(line.slice(at))
+  if (at < line.length) out.push({ text: line.slice(at), bold, italic, at: offset + at })
+  return out
+}
+
+// The pieces of a line, with neighbours in the same style joined.
+function runs(line: string): Run[] {
+  const out: Run[] = []
+  for (const { text, bold, italic } of markedPieces(line)) {
+    const last = out[out.length - 1]
+    if (last && last.bold === bold && last.italic === italic) last.text += text
+    else out.push({ text, bold, italic })
+  }
   return out
 }
 
@@ -166,6 +182,9 @@ export const plainText = (line: string) =>
   runs(line)
     .map((run) => run.text)
     .join("")
+
+/** Prose (a summary, a text section) as printed, line by line, without its bold and italic marks. */
+export const plainProse = (value: string) => value.split("\n").map(plainText).join("\n")
 
 // For matching names: lower case, without accents.
 const plain = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()

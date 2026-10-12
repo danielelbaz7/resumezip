@@ -36,7 +36,7 @@ describe("half of an emoji", () => {
       }),
     )
     expect(data.profile.name).toBe("Ada")
-    expect(data.summary).toEqual(["Ships 🚀 fast"])
+    expect(data.summary).toEqual([[[{ text: "Ships 🚀 fast", bold: false, italic: false }]]])
     expect(data.work[0].company).toBe("Acme")
     expect(data.work[0].bullets).toEqual([[{ text: "Cut costs", bold: false, italic: false }]])
     expect(data.extras[`extra:${extra}`].heading).toBe("Talks")

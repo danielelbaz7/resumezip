@@ -72,6 +72,12 @@ test("bold and italic words in bullets come back marked", async () => {
   expect(resume.workExperienceSection?.[0].workDescription).toBe(`• ${bullet}`)
 })
 
+test("bold and italic words in the summary come back marked", async () => {
+  const summary = "Builds **fast** tools in *Rust*, with ***care***."
+  const { resume } = await readBack({ ...samples[0], profileSection: { ...samples[0].profileSection, summary } })
+  expect(resume.profileSection?.summary).toBe(summary)
+})
+
 test("the summary comes back, and added sections can be kept as they were", async () => {
   const talk = "First talk on accessible software.\nGiven twice."
   const { parsed } = await readBack({

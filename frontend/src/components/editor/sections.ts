@@ -11,7 +11,7 @@ export interface FieldDef<Key extends string = string> {
   placeholder: string
   /** Width in a 4-column row: sm = 1, md = 2, lg = 3, full = 4. */
   size: "sm" | "md" | "lg" | "full"
-  /** "bullets" is a textarea with one bullet per line. */
+  /** "bullets" is a box with one bullet per line, which shows bold and italic words (StyledBox.tsx). */
   type?: "text" | "bullets"
 }
 

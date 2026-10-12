@@ -40,6 +40,14 @@ npm run test:browser   # after a build; see below
   resume starts with the core sections; Publications, Volunteer, Leadership and
   Awards & Certifications are `optional` (`components/editor/sections.ts`) and
   show once they're in the saved order, from Add section, or have entries.
+- The boxes for bullets, the summary and text sections
+  (`src/components/editor/StyledBox.tsx`) show bold and italic words as they
+  print, without their marks, and save them as `**bold**`, `*italic*` and
+  `***both***`, read with the PDF's own code (`markedPieces` in
+  `src/lib/typst/resumeData.ts`). Each is an editable div that makes each edit
+  itself (`styledText.ts`) and draws it (`boxDom.ts`), with its own undo. Only
+  words an input method composes are left to the browser, and read back once
+  it's done.
 - `src/lib/typst/` builds PDFs in a Web Worker. Its README covers adding a
   template.
 - `src/lib/resumeFile.ts`: every downloaded PDF carries its resume, so the PDF

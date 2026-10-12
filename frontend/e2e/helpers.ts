@@ -228,3 +228,54 @@ export async function templateChosen(page: Page): Promise<Locator> {
   if (await templateShown(page).isHidden()) await style.click()
   return templateShown(page)
 }
+
+// A box that shows bold and italic words is an editable div that draws a div
+// per line, with bold words in <strong> and italic ones in <em>
+// (src/components/editor/boxDom.ts). Its text counts a character for each line
+// break, as a text box's would.
+
+/** The text in a box, a line per line, as it shows it: without its bold and italic marks. */
+export const boxText = (box: Locator) => box.evaluate((element) => [...element.children].map((line) => line.textContent ?? "").join("\n"))
+
+/** Selects from `start` to `end` in a box's text, or puts the cursor at `start`. */
+export const selectInBox = (box: Locator, start: number, end = start) =>
+  box.evaluate(
+    (element, [start, end]) => {
+      const pointAt = (offset: number): [Node, number] => {
+        const lines = [...element.children]
+        for (const [index, line] of lines.entries()) {
+          const length = line.textContent?.length ?? 0
+          if (offset <= length || index === lines.length - 1) {
+            const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT)
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+              if (offset <= (node as Text).length) return [node, offset]
+              offset -= (node as Text).length
+            }
+            return [line, 0]
+          }
+          offset -= length + 1
+        }
+        return [element, 0]
+      }
+      const [from, to] = [pointAt(start), pointAt(end)]
+      getSelection()!.setBaseAndExtent(from[0], from[1], to[0], to[1])
+    },
+    [start, end],
+  )
+
+/** Where the cursor is in a box's text. */
+export const cursorInBox = (box: Locator) =>
+  box.evaluate((element) => {
+    const { focusNode, focusOffset } = getSelection()!
+    let offset = 0
+    for (const line of element.children) {
+      if (focusNode && line.contains(focusNode)) {
+        const range = document.createRange()
+        range.setStart(line, 0)
+        range.setEnd(focusNode, focusOffset)
+        return offset + range.toString().length
+      }
+      offset += (line.textContent?.length ?? 0) + 1
+    }
+    return -1
+  })

@@ -5,7 +5,7 @@
 // templates/ writes its own preamble and body with these.
 
 import { SECTIONS, type SectionName } from "@/components/editor/sections"
-import type { ExtraTemplateSection, Run, TemplateData } from "@/lib/typst/resumeData"
+import type { ExtraTemplateSection, Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 import type { PrintedTune } from "@/lib/tune"
 
 /** A template's LaTeX: its preamble, after \documentclass, and its body. */
@@ -89,19 +89,10 @@ export function latex(value: string, lineBreak = " "): string {
   )
 }
 
-/**
- * Prose, keeping its line breaks, each line indented by `indent`. \newline
- * rather than \\, which would read a line starting with [ or * as its own option.
- */
-export const prose = (value: string, indent = "    ") => latex(value, `\\newline\n${indent}`)
-
-/** Paragraphs of prose, a blank line between them, each line indented by `indent`. */
-export const paragraphs = (texts: string[], indent = "    ") => texts.map((text) => indent + prose(text, indent)).join("\n\n")
-
 export const bold = (body: string) => `\\textbf{${body}}`
 export const italic = (body: string) => `\\textit{${body}}`
 
-/** A bullet: its words in bold and italic where they were marked so (`rich` in templates/common.typ). */
+/** A bullet, or a line of prose: its words in bold and italic where they were marked so (`rich` in templates/common.typ). */
 export const runs = (pieces: Run[]) =>
   pieces
     .map((piece) => {
@@ -111,6 +102,14 @@ export const runs = (pieces: Run[]) =>
       return out
     })
     .join("")
+
+/**
+ * Paragraphs of prose, a blank line between them, each line indented by
+ * `indent`. \newline rather than \\, which would read a line starting with [
+ * or * as its own option.
+ */
+export const paragraphs = (texts: Paragraph[], indent = "    ") =>
+  texts.map((lines) => indent + lines.map(runs).join(`\\newline\n${indent}`)).join("\n\n")
 
 /** "Start - End", or whichever of the two is present, as the templates print dates. */
 export const dateRange = (start: string, end: string) => (start && end ? `${start} - ${end}` : start + end)

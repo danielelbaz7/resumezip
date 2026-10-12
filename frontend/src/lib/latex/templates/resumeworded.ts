@@ -29,7 +29,7 @@ import {
   type ShowLink,
   type Units,
 } from "../common"
-import type { Run, TemplateData } from "@/lib/typst/resumeData"
+import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 
 const minus = (length: string) => `-${length}`
 /** The longer of two lengths that `Units` gave, as the .typ's `calc.max`. */
@@ -159,7 +159,7 @@ function body(data: TemplateData, units: Units): string {
   const bullets = (items: Run[][]) => {
     if (items.length) add("  \\begin{resumeItems}", ...items.map((item) => `    \\item ${itemText(runs(item))}`), "  \\end{resumeItems}")
   }
-  const text = (texts: string[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
+  const text = (texts: Paragraph[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
   // The organization and its place, the line under it, then lines of details or bullets.
   const subheading = (organization: string, place: string, bottomLeft: string, bottomRight: string, details: string[], items: Run[][]) => {
     if (organization || place) add(`  \\resumeOrganization{${latex(organization)}}{${latex(place)}}`)

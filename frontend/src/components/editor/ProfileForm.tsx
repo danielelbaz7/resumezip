@@ -22,7 +22,7 @@ function ProfileForm({ position }: { position: string }) {
     if (!target || place?.kind !== "profile" || !pending(target.request)) return
     const timer = setTimeout(() => {
       if (!claim(target.request)) return
-      const input = form.current?.querySelector<HTMLElement>(`[data-field="${place.field}"] :is(input, textarea)`)
+      const input = form.current?.querySelector<HTMLElement>(`[data-field="${place.field}"] :is(input, [contenteditable="true"])`)
       input?.focus({ preventScroll: true })
       input?.scrollIntoView({
         block: "center",

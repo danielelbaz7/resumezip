@@ -11,7 +11,7 @@
 // leading above it, which accent.typ's gaps don't count.
 
 import { SECTIONS, type SectionName } from "@/components/editor/sections"
-import type { TemplateData } from "@/lib/typst/resumeData"
+import type { Paragraph, TemplateData } from "@/lib/typst/resumeData"
 import {
   bold,
   CHARIS,
@@ -227,7 +227,7 @@ function body(data: TemplateData, units: Units): string {
     else add(`  \\resumeEntryTop{${latex(organization)}}{${latex(place)}}`)
     items(bullets)
   }
-  const text = (texts: string[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
+  const text = (texts: Paragraph[]) => add("  \\begin{resumeText}", paragraphs(texts), "  \\end{resumeText}")
   const heading = (raw: string) => {
     const [first, rest] = splitHeading(raw)
     add("", `\\resumeSection{${first}}{${rest}}`)
