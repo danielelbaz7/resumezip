@@ -26,10 +26,13 @@ export default function ExtraSectionForm({ sectionId, position, onDelete }: { se
     if (!target || !place || !("sectionId" in place) || place.sectionId !== sectionId || !pending(target.request)) return
     const timer = setTimeout(() => {
       if (!claim(target.request)) return
-      const selector = place.kind === "extra-heading" ? 'button[aria-label="Rename section"]' : `[data-field="${place.field}"] textarea`
+      const selector =
+        place.kind === "extra-heading"
+          ? 'button[aria-label="Rename section"]'
+          : `[data-field="${place.field}"] :is(textarea, [contenteditable="true"])`
       const field = root.current?.querySelector<HTMLElement>(selector)
       field?.focus({ preventScroll: true })
-      if (field instanceof HTMLTextAreaElement && place.kind === "extra-text" && place.line !== undefined) selectLine(field, place.line)
+      if (field && place.kind === "extra-text" && place.line !== undefined) selectLine(field, place.line)
       field?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" })
     }, 0)
     return () => clearTimeout(timer)

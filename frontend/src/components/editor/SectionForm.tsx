@@ -40,15 +40,15 @@ const litUp = (color: string): Keyframe => ({ backgroundColor: color, boxShadow:
 const LIFTED = "bg-sheet shadow-[-12px_0_var(--color-sheet),12px_0_var(--color-sheet),0_16px_32px_-12px_rgb(17_19_24/0.3)]"
 
 // Where a field is typed in: not the Include boxes in an entry's heading, or
-// in a bullets field being arranged.
-const TYPED = ':is(input:not([type="checkbox"]), textarea)'
+// in a bullets field being arranged. A bullets box is an editable div.
+const TYPED = ':is(input:not([type="checkbox"]), [contenteditable="true"])'
 const FIRST_FIELD = `[data-field] ${TYPED}`
 
 /** Moves the cursor to what the checker points at (one bullet, if `line` is given) and scrolls it into view. */
 function pointAt(target: HTMLElement | null | undefined, line?: number, view: HTMLElement | null | undefined = target) {
   if (!target) return
   target.focus({ preventScroll: true })
-  if (line !== undefined && target instanceof HTMLTextAreaElement) selectLine(target, line)
+  if (line !== undefined) selectLine(target, line)
   view?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" })
 }
 

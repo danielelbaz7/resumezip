@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { boxText, cursorInBox, pageErrors, selectInBox, seriousAccessibilityProblems } from "./helpers"
 
 // Entries and bullets can be moved, and left out of the PDF without being
 // deleted, to tailor one resume to a job.
@@ -186,21 +186,21 @@ test("bullets are moved and left out from the Arrange list, or moved with Alt an
   // Back in the text box, the left-out bullet starts with ○, and Alt+↓ moves the line the cursor is on.
   await field.getByRole("button", { name: "Done arranging bullets" }).click()
   const box = field.getByLabel(BULLETS)
-  await expect(box).toHaveValue("• Cut serving costs by 30%\n• Built the search index\n○ Mentored four interns")
+  await expect.poll(() => boxText(box)).toBe("• Cut serving costs by 30%\n• Built the search index\n○ Mentored four interns")
   await box.focus()
-  await box.evaluate((textarea: HTMLTextAreaElement) => textarea.setSelectionRange(0, 0))
+  await selectInBox(box, 0)
   await page.keyboard.press("Alt+ArrowDown")
-  await expect(box).toHaveValue("• Built the search index\n• Cut serving costs by 30%\n○ Mentored four interns")
+  await expect.poll(() => boxText(box)).toBe("• Built the search index\n• Cut serving costs by 30%\n○ Mentored four interns")
   await expect
     .poll(async () => (await saved(page)).workExperienceSection[0].workDescription)
     .toBe("• Built the search index\n• Cut serving costs by 30%\n○ Mentored four interns")
 
   // Enter in a left-out bullet: the words moved to the new line stay left out.
   const split = "• Built the search index\n• Cut serving costs by 30%\n○ Mentored four".length
-  await box.evaluate((textarea: HTMLTextAreaElement, at) => textarea.setSelectionRange(at, at), split)
+  await selectInBox(box, split)
   await page.keyboard.press("Enter")
-  await expect(box).toHaveValue("• Built the search index\n• Cut serving costs by 30%\n○ Mentored four\n○ interns")
-  expect(await box.evaluate((textarea: HTMLTextAreaElement) => textarea.selectionStart)).toBe(split + 3)
+  await expect.poll(() => boxText(box)).toBe("• Built the search index\n• Cut serving costs by 30%\n○ Mentored four\n○ interns")
+  expect(await cursorInBox(box)).toBe(split + 3)
 
   expect(errors).toEqual([])
 })
@@ -365,8 +365,7 @@ test("the checker skips what's left out, and opens the right entry after it", as
   await expect(page.getByRole("button", { name: "Done editing entry 2" })).toBeVisible()
   const field = page.locator('[data-field="workDescription"]').nth(1)
   const box = field.getByLabel(BULLETS)
-  const selected = () =>
-    box.evaluate((textarea: HTMLTextAreaElement) => textarea.value.slice(textarea.selectionStart, textarea.selectionEnd))
+  const selected = () => page.evaluate(() => String(getSelection()))
   await expect(box).toBeFocused()
   expect(await selected()).toBe("Responsible for the search index")
 
@@ -398,7 +397,7 @@ test("the text box shows every bullet after arranging, and a deleted entry's mod
   await box.fill(Array.from({ length: 7 }, (_, index) => `• Shipped feature ${index + 1}`).join("\n"))
   await field.getByRole("button", { name: "Arrange bullets" }).click()
   await field.getByRole("button", { name: "Done arranging bullets" }).click()
-  await expect.poll(() => box.evaluate((textarea: HTMLTextAreaElement) => textarea.scrollHeight <= textarea.clientHeight)).toBe(true)
+  await expect.poll(() => box.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true)
 
   // The entry is deleted while its bullets are being arranged; the next one still opens with its text box.
   await field.getByRole("button", { name: "Arrange bullets" }).click()
@@ -406,7 +405,7 @@ test("the text box shows every bullet after arranging, and a deleted entry's mod
   await page.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(page.getByRole("button", { name: "Edit entry 3" })).toHaveCount(0)
   await page.getByRole("button", { name: "Edit entry 1" }).click()
-  await expect(page.locator('[data-field="workDescription"]').first().getByRole("textbox", { name: BULLETS })).toHaveValue(
+  await expect(page.locator('[data-field="workDescription"]').first().getByRole("textbox", { name: BULLETS })).toHaveText(
     "• Filed the reports",
   )
 
