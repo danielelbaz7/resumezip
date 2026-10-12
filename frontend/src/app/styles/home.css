@@ -346,9 +346,36 @@
       transform 300ms var(--ease-glide),
       box-shadow 300ms var(--ease-glide);
   }
+  /* Pointed at, the plate whitens and an ink outline comes in, both fading
+     rather than snapping. A gradient can't be transitioned, so its fill is
+     built from two registered colours, which can, under .search-field's own
+     top light. It's written out here rather than passed in as --search-fill:
+     through that, Chrome paints the fallback fill while the colours are
+     mid-transition. The outline is there all along, see-through:
+     outline-style none to solid can't be transitioned either. */
+  .template-card .template-use::before {
+    background:
+      radial-gradient(120% 90% at 22% -10%, rgb(255 255 255 / 0.55), transparent 55%),
+      linear-gradient(180deg, var(--plate-top), var(--plate-foot));
+  }
   .template-card .template-use {
+    --plate-top: rgb(255 255 255 / 0.66);
+    --plate-foot: rgb(255 255 255 / 0.46);
+    outline: 1.5px solid transparent;
+    outline-offset: -1px;
     transform: translateY(calc(100% + 16px));
-    transition: transform 380ms var(--ease-glide);
+    transition:
+      transform 380ms var(--ease-glide),
+      --plate-top 200ms,
+      --plate-foot 200ms,
+      outline-color 200ms;
+  }
+  @media (hover: hover) {
+    .template-card .template-use:hover {
+      --plate-top: rgb(255 255 255 / 0.9);
+      --plate-foot: rgb(255 255 255 / 0.76);
+      outline-color: rgb(17 19 24 / 0.45);
+    }
   }
   .template-card:hover .template-page,
   .template-card:has(:focus-visible) .template-page {
@@ -373,9 +400,15 @@
     .ink-fill::before,
     .question-sign::before,
     .question-sign::after,
-    .template-card .template-page,
-    .template-card .template-use {
+    .template-card .template-page {
       transition: none;
+    }
+    /* It still whitens gradually: a fade isn't motion. */
+    .template-card .template-use {
+      transition:
+        --plate-top 200ms,
+        --plate-foot 200ms,
+        outline-color 200ms;
     }
     .nav-underline {
       transition: color 150ms;
@@ -439,4 +472,17 @@
   from {
     translate: 0 55%;
   }
+}
+
+/* The templates page's plate fill (.template-use above), registered as
+   colours so the fill can be transitioned. Inherited, for its ::before. */
+@property --plate-top {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --plate-foot {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
 }

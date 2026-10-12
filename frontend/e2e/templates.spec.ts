@@ -116,6 +116,48 @@ test("at most one template is marked new", async ({ page }) => {
   expect(await page.getByRole("main").getByText("New", { exact: true }).count()).toBeLessThanOrEqual(1)
 })
 
+test("pointed at, a card's Use plate whitens gradually, and its Use stays lit with the pointer on it", async ({ page }) => {
+  await page.goto("/templates")
+  await page.getByRole("link", { name: /^Jake's template/ }).hover()
+  const plate = page.getByRole("link", { name: "Use Jake's", exact: true })
+  const use = plate.getByText("Use", { exact: true })
+
+  // Its fade, stopped halfway as it starts. The fill used to snap, and passed in as --search-fill,
+  // Chrome painted the fallback fill during the fade.
+  await plate.evaluate((el) =>
+    el.addEventListener("transitionrun", (event) => {
+      if (!(event instanceof TransitionEvent) || event.propertyName !== "--plate-top") return
+      const fade = el.getAnimations().find((a): a is CSSTransition => a instanceof CSSTransition && a.transitionProperty === "--plate-top")
+      if (!fade) return
+      fade.pause()
+      fade.currentTime = 100
+      el.dataset.halfway = getComputedStyle(el, "::before").backgroundImage
+      fade.finish()
+    }),
+  )
+  await plate.hover({ position: { x: 30, y: 30 } })
+  await expect(plate).toHaveAttribute("data-halfway", /linear-gradient/)
+  const top = Number(
+    (await plate.getAttribute("data-halfway"))?.match(/linear-gradient\((?:180deg, )?rgba\(255, 255, 255, ([\d.]+)\)/)?.[1],
+  )
+  expect(top).toBeGreaterThan(0.66)
+  expect(top).toBeLessThan(0.9)
+
+  // Lit as the plate's pointed at, Use stays as lit with the pointer on it: ink-glass's own hover,
+  // a lesser lightening, used to take over there.
+  await expect(use).toHaveCSS("filter", "brightness(1.75)")
+  const box = (await use.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.waitForTimeout(400)
+  await expect(use).toHaveCSS("filter", "brightness(1.75)")
+
+  // The pointer passes through Use to the plate, which is the link.
+  await page.mouse.down()
+  await page.mouse.up()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  await expect(await templateChosen(page)).toContainText("Jake's")
+})
+
 test("a card's picture leads to its template's page, whose Use this template starts a resume with it", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/templates")
