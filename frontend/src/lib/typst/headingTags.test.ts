@@ -1,8 +1,8 @@
 // Every template's headings are tagged as headings in its PDF (issue #261):
-// the name as H1, then each section's title as H2, in reading order. A screen
-// reader lists a PDF's headings from these tags and moves between them, as it
-// does a web page's. The templates print them as they always have, through
-// `tagged-heading` in templates/common.typ.
+// the name as H1, then each section's title as H2 (H1 on a resume without a
+// name), in reading order. A screen reader lists a PDF's headings from these
+// tags and moves between them, as it does a web page's. The templates print
+// them as they always have, through `tagged-heading` in templates/common.typ.
 
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"
@@ -50,12 +50,16 @@ async function headingTags(pdf: Uint8Array): Promise<{ tag: string; text: string
   }
 }
 
-/** The headings the resume should have tagged: its name as H1, then each printed section's title as H2. */
+/**
+ * The headings the resume should have tagged: its name as H1, then each printed
+ * section's title as H2, or as H1 when there's no name to go under.
+ */
 function expectedHeadings(resume: Record<string, unknown>) {
   const { profile } = toTemplateData(resume)
+  const section = profile.name ? "H2" : "H1"
   return [
     ...(profile.name ? [{ tag: "H1", text: comparable(profile.name) }] : []),
-    ...printedHeadings(resume).map((heading) => ({ tag: "H2", text: comparable(heading) })),
+    ...printedHeadings(resume).map((heading) => ({ tag: section, text: comparable(heading) })),
   ]
 }
 
@@ -87,14 +91,17 @@ describe.each(samples.map((sample) => [sample.selectedTemplate as string, sample
   })
 })
 
-test("a resume without a name tags no empty H1, which a screen reader would announce with nothing in it", async () => {
+// A screen reader would announce an empty heading with nothing in it, and
+// headings that start at H2 read as if one above them is missing.
+test("a resume without a name tags no empty heading, and its section titles as H1", async () => {
   for (const sample of samples) {
     const resume = { ...sample, profileSection: { ...sample.profileSection, fullName: "" } }
     const tags = await tagged(resume)
     expect(
-      tags.filter(({ tag }) => tag === "H1"),
+      tags.filter(({ text }) => text === ""),
       sample.selectedTemplate,
     ).toEqual([])
+    expect(tags[0]?.tag, sample.selectedTemplate).toBe("H1")
     expect(tags, sample.selectedTemplate).toEqual(expectedHeadings(resume))
   }
 }, 60_000)

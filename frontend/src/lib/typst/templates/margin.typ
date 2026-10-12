@@ -57,7 +57,7 @@
   // Biolinum has all of Greek; what it lacks comes from the text's fallback.
   let heading = block(
     breakable: false,
-    text(font: ("Linux Biolinum O", "EB Garamond"), size: sized(10.8pt), tracking: 0.03em, fill: black, stroke: sized(0.15pt) + black, tagged-heading(2, smallcaps(fitted(title)))),
+    text(font: ("Linux Biolinum O", "EB Garamond"), size: sized(10.8pt), tracking: 0.03em, fill: black, stroke: sized(0.15pt) + black, tagged-heading(section-level, smallcaps(fitted(title)))),
   )
   let height = measure(heading, width: margin).height
   v(gapped(12.5pt))

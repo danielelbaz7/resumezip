@@ -28,7 +28,7 @@
   block(sticky: true, {
     let letters = title.clusters()
     let split = calc.min(3, letters.len())
-    text(size: sized(13.5pt), weight: "bold", tagged-heading(2, {
+    text(size: sized(13.5pt), weight: "bold", tagged-heading(section-level, {
       text(fill: accent, letters.slice(0, split).join())
       letters.slice(split).join()
     }))

@@ -25,7 +25,7 @@
 #let section(title, body) = {
   v(gapped(13pt))
   block(sticky: true, {
-    text(weight: 600, tracking: 0.04em, tagged-heading(2, upper(title)))
+    text(weight: 600, tracking: 0.04em, tagged-heading(section-level, upper(title)))
     v(sized(4pt))
     line(length: 100%, stroke: (paint: luma(150), thickness: 0.6pt, dash: (2pt, 2pt)))
     v(sized(6pt))

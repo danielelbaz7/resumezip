@@ -44,7 +44,7 @@
 #let section(title, body) = {
   v(gapped(15pt))
   block(sticky: true, {
-    text(size: sized(12pt), weight: "bold", tagged-heading(2, title))
+    text(size: sized(12pt), weight: "bold", tagged-heading(section-level, title))
     v(sized(5pt))
     line(length: 100%, stroke: 0.4pt)
   })

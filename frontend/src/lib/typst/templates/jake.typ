@@ -39,7 +39,7 @@
 #let section(title, body) = {
   v(gapped(17.5pt))
   block(sticky: true, {
-    text(size: sized(12pt), tagged-heading(2, smallcaps(title)))
+    text(size: sized(12pt), tagged-heading(section-level, smallcaps(title)))
     v(sized(5pt))
     line(length: 100%, stroke: 0.4pt)
   })

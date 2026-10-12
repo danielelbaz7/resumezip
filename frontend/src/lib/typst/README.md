@@ -66,9 +66,10 @@ server to build a PDF.
    size, side margins and paper to `TEMPLATE_SETTINGS` in `src/lib/tune.ts`.
    Print the name and each section's title through `tagged-heading` (in
    `common.typ`), inside the text styles that size them, so screen readers
-   find them as the PDF's headings: `text(size: sized(12pt), tagged-heading(2,
-   title))`. It prints exactly what it's given; `headingTags.test.ts` checks
-   the tags.
+   find them as the PDF's headings: `tagged-heading(1, p.name)`, and
+   `text(size: sized(12pt), tagged-heading(section-level, title))`, which is
+   H2 under the name, or H1 without one. It prints exactly what it's given;
+   `headingTags.test.ts` checks the tags.
 2. Import it in `typst.worker.ts` and add it to `SOURCES`.
 3. Add it to `TEMPLATES` in `src/lib/templates.ts` with a picture of its first
    page in `public/previews/<id>.webp` (1280 px wide, from the editor's

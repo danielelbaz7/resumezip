@@ -66,7 +66,7 @@
       let size = sized(16.5pt)
       let widest = calc.max(..title.split(regex("\s+")).map(word => measure(title-text(size, word)).width))
       if widest > column.width { size *= column.width / widest }
-      title-text(size, tagged-heading(2, title))
+      title-text(size, tagged-heading(section-level, title))
     })
     v(sized(7pt))
   })

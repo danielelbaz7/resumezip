@@ -126,6 +126,11 @@
   heading(level: level, outlined: false, bookmarked: false, numbering: none, body)
 }
 
+// The level to tag each section's title at: H2 under the name's H1, or H1 on
+// a resume without a name, which has no H1 (Typst tags no empty heading), so
+// its headings don't start at H2.
+#let section-level = if has(data.profile.name) { 2 } else { 1 }
+
 // A line with one part flush left and one flush right (LaTeX's tabular* with
 // \extracolsep{\fill}). Bottom-aligned so mixed font sizes share a baseline;
 // the gap keeps a long left part from touching the right one.
