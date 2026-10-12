@@ -133,31 +133,41 @@ const bullets = (value: unknown) =>
 // the first marker that can close it, so "**C** and **Go**" is two bold words.
 const MARKED = /\*\*\*(\S(?:[\s\S]*?\S)??)\*\*\*|\*\*(\S(?:[\s\S]*?\S)??)\*\*|\*([^\s*](?:[^*]*?[^\s*])?)\*/g
 
-// "Optimized a **Rust** engine for *low latency*" in plain, bold and italic
-// pieces. Marks can sit inside each other: "**bold with *italic* inside**".
-function runs(line: string, bold = false, italic = false): Run[] {
-  const out: Run[] = []
-  const add = (text: string) => {
-    const last = out[out.length - 1]
-    if (last && last.bold === bold && last.italic === italic) last.text += text
-    else if (text) out.push({ text, bold, italic })
-  }
+/** A stretch of a line's printed text, and where it starts in the line as typed, marks and all. */
+export interface MarkedPiece extends Run {
+  at: number
+}
+
+/**
+ * "Optimized a **Rust** engine for *low latency*" in plain, bold and italic
+ * pieces, each a stretch of the line as typed. Marks can sit inside each
+ * other: "**bold with *italic* inside**". The bullets box reads lines with
+ * this too, so it shows them as they print.
+ */
+export function markedPieces(line: string, bold = false, italic = false, offset = 0): MarkedPiece[] {
+  const out: MarkedPiece[] = []
   let at = 0
   for (const match of line.matchAll(MARKED)) {
-    add(line.slice(at, match.index))
+    if (match.index > at) out.push({ text: line.slice(at, match.index), bold, italic, at: offset + at })
     const [, both, strong, emph] = match
-    for (const run of both !== undefined
-      ? runs(both, true, true)
-      : strong !== undefined
-        ? runs(strong, true, italic)
-        : runs(emph, bold, true)) {
-      const last = out[out.length - 1]
-      if (last && last.bold === run.bold && last.italic === run.italic) last.text += run.text
-      else out.push(run)
-    }
-    at = match.index! + match[0].length
+    const start = offset + match.index + (both !== undefined ? 3 : strong !== undefined ? 2 : 1)
+    if (both !== undefined) out.push(...markedPieces(both, true, true, start))
+    else if (strong !== undefined) out.push(...markedPieces(strong, true, italic, start))
+    else out.push(...markedPieces(emph, bold, true, start))
+    at = match.index + match[0].length
   }
-  add(line.slice(at))
+  if (at < line.length) out.push({ text: line.slice(at), bold, italic, at: offset + at })
+  return out
+}
+
+// The pieces of a line, with neighbours in the same style joined.
+function runs(line: string): Run[] {
+  const out: Run[] = []
+  for (const { text, bold, italic } of markedPieces(line)) {
+    const last = out[out.length - 1]
+    if (last && last.bold === bold && last.italic === italic) last.text += text
+    else out.push({ text, bold, italic })
+  }
   return out
 }
 
