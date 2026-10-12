@@ -177,10 +177,11 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
                 {/* Frosted glass over the foot of the page: what it's set in, and Use, which starts a resume with it.
                     The whole plate is the Use link, so pointed at, it whitens and is outlined in ink, and its Use
                     lightens and grows, its arrow nudged on: apart from the picture above it, which opens the
-                    template's page. */}
+                    template's page. The plate's own fade is in styles/home.css. Use lets the pointer through to
+                    the plate, or ink-glass's own hover, a lesser lightening, would take over when it's on Use. */}
                 <StartWritingLink
                   template={template.id}
-                  className="template-use search-field group/use absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-[18px] py-2.5 pl-4 pr-2.5 [--search-blur:14px] [--search-fill:linear-gradient(180deg,rgb(255_255_255/0.66),rgb(255_255_255/0.46))] hover:outline hover:outline-[1.5px] hover:-outline-offset-1 hover:outline-ink/45 hover:[--search-fill:linear-gradient(180deg,rgb(255_255_255/0.9),rgb(255_255_255/0.76))]"
+                  className="template-use search-field group/use absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-[18px] py-2.5 pl-4 pr-2.5 [--search-blur:14px]"
                 >
                   <span className="sr-only">Use {template.name}</span>
                   <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col gap-1">
@@ -189,7 +190,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
                   </span>
                   <span
                     aria-hidden="true"
-                    className="ink-glass inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium tracking-[-0.01em] transition-[filter,scale] duration-200 group-hover/use:scale-[1.04] group-hover/use:brightness-[1.75] group-active/use:scale-[0.97] motion-reduce:group-hover/use:scale-100"
+                    className="ink-glass pointer-events-none inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium tracking-[-0.01em] transition-[filter,scale] duration-200 group-hover/use:scale-[1.04] group-hover/use:brightness-[1.75] group-active/use:scale-[0.97] motion-reduce:group-hover/use:scale-100"
                   >
                     Use{" "}
                     <ArrowUpRight className="h-4 w-4 transition-transform duration-200 ease-glide group-hover/use:-translate-y-[3px] group-hover/use:translate-x-[3px] motion-reduce:transition-none motion-reduce:group-hover/use:translate-x-0 motion-reduce:group-hover/use:translate-y-0" />
