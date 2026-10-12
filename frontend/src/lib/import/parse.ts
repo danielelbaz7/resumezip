@@ -274,6 +274,10 @@ function headingShaped(line: Line): boolean {
 
 // ---------------------------------------------------------------- helpers
 
+// Separators and stray bullets that tidy takes off either end of a text.
+const LEADING = /^[\s|,;:\u2013\u2014\-\u2022\u00B7]+/
+const TRAILING = /[\s|,;:\u2013\u2014\-\u2022\u00B7]+$/
+
 const tidy = (text: string) =>
   text
     .replaceAll(SOFT_HYPHEN, "")
@@ -281,7 +285,8 @@ const tidy = (text: string) =>
     .replace(/\(\s*\)/g, "")
     .replace(/\s*\($/, "")
     .replace(/^\)\s*/, "")
-    .replace(/^[\s|,;:\u2013\u2014\-\u2022\u00B7]+|[\s|,;:\u2013\u2014\-\u2022\u00B7]+$/g, "")
+    .replace(LEADING, "")
+    .replace(TRAILING, "")
     .trim()
 
 const bare = (url: string) =>
@@ -604,6 +609,17 @@ const unwrapped = (lines: ParseLine[]) =>
     .filter(Boolean)
 
 /**
+ * Pieces without the separators tidy would take off their ends. Taken off
+ * once marked, a styled word's ("**Rust:**") would stay inside its marks.
+ */
+function trimmedPieces(pieces: Piece[]): Piece[] {
+  const trimmed = pieces.map((piece) => ({ ...piece }))
+  while (trimmed.length && !(trimmed[0].text = trimmed[0].text.replace(LEADING, ""))) trimmed.shift()
+  while (trimmed.length && !(trimmed[trimmed.length - 1].text = trimmed[trimmed.length - 1].text.replace(TRAILING, ""))) trimmed.pop()
+  return trimmed
+}
+
+/**
  * A summary as it was written, a line at a time, as plain text and with its
  * bold and italic words marked. A line whose marks would change its words
  * once tidied is left plain.
@@ -614,7 +630,7 @@ function summaryLines(lines: ParseLine[]): { text: string[]; marked: string[] } 
   const kept = prose
     .map((line) => {
       const text = tidy(line.text)
-      const withMarks = tidy(marked(line.pieces, whole))
+      const withMarks = tidy(marked(trimmedPieces(line.pieces), whole))
       return { text, marked: plainText(withMarks) === text ? withMarks : text }
     })
     .filter((line) => line.text)
