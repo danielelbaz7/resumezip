@@ -4,6 +4,7 @@ import type React from "react"
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import { ArrowDown, ArrowUp, ArrowUpDown, Pencil } from "lucide-react"
 import type { Finding } from "@/lib/check/engine"
+import { onMac, shortcut } from "@/lib/keys"
 import { plainText } from "@/lib/typst/resumeData"
 import {
   bulletLines,
@@ -284,11 +285,6 @@ function typeInto(textarea: HTMLTextAreaElement, next: string): boolean {
     typing = false
   }
 }
-
-const onMac = () => /Mac|iPhone|iPad/.test(navigator.platform)
-
-// A keyboard shortcut as this device writes it: ⌘B on a Mac, Ctrl+B elsewhere.
-const shortcut = (key: string) => (onMac() ? `⌘${key}` : `Ctrl+${key}`)
 
 // With Option on a Mac, Alt elsewhere: ⌥↑, Alt+↑.
 const altShortcut = (key: string) => (onMac() ? `⌥${key}` : `Alt+${key}`)

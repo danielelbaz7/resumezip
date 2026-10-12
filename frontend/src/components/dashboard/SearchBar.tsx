@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { Search, X } from "lucide-react"
 import type { ResumeWithId } from "@/lib/resume"
+import { typingIn } from "@/lib/keys"
 import { templateById } from "@/lib/templates"
 import { reducedMotion } from "@/components/editor/layout"
 import PagePicture from "./PagePicture"
@@ -42,10 +43,6 @@ function marked(name: string, query: string): ReactNode {
     </>
   )
 }
-
-// Whether a key pressed in this element is typing, which "/" mustn't take over.
-const typingIn = (target: EventTarget | null) =>
-  target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
 
 interface SearchBarProps {
   /** Every resume, last edited first. */
