@@ -175,19 +175,18 @@ export default function AboutPage() {
                 Many resume builders charge you to download your own resume, and keep a copy. <Wordmark /> doesn’t: every template is free
                 and made for the hiring software (ATS) that reads it, and your resume stays in your browser.
               </p>
-              {/* One plain line, set apart by hairlines, rather than a logo wall. */}
-              <p className="mt-3 inline-flex self-start flex-wrap items-center gap-x-3 gap-y-1 border-y border-ink/15 py-3 pr-2">
+              {/* One small badge of frosted glass, as the site's buttons are, rather than a logo wall. */}
+              <a
+                href={MICROSOFT_STARTUPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="glass glass-float mt-3 inline-flex self-start items-center gap-3.5 rounded-full py-3 pl-[18px] pr-[22px] transition-[filter] hover:brightness-[1.03]"
+              >
                 <span className="label-mono text-ink-2">Part of</span>
-                <a
-                  href={MICROSOFT_STARTUPS_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2.5 underline-offset-4 hover:underline"
-                >
-                  <MicrosoftLogo />
-                  <span className="font-serif text-[22px] leading-none tracking-[-0.01em]">Microsoft for Startups</span>
-                </a>
-              </p>
+                <span aria-hidden="true" className="h-5 w-px bg-ink/15" />
+                <MicrosoftLogo />
+                <span className="font-serif text-[22px] leading-none tracking-[-0.01em]">Microsoft for Startups</span>
+              </a>
             </div>
             <OwnResume />
           </div>
