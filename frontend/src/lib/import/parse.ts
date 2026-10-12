@@ -635,8 +635,10 @@ function detailCarriesOn(line: ParseLine, item: Item, above: ParseLine): boolean
     start.bold === Boolean(end?.bold) &&
     start.italic === Boolean(end?.italic) &&
     // Only a line the size of the one above wraps from it: a plain school
-    // name, set bigger, can follow a coursework line that nearly fills the column.
-    (CONNECTOR.test(item.text) || above.full === true || (wrapsInto(above, line) && Math.abs(line.size - above.size) < 0.5))
+    // name, set bigger, can follow a coursework line that nearly fills the
+    // column, runs to its edge or ends in a comma.
+    Math.abs(line.size - above.size) < 0.5 &&
+    (CONNECTOR.test(item.text) || above.full === true || wrapsInto(above, line))
   )
 }
 
@@ -1216,7 +1218,9 @@ function readEducation(lines: ParseLine[]): SectionResult {
     !header.some(hasDate) &&
     header.some((title) => sameStyle(title, line) && isDegree(title.text))
   let schoolAbove: { name: string; location: string; left: number } | undefined
-  const entries = groupEntries(lines, details, anotherDegree).map((group) => {
+  let previousSchool = ""
+  const groups = groupEntries(lines, details, anotherDegree)
+  const entries = groups.map((group, i) => {
     const fields = blankEntry("Education")
     // The GPA can be anywhere: "(GPA: 3.9)", "GPA 3.9/4.0", "3.8/4.0".
     for (const line of [...group.header, ...group.body]) {
@@ -1241,13 +1245,17 @@ function readEducation(lines: ParseLine[]): SectionResult {
     if (!school && rest.length) school = rest.shift()!
     if (!degree && rest.length) degree = rest.shift()!
     // Degrees listed under one school: one set in under the school's line,
-    // with no school of its own, is that school's.
+    // with no school of its own, is that school's. So is one set like the
+    // undated degree of the school just above it, which anotherDegree starts
+    // an entry at: "UCLA", "B.A. in Economics", then "M.A. in Statistics   2020 – 2022".
     const start = group.header[0]
+    const nextDegree = start !== undefined && previousSchool !== "" && anotherDegree(groups[i - 1].header, start)
     if (school && start) schoolAbove = { name: school, location: header.location, left: start.left }
-    else if (degree && start && schoolAbove && start.left > schoolAbove.left + 3) {
+    else if (degree && start && schoolAbove && (start.left > schoolAbove.left + 3 || nextDegree)) {
       school = schoolAbove.name
       header.location ||= schoolAbove.location
     }
+    previousSchool = school
     fields.schoolName = school
     fields.degree = degree
     fields.schoolLocation = header.location
