@@ -110,6 +110,22 @@
 // The section heading the user typed, or the template's default.
 #let heading-or(custom, fallback) = if has(custom) { custom } else { fallback }
 
+// `body` tagged as a heading in the PDF (H1, H2, ...), so a screen reader can
+// list the resume's sections and move between them, but printed exactly as
+// `body` is: without heading's own size, weight, spacing, numbering, or a
+// bookmark. Each template still draws its headings its own way, and calls
+// this inside its own text styles: the heading's tags sit in the line at the
+// size around them, and outside the title's text(size:), at another size,
+// they moved what followed by a fraction of a point.
+#let tagged-heading(level, body) = context {
+  // Typst sizes and bolds a heading with set rules of its own, which apply
+  // whatever its show rule. They're relative to the text around it, so these
+  // put back its size and weight as they are, not 1em of the heading's.
+  show heading: set text(size: text.size, weight: text.weight)
+  show heading: it => it.body
+  heading(level: level, outlined: false, bookmarked: false, numbering: none, body)
+}
+
 // A line with one part flush left and one flush right (LaTeX's tabular* with
 // \extracolsep{\fill}). Bottom-aligned so mixed font sizes share a baseline;
 // the gap keeps a long left part from touching the right one.

@@ -1,7 +1,7 @@
 // Renders resumes to PDF with the real Typst templates and reads them back
 // the way "Open a file" does for PDFs from elsewhere, for tests. Used by the
-// import round-trip and test set tests, the checker's PDF rule tests and the
-// templates' layout tests.
+// import round-trip and test set tests, the checker's PDF rule tests, the
+// templates' layout tests, and the plain-text reading and heading tag tests.
 
 import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
@@ -9,7 +9,9 @@ import { CompileFormatEnum, createTypstCompiler, type TypstCompiler } from "@myr
 import { loadFonts } from "@myriaddreamin/typst.ts/options.init"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"
-import { toTemplateData } from "@/lib/typst/resumeData"
+import { SECTIONS, type SectionName } from "@/components/editor/sections"
+import { firstColumnOf, templateById } from "@/lib/templates"
+import { toTemplateData, type TemplateData } from "@/lib/typst/resumeData"
 import { linesFromPages, readPdf, type PageSize } from "./lines"
 import { parseResume, toResumeContent } from "./parse"
 
@@ -56,6 +58,38 @@ export async function render(resume: Record<string, unknown>): Promise<Uint8Arra
   })
   if (!result) throw new Error(diagnostics?.join("\n") || "Typst produced no output")
   return result
+}
+
+const KINDS: Record<SectionName, keyof TemplateData["headings"]> = {
+  Education: "education",
+  Work: "work",
+  Projects: "projects",
+  Publications: "publications",
+  Skills: "skills",
+  Leadership: "leadership",
+  Volunteership: "volunteer",
+  Awards: "awards",
+}
+
+/**
+ * The headings a resume prints, sections the person added included, in the
+ * order its PDF holds them: any column on the left first, then the summary,
+ * then the other sections.
+ */
+export function printedHeadings(resume: Record<string, unknown>, data: TemplateData = toTemplateData(resume)): string[] {
+  const sections = data.order.flatMap((name) => {
+    const extra = data.extras[name]
+    if (extra) return [{ name, heading: extra.heading }]
+    const kind = KINDS[name as SectionName]
+    if (!kind || data[kind].length === 0) return []
+    return [{ name, heading: data.headings[kind] || SECTIONS[name as SectionName].title }]
+  })
+  const first = firstColumnOf(templateById(resume.selectedTemplate))
+  return [
+    ...sections.filter(({ name }) => first.includes(name)),
+    ...(data.summary.length ? [{ name: "Summary", heading: "Summary" }] : []),
+    ...sections.filter(({ name }) => !first.includes(name)),
+  ].map(({ heading }) => heading)
 }
 
 /** Paths ("work[0].role") where two values differ. */

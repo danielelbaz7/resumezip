@@ -66,7 +66,7 @@
       let size = sized(16.5pt)
       let widest = calc.max(..title.split(regex("\s+")).map(word => measure(title-text(size, word)).width))
       if widest > column.width { size *= column.width / widest }
-      title-text(size, title)
+      title-text(size, tagged-heading(2, title))
     })
     v(sized(7pt))
   })
@@ -123,11 +123,11 @@
 #align(center, {
   // First names hairline, the last name light.
   let words = p.name.split(" ").filter(word => word != "")
-  text(size: sized(38pt), fill: headings, {
+  text(size: sized(38pt), fill: headings, tagged-heading(1, {
     text(weight: 100, words.slice(0, calc.max(0, words.len() - 1)).join(" "))
     if words.len() > 1 { [ ] }
     text(weight: 300, words.last(default: ""))
-  })
+  }))
   // Profiles on one line, then how to reach you.
   let profiles = ()
   if has(p.website) { profiles.push(web-link(p.website, p.website)) }

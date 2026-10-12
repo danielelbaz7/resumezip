@@ -57,7 +57,7 @@
   // Biolinum has all of Greek; what it lacks comes from the text's fallback.
   let heading = block(
     breakable: false,
-    text(font: ("Linux Biolinum O", "EB Garamond"), size: sized(10.8pt), tracking: 0.03em, fill: black, stroke: sized(0.15pt) + black, smallcaps(fitted(title))),
+    text(font: ("Linux Biolinum O", "EB Garamond"), size: sized(10.8pt), tracking: 0.03em, fill: black, stroke: sized(0.15pt) + black, tagged-heading(2, smallcaps(fitted(title)))),
   )
   let height = measure(heading, width: margin).height
   v(gapped(12.5pt))
@@ -100,7 +100,7 @@
   column-gutter: gutter,
   [],
   {
-    text(size: sized(25pt), tracking: 0.01em, p.name)
+    text(size: sized(25pt), tracking: 0.01em, tagged-heading(1, p.name))
     // How to reach you, then your links, each on a line of its own.
     let reach = ()
     if has(p.location) { reach.push(p.location) }

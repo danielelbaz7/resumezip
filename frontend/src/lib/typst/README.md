@@ -64,6 +64,11 @@ server to build a PDF.
    lines through `spaced`, and the space above each section's heading through
    `gapped`, so Fine-tune can change them; add its own text
    size, side margins and paper to `TEMPLATE_SETTINGS` in `src/lib/tune.ts`.
+   Print the name and each section's title through `tagged-heading` (in
+   `common.typ`), inside the text styles that size them, so screen readers
+   find them as the PDF's headings: `text(size: sized(12pt), tagged-heading(2,
+   title))`. It prints exactly what it's given; `headingTags.test.ts` checks
+   the tags.
 2. Import it in `typst.worker.ts` and add it to `SOURCES`.
 3. Add it to `TEMPLATES` in `src/lib/templates.ts` with a picture of its first
    page in `public/previews/<id>.webp` (1280 px wide, from the editor's

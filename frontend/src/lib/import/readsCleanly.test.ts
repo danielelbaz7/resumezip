@@ -13,12 +13,11 @@ import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { TextItem } from "pdfjs-dist/types/src/display/api"
 import { describe, expect, test } from "vitest"
 import { READING_CHECKS, WHY_NOT, type ReadingCheck, type ReadingResults } from "@/app/templates/how-they-read/checks"
-import { SECTIONS, type SectionName } from "@/components/editor/sections"
 import { comparable } from "@/lib/check/pdf"
-import { firstColumnOf, templateById, TEMPLATES, type TemplateId } from "@/lib/templates"
-import { toTemplateData, type TemplateData } from "@/lib/typst/resumeData"
+import { TEMPLATES, type TemplateId } from "@/lib/templates"
+import { toTemplateData } from "@/lib/typst/resumeData"
 import { linesFromPages, readPdf, type Line } from "./lines"
-import { render, samples } from "./testRender"
+import { printedHeadings, render, samples } from "./testRender"
 
 /** What hiring software reads of a PDF. */
 interface PlainText {
@@ -51,35 +50,6 @@ async function plainText(pdf: Uint8Array): Promise<PlainText> {
 // placeholder for a glyph it can't map to a character: "certiﬁed" isn't found
 // by a search for "certified".
 const UNREADABLE = /[\uFB00-\uFB06\uFFFD\0]|\(cid:\d*\)?/gu
-
-const KINDS: Record<SectionName, keyof TemplateData["headings"]> = {
-  Education: "education",
-  Work: "work",
-  Projects: "projects",
-  Publications: "publications",
-  Skills: "skills",
-  Leadership: "leadership",
-  Volunteership: "volunteer",
-  Awards: "awards",
-}
-
-/**
- * The headings the resume prints, in the order its PDF holds them: any
- * column on the left first, then the summary, then the other sections.
- */
-function printedHeadings(resume: Record<string, unknown>, data: TemplateData): string[] {
-  const sections = data.order.flatMap((name) => {
-    const kind = KINDS[name as SectionName]
-    if (!kind || data[kind].length === 0) return []
-    return [{ name, heading: data.headings[kind] || SECTIONS[name as SectionName].title }]
-  })
-  const first = firstColumnOf(templateById(resume.selectedTemplate))
-  return [
-    ...sections.filter(({ name }) => first.includes(name)),
-    ...(data.summary.length ? [{ name: "Summary", heading: "Summary" }] : []),
-    ...sections.filter(({ name }) => !first.includes(name)),
-  ].map(({ heading }) => heading)
-}
 
 /** Something that reads wrongly as plain text: the check it fails, naming the text that broke. */
 interface Problem {

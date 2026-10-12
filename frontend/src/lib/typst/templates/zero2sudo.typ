@@ -28,7 +28,7 @@
 #let section(title, body) = {
   v(gapped(20pt))
   block(sticky: true, {
-    text(size: sized(12.5pt), weight: "bold", upper(title))
+    text(size: sized(12.5pt), weight: "bold", tagged-heading(2, upper(title)))
     v(sized(3pt))
     line(length: 100%, stroke: 0.6pt)
   })
@@ -53,7 +53,7 @@
 
 // ---------- Heading ----------
 
-#text(size: sized(28pt), weight: "bold", p.name)
+#text(size: sized(28pt), weight: "bold", tagged-heading(1, p.name))
 #{
   // Where and how to reach you on one line, the web addresses, underlined,
   // on the next. A long line wraps between items, never inside a link.

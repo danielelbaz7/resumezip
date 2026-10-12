@@ -25,7 +25,7 @@
 #let section(title, body) = {
   v(gapped(13pt))
   block(sticky: true, {
-    text(weight: 600, tracking: 0.04em, upper(title))
+    text(weight: 600, tracking: 0.04em, tagged-heading(2, upper(title)))
     v(sized(4pt))
     line(length: 100%, stroke: (paint: luma(150), thickness: 0.6pt, dash: (2pt, 2pt)))
     v(sized(6pt))
@@ -48,7 +48,7 @@
 
 // ---------- Heading ----------
 
-#text(size: sized(18pt), weight: 600, p.name)
+#text(size: sized(18pt), weight: 600, tagged-heading(1, p.name))
 #{
   let items = ()
   if has(p.location) { items.push(p.location) }
