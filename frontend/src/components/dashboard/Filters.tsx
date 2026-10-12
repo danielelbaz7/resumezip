@@ -3,7 +3,6 @@
 import { Check, ChevronDown, LayoutGrid, List } from "lucide-react"
 import { useId, type ReactNode } from "react"
 import { MENU_ITEM, MENU_PANEL, useMenu } from "./MoreMenu"
-import { GLASS_DOCK } from "@/components/pills"
 import { SLIDING_PILL, useSlidingPill } from "@/components/useSlidingPill"
 
 export type View = "pages" | "list"
@@ -11,9 +10,6 @@ export type Sort = "edited" | "name"
 
 // A tag chip's box, which the picked one's copy (SLIDING_PILL) shares to line up with it.
 const TAG = "inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm"
-// The chips and the sort and view controls each sit in a pane of glass, as a toolbar,
-// a little lower than the page's own (GLASS_DOCK), with smaller buttons in it.
-const DOCK = `${GLASS_DOCK} p-1`
 
 const SORTS: { id: Sort; name: string }[] = [
   { id: "edited", name: "Last edited" },
@@ -43,13 +39,14 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
   return (
     <div className="dash-toolbar border-b border-ink pb-5">
       <div className="dash-toolbar-search">{search}</div>
+      {/* Words on the page rather than pills, so the search is the one glass thing in the row. */}
       <div className="dash-toolbar-chips">
-        <div ref={group} role="group" aria-label="Show" className={`${DOCK} relative`}>
+        <div ref={group} role="group" aria-label="Show" className="relative flex flex-wrap gap-1">
           {tags.map((option) => {
             const pressed = tag === option.id
             // Until the pill is placed, the pressed chip draws itself as picked. Under the pill, it has
             // no line round it to show at the pill's edge.
-            const look = !pressed ? "text-ink hover:bg-ink/[0.06]" : placed ? "text-ink" : "ink-glass"
+            const look = !pressed ? "text-ink hover:bg-ink/[0.06]" : placed ? "text-ink" : "bg-ink text-white"
             return (
               <button
                 key={option.id}
@@ -63,14 +60,9 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
               </button>
             )
           })}
-          {/* Each chip in the copy is ink glass over the copy's ink, so the one the cut shows has its own gloss. */}
-          <div
-            ref={pill}
-            aria-hidden="true"
-            className={`${SLIDING_PILL} inset-0 flex flex-wrap items-center gap-1 p-1 ${placed ? "" : "invisible"}`}
-          >
+          <div ref={pill} aria-hidden="true" className={`${SLIDING_PILL} inset-0 flex flex-wrap gap-1 ${placed ? "" : "invisible"}`}>
             {tags.map((option) => (
-              <span key={option.id} className={`${TAG} ink-glass`}>
+              <span key={option.id} className={TAG}>
                 {option.name} <span className="font-mono text-[11px] text-white/70">{option.count}</span>
               </span>
             ))}
@@ -78,7 +70,7 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
         </div>
       </div>
       <div className="dash-toolbar-controls">
-        <div className={DOCK}>
+        <div className="flex items-center gap-1">
           <SortMenu sort={sort} onSort={onSort} />
           {/* Left and right switch between the two, as the editor's Write / Check / Style do. Only the
             chosen one is in the Tab order, so focus is always on the white pill and needs no ring. */}
