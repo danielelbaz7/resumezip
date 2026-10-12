@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { FileDown, FileUp, Plus } from "lucide-react"
@@ -10,7 +11,9 @@ import TypeModal from "@/components/dashboard/TypeModal"
 import DeletedToast from "@/components/dashboard/DeletedToast"
 import EmptyShelf from "@/components/dashboard/EmptyShelf"
 import Filters, { type Sort, type View } from "@/components/dashboard/Filters"
+import { fly, glideFrom, pageOf, placesIn, restingBox } from "@/components/dashboard/flight"
 import { AllConflictDialog, ConflictDialog, OpenErrorDialog, ReadingDialog, type Differing } from "@/components/dashboard/OpenFileDialogs"
+import PagePicture from "@/components/dashboard/PagePicture"
 import { keepPictures, startPictures } from "@/components/dashboard/pagePictures"
 import ResumeGrid from "@/components/dashboard/ResumeGrid"
 import ResumeTable, { tagName } from "@/components/dashboard/ResumeTable"
@@ -74,10 +77,11 @@ function savedView(): View {
   }
 }
 
-/** How long a deleted resume takes to crumple or fold away, in milliseconds (dashboard.css has the same). */
-const LEAVING_MS = 480
-/** How long one put back takes to smooth out again. */
-const RETURNING_MS = 420
+/**
+ * How long a deleted resume keeps its place, unseen, in milliseconds, as its
+ * page lifts off toward the Undo message, before the rest slide into the gap.
+ */
+const LEAVING_MS = 160
 
 const lessMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
@@ -128,9 +132,14 @@ export default function DashboardPage() {
   const [deleting, setDeleting] = useState<{ resume: ResumeWithId; key: number } | null>(null)
   const deletingRef = useRef(deleting)
   const deletions = useRef(0)
-  // Resumes crumpling or folding away, and the one put back, smoothing out.
+  // Resumes just deleted, keeping their place for a moment, and the one put
+  // back, while its page flies back to it (flight.ts).
   const [leaving, setLeaving] = useState<ReadonlySet<string>>(new Set())
   const [returning, setReturning] = useState<string | null>(null)
+  // The resumes as pages or the list, where they're measured to slide, and
+  // the copy of a page in flight, taken away if another delete or Undo comes first.
+  const viewRef = useRef<HTMLDivElement>(null)
+  const flying = useRef<HTMLElement | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   // The file being read. Cancelling (or opening another file) stops it, and
   // means it can't reappear if it was just finishing.
@@ -170,7 +179,7 @@ export default function DashboardPage() {
         ),
     [resumes],
   )
-  // Every resume but one deleted a moment ago; that one shows while it crumples away.
+  // Every resume but one deleted a moment ago; that one keeps its place while its page lifts off.
   const deletedId = deleting?.resume.id
   const kept = useMemo(() => sorted.filter((resume) => resume.id !== deletedId), [sorted, deletedId])
 
@@ -213,26 +222,41 @@ export default function DashboardPage() {
     return () => {
       window.removeEventListener("pagehide", finish)
       finish()
+      flying.current?.remove()
     }
   }, [])
 
+  const forgetLeaving = (id: string) =>
+    setLeaving((ids) => {
+      const next = new Set(ids)
+      next.delete(id)
+      return next
+    })
+
+  // Its page flies into the Undo message, and the resumes after it slide into its place.
   const remove = (resume: ResumeWithId) => {
     finishDeleting()
     const pending = { resume, key: ++deletions.current }
     deletingRef.current = pending
-    setDeleting(pending)
     announce(`“${nameOf(resume)}” deleted`)
-    if (lessMotion()) return
-    setLeaving((ids) => new Set(ids).add(resume.id))
-    setTimeout(
-      () =>
-        setLeaving((ids) => {
-          const next = new Set(ids)
-          next.delete(resume.id)
-          return next
-        }),
-      LEAVING_MS,
-    )
+    if (lessMotion()) {
+      setDeleting(pending)
+      return
+    }
+    // The message goes on the page at once, so the page knows where to fly.
+    flushSync(() => {
+      setDeleting(pending)
+      setLeaving((ids) => new Set(ids).add(resume.id))
+    })
+    flying.current?.remove()
+    const page = pageOf(viewRef.current, resume.id)
+    const slot = document.querySelector<HTMLElement>("[data-toast-page]")
+    flying.current = page && slot ? fly(page, restingBox(slot)) : null
+    setTimeout(() => {
+      const before = placesIn(viewRef.current)
+      flushSync(() => forgetLeaving(resume.id))
+      glideFrom(before)
+    }, LEAVING_MS)
   }
 
   const undo = () => {
@@ -240,18 +264,28 @@ export default function DashboardPage() {
     if (!pending) return
     const { id } = pending.resume
     deletingRef.current = null
-    setDeleting(null)
-    setLeaving((ids) => {
-      const next = new Set(ids)
-      next.delete(id)
-      return next
-    })
     announce(`“${nameOf(pending.resume)}” is back`)
     // Focus goes to it, as Undo is gone.
     requestAnimationFrame(() => focusShown(`[data-resume-link="${CSS.escape(id)}"]`))
-    if (lessMotion()) return
-    setReturning(id)
-    setTimeout(() => setReturning((current) => (current === id ? null : current)), RETURNING_MS)
+    const restore = () => {
+      setDeleting(null)
+      forgetLeaving(id)
+    }
+    if (lessMotion()) return restore()
+    // Its page flies back out of the message, which is measured before it goes,
+    // and the resumes after it slide out of its way. It shows once the page lands.
+    const slot = document.querySelector<HTMLElement>("[data-toast-page]")?.getBoundingClientRect()
+    const before = placesIn(viewRef.current)
+    flying.current?.remove()
+    flushSync(() => {
+      restore()
+      setReturning(id)
+    })
+    glideFrom(before)
+    const page = pageOf(viewRef.current, id)
+    const landed = () => flushSync(() => setReturning((current) => (current === id ? null : current)))
+    if (slot && page) flying.current = fly(page, slot, true, landed)
+    else landed()
   }
 
   const closeOpening = () => {
@@ -404,11 +438,11 @@ export default function DashboardPage() {
   }
 
   // What's shown: the resumes found by the search, with the chosen tag, in the chosen order.
-  // A resume crumpling away keeps its place until it's gone.
+  // A resume just deleted keeps its place for a moment, as its page lifts off.
   const showing = sorted.filter((resume) => resume.id !== deletedId || leaving.has(resume.id))
   const found = showing.filter((resume) => matches(resume, query))
   const tagOf = (resume: ResumeWithId) => resume.resumeTag?.toLowerCase() ?? ""
-  // Counted without the one crumpling away, so the tabs agree with the count above them at once.
+  // Counted without the one just deleted, so the tabs agree with the count above them at once.
   const counted = found.filter((resume) => resume.id !== deletedId)
   const tags = [
     { id: EVERY_TYPE, name: "All", count: counted.length },
@@ -553,7 +587,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               // A new one for each view, so the fade starts from nothing.
-              <div key={view} className={fadeIn ? "view-fade" : undefined}>
+              <div key={view} ref={viewRef} className={fadeIn ? "view-fade" : undefined}>
                 {view === "pages" ? (
                   <ResumeGrid
                     resumes={shown}
@@ -609,7 +643,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {deleting && <DeletedToast key={deleting.key} title={nameOf(deleting.resume)} onUndo={undo} onDone={finishDeleting} />}
+      {deleting && (
+        <DeletedToast
+          key={deleting.key}
+          title={nameOf(deleting.resume)}
+          page={<PagePicture id={deleting.resume.id} resume={deleting.resume} sizes="22px" className="h-full w-full" />}
+          onUndo={undo}
+          onDone={finishDeleting}
+        />
+      )}
 
       {creating && <CreateResumeModal own={ownTypes} onClose={() => setCreating(false)} onCreate={create} />}
       {retyping && (

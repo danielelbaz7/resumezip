@@ -709,13 +709,13 @@ test("typing a type of your own that runs on past one already in use keeps every
   expect(errors).toEqual([])
 })
 
-test("a deleted resume leaves the tags' counts at once, while its page crumples away", async ({ page }) => {
+test("a deleted resume leaves the tags' counts at once, while its page flies away", async ({ page }) => {
   const errors = pageErrors(page)
   await page.clock.install()
   await dashboardWith(page, [resume("a", "Ada"), resume("b", "Grace", { resumeTag: "personal" }), resume("c", "Kestrel")])
   const tags = page.getByRole("group", { name: "Show" }).getByRole("button")
   await expect(tags).toHaveText(["All 3", "Personal 1", "Professional 2"])
-  // Time stands still from here, so the page that's deleted is still crumpling when the tags are read.
+  // Time stands still from here, so the resume that's deleted still keeps its place when the tags are read.
   await page.clock.pauseAt(Date.now() + 2_000)
   await tile(page, "Ada").getByRole("button", { name: "More for “Ada”" }).click()
   await page.getByRole("menuitem", { name: "Delete" }).click()
@@ -723,6 +723,89 @@ test("a deleted resume leaves the tags' counts at once, while its page crumples 
   await expect(tags).toHaveText(["All 2", "Personal 1", "Professional 1"])
   expect(errors).toEqual([])
 })
+
+/** Keeps the parts of the list that slide (flight.ts's glideFrom), by what they are, as they start to. */
+async function watchGlides(page: Page) {
+  await page.evaluate(() => {
+    const watched = window as unknown as { glided: string[] }
+    watched.glided = []
+    const animate = Element.prototype.animate
+    Element.prototype.animate = function (this: Element, keyframes, options) {
+      const glide = this instanceof HTMLElement ? this.dataset.glide : undefined
+      if (glide) watched.glided.push(glide)
+      return animate.call(this, keyframes, options)
+    }
+  })
+}
+const glided = (page: Page) => page.evaluate(() => (window as unknown as { glided: string[] }).glided.splice(0))
+
+/**
+ * Where the copy of a page in flight ends up (flight.ts), and where `to` is:
+ * every animation on the page is taken to its end, which lands the copy.
+ */
+const flightEnd = (page: Page, to: "message" | string) =>
+  page.evaluate((to) => {
+    const copy = document.querySelector<HTMLElement>("[data-flying-page]")
+    if (!copy) return null
+    for (const animation of document.getAnimations()) {
+      if (animation.effect?.getComputedTiming().endTime !== Infinity) animation.finish()
+    }
+    const target =
+      to === "message"
+        ? document.querySelector("[data-toast-page]")
+        : [...document.querySelectorAll(`[data-glide="${to}"] [data-resume-page]`)].find((page) => page.getClientRects().length > 0)
+    const box = (element: Element | null | undefined) => {
+      const { left, top, width, height } = element!.getBoundingClientRect()
+      return [left, top, width, height].map(Math.round)
+    }
+    return { copy: box(copy), target: box(target) }
+  }, to)
+
+/** How far apart two boxes are, at the most, along any edge, in pixels. */
+const apart = (one: number[], other: number[]) => Math.max(...one.map((value, index) => Math.abs(value - other[index])))
+
+for (const view of ["pages", "list"] as const) {
+  test(`in the ${view}, a deleted resume's page flies into the Undo message, and Undo flies it back to its place`, async ({ page }) => {
+    const errors = pageErrors(page)
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await dashboardWith(page, [resume("a", "Ada"), resume("b", "Grace"), resume("c", "Kestrel")])
+    if (view === "list") await page.getByRole("group", { name: "View" }).getByRole("button", { name: "List" }).click()
+    const ada =
+      view === "pages"
+        ? pages(page).getByRole("link", { name: "Ada", exact: true })
+        : page.getByRole("table").getByRole("link", { name: "Ada", exact: true })
+    await expect(ada).toBeVisible()
+    await watchGlides(page)
+
+    if (view === "pages") {
+      await tile(page, "Ada").getByRole("button", { name: "More for “Ada”" }).click()
+      await page.getByRole("menuitem", { name: "Delete" }).click()
+    } else {
+      await page
+        .getByRole("row")
+        .filter({ has: page.getByRole("link", { name: "Ada", exact: true }) })
+        .getByRole("button", { name: "Delete" })
+        .click()
+    }
+    // It lands on the message's small picture of the resume's page, ...
+    const out = await flightEnd(page, "message")
+    expect(out).not.toBeNull()
+    expect(apart(out!.copy, out!.target)).toBeLessThanOrEqual(1)
+    // ... and the resumes after it slide into its place, rather than jump there.
+    await expect(ada).toHaveCount(0)
+    await expect.poll(() => glided(page)).toEqual(expect.arrayContaining(["b", "c"]))
+
+    // Undo flies it back out of the message to its place, as the others make room, and it has the focus.
+    await page.getByRole("button", { name: "Undo" }).click()
+    const back = await flightEnd(page, "a")
+    expect(back).not.toBeNull()
+    expect(apart(back!.copy, back!.target)).toBeLessThanOrEqual(1)
+    expect(await glided(page)).toEqual(expect.arrayContaining(["b", "c"]))
+    await expect(ada).toBeFocused()
+    await expect.poll(() => page.evaluate(() => document.querySelector("[data-flying-page]"))).toBeNull()
+    expect(errors).toEqual([])
+  })
+}
 
 test("a page shows the resume itself, with nothing stamped over it, even one the checker finds nothing to fix in", async ({ page }) => {
   const errors = pageErrors(page)
@@ -762,7 +845,7 @@ test.describe("with less motion", () => {
     await dashboardWith(page, [resume("a", "Ada"), resume("b", "Grace")])
     await tile(page, "Ada").getByRole("button", { name: "More for “Ada”" }).click()
     await page.getByRole("menuitem", { name: "Delete" }).click()
-    // Gone at once: nothing is left on the page to crumple.
+    // Gone at once: nothing flies.
     expect(await pages(page).getByRole("link", { name: "Ada", exact: true }).count()).toBe(0)
     await page.getByRole("button", { name: "Undo" }).click()
     expect(await pages(page).getByRole("link", { name: "Ada", exact: true }).count()).toBe(1)

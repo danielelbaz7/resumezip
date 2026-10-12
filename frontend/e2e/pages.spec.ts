@@ -18,6 +18,32 @@ test("contact, on the about page, gives the support address to write to or copy"
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("hello@tryresumezip.com")
 })
 
+// The blue Email bubble follows the pointer over the address, so at its right end it reaches over
+// Copy email, and has to show above it there rather than under it.
+test("the Email bubble shows above Copy email where they meet", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto("/about#contact")
+  const email = page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })
+  const copy = page.getByRole("button", { name: "Copy email" })
+  // Hovered at its right end, once the page has stopped scrolling to it.
+  const { width, height } = (await email.boundingBox())!
+  await email.hover({ position: { x: width - 6, y: height / 2 } })
+  const bubble = email.getByText("Email", { exact: true })
+  await expect(bubble).toHaveCSS("opacity", "1")
+  const meet = (await copy.boundingBox())!
+  // The bubble lets clicks through to the address; made to take them for a moment, the
+  // browser says which is on top where it overlaps Copy email.
+  const top = await bubble.evaluate((element, x) => {
+    const bubble = element as HTMLElement
+    bubble.style.pointerEvents = "auto"
+    const shown = bubble.getBoundingClientRect()
+    const hit = document.elementFromPoint(x, shown.top + shown.height / 2)
+    bubble.style.pointerEvents = ""
+    return hit === bubble || bubble.contains(hit)
+  }, meet.x + 4)
+  expect(top).toBe(true)
+})
+
 // Google's sign-in, for Save to Google Drive, links to the privacy policy this way.
 test("/terms#privacy opens the privacy policy, and a tab's address opens it from the page too", async ({ page }) => {
   await page.goto("/terms#privacy")

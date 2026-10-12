@@ -54,7 +54,9 @@ export default function EmailContact() {
         }}
         onPointerMove={follow}
         onPointerLeave={() => setOver(false)}
-        className={`glass glass-float relative inline-flex h-12 items-center rounded-full px-6 text-[17px] text-ink ${
+        // Raised above Copy email: each glass pill is a layer of its own, so
+        // without it the later one would cover the bubble wherever they meet.
+        className={`glass glass-float relative z-10 inline-flex h-12 items-center rounded-full px-6 text-[17px] text-ink ${
           over ? "cursor-none" : ""
         }`}
       >
