@@ -412,3 +412,22 @@ test("the text box shows every bullet after arranging, and a deleted entry's mod
 
   expect(errors).toEqual([])
 })
+
+test("asked whether to delete an entry, it shows its name and its fields fade, and Keep backs out", async ({ page }) => {
+  const errors = pageErrors(page)
+  await openSection(page, "Experience")
+  await page.getByRole("button", { name: "Edit entry 2" }).click()
+  await page.getByRole("button", { name: "Delete entry 2" }).click()
+  await expect(page.getByRole("status").filter({ hasText: "Delete it?" })).toBeVisible()
+  await expect(page.getByText("Intern, Initech", { exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Keep" })).toBeFocused()
+  // Its fields can't be typed in meanwhile (inert, which Playwright doesn't count as hidden).
+  const role = page.getByRole("textbox", { name: "Role" }).nth(1)
+  expect(await role.evaluate((box) => box.closest("[inert]") !== null)).toBe(true)
+
+  await page.getByRole("button", { name: "Keep" }).click()
+  await expect(page.getByRole("button", { name: "Delete entry 2" })).toBeFocused()
+  await expect(page.getByText("Intern, Initech", { exact: true })).toHaveCount(0)
+  expect(await role.evaluate((box) => box.closest("[inert]") !== null)).toBe(false)
+  expect(errors).toEqual([])
+})

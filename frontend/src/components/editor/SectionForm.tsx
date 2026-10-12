@@ -9,6 +9,7 @@ import type { Entry } from "@/lib/resume"
 import { useCheckActions, useCheckTarget } from "./CheckContext"
 import { loadDragAndDrop, loadedDragAndDrop } from "./dragAndDrop"
 import { DoneIcon, EyeIcon, PencilIcon, RowAction, RowToggle, TrashIcon } from "@/components/dashboard/RowActions"
+import { DANGER_PILL, OUTLINE_PILL } from "@/components/pills"
 import { BulletsField, Field, FlagNote, SectionHeading, selectLine } from "./fields"
 import { reducedMotion, reveal, scrollerOf } from "./layout"
 import DeleteSection from "./DeleteSection"
@@ -336,7 +337,6 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
   const title = headings?.[section.headingKey] || section.title
   // "Add experience", or "Add to Work History" once the person has renamed the section.
   const addLabel = title === section.title ? section.addLabel : `Add to ${title}`
-  const quiet = "py-2 text-sm text-ink-2 transition-colors hover:text-ink"
 
   const addButtonElement = (
     <button
@@ -378,17 +378,26 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
       >
         {/* Room on the sides so focus outlines aren't clipped while it slides. */}
         <section className="-mx-1 min-h-0 overflow-hidden px-1">
-          <div className={`border-t pb-7 pt-4 transition-colors duration-300 ${isOpen ? "border-ink" : "border-rule"}`}>
+          {/* Asked whether to delete it, its line turns red (two pixels' worth, without moving
+              anything), its name shows, and its fields fade, so it's clear what would go. */}
+          <div
+            className={`border-t pb-7 pt-4 transition-[border-color,box-shadow] duration-300 ${
+              confirming ? "border-alert shadow-[inset_0_1px_0_var(--color-alert)]" : isOpen ? "border-ink" : "border-rule"
+            }`}
+          >
             <div className="flex items-start justify-between gap-4">
               {/* A click on an entry's heading also opens it, or closes it if it's open. From the keyboard, it's Edit and Done. */}
               <div
                 className="group flex min-w-0 flex-1 cursor-pointer flex-col gap-1"
                 onClick={() => open(isOpen ? null : entry.id, entry.id)}
               >
-                <span className={`label-mono text-ink-2 ${isOpen ? "transition-colors group-hover:text-ink" : ""}`}>
+                <span
+                  className={`label-mono ${confirming ? "text-alert" : "text-ink-2"} ${isOpen && !confirming ? "transition-colors group-hover:text-ink" : ""}`}
+                >
                   Entry {index + 1}
                   {leftOut && " · Left out"}
                 </span>
+                {confirming && <span className="truncate text-[15px] text-ink">{summary || "Empty entry"}</span>}
                 {!isOpen && (
                   <span
                     className={`truncate text-[15px] underline-offset-4 group-hover:underline ${summary && !leftOut ? "text-ink" : "text-ink-2"}`}
@@ -435,21 +444,18 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
                   </RowAction>
                 ) : confirming ? (
                   // The question fades in where the buttons were (`starting:` is CSS @starting-style), as tall as them.
+                  // On a phone only its buttons show, leaving the entry's name room.
                   <span
                     key="confirming"
-                    className="flex h-10 items-center gap-4 transition-opacity duration-200 motion-reduce:transition-none starting:opacity-0"
+                    className="flex h-10 items-center gap-2 transition-opacity duration-200 motion-reduce:transition-none starting:opacity-0"
                   >
-                    <span className="py-2 text-sm text-ink" role="status">
-                      Delete this entry?
+                    <span className="mr-1.5 text-sm text-ink max-sm:sr-only" role="status">
+                      Delete it?
                     </span>
-                    <button ref={cancelButton} type="button" onClick={() => cancelDelete(entry.id)} className={quiet}>
-                      Cancel
+                    <button ref={cancelButton} type="button" onClick={() => cancelDelete(entry.id)} className={OUTLINE_PILL}>
+                      Keep
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => confirmRemove(entry.id)}
-                      className="py-2 text-sm font-medium text-[#b42318] underline-offset-4 hover:underline"
-                    >
+                    <button type="button" onClick={() => confirmRemove(entry.id)} className={DANGER_PILL}>
                       Delete
                     </button>
                   </span>
@@ -483,7 +489,12 @@ function SectionForm({ section, position, onDelete }: SectionFormProps) {
               {/* The container whose width lays out the fields (FIELD_SPAN). It's here rather than
                   around the whole form: Safari before 26 doesn't place a fixed element inside a
                   query container right (WebKit bug 284945), and an entry being dragged is fixed. */}
-              <div className="@container -mx-1 min-h-0 overflow-hidden px-1" inert={!isOpen}>
+              <div
+                className={`@container -mx-1 min-h-0 overflow-hidden px-1 transition-[opacity,filter] duration-200 motion-reduce:transition-none ${
+                  confirming ? "opacity-30 grayscale" : ""
+                }`}
+                inert={!isOpen || confirming}
+              >
                 <div className="grid grid-cols-2 gap-x-7 gap-y-6 pb-1 pt-5 @lg:grid-cols-4">
                   {leftOut && (
                     <p className="col-span-2 text-[13px] leading-normal text-ink-2 @lg:col-span-4">
