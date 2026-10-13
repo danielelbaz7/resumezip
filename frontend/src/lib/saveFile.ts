@@ -1,5 +1,19 @@
-/** What a file of a resume is called: its name, or "resume" if it has none. */
-export const fileNameOf = (resume: { resumeTitle?: string }, extension: string) => `${resume.resumeTitle?.trim() || "resume"}.${extension}`
+import type { Resume } from "./resume"
+import { isUntitled } from "./resumeTitles"
+
+/**
+ * What a file of a resume is called: its name, or, for one still called
+ * "Untitled resume", the person's ("Jake Ryan resume"), since that's what a
+ * recruiter sees in a list of attachments. "resume" if it has neither.
+ */
+export function fileNameOf(resume: Pick<Resume, "resumeTitle" | "profileSection">, extension: string): string {
+  const title = resume.resumeTitle?.trim() ?? ""
+  // Saved data, so read defensively: an old or broken save can have anything here.
+  const fullName: unknown = resume.profileSection?.fullName
+  const person = typeof fullName === "string" ? fullName.trim() : ""
+  const name = isUntitled(title) ? (person ? `${person} resume` : title) : title
+  return `${name || "resume"}.${extension}`
+}
 
 /** Saves `data` to the person's computer as a file named `name`, as a download does. */
 export function saveFile(data: BlobPart, name: string, type: string) {

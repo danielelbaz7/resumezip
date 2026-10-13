@@ -28,6 +28,8 @@ interface FieldProps {
   autoComplete?: string
   /** A web address: phones show the keyboard for one, with no spelling marks and no capital first letter. */
   web?: boolean
+  /** What belongs in a one-line field, shown under it and read out with it. */
+  hint?: string
   /** A few lines of prose, as the summary: a box that grows with them, where Enter starts a new line, with bold and italic words. */
   multiline?: boolean
 }
@@ -91,10 +93,12 @@ export function Field({
   autoComplete,
   web,
   multiline,
+  hint,
 }: FieldProps) {
   const noteId = useId()
   const boxId = useId()
   const hintId = useId()
+  const describedBy = [hint && hintId, flag && noteId].filter(Boolean).join(" ") || undefined
   const look = `relative w-full min-w-0 border-0 bg-transparent py-2 text-base text-ink outline-none transition-colors focus-visible:outline-none ${
     !flag ? "border-b border-rule-strong" : "border-b-2 border-accent"
   }`
@@ -133,7 +137,7 @@ export function Field({
             type={type}
             value={value}
             placeholder={placeholder}
-            aria-describedby={flag ? noteId : undefined}
+            aria-describedby={describedBy}
             aria-invalid={flag?.level === "fix" || undefined}
             autoComplete={autoComplete}
             inputMode={web ? "url" : undefined}
@@ -149,10 +153,16 @@ export function Field({
           className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-accent shadow-[0_0_10px_rgb(46_91_230/0.55)] transition-transform duration-300 ease-glide group-focus-within/field:scale-x-100 motion-reduce:transition-none"
         />
       </Labelled>
-      {multiline && (
+      {multiline ? (
         <span id={hintId} className="text-[13px] leading-normal text-ink-2">
           <FormatHint />
         </span>
+      ) : (
+        hint && (
+          <span id={hintId} className="text-[13px] leading-normal text-ink-2">
+            {hint}
+          </span>
+        )
       )}
       {flag && <FlagNote id={noteId} finding={flag} />}
     </div>

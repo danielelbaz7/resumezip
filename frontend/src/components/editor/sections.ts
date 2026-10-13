@@ -13,6 +13,8 @@ export interface FieldDef<Key extends string = string> {
   size: "sm" | "md" | "lg" | "full"
   /** "bullets" is a box with one bullet per line, which shows bold and italic words (StyledBox.tsx). */
   type?: "text" | "bullets"
+  /** A line under a one-line field on what belongs in it, read out with the field. */
+  hint?: string
 }
 
 /** A choice that applies to the whole section, stored on the resume under `key`. */
@@ -145,7 +147,13 @@ const DEFINITIONS = {
     summary: ["skillName", "skillDetails"],
     fields: [
       { key: "skillName", label: "Category", placeholder: "Languages", size: "sm" },
-      { key: "skillDetails", label: "Skills", placeholder: "TypeScript, Python, Go", size: "lg" },
+      {
+        key: "skillDetails",
+        label: "Skills",
+        placeholder: "TypeScript, Python, Go",
+        size: "lg",
+        hint: "Only skills you could be interviewed on, most relevant to the job first. No need to rate them.",
+      },
     ],
   },
   Projects: {

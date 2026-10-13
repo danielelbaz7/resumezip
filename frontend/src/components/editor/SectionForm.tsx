@@ -581,6 +581,7 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
                         name={field.key}
                         label={field.label}
                         placeholder={field.placeholder}
+                        hint={field.hint}
                         value={entry[field.key] ?? ""}
                         onChange={(value) => update(entry.id, field.key, value)}
                         className={FIELD_SPAN[field.size]}
