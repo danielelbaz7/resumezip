@@ -3,14 +3,18 @@ import { Check, X } from "lucide-react"
 import PageIntro from "@/components/site/PageIntro"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
+import StructuredData from "@/components/site/StructuredData"
 import { SHEET } from "@/components/site/sheet"
 import { pageMetadata } from "@/lib/site"
+import { breadcrumbs, TEMPLATES_CRUMB } from "@/lib/structuredData"
 import { TEMPLATES, templatePath } from "@/lib/templates"
 import { READING_CHECKS, READING_RESULTS, WHY_NOT } from "./checks"
 
+const PAGE = { name: "How each template reads", path: "/templates/how-they-read" }
+
 export const metadata = pageMetadata({
-  path: "/templates/how-they-read",
-  title: "How each template reads",
+  path: PAGE.path,
+  title: PAGE.name,
   description:
     "Every resumezip template’s sample PDF, read back as plain text the way hiring software reads it, on every change to the code. What’s checked, and what it finds.",
 })
@@ -28,6 +32,7 @@ export default function HowTheyReadPage() {
   return (
     <div className="desk flex min-h-screen flex-col">
       <SiteHeader />
+      <StructuredData data={breadcrumbs([TEMPLATES_CRUMB, PAGE])} />
 
       <main className={`${SHEET} flex flex-col gap-16`}>
         <PageIntro

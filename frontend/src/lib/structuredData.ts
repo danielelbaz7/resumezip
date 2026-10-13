@@ -45,3 +45,24 @@ export const HOME_DATA = {
     },
   ],
 }
+
+interface Crumb {
+  name: string
+  path: string
+}
+
+export const TEMPLATES_CRUMB: Crumb = { name: "Templates", path: "/templates" }
+
+/** Where a page sits under the home page, e.g. Home › Templates › Jake's resume template: `trail` ends with the page itself. */
+export function breadcrumbs(trail: readonly Crumb[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [{ name: "Home", path: "/" }, ...trail].map(({ name, path }, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name,
+      item: at(path),
+    })),
+  }
+}

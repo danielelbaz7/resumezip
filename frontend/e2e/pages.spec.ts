@@ -145,6 +145,20 @@ test.describe("search engines", () => {
     expect(logo.headers()["content-type"]).toBe("image/png")
     expect(item("WebApplication")?.offers?.price).toBe("0")
   })
+
+  test("read where each page under Templates sits, from the home page down to it", async ({ request }) => {
+    const urls = await sitemapUrls(request)
+    const under = urls.filter((url) => new URL(url).pathname.startsWith("/templates"))
+    expect(under).toContain("https://www.tryresumezip.com/templates/jakes")
+    for (const url of under) {
+      const path = new URL(url).pathname
+      const crumbs = (await structuredData(request, path)).find((data) => data["@type"] === "BreadcrumbList")
+      const trail: string[] = crumbs?.itemListElement.map((crumb: { item: string }) => crumb.item) ?? []
+      expect(trail[0], path).toBe("https://www.tryresumezip.com/")
+      expect(trail.at(-1), path).toBe(url)
+      for (const crumb of trail) expect(urls, `${path}'s breadcrumbs`).toContain(crumb)
+    }
+  })
 })
 
 for (const path of PAGES) {

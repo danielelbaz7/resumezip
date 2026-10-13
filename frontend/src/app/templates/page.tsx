@@ -1,7 +1,9 @@
 import Link from "next/link"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
+import StructuredData from "@/components/site/StructuredData"
 import { pageMetadata } from "@/lib/site"
+import { breadcrumbs, TEMPLATES_CRUMB } from "@/lib/structuredData"
 import { newTemplate, TEMPLATES } from "@/lib/templates"
 import TemplateGallery from "./TemplateGallery"
 import { SHEET } from "@/components/site/sheet"
@@ -20,6 +22,7 @@ export default function TemplatesPage() {
   return (
     <div className="desk flex min-h-screen flex-col">
       <SiteHeader />
+      <StructuredData data={breadcrumbs([TEMPLATES_CRUMB])} />
 
       <main className={`${SHEET} flex flex-col gap-10`}>
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between md:gap-10">
