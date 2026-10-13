@@ -71,3 +71,17 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     })
   })
 }
+
+test("the Skills box says what belongs in it, and reads it out", async ({ page }) => {
+  const errors = pageErrors(page)
+  await startWriting(page, 1440, 900)
+  await page
+    .getByRole("navigation", { name: "Sections" })
+    .getByRole("button", { name: /^\d+ Skills$/ })
+    .click()
+  await page.getByRole("button", { name: "Add skill group" }).click()
+  const hint = "Only skills you could be interviewed on, most relevant to the job first. No need to rate them."
+  await expect(page.getByRole("textbox", { name: "Skills", exact: true }).last()).toHaveAccessibleDescription(hint)
+  await expect(page.getByText(hint).last()).toBeVisible()
+  expect(errors).toEqual([])
+})

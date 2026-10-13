@@ -8,6 +8,12 @@ const UNTITLED = "Untitled resume"
 // Names are compared ignoring case and surrounding spaces; a blank name counts as "Untitled resume".
 const key = (title: unknown) => (typeof title === "string" && title.trim() ? title.trim() : UNTITLED).toLowerCase()
 
+/** Whether a resume has no name of its own: none, or one it was given, as "Untitled resume 2". */
+export function isUntitled(title: unknown): boolean {
+  const name = key(title)
+  return name === UNTITLED.toLowerCase() || new RegExp(`^${UNTITLED} \\d+$`, "i").test(name)
+}
+
 /** The name as given, or with the lowest free number after it if another resume already uses it. */
 export function uniqueTitle(title: string, taken: unknown[]): string {
   const base = title.trim() || UNTITLED
