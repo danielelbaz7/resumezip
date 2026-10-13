@@ -12,6 +12,12 @@ module.exports = {
   async rewrites() {
     return [{ source: "/create/new/:id+", destination: "/create/editor" }]
   },
+  // Contact is part of About now. Old links, and messages already sent with
+  // this address, still land on its form. Here rather than in a page, whose
+  // redirect() answers 307 (temporary), so search engines list About instead.
+  async redirects() {
+    return [{ source: "/contact", destination: "/about#contact", permanent: true }]
+  },
   // Files in public/ are otherwise checked with the server every time they're
   // shown. These keep their names when they change (e.g. a template's new
   // picture), so browsers keep them for a day rather than for good.

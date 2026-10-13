@@ -109,6 +109,12 @@ test.describe("search engines", () => {
     }
   })
 
+  test("are sent from the old contact address to About for good", async ({ request }) => {
+    const response = await request.get("/contact", { maxRedirects: 0 })
+    expect(response.status()).toBe(308)
+    expect(response.headers().location).toBe("/about#contact")
+  })
+
   test("are asked to leave the dashboard and the editor out", async ({ request }) => {
     for (const path of ["/create/dashboard", "/create/new/a-resume"]) {
       expect(meta(await head(request, path), "robots"), path).toBe("noindex")
