@@ -145,7 +145,7 @@ test("a second copy of a line already on the page lights up too", async ({ page 
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Role", { exact: true }).fill("Engineer")

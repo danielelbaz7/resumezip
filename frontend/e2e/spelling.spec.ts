@@ -16,7 +16,7 @@ test("unknown words are suggestions, and Add word clears them without the text l
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Company").fill("Analytical Engines")

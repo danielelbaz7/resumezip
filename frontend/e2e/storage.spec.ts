@@ -79,7 +79,7 @@ test("when the browser won't let the site save anything, it still works and says
 
   // The dashboard says so too, and has the resume until the page is closed,
   // through a visit to another page.
-  await page.getByRole("link", { name: "Your resumes" }).click()
+  await page.getByRole("link", { name: "Dashboard" }).click()
   await expect(notSaved(page)).toContainText("isn't letting resumezip save anything")
   await expect(page.getByText(/^1 resume\W+not saved$/i)).toBeVisible()
   await page.getByRole("banner").getByRole("link", { name: "resumezip" }).click()
@@ -129,7 +129,7 @@ test("when storage is full, the editor says the changes aren't saved until they 
   })
   await startWriting(page)
   const name = page.getByLabel("Full name")
-  const saved = page.getByText("Saved in this browser")
+  const saved = page.getByText("Saved", { exact: true })
 
   await name.fill("Ada")
   await expect(saved).toHaveCount(1)
@@ -230,7 +230,7 @@ test("when another tab saves something unreadable, the open resume stays and is 
   // it, once it has read the resumes itself.
   const other = await context.newPage()
   await other.goto("/create/dashboard")
-  await expect(other.getByText(/^1 resume\W+stored in this browser$/i)).toBeVisible()
+  await expect(other.getByText(/^1 resume\W+saved in this browser$/i)).toBeVisible()
   await other.evaluate((key) => localStorage.setItem(key, "not json"), key)
 
   // The editor keeps what was unreadable aside, keeps its resume, and saves it back.
@@ -267,7 +267,7 @@ test("typing is saved once it pauses, and just opening a page saves nothing", as
 
   // Opening the dashboard, or the editor again, saves nothing.
   await page.goto("/create/dashboard")
-  await expect(page.getByText(/^1 resume\W+stored in this browser$/i)).toBeVisible()
+  await expect(page.getByText(/^1 resume\W+saved in this browser$/i)).toBeVisible()
   await page.waitForTimeout(1_000)
   expect(await saves()).toEqual([])
   await page.goto(editor)
@@ -304,7 +304,7 @@ test("the editor says Saving… while typing, and Saved once typing has stopped 
   const key = await startWriting(page)
   const name = page.getByLabel("Full name")
   const saving = page.getByText("Saving…")
-  const saved = page.getByText("Saved in this browser")
+  const saved = page.getByText("Saved", { exact: true })
   await name.fill("Ada")
   await expect(previewShows(page.getByRole("region", { name: "Live preview" }), /Ada/i)).toBeVisible()
   await expect(saved).toBeVisible()
@@ -377,7 +377,7 @@ test("two tabs editing different resumes at once keep both edits", async ({ page
   const other = await context.newPage()
   const otherErrors = pageErrors(other)
   await other.goto("/create/dashboard")
-  await other.getByRole("button", { name: "New resume" }).click()
+  await other.getByRole("button", { name: "New resume" }).first().click()
   await other.getByLabel("Name", { exact: true }).fill("Second resume")
   await other.getByRole("button", { name: "Create" }).click()
   await expect(other).toHaveURL(/\/create\/new\//)
@@ -417,7 +417,7 @@ test("an open dialog keeps focus where it is when another tab saves", async ({ p
   const other = await context.newPage()
   await startWriting(other)
   await other.getByLabel("Full name").fill("Grace Hopper")
-  await expect(page.getByText(/^1 resume\W+stored in this browser$/i)).toBeVisible()
+  await expect(page.getByText(/^1 resume\W+saved in this browser$/i)).toBeVisible()
 
   await expect(create).toBeFocused()
   expect(errors).toEqual([])

@@ -9,8 +9,8 @@ export interface FieldDef<Key extends string = string> {
   key: Key
   label: string
   placeholder: string
-  /** Width in a 4-column row: sm = 1, md = 2, lg = 3, full = 4. */
-  size: "sm" | "md" | "lg" | "full"
+  /** Half the form's width, beside another, or all of it (FIELD_SPAN). */
+  size: "half" | "full"
   /** "bullets" is a box with one bullet per line, which shows bold and italic words (StyledBox.tsx). */
   type?: "text" | "bullets"
   /** A line under a one-line field on what belongs in it, read out with the field. */
@@ -40,7 +40,11 @@ interface Definition<Field extends string, Data extends string, Heading extends 
   headingKey: Heading
   addLabel: string
   fields: readonly FieldDef<Field>[]
-  /** Fields shown, in order, when an entry is collapsed. */
+  /**
+   * Fields that sum an entry up in a line, in order: the first names its card
+   * in the form, where it's typed, and the second follows it, as "Software
+   * Engineering Intern · Google".
+   */
   summary: readonly Field[]
   choice?: ChoiceDef<Choice>
   /** Entries can also be added from a paper's DOI or link. */
@@ -66,12 +70,12 @@ type ProfileFieldDef<Key extends string = string> = FieldDef<Key> & {
 
 const PROFILE = [
   { key: "fullName", label: "Full name", placeholder: "Jake Ryan", size: "full", autoComplete: "name" },
-  { key: "email", label: "Email", placeholder: "jake@example.com", size: "md", inputType: "email", autoComplete: "email" },
-  { key: "phoneNumber", label: "Phone", placeholder: "123-456-7890", size: "md", inputType: "tel", autoComplete: "tel" },
-  { key: "location", label: "Location", placeholder: "Austin, TX", size: "md" },
-  { key: "linkedin", label: "LinkedIn", placeholder: "linkedin.com/in/jake", size: "md", web: true },
-  { key: "profileGithub", label: "GitHub", placeholder: "github.com/jake", size: "md", web: true },
-  { key: "personalWebsite", label: "Website", placeholder: "jake.dev", size: "md", web: true },
+  { key: "email", label: "Email", placeholder: "jake@example.com", size: "half", inputType: "email", autoComplete: "email" },
+  { key: "phoneNumber", label: "Phone", placeholder: "123-456-7890", size: "half", inputType: "tel", autoComplete: "tel" },
+  { key: "location", label: "Location", placeholder: "Austin, TX", size: "half" },
+  { key: "linkedin", label: "LinkedIn", placeholder: "linkedin.com/in/jake", size: "half", web: true },
+  { key: "profileGithub", label: "GitHub", placeholder: "github.com/jake", size: "half", web: true },
+  { key: "personalWebsite", label: "Website", placeholder: "jake.dev", size: "half", web: true },
   // Printed under its own heading, above the sections. A blank line starts a new paragraph.
   {
     key: "summary",
@@ -91,14 +95,14 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef<ProfileKey>[] = PROFILE
 // The end's placeholder is a date: "Present" there read as what a blank end means, and a blank one prints nothing.
 const dates = <Prefix extends string>(prefix: Prefix) =>
   [
-    { key: `${prefix}StartDate`, label: "Start", placeholder: "Jan 2024", size: "sm" },
-    { key: `${prefix}EndDate`, label: "End", placeholder: "Dec 2025", size: "sm" },
+    { key: `${prefix}StartDate`, label: "Start", placeholder: "Jan 2024", size: "half" },
+    { key: `${prefix}EndDate`, label: "End", placeholder: "Dec 2025", size: "half" },
   ] as const
 
 const bullets = <Key extends string>(key: Key) =>
   ({
     key,
-    label: "What you did · one bullet per line",
+    label: "What you did",
     placeholder: "Built a service that cut page load time by 30%",
     size: "full",
     type: "bullets",
@@ -113,12 +117,12 @@ const DEFINITIONS = {
     addLabel: "Add education",
     summary: ["degree", "schoolName"],
     fields: [
-      { key: "schoolName", label: "School", placeholder: "Stanford University", size: "md" },
-      { key: "schoolLocation", label: "Location", placeholder: "Stanford, CA", size: "md" },
-      { key: "degree", label: "Degree", placeholder: "B.S. in Computer Science", size: "lg" },
-      { key: "gpa", label: "GPA", placeholder: "3.9 / 4.0", size: "sm" },
-      { key: "schoolStartDate", label: "Start", placeholder: "Sep 2024", size: "sm" },
-      { key: "schoolEndDate", label: "End", placeholder: "Jun 2028", size: "sm" },
+      { key: "schoolName", label: "School", placeholder: "Stanford University", size: "full" },
+      { key: "schoolLocation", label: "Location", placeholder: "Stanford, CA", size: "half" },
+      { key: "degree", label: "Degree", placeholder: "B.S. in Computer Science", size: "half" },
+      { key: "gpa", label: "GPA", placeholder: "3.9 / 4.0", size: "half" },
+      { key: "schoolStartDate", label: "Start", placeholder: "Sep 2024", size: "half" },
+      { key: "schoolEndDate", label: "End", placeholder: "Jun 2028", size: "half" },
       { key: "coursework", label: "Relevant coursework", placeholder: "Data Structures, Operating Systems", size: "full" },
       { key: "involvement", label: "Involvement", placeholder: "ACM, Google Developer Student Club", size: "full" },
     ],
@@ -131,9 +135,9 @@ const DEFINITIONS = {
     addLabel: "Add experience",
     summary: ["workRole", "companyName"],
     fields: [
-      { key: "workRole", label: "Role", placeholder: "Software Engineer", size: "md" },
-      { key: "companyName", label: "Company", placeholder: "Google", size: "md" },
-      { key: "workLocation", label: "Location", placeholder: "Mountain View, CA", size: "md" },
+      { key: "workRole", label: "Role", placeholder: "Software Engineer", size: "full" },
+      { key: "companyName", label: "Company", placeholder: "Google", size: "half" },
+      { key: "workLocation", label: "Location", placeholder: "Mountain View, CA", size: "half" },
       ...dates("work"),
       bullets("workDescription"),
     ],
@@ -146,12 +150,12 @@ const DEFINITIONS = {
     addLabel: "Add skill group",
     summary: ["skillName", "skillDetails"],
     fields: [
-      { key: "skillName", label: "Category", placeholder: "Languages", size: "sm" },
+      { key: "skillName", label: "Category", placeholder: "Languages", size: "full" },
       {
         key: "skillDetails",
         label: "Skills",
         placeholder: "TypeScript, Python, Go",
-        size: "lg",
+        size: "full",
         hint: "Only skills you could be interviewed on, most relevant to the job first. No need to rate them.",
       },
     ],
@@ -176,12 +180,12 @@ const DEFINITIONS = {
       ],
     },
     fields: [
-      { key: "projectName", label: "Name", placeholder: "Gitlytics", size: "md" },
-      { key: "projectDate", label: "Dates", placeholder: "Jun – Aug 2025", size: "md" },
+      { key: "projectName", label: "Name", placeholder: "Gitlytics", size: "half" },
+      { key: "projectDate", label: "Dates", placeholder: "Jun – Aug 2025", size: "full" },
       { key: "techStack", label: "Tech stack", placeholder: "Next.js, TypeScript, PostgreSQL", size: "full" },
-      { key: "projectGithub", label: "GitHub", placeholder: "github.com/you/project", size: "md" },
-      { key: "additionalLink", label: "Website", placeholder: "project.dev", size: "md" },
-      { ...bullets("projectDescription"), label: "What it does · one bullet per line" },
+      { key: "projectGithub", label: "GitHub", placeholder: "github.com/you/project", size: "half" },
+      { key: "additionalLink", label: "Website", placeholder: "project.dev", size: "half" },
+      { ...bullets("projectDescription"), label: "What it does" },
     ],
   },
   Publications: {
@@ -195,11 +199,11 @@ const DEFINITIONS = {
     fromPaperLink: true,
     fields: [
       { key: "publicationTitle", label: "Title", placeholder: "Sparse Attention for Long Documents", size: "full" },
-      { key: "publicationAuthors", label: "Authors", placeholder: "J. Ryan, A. Smith", size: "lg" },
-      { key: "publicationDate", label: "Date", placeholder: "Dec 2025", size: "sm" },
-      { key: "publicationVenue", label: "Published in", placeholder: "Proc. NeurIPS", size: "md" },
-      { key: "publicationDetails", label: "Details", placeholder: "Vancouver, Canada, pp. 112–120", size: "md" },
-      { key: "publicationLink", label: "DOI or link", placeholder: "10.1145/1234567", size: "md" },
+      { key: "publicationAuthors", label: "Authors", placeholder: "J. Ryan, A. Smith", size: "full" },
+      { key: "publicationDate", label: "Date", placeholder: "Dec 2025", size: "half" },
+      { key: "publicationVenue", label: "Published in", placeholder: "Proc. NeurIPS", size: "half" },
+      { key: "publicationDetails", label: "Details", placeholder: "Vancouver, Canada, pp. 112–120", size: "half" },
+      { key: "publicationLink", label: "DOI or link", placeholder: "10.1145/1234567", size: "half" },
     ],
   },
   Volunteership: {
@@ -211,9 +215,9 @@ const DEFINITIONS = {
     addLabel: "Add volunteering",
     summary: ["volunteerRole", "volunteerOrg"],
     fields: [
-      { key: "volunteerRole", label: "Role", placeholder: "Volunteer coordinator", size: "md" },
-      { key: "volunteerOrg", label: "Organization", placeholder: "Central Texas Food Bank", size: "md" },
-      { key: "volunteerLocation", label: "Location", placeholder: "Austin, TX", size: "md" },
+      { key: "volunteerRole", label: "Role", placeholder: "Volunteer coordinator", size: "full" },
+      { key: "volunteerOrg", label: "Organization", placeholder: "Central Texas Food Bank", size: "half" },
+      { key: "volunteerLocation", label: "Location", placeholder: "Austin, TX", size: "half" },
       ...dates("volunteer"),
       bullets("volunteerDescription"),
     ],
@@ -227,9 +231,9 @@ const DEFINITIONS = {
     addLabel: "Add leadership",
     summary: ["leadershipRole", "leadershipOrg"],
     fields: [
-      { key: "leadershipRole", label: "Role", placeholder: "President", size: "md" },
-      { key: "leadershipOrg", label: "Organization", placeholder: "Student Council", size: "md" },
-      { key: "leadershipLocation", label: "Location", placeholder: "University of Texas", size: "md" },
+      { key: "leadershipRole", label: "Role", placeholder: "President", size: "full" },
+      { key: "leadershipOrg", label: "Organization", placeholder: "Student Council", size: "half" },
+      { key: "leadershipLocation", label: "Location", placeholder: "University of Texas", size: "half" },
       ...dates("leadership"),
       bullets("leadershipDescription"),
     ],
@@ -243,9 +247,9 @@ const DEFINITIONS = {
     addLabel: "Add award",
     summary: ["awardName", "awardOrg"],
     fields: [
-      { key: "awardName", label: "Name", placeholder: "AWS Certified Solutions Architect", size: "lg" },
-      { key: "awardDate", label: "Date", placeholder: "May 2023", size: "sm" },
-      { key: "awardOrg", label: "Issued by", placeholder: "Amazon Web Services", size: "md" },
+      { key: "awardName", label: "Name", placeholder: "AWS Certified Solutions Architect", size: "full" },
+      { key: "awardDate", label: "Date", placeholder: "May 2023", size: "half" },
+      { key: "awardOrg", label: "Issued by", placeholder: "Amazon Web Services", size: "half" },
     ],
   },
 } as const satisfies { [Name in SectionName]: Definition<string, string, string, string> & { name: Name } }
@@ -273,14 +277,15 @@ export const SECTION_NAMES = Object.keys(SECTIONS) as SectionName[]
 export const CORE_SECTIONS = SECTION_NAMES.filter((name) => !SECTIONS[name].optional)
 
 /**
- * Tailwind classes for a field's width in the form's grid: 2 columns, or 4
- * once the form itself is 32rem (512px) wide. It's the form's width, not the
- * window's, that counts, since the left bar and preview can take most of a
- * wide window.
+ * Tailwind classes for a field's width in the form's grid (FIELD_GRID): one
+ * column, or two once the form itself is 24rem (384px) wide. It's the form's
+ * width, not the window's, that counts, since the left bar and preview can
+ * take most of a wide window.
  */
 export const FIELD_SPAN: Record<FieldDef["size"], string> = {
-  sm: "col-span-1",
-  md: "col-span-2",
-  lg: "col-span-2 @lg:col-span-3",
-  full: "col-span-2 @lg:col-span-4",
+  half: "",
+  full: "@sm:col-span-2",
 }
+
+/** The grid a form's fields are laid out in, in a container (@container) as wide as the form. */
+export const FIELD_GRID = "grid grid-cols-1 gap-x-7 gap-y-6 @sm:grid-cols-2"

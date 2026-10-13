@@ -10,7 +10,7 @@ import { reducedMotion } from "./layout"
 import { StyledBox } from "./StyledBox"
 
 /** A section the person added, found by its key rather than its title, which can be anyone's. */
-export default function ExtraSectionForm({ sectionId, position, onDelete }: { sectionId: string; position: string; onDelete: () => void }) {
+export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: string; onDelete: () => void }) {
   const { editSection, includeSection } = useResumeActions()
   const { id } = useOpenResume()
   const extraSections = useResumeField("extraSections")
@@ -40,9 +40,8 @@ export default function ExtraSectionForm({ sectionId, position, onDelete }: { se
   if (!section) return null
   const title = extraHeading(section)
   return (
-    <div ref={root} className="flex flex-col gap-7">
+    <div ref={root} className="flex flex-col gap-[22px]">
       <SectionHeading
-        position={position}
         title={title}
         allowEmpty
         onRename={(heading) => editSection(id, sectionId, { heading })}
@@ -50,7 +49,7 @@ export default function ExtraSectionForm({ sectionId, position, onDelete }: { se
         end={<DeleteSection onDelete={onDelete} />}
       />
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm text-ink-2">
+        <label className="flex items-center gap-2.5 text-[14px] text-ink-2">
           <input
             type="checkbox"
             checked={!section.leftOut}
@@ -60,7 +59,7 @@ export default function ExtraSectionForm({ sectionId, position, onDelete }: { se
           Include section in the PDF
         </label>
       </div>
-      {section.leftOut && <p className="text-sm text-ink-2">This section stays saved here and is left out of the PDF and checks.</p>}
+      {section.leftOut && <p className="text-[13px] text-ink-3">This section stays saved here and is left out of the PDF and checks.</p>}
       {section.kind === "text" && (
         <div data-field="text" className="group/field flex flex-col gap-2">
           {/* Its label turns blue while typing in the box, as a field's does. A label can't be
@@ -81,7 +80,9 @@ export default function ExtraSectionForm({ sectionId, position, onDelete }: { se
             describedBy={flagAt("text") ? `extra-text-hint-${sectionId} extra-text-note-${sectionId}` : `extra-text-hint-${sectionId}`}
             invalid={flagAt("text")?.level === "fix"}
             // As tall as eight lines, as the text box it replaced was.
-            className="min-h-[238px] w-full rounded-[4px] border border-rule bg-sheet px-4 py-3.5 text-base leading-relaxed outline-none focus:border-accent"
+            className={`min-h-[238px] w-full rounded-[6px] border bg-sheet px-4 py-3.5 text-base leading-relaxed outline-none transition-colors duration-200 motion-reduce:transition-none ${
+              flagAt("text") ? "border-accent ring-1 ring-accent" : "border-rule focus:border-ink/30"
+            }`}
           />
           {flagAt("text") && <FlagNote id={`extra-text-note-${sectionId}`} finding={flagAt("text")!} />}
           <p id={`extra-text-hint-${sectionId}`} className="text-[13px] text-ink-2">

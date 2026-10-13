@@ -127,12 +127,6 @@
       --desk-sky: url("/backgrounds/sky-tall.webp");
     }
   }
-  /* The editor is for work, and the page in it is what to look at: the sky
-     there is mostly washed out, a tint of color rather than a picture. */
-  .desk.desk-quiet {
-    --desk-wash: 0.58;
-  }
-
   /* An etched pane: frosted glass laid on the sky, nearly square, with no
      shadow, only a lit top edge and a white hairline round it. For How it
      works' steps and the dashboard's sheet. The blur is on ::before, so the

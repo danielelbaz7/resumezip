@@ -76,7 +76,7 @@ test("a failed download says so, and trying again downloads the PDF", async ({ p
   await failsAfterDownloading(page, page.getByRole("button", { name: /^Download(ed| PDF)$/ }))
 
   // The dashboard.
-  await page.getByRole("link", { name: "Your resumes" }).click()
+  await page.getByRole("link", { name: "Dashboard" }).click()
   await page.evaluate(() => (window.brokenCompiler = true))
   const download = page.getByRole("button", { name: "Download", exact: true })
   await download.click()

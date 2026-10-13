@@ -46,7 +46,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
       await startWriting(page, 1440, 900)
       await page
         .getByRole("navigation", { name: "Sections" })
-        .getByRole("button", { name: /^\d+ Experience$/ })
+        .getByRole("button", { name: /^Experience$/ })
         .click()
       await page.getByRole("button", { name: "Add experience" }).click()
       await page.getByLabel("Company").fill("Analytical Engines")
@@ -77,7 +77,7 @@ test("the Skills box says what belongs in it, and reads it out", async ({ page }
   await startWriting(page, 1440, 900)
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Skills$/ })
+    .getByRole("button", { name: /^Skills$/ })
     .click()
   await page.getByRole("button", { name: "Add skill group" }).click()
   const hint = "Only skills you could be interviewed on, most relevant to the job first. No need to rate them."

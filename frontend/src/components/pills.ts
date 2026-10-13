@@ -27,9 +27,6 @@ export const GLASS_BAR =
 export const FILTER_CHIP =
   "inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[15px] font-medium tracking-[-0.01em]"
 
-/** For a choice that deletes something for good. */
-export const DANGER_PILL = `${PILL} bg-alert text-white hover:bg-[#912018]`
-
 // On the white sheet the dashboard, the editor, the templates pages and their
 // dialogs are on (styles/sheet.css). Each look comes without a size, which sheetPill adds,
 // so one button's size never has to beat another's: Tailwind puts utilities

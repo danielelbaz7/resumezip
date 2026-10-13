@@ -1,18 +1,19 @@
 "use client"
 
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { memo, useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import type { DraggableProvided, DropResult } from "@hello-pangea/dnd"
-import { GripVertical, Plus } from "lucide-react"
+import { ChevronDown, GripVertical, Plus } from "lucide-react"
 import { useOpenResume, useResumeField } from "@/context/ResumeContext"
 import { isLeftOut } from "@/lib/leftOut"
 import type { Entry } from "@/lib/resume"
+import { EyeIcon, RowAction, RowToggle, TrashIcon } from "@/components/dashboard/RowActions"
+import { sheetPill } from "@/components/pills"
 import { useCheckActions, useCheckTarget } from "./CheckContext"
+import DeleteSection from "./DeleteSection"
 import { loadDragAndDrop, loadedDragAndDrop } from "./dragAndDrop"
-import { DoneIcon, EyeIcon, PencilIcon, RowAction, RowToggle, TrashIcon } from "@/components/dashboard/RowActions"
-import { DANGER_PILL, OUTLINE_PILL } from "@/components/pills"
+import { bulletsOf, datesOf, newestFirst } from "./entryCards"
 import { BulletsField, Field, FlagNote, SectionHeading, selectLine } from "./fields"
 import { reducedMotion, reveal, scrollerOf } from "./layout"
-import DeleteSection from "./DeleteSection"
 import PaperFromLink from "./PaperFromLink"
 import { FIELD_SPAN, type ChoiceDef, type ChoiceKey, type FieldKey, type SectionDef, type SectionName } from "./sections"
 
@@ -28,8 +29,6 @@ export interface DeletedEntry {
 
 interface SectionFormProps {
   section: SectionDef
-  /** e.g. "03 / 08" */
-  position: string
   /** Takes the section off the resume. */
   onDelete?: () => void
   /** An entry was deleted, and can be put back. */
@@ -50,11 +49,11 @@ const LIT_MS = 900
 // The id of those animations, to tell them from the CSS transitions on the same elements.
 const MOVING = "moving"
 
-/** Lit up, an entry sits on a sheet a little wider than its words. It covers the entry it slides past. */
-const litUp = (color: string): Keyframe => ({ backgroundColor: color, boxShadow: `-12px 0 ${color}, 12px 0 ${color}` })
+// An entry's card lit up: lifted off the sheet a little, on a deeper shadow.
+const LIT: Keyframe = { boxShadow: "0 18px 36px -16px rgb(17 19 24 / 0.4)" }
 
-// An entry being dragged sits on the same sheet, lifted off the page.
-const LIFTED = "bg-sheet shadow-[-12px_0_var(--color-sheet),12px_0_var(--color-sheet),0_16px_32px_-12px_rgb(17_19_24/0.3)]"
+// The fields in an open card: closer together than the profile's, as there are several cards.
+const CARD_GRID = "grid grid-cols-1 gap-x-7 gap-y-5 @sm:grid-cols-2"
 
 // Where a field is typed in: not the Include boxes in an entry's heading, or
 // in a bullets field being arranged. A bullets box is an editable div.
@@ -78,35 +77,36 @@ function placesOf(entries: Map<number, HTMLElement>, list: HTMLElement | null): 
 /** Stops the entries' slides and lights, so the next move can start them afresh. */
 function stopMoving(entries: Map<number, HTMLElement>) {
   for (const element of entries.values()) {
-    for (const animation of element.getAnimations()) if (animation.id === MOVING) animation.cancel()
+    for (const animated of [element, element.querySelector("[data-card]")]) {
+      for (const animation of animated?.getAnimations() ?? []) if (animation.id === MOVING) animation.cancel()
+    }
   }
 }
 
 /**
  * Slides each entry from where it was drawn (`from`) to its place now, and
- * lights up the one that moved. With less motion, it only lights up.
+ * lights up the card of the one that moved. With less motion, it only lights up.
  */
 function slide(entries: Map<number, HTMLElement>, list: HTMLElement | null, moved: number, from: Map<number, number>) {
   const to = placesOf(entries, list)
   const still = reducedMotion()
-  // The sheet's color as a color, so the keyframes don't rely on var() in script animations.
-  const lit = litUp(getComputedStyle(document.documentElement).getPropertyValue("--color-sheet").trim())
-  const unlit = litUp("transparent")
   for (const [id, element] of entries) {
     const start = from.get(id)
     const by = start === undefined || still ? 0 : start - (to.get(id) ?? start)
     const sliding = Math.abs(by) >= 1
-    if (id === moved) {
-      const keyframes = sliding
-        ? [
-            { ...lit, transform: `translateY(${by}px)`, zIndex: 1, easing: "ease-out" },
-            { ...lit, transform: "none", zIndex: 1, offset: MOVE_MS / (MOVE_MS + LIT_MS), easing: "ease-in" },
-            { ...unlit, transform: "none" },
-          ]
-        : [{ ...lit, easing: "ease-in" }, unlit]
-      element.animate(keyframes, { id: MOVING, duration: (sliding ? MOVE_MS : 0) + LIT_MS })
-    } else if (sliding) {
-      element.animate([{ transform: `translateY(${by}px)` }, { transform: "none" }], { id: MOVING, duration: MOVE_MS, easing: "ease-out" })
+    if (sliding) {
+      element.animate([{ transform: `translateY(${by}px)`, zIndex: id === moved ? 1 : 0 }, { transform: "none" }], {
+        id: MOVING,
+        duration: MOVE_MS,
+        easing: "ease-out",
+      })
+    }
+    const card = id === moved ? element.querySelector<HTMLElement>("[data-card]") : null
+    if (card) {
+      // It settles back to the shadow it has at rest, an open card's or none.
+      const resting = getComputedStyle(card).boxShadow
+      const unlit: Keyframe = { boxShadow: resting === "none" ? "0 18px 36px -16px rgb(17 19 24 / 0)" : resting }
+      card.animate([LIT, LIT, unlit], { id: MOVING, duration: (sliding ? MOVE_MS : 0) + LIT_MS, easing: "ease-in" })
     }
   }
 }
@@ -123,8 +123,14 @@ function summaryOf(section: SectionDef, entry: Entry): string {
   )
 }
 
-/** The form for one list section (education, experience, ...): its title and entries. */
-function SectionForm({ section, position, onDelete, onEntryDeleted, restored, onRestored }: SectionFormProps) {
+/**
+ * The form for one list section (education, experience, ...): its title and
+ * its entries, each a card. One card is open at a time, with its fields; the
+ * rest are folded to a line naming them, as "Software Engineering Intern ·
+ * Google", and their dates and bullets under it. An open card's name is its
+ * first field, typed in where it's shown.
+ */
+function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }: SectionFormProps) {
   const { read, update: updateResume } = useOpenResume()
   const saved = useResumeField(section.dataKey)
   const headings = useResumeField("headings")
@@ -132,10 +138,12 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
   const latest = useRef(entries)
   latest.current = entries
 
-  // One entry is open at a time; the rest collapse to a one-line summary.
+  // One entry is open at a time; the rest fold to their name.
   const [openId, setOpenId] = useState<number | null>(entries[0]?.id ?? null)
   // Follows openId a frame later, so a newly added entry slides open too.
   const [shownId, setShownId] = useState<number | null>(openId)
+  // Counts the times an entry opens, so its bullets start each time as a few lines cut short.
+  const [opened, setOpened] = useState(0)
   const [confirmingId, setConfirmingId] = useState<number | null>(null)
   const [removingId, setRemovingId] = useState<number | null>(null)
   const elements = useRef(new Map<number, HTMLElement>())
@@ -143,11 +151,20 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
   const addButton = useRef<HTMLButtonElement>(null)
   const cancelButton = useRef<HTMLButtonElement>(null)
   const heading = useRef<HTMLDivElement>(null)
-  const opened = useRef(openId)
-  opened.current = openId
+  // Ties each card's name to what the checker says about it, under it.
+  const titleNotes = useId()
+  const openRef = useRef(openId)
+  openRef.current = openId
   // A drop that hasn't lit up yet: which entry moved, and where each entry was drawn before it.
   const moving = useRef<{ id: number; from: Map<number, number>; frame?: number } | null>(null)
   const [dnd, setDnd] = useState(loadedDragAndDrop)
+
+  // The first field is the card's name: an open card's name is where it's
+  // typed, and the rest of its fields are under it. The name's second part
+  // ("Google") is the next field that sums the entry up.
+  const titleField = section.fields.find((field) => field.key === section.summary[0])!
+  const suffixKey = section.summary[1]
+  const fields = section.fields.filter((field) => field !== titleField)
 
   // Drag and drop puts the entries on the page anew as it arrives, so it
   // waits while the person is in one of them: they'd lose the cursor, and
@@ -192,9 +209,10 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
     if (!pending(target.request)) return
     const entry = place.kind === "entry" ? latest.current[place.entry] : undefined
     if (place.kind === "entry" && !entry) return
-    const sliding = entry !== undefined && entry.id !== opened.current && !reducedMotion()
+    const sliding = entry !== undefined && entry.id !== openRef.current && !reducedMotion()
     if (entry) {
       setConfirmingId(null)
+      if (entry.id !== openRef.current) setOpened((count) => count + 1)
       setOpenId(entry.id)
       setShownId(entry.id)
     }
@@ -206,9 +224,9 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
         } else if (place.kind === "section") {
           pointAt(addButton.current, undefined, heading.current)
         } else if (entry) {
-          const fields = elements.current.get(entry.id)
+          const card = elements.current.get(entry.id)
           const selector = place.field ? `[data-field="${place.field}"] ${TYPED}` : FIRST_FIELD
-          pointAt(fields?.querySelector<HTMLElement>(selector), place.line)
+          pointAt(card?.querySelector<HTMLElement>(selector), place.line)
         }
       },
       sliding ? SLIDE_MS : 0,
@@ -216,7 +234,7 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
     return () => clearTimeout(timer)
   }, [target, pending, claim, section.name])
 
-  // Asking to confirm a delete moves focus to Cancel, so Escape or Enter backs out.
+  // Asking to confirm a delete moves focus to Keep, so Escape or Enter backs out.
   useEffect(() => {
     if (confirmingId !== null) cancelButton.current?.focus()
   }, [confirmingId])
@@ -233,6 +251,7 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
     const { id } = restored
     restoredDone.current?.()
     setConfirmingId(null)
+    setOpened((count) => count + 1)
     setOpenId(id)
     setShownId(id)
     setTimeout(
@@ -272,10 +291,10 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
   const save = (next: Entry[]) => updateResume(section.dataKey, next)
 
   /**
-   * Puts the cursor in an entry's first field, except on touch screens where it
-   * would pop up the keyboard, and except when it's already in one of the
-   * entry's fields: someone who clicked into a field while the entry slid
-   * open keeps typing there.
+   * Puts the cursor in an entry's first field, its name, except on touch
+   * screens where it would pop up the keyboard, and except when it's already
+   * in one of the entry's fields: someone who clicked into a field while the
+   * entry slid open keeps typing there.
    */
   const focusFirstField = (id: number) => {
     if (!window.matchMedia("(pointer: fine)").matches) return
@@ -290,6 +309,7 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
    */
   const open = (id: number | null, clicked: number) => {
     setConfirmingId(null)
+    if (id !== null && id !== openId) setOpened((count) => count + 1)
     setOpenId(id)
     // One entry closes as the other opens, in the same frame, so the page's height barely changes.
     setShownId(id)
@@ -328,6 +348,7 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
     const blank = Object.fromEntries(section.fields.map((field) => [field.key, ""]))
     save([...current, ...values.map((value, index): Entry => ({ ...blank, ...value, id: id + index }))])
     setConfirmingId(null)
+    setOpened((count) => count + 1)
     setOpenId(id)
     if (!show) return
     // Once it has slid open, bring it into view.
@@ -400,15 +421,22 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
   const title = headings?.[section.headingKey] || section.title
   // "Add experience", or "Add to Work History" once the person has renamed the section.
   const addLabel = title === section.title ? section.addLabel : `Add to ${title}`
+  const count = entries.length
+  // Under the title: how many entries, and, where they have dates, whether the newest is first, as resumes put them.
+  const order = count > 1 ? newestFirst(section.name, entries) : null
+  const note =
+    count === 0
+      ? "No entries yet"
+      : `${count} ${count === 1 ? "entry" : "entries"}${order ? " · newest first" : count > 1 ? " · drag to reorder" : ""}`
 
   const addButtonElement = (
     <button
       ref={addButton}
       type="button"
       onClick={add}
-      className="inline-flex h-10 items-center gap-2 self-start rounded-full bg-sheet/70 px-4 text-sm text-ink ring-1 ring-ink/15 transition-shadow hover:ring-ink/40"
+      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-dashed border-[#d4d7dd] text-[15px] font-medium tracking-[-0.01em] text-accent transition-colors duration-150 hover:border-[#b9bec7] hover:bg-[#f7f8fa] [&_svg]:size-4"
     >
-      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+      <Plus aria-hidden="true" />
       {addLabel}
     </button>
   )
@@ -417,9 +445,15 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
   const renderEntry = (entry: Entry, index: number, drag?: DraggableProvided, dragging = false) => {
     const isOpen = entry.id === openId
     const confirming = entry.id === confirmingId
-    const summary = summaryOf(section, entry)
     const name = `entry ${index + 1}`
     const leftOut = isLeftOut(entry)
+    const named = entry[titleField.key]?.trim() ?? ""
+    const second = suffixKey ? (entry[suffixKey]?.trim() ?? "") : ""
+    // Folded, a card with no name of its own goes by its next field, or else its first filled one.
+    const folded = named || second || summaryOf(section, entry)
+    const meta = [datesOf(section.name, entry), bulletsOf(section, entry)].filter(Boolean).join(" · ")
+    const titleFlag = flagAt(index, titleField.key)
+    const titleNote = `${titleNotes}-${entry.id}`
 
     return (
       <div
@@ -430,43 +464,83 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
           else elements.current.delete(entry.id)
         }}
         {...drag?.draggableProps}
-        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
-          entry.id === removingId ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr]"
-        } ${dragging ? LIFTED : ""}`}
+        className={`grid pb-3 transition-[grid-template-rows,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${
+          entry.id === removingId ? "grid-rows-[0fr] pb-0 opacity-0" : "grid-rows-[1fr]"
+        }`}
       >
-        {/* Room on the sides so focus outlines aren't clipped while it slides. */}
-        <section className="-mx-1 min-h-0 overflow-hidden px-1">
-          {/* Asked whether to delete it, its line turns red (two pixels' worth, without moving
-              anything), its name shows, and its fields fade, so it's clear what would go. */}
+        {/* Room round it, so its ring and focus aren't clipped while it slides. */}
+        <section className="-m-1.5 min-h-0 overflow-hidden p-1.5">
+          {/* Asked whether to delete it, its edge turns red, its name stays, and its fields fade,
+              so it's clear what would go. Open, its edge darkens and it stands off the sheet a little. */}
           <div
-            className={`border-t pb-7 pt-4 transition-[border-color,box-shadow] duration-300 ${
-              confirming ? "border-alert shadow-[inset_0_1px_0_var(--color-alert)]" : isOpen ? "border-ink" : "border-rule"
-            }`}
+            data-card
+            className={`rounded-[18px] border bg-sheet transition-[border-color,box-shadow] duration-300 motion-reduce:transition-none ${
+              confirming
+                ? "border-alert shadow-[0_0_0_1px_var(--color-alert)]"
+                : isOpen
+                  ? "border-[#dcdfe5] shadow-[0_12px_30px_-18px_rgb(17_19_24/0.3)]"
+                  : "border-hairline hover:border-[#dcdfe5]"
+            } ${dragging ? "shadow-[0_18px_36px_-14px_rgb(17_19_24/0.35)]" : ""}`}
           >
-            <div className="flex items-start justify-between gap-4">
-              {/* A click on an entry's heading also opens it, or closes it if it's open. From the keyboard, it's Edit and Done. */}
-              <div
-                className="group flex min-w-0 flex-1 cursor-pointer flex-col gap-1"
-                onClick={() => open(isOpen ? null : entry.id, entry.id)}
+            <div className={`flex items-center gap-1 px-2 ${isOpen ? "pb-2.5 pt-3.5" : "py-[11px]"}`}>
+              <span
+                {...drag?.dragHandleProps}
+                aria-label={drag && `Reorder ${name}`}
+                className="flex h-9 w-7 shrink-0 items-center justify-center rounded-full text-[#a3a7af] transition-colors hover:text-ink-2 focus-visible:bg-ink/[0.06] focus-visible:text-ink focus-visible:outline-none"
               >
-                <span
-                  className={`label-mono ${confirming ? "text-alert" : "text-ink-2"} ${isOpen && !confirming ? "transition-colors group-hover:text-ink" : ""}`}
-                >
-                  Entry {index + 1}
-                  {leftOut && " · Left out"}
-                </span>
-                {confirming && <span className="truncate text-[15px] text-ink">{summary || "Empty entry"}</span>}
-                {!isOpen && (
-                  <span
-                    className={`truncate text-[15px] underline-offset-4 group-hover:underline ${summary && !leftOut ? "text-ink" : "text-ink-2"}`}
+                <GripVertical className="h-4 w-4" aria-hidden="true" />
+              </span>
+
+              {isOpen ? (
+                // Its name, to type in, as wide as what's typed (the unseen copy under it sets the
+                // width), then the field after it. The copy isn't part of the field's name.
+                <div className="flex min-w-0 flex-1 items-baseline">
+                  <div
+                    data-field={titleField.key}
+                    inert={confirming}
+                    className="ml-1.5 grid min-w-0 shrink text-[15px] font-medium tracking-[-0.01em]"
                   >
-                    {summary || "Empty entry"}
-                  </span>
-                )}
-              </div>
+                    {/* 2px wider than its words, for the caret after the last letter. */}
+                    <span
+                      aria-hidden="true"
+                      className="invisible col-start-1 row-start-1 overflow-hidden whitespace-pre border-b border-transparent py-0.5 pr-0.5"
+                    >
+                      {named || titleField.label}
+                    </span>
+                    <input
+                      value={entry[titleField.key] ?? ""}
+                      onChange={(event) => update(entry.id, titleField.key, event.target.value)}
+                      aria-label={titleField.label}
+                      placeholder={titleField.label}
+                      size={1}
+                      aria-invalid={titleFlag?.level === "fix" || undefined}
+                      aria-describedby={titleFlag ? titleNote : undefined}
+                      data-flagged={titleFlag ? "" : undefined}
+                      // Underlined while pointed at or typed in, as the resume's name in the top bar is. A name
+                      // too long for the line ends in "…" until it's typed in.
+                      className="col-start-1 row-start-1 w-full min-w-0 text-ellipsis border-0 border-b border-transparent bg-transparent py-0.5 text-ink outline-none transition-colors duration-150 placeholder:font-normal placeholder:text-ink-2/50 hover:border-rule-strong focus:border-accent focus-visible:outline-none data-[flagged]:border-accent"
+                    />
+                  </div>
+                  {/* Where both don't fit, the second part gives way first, down to a few letters, so it isn't a
+                      lone dot; on a phone, the name has the line to itself. */}
+                  {second && (
+                    <span className="ml-1.5 min-w-[4.5rem] shrink-[4] truncate text-[15px] text-ink-3 max-sm:hidden">· {second}</span>
+                  )}
+                </div>
+              ) : (
+                // Folded, a click anywhere on it opens it. From the keyboard, it's its Edit button.
+                <div className="min-w-0 flex-1 cursor-pointer py-0.5 pl-1.5" onClick={() => open(entry.id, entry.id)}>
+                  <p className="truncate text-[15px] tracking-[-0.01em]">
+                    <span className={`font-medium ${leftOut ? "text-ink-3" : "text-ink"}`}>{folded || "Empty entry"}</span>
+                    {named && second && <span className="text-ink-3"> · {second}</span>}
+                    {leftOut && <span className="text-ink-3"> · Left out</span>}
+                  </p>
+                  {meta && <p className="mt-0.5 truncate text-[13px] text-ink-3">{meta}</p>}
+                </div>
+              )}
 
               <div
-                className="-my-1.5 flex shrink-0 flex-wrap items-center justify-end gap-0.5"
+                className="flex shrink-0 items-center gap-0.5"
                 onKeyDown={(event) => {
                   if (event.key === "Escape" && confirming) {
                     event.stopPropagation()
@@ -474,74 +548,72 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
                   }
                 }}
               >
-                {!confirming && (
-                  <>
-                    <span
-                      key="move"
-                      {...drag?.dragHandleProps}
-                      aria-label={drag && `Reorder ${name}`}
-                      className="rounded-full p-1.5 text-ink-2 transition-colors hover:text-ink"
-                    >
-                      <GripVertical className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <RowToggle
-                      key="include"
-                      label={`Include ${name} in the PDF`}
-                      tip={leftOut ? "Put back in the PDF" : "Leave out of the PDF"}
-                      checked={!leftOut}
-                      onChange={(checked) => setLeftOut(entry.id, !checked)}
-                      tipBelow
-                    >
-                      <EyeIcon shut={leftOut} />
-                    </RowToggle>
-                  </>
-                )}
-                {!isOpen ? (
-                  <RowAction key="edit" label={`Edit ${name}`} tip="Edit" onClick={() => open(entry.id, entry.id)} tipBelow tipAtEnd>
-                    <PencilIcon />
-                  </RowAction>
-                ) : confirming ? (
+                {confirming ? (
                   // The question fades in where the buttons were (`starting:` is CSS @starting-style), as tall as them.
                   // On a phone only its buttons show, leaving the entry's name room.
                   <span
                     key="confirming"
                     className="flex h-10 items-center gap-2 transition-opacity duration-200 motion-reduce:transition-none starting:opacity-0"
                   >
-                    <span className="mr-1.5 text-sm text-ink max-sm:sr-only" role="status">
+                    <span className="mr-1 text-sm text-ink max-sm:sr-only" role="status">
                       Delete it?
                     </span>
-                    <button ref={cancelButton} type="button" onClick={() => cancelDelete(entry.id)} className={OUTLINE_PILL}>
+                    <button
+                      ref={cancelButton}
+                      type="button"
+                      onClick={() => cancelDelete(entry.id)}
+                      className={sheetPill("white", "h-9 px-4 text-[15px] font-medium")}
+                    >
                       Keep
                     </button>
-                    <button type="button" onClick={() => confirmRemove(entry.id)} className={DANGER_PILL}>
+                    <button
+                      type="button"
+                      onClick={() => confirmRemove(entry.id)}
+                      className={sheetPill("danger", "h-9 px-4 text-[15px] font-medium")}
+                    >
                       Delete
                     </button>
                   </span>
+                ) : isOpen ? (
+                  <RowAction
+                    key="delete"
+                    data-delete=""
+                    label={`Delete ${name}`}
+                    tip="Delete"
+                    danger
+                    onClick={() => setConfirmingId(entry.id)}
+                    tipBelow
+                  >
+                    <TrashIcon />
+                  </RowAction>
                 ) : (
-                  <>
-                    <RowAction
-                      key="delete"
-                      data-delete=""
-                      label={`Delete ${name}`}
-                      tip="Delete"
-                      danger
-                      onClick={() => setConfirmingId(entry.id)}
-                      tipBelow
-                    >
-                      <TrashIcon />
-                    </RowAction>
-                    <RowAction
-                      key="done"
-                      data-done=""
-                      label={`Done editing ${name}`}
-                      tip="Done"
-                      onClick={() => open(null, entry.id)}
-                      tipBelow
-                      tipAtEnd
-                    >
-                      <DoneIcon />
-                    </RowAction>
-                  </>
+                  <RowToggle
+                    key="include"
+                    label={`Include ${name} in the PDF`}
+                    tip={leftOut ? "Put back in the PDF" : "Leave out of the PDF"}
+                    checked={!leftOut}
+                    onChange={(checked) => setLeftOut(entry.id, !checked)}
+                    tipBelow
+                  >
+                    <EyeIcon shut={leftOut} />
+                  </RowToggle>
+                )}
+                {!confirming && (
+                  // One button that folds the card and opens it, its chevron turning.
+                  <RowAction
+                    key="toggle"
+                    {...(isOpen ? { "data-done": "" } : {})}
+                    label={isOpen ? `Done editing ${name}` : `Edit ${name}`}
+                    tip={isOpen ? "Done" : "Edit"}
+                    onClick={() => open(isOpen ? null : entry.id, entry.id)}
+                    tipBelow
+                    tipAtEnd
+                  >
+                    <ChevronDown
+                      className={`h-[18px] w-[18px] transition-transform duration-300 ease-glide motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`}
+                      aria-hidden="true"
+                    />
+                  </RowAction>
                 )}
               </div>
             </div>
@@ -556,40 +628,58 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
                   around the whole form: Safari before 26 doesn't place a fixed element inside a
                   query container right (WebKit bug 284945), and an entry being dragged is fixed. */}
               <div
-                className={`@container -mx-1 min-h-0 overflow-hidden px-1 transition-[opacity,filter] duration-200 motion-reduce:transition-none ${
+                className={`@container min-h-0 overflow-hidden transition-[opacity,filter] duration-200 motion-reduce:transition-none ${
                   confirming ? "opacity-30 grayscale" : ""
                 }`}
                 inert={!isOpen || confirming}
               >
-                <div className="grid grid-cols-2 gap-x-7 gap-y-6 pb-1 pt-5 @lg:grid-cols-4">
+                <div className="flex flex-col gap-4 px-[17px] pb-5 pt-2">
+                  {/* Its eye is on its folded card: open, this is how it's put back. */}
                   {leftOut && (
-                    <p className="col-span-2 text-[13px] leading-normal text-ink-2 @lg:col-span-4">
-                      Left out of the PDF, and of the copy of the resume inside it. It stays here, in this browser.
+                    <p className="text-[13px] leading-normal text-ink-3">
+                      Left out of the PDF, and of the copy of the resume inside it. It stays here, in this browser.{" "}
+                      <button
+                        type="button"
+                        onClick={() => setLeftOut(entry.id, false)}
+                        className="font-medium text-accent underline-offset-4 hover:underline"
+                      >
+                        Put it back
+                      </button>
                     </p>
                   )}
-                  {flagAt(index) && (
-                    <div className="col-span-2 @lg:col-span-4">
-                      <FlagNote finding={flagAt(index)!} />
-                    </div>
-                  )}
-                  {section.fields.map((field) => {
-                    const Input = field.type === "bullets" ? BulletsField : Field
-                    const flag = flagAt(index, field.key)
-                    return (
-                      <Input
-                        key={field.key}
-                        name={field.key}
-                        label={field.label}
-                        placeholder={field.placeholder}
-                        hint={field.hint}
-                        value={entry[field.key] ?? ""}
-                        onChange={(value) => update(entry.id, field.key, value)}
-                        className={FIELD_SPAN[field.size]}
-                        flag={flag}
-                        request={flag ? target!.request : undefined}
-                      />
-                    )
-                  })}
+                  {flagAt(index) && <FlagNote finding={flagAt(index)!} />}
+                  {titleFlag && <FlagNote id={titleNote} finding={titleFlag} />}
+                  <div className={CARD_GRID}>
+                    {fields.map((field) => {
+                      const flag = flagAt(index, field.key)
+                      return field.type === "bullets" ? (
+                        <BulletsField
+                          key={`${field.key}:${isOpen ? opened : "folded"}`}
+                          name={field.key}
+                          label={field.label}
+                          placeholder={field.placeholder}
+                          value={entry[field.key] ?? ""}
+                          onChange={(value) => update(entry.id, field.key, value)}
+                          className={FIELD_SPAN[field.size]}
+                          flag={flag}
+                          request={flag ? target!.request : undefined}
+                          compact
+                        />
+                      ) : (
+                        <Field
+                          key={field.key}
+                          name={field.key}
+                          label={field.label}
+                          placeholder={field.placeholder}
+                          hint={field.hint}
+                          value={entry[field.key] ?? ""}
+                          onChange={(value) => update(entry.id, field.key, value)}
+                          className={FIELD_SPAN[field.size]}
+                          flag={flag}
+                        />
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -600,11 +690,11 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col">
       <div ref={heading}>
         <SectionHeading
-          position={position}
           title={title}
+          note={note}
           onRename={(name) => updateResume("headings", { ...headings, [section.headingKey]: name })}
           flag={here?.kind === "heading" || here?.kind === "section" ? target!.finding : null}
           end={onDelete && <DeleteSection onDelete={onDelete} />}
@@ -613,49 +703,48 @@ function SectionForm({ section, position, onDelete, onEntryDeleted, restored, on
 
       {section.choice && <SectionChoice choice={section.choice} />}
 
-      {entries.length === 0 && <p className="border-t border-ink pt-5 text-[15px] text-ink-2">Nothing here yet.</p>}
+      <div className="mt-[22px] flex flex-col">
+        {entries.length > 0 &&
+          (dnd ? (
+            <dnd.DragDropContext onBeforeCapture={() => stopMoving(elements.current)} onDragEnd={onDragEnd}>
+              <dnd.Droppable droppableId="entries">
+                {(drop) => (
+                  <div
+                    ref={(element) => {
+                      drop.innerRef(element)
+                      list.current = element
+                    }}
+                    {...drop.droppableProps}
+                    className="flex flex-col"
+                  >
+                    {entries.map((entry, index) => (
+                      <dnd.Draggable key={entry.id} draggableId={String(entry.id)} index={index} isDragDisabled={entry.id === confirmingId}>
+                        {(drag, snapshot) => renderEntry(entry, index, drag, snapshot.isDragging)}
+                      </dnd.Draggable>
+                    ))}
+                    {drop.placeholder}
+                  </div>
+                )}
+              </dnd.Droppable>
+            </dnd.DragDropContext>
+          ) : (
+            <div
+              ref={(element) => {
+                list.current = element
+              }}
+              className="flex flex-col"
+            >
+              {entries.map((entry, index) => renderEntry(entry, index))}
+            </div>
+          ))}
 
-      {entries.length > 0 &&
-        (dnd ? (
-          <dnd.DragDropContext onBeforeCapture={() => stopMoving(elements.current)} onDragEnd={onDragEnd}>
-            <dnd.Droppable droppableId="entries">
-              {(drop) => (
-                <div
-                  ref={(element) => {
-                    drop.innerRef(element)
-                    list.current = element
-                  }}
-                  {...drop.droppableProps}
-                  className="flex flex-col"
-                >
-                  {entries.map((entry, index) => (
-                    <dnd.Draggable key={entry.id} draggableId={String(entry.id)} index={index} isDragDisabled={entry.id === confirmingId}>
-                      {(drag, snapshot) => renderEntry(entry, index, drag, snapshot.isDragging)}
-                    </dnd.Draggable>
-                  ))}
-                  {drop.placeholder}
-                </div>
-              )}
-            </dnd.Droppable>
-          </dnd.DragDropContext>
-        ) : (
-          <div
-            ref={(element) => {
-              list.current = element
-            }}
-            className="flex flex-col"
-          >
-            {entries.map((entry, index) => renderEntry(entry, index))}
+        {addButtonElement}
+        {section.fromPaperLink && (
+          <div className="mt-4">
+            <PaperFromLink entries={() => latest.current} owner={() => read()?.profileSection?.fullName ?? ""} onAdd={addEntries} />
           </div>
-        ))}
-
-      {section.fromPaperLink ? (
-        <PaperFromLink entries={() => latest.current} owner={() => read()?.profileSection?.fullName ?? ""} onAdd={addEntries}>
-          {addButtonElement}
-        </PaperFromLink>
-      ) : (
-        addButtonElement
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -668,20 +757,21 @@ function SectionChoice({ choice }: { choice: ChoiceDef<ChoiceKey> }) {
   const { update } = useOpenResume()
   const value = useResumeField(choice.key)
   const selected = choice.options.find((option) => option.value === value) ?? choice.options[0]
+  const labelId = useId()
   return (
-    <div className="-mt-3 flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span id={`${choice.key}-label`} className="label-mono text-ink-2">
+    <div className="mt-5 flex flex-col gap-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span id={labelId} className="text-[14px] text-ink-2">
           {choice.label}
         </span>
-        <div role="radiogroup" aria-labelledby={`${choice.key}-label`} className="flex flex-wrap gap-2">
+        <div role="radiogroup" aria-labelledby={labelId} className="segment-track h-[38px] gap-0.5 p-[3px]">
           {choice.options.map((option) => (
             <label
               key={option.value}
-              className={`cursor-pointer rounded-full border px-3.5 py-1.5 text-sm transition-colors has-[:focus-visible]:[background-image:linear-gradient(rgb(17_19_24/0.08),rgb(17_19_24/0.08))] ${
+              className={`inline-flex h-8 cursor-pointer items-center rounded-full px-3.5 text-[14px] font-medium tracking-[-0.01em] transition-colors has-[:focus-visible]:shadow-[0_0_0_3px_rgb(17_19_24/0.14)] ${
                 option === selected
-                  ? "border-ink bg-ink text-white has-[:focus-visible]:border-[#3a3f4b] has-[:focus-visible]:bg-[#3a3f4b]"
-                  : "border-rule-strong text-ink hover:border-ink"
+                  ? "bg-sheet text-ink shadow-[0_1px_2px_rgb(17_19_24/0.08),0_2px_6px_-1px_rgb(17_19_24/0.1)]"
+                  : "text-ink-3 hover:text-ink"
               }`}
             >
               <input
@@ -697,7 +787,7 @@ function SectionChoice({ choice }: { choice: ChoiceDef<ChoiceKey> }) {
           ))}
         </div>
       </div>
-      <p className="text-[13px] leading-normal text-ink-2">{selected.hint}</p>
+      <p className="text-[13px] leading-normal text-ink-3">{selected.hint}</p>
     </div>
   )
 }

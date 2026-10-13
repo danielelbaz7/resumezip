@@ -80,7 +80,7 @@ async function openPublications(page: Page) {
   await page.goto("/create/new/papers")
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Publications$/ })
+    .getByRole("button", { name: /^Publications$/ })
     .click()
   await expect(editorHeading(page, "Publications")).toBeVisible()
 }

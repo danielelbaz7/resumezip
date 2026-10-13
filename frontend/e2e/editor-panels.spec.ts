@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import { chooseTemplate, pageErrors, seriousAccessibilityProblems, templateShown } from "./helpers"
 
-// From 1280px wide the editor is three panels under a top bar
+// From 1280px wide the editor is three columns on one sheet, under a top bar
 // (app/create/editor/page.tsx): the sections, Check or Style on the left, the
 // form in the middle, and the page on the right with its zoom under it.
 // Download PDF is in the top bar.
@@ -78,16 +78,16 @@ for (const [width, height] of [
     expect(button.x).toBeGreaterThan(top.x + top.width / 2)
 
     // Three columns side by side, from left to right, as tall as each other under the top bar,
-    // with even gaps between them.
+    // each starting where the one before it ends: they're divided by lines, not gaps.
     for (const column of [form, right]) {
       expect(Math.abs(column.y - left.y)).toBeLessThan(1)
       expect(Math.abs(column.y + column.height - (left.y + left.height))).toBeLessThan(1)
     }
-    const gaps = [left.y - (top.y + top.height), form.x - (left.x + left.width), right.x - (form.x + form.width)]
-    expect(gaps[0]).toBeGreaterThan(0)
-    for (const gap of gaps) expect(Math.abs(gap - gaps[0])).toBeLessThan(1)
+    for (const gap of [left.y - (top.y + top.height), form.x - (left.x + left.width), right.x - (form.x + form.width)]) {
+      expect(Math.abs(gap)).toBeLessThan(1)
+    }
     // The form has room to write in.
-    expect(form.width).toBeGreaterThanOrEqual(520)
+    expect(form.width).toBeGreaterThanOrEqual(480)
 
     // All of it in the window, which doesn't scroll either way.
     for (const [name, box] of Object.entries(parts)) {

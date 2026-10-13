@@ -4,9 +4,9 @@ import { memo, useEffect, useRef } from "react"
 import { useOpenResume, useResumeField } from "@/context/ResumeContext"
 import { useCheckActions, useCheckTarget } from "./CheckContext"
 import { Field, SectionHeading } from "./fields"
-import { FIELD_SPAN, PROFILE_FIELDS } from "./sections"
+import { FIELD_GRID, FIELD_SPAN, PROFILE_FIELDS } from "./sections"
 
-function ProfileForm({ position }: { position: string }) {
+function ProfileForm() {
   const { update } = useOpenResume()
   const profile = useResumeField("profileSection") ?? {}
   const form = useRef<HTMLElement>(null)
@@ -33,9 +33,9 @@ function ProfileForm({ position }: { position: string }) {
   }, [target, pending, claim])
 
   return (
-    <div className="@container flex flex-col gap-8">
-      <SectionHeading position={position} title="Profile" />
-      <section ref={form} className="grid grid-cols-2 gap-x-7 gap-y-6 border-t border-ink pt-6 @lg:grid-cols-4">
+    <div className="@container flex flex-col gap-[22px]">
+      <SectionHeading title="Profile" />
+      <section ref={form} className={FIELD_GRID}>
         {PROFILE_FIELDS.map((field) => (
           <Field
             key={field.key}

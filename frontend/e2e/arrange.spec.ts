@@ -6,7 +6,7 @@ import { boxText, cursorInBox, editorTitle, pageErrors, selectInBox, seriousAcce
 // Entries and bullets can be moved, and left out of the PDF without being
 // deleted, to tailor one resume to a job.
 
-const BULLETS = "What you did · one bullet per line"
+const BULLETS = "What you did"
 const RESUME = {
   id: "tailored",
   resumeTitle: "Tailored",
@@ -84,23 +84,79 @@ async function openSection(page: Page, section: string, resume: { id: string } &
   await previewShown(page)
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: new RegExp(`^\\d+ ${section}$`) })
+    .getByRole("button", { name: new RegExp(`^${section}$`) })
     .click()
 }
 
-test("a click on an entry's heading opens it, and on the open entry's heading closes it", async ({ page }) => {
+test("an entry is a card, folded to its name and what's in it, opened with a click and folded with its chevron", async ({ page }) => {
   const errors = pageErrors(page)
   await openSection(page, "Experience")
   const done = page.getByRole("button", { name: "Done editing entry 1" })
   await expect(done).toBeVisible()
+  // The entries have no dates to put in order by, so the note under the title says how to.
+  await expect(page.getByText("3 entries · drag to reorder", { exact: true })).toBeVisible()
+  // Open, its name is typed in where it's shown, before its company.
+  await expect(page.getByRole("textbox", { name: "Role" })).toHaveValue("Engineer")
+  await expect(page.getByText("· Google", { exact: true })).toBeVisible()
 
-  await page.getByText("Entry 1", { exact: true }).click()
+  // Its bullets show two at a time until the box is used, which then shows them all. (The folded
+  // cards' boxes are on the page too, out of reach, ready to slide open.)
+  const more = page.getByText("+ 1 more", { exact: true })
+  const box = page.getByLabel(BULLETS).first()
+  await expect(more).toBeVisible()
+  await box.click()
+  await expect(more).toBeHidden()
+  await expect.poll(() => boxText(box)).toBe("• Built the search index\n• Cut serving costs by 30%\n• Mentored four interns")
+
+  await done.click()
   await expect(done).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Edit entry 1" })).toBeVisible()
 
-  // Closed, it shows its summary, which opens it again.
-  await page.getByText("Engineer, Google").click()
+  // Folded, it shows its name, its company and how many bullets it has, and a click on it opens it again,
+  // with its bullets two at a time again.
+  await expect(page.getByText("3 bullets", { exact: true })).toBeVisible()
+  await page.getByText("Engineer · Google", { exact: true }).click()
   await expect(done).toBeVisible()
+  await expect(more).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
+test("a folded card shows its dates in a few words, and the note under the title says when the newest is first", async ({ page }) => {
+  const errors = pageErrors(page)
+  await openSection(page, "Experience", {
+    ...RESUME,
+    id: "dated",
+    workExperienceSection: [
+      {
+        id: 1,
+        workRole: "Engineer",
+        companyName: "Google",
+        workStartDate: "May 2025",
+        workEndDate: "Aug 2025",
+        workDescription: "• Built a service that cut page load time by 30% for twelve million monthly visitors\n• Ran it",
+      },
+      {
+        id: 2,
+        workRole: "Intern",
+        companyName: "Initech",
+        workStartDate: "Sep 2024",
+        workEndDate: "Dec 2024",
+        workDescription: "• Filed the reports",
+      },
+    ],
+  })
+  await expect(page.getByText("2 entries · newest first", { exact: true })).toBeVisible()
+  await expect(page.getByText("Sep – Dec 2024 · 1 bullet", { exact: true })).toBeVisible()
+  // The open card's long bullet is cut short at a word.
+  await expect(page.getByText("• Built a service that cut page load time by 30% for twelve million…", { exact: true })).toBeVisible()
+
+  // Moved above the newer one, it isn't newest first any more.
+  await page.getByRole("button", { name: "Reorder entry 2" }).focus()
+  await page.keyboard.press("Space")
+  await page.keyboard.press("ArrowUp")
+  await page.keyboard.press("Space")
+  await expect(page.getByText("2 entries · drag to reorder", { exact: true })).toBeVisible()
 
   expect(errors).toEqual([])
 })
@@ -113,7 +169,7 @@ test("an entry left out isn't printed, or in the PDF's copy of the resume, and c
   await openSection(page, "Experience")
 
   await page.getByRole("checkbox", { name: "Include entry 2 in the PDF" }).uncheck()
-  await expect(page.getByText("Entry 2 · Left out")).toBeVisible()
+  await expect(page.getByText("Intern · Initech · Left out", { exact: true })).toBeVisible()
   await expect.poll(() => printedOrder(page, ["Google", "Initech", "Hooli"])).toEqual(["Google", "Hooli"])
 
   // Whoever gets the PDF can't read it: opened again, the PDF brings back only what was printed.
@@ -150,7 +206,7 @@ test("an entry left out isn't printed, or in the PDF's copy of the resume, and c
   await previewShown(page)
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   const include = page.getByRole("checkbox", { name: "Include entry 2 in the PDF" })
   await expect(include).not.toBeChecked()
@@ -228,6 +284,8 @@ test("a section with every entry left out isn't printed, title and all", async (
   await openSection(page, "Skills")
   await expect.poll(() => printed(page)).toContain("Python, Rust")
 
+  // Its eye is on its card, folded.
+  await page.getByRole("button", { name: "Done editing entry 1" }).click()
   await page.getByRole("checkbox", { name: "Include entry 1 in the PDF" }).uncheck()
   await expect
     .poll(async () => {
@@ -249,8 +307,10 @@ test("a section is dragged to a new place from the keyboard, and printed and sav
   await page.keyboard.press("Space")
   await page.keyboard.press("ArrowDown")
   await page.keyboard.press("Space")
-  await expect(sections.getByRole("button", { name: "02 Skills" })).toBeVisible()
-  await expect(sections.getByRole("button", { name: "03 Experience" })).toBeVisible()
+  // Each section's button, after Profile's: not the handles, or Add section.
+  const order = sections.getByRole("button", { name: /^(?!Reorder |Add )/ })
+  await expect(order.nth(1)).toHaveAccessibleName("Skills")
+  await expect(order.nth(2)).toHaveAccessibleName("Experience")
   await expect.poll(() => printedOrder(page, ["Google", "Python"])).toEqual(["Python", "Google"])
   await expect.poll(async () => (await saved(page)).sectionOrder.slice(0, 2)).toEqual(["Skills", "Work"])
 
@@ -436,16 +496,19 @@ test("asked whether to delete an entry, it shows its name and its fields fade, a
   await page.getByRole("button", { name: "Edit entry 2" }).click()
   await page.getByRole("button", { name: "Delete entry 2" }).click()
   await expect(page.getByRole("status").filter({ hasText: "Delete it?" })).toBeVisible()
-  await expect(page.getByText("Intern, Initech", { exact: true })).toBeVisible()
+  // Its name stays, so it's clear which would go.
+  const role = page.getByRole("textbox", { name: "Role" })
+  await expect(role).toHaveValue("Intern")
+  await expect(page.getByText("· Initech", { exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Keep" })).toBeFocused()
-  // Its fields can't be typed in meanwhile (inert, which Playwright doesn't count as hidden).
-  const role = page.getByRole("textbox", { name: "Role" }).nth(1)
-  expect(await role.evaluate((box) => box.closest("[inert]") !== null)).toBe(true)
+  // Its fields can't be typed in meanwhile, its name included (inert, which Playwright doesn't count as hidden).
+  const company = page.getByRole("textbox", { name: "Company" }).nth(1)
+  for (const box of [role, company]) expect(await box.evaluate((box) => box.closest("[inert]") !== null)).toBe(true)
 
   await page.getByRole("button", { name: "Keep" }).click()
   await expect(page.getByRole("button", { name: "Delete entry 2" })).toBeFocused()
-  await expect(page.getByText("Intern, Initech", { exact: true })).toHaveCount(0)
-  expect(await role.evaluate((box) => box.closest("[inert]") !== null)).toBe(false)
+  await expect(page.getByRole("status").filter({ hasText: "Delete it?" })).toHaveCount(0)
+  for (const box of [role, company]) expect(await box.evaluate((box) => box.closest("[inert]") !== null)).toBe(false)
   expect(errors).toEqual([])
 })
 
@@ -453,8 +516,8 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
   const errors = pageErrors(page)
   await openSection(page, "Experience")
   const before = (await saved(page)).workExperienceSection
-  // Each entry's Role box, closed ones too (inert, which Playwright doesn't count as hidden).
-  const role = (index: number) => page.getByRole("textbox", { name: "Role" }).nth(index)
+  // The open entry's Role box, its name, typed in where it's shown.
+  const role = page.getByRole("textbox", { name: "Role" })
   const deleteEntry2 = async () => {
     await page.getByRole("button", { name: "Delete entry 2" }).click()
     await page.getByRole("button", { name: "Delete", exact: true }).click()
@@ -471,14 +534,14 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
   await expect(undo).toHaveAttribute("aria-keyshortcuts", /^(Meta|Control)\+Z$/)
   await undo.click()
   await expect(page.getByRole("status").filter({ hasText: "back" })).toHaveText("“Intern, Initech” is back")
-  await expect(role(1)).toBeFocused()
-  await expect(role(1)).toHaveValue("Intern")
+  await expect(role).toBeFocused()
+  await expect(role).toHaveValue("Intern")
   await expect.poll(async () => (await saved(page)).workExperienceSection).toEqual(before)
 
   // In a field, the shortcut takes back typing and leaves the entry deleted.
   await deleteEntry2()
   await page.getByRole("button", { name: "Edit entry 1" }).click()
-  await role(0).focus()
+  await role.focus()
   await page.keyboard.press("ControlOrMeta+z")
   await expect(undo).toBeVisible()
   await expect(page.getByRole("button", { name: "Edit entry 3" })).toHaveCount(0)
@@ -486,7 +549,7 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
   // From another section, the shortcut brings the entry back in its own.
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Skills$/ })
+    .getByRole("button", { name: /^Skills$/ })
     .click()
   await page.keyboard.press("ControlOrMeta+z")
   await expect(editorTitle(page)).toHaveText(/Experience/)

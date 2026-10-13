@@ -173,9 +173,8 @@ export default function DownloadMenu({ choices, busy = false, onOpen, notice = n
       if (menu.current?.contains(target) || button.current?.contains(target)) return
       latestClose.current()
     }
-    const follow = () => {
-      if (button.current) setPlace(placeBy(button.current))
-    }
+    // Only a menu that's still there moves, so a resize in the moment it goes can't put it back.
+    const follow = () => setPlace((current) => (current && button.current ? placeBy(button.current) : current))
     document.addEventListener("pointerdown", onPointerDown)
     window.addEventListener("resize", follow)
     return () => {
@@ -220,7 +219,8 @@ export default function DownloadMenu({ choices, busy = false, onOpen, notice = n
         aria-busy={busy || undefined}
         onClick={() => (open ? close() : show())}
         onKeyDown={onButtonKeyDown}
-        className="inline-flex h-10 w-10 items-center justify-center ink-glass rounded-r-full border-l border-white/15 pr-1 aria-expanded:brightness-90 xl:h-11 xl:w-11"
+        // The right half of Download PDF's blue pill (the editor's top bar), past a line.
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-r-full pr-1 text-white transition-colors before:absolute before:inset-y-[9px] before:left-0 before:w-px before:bg-white/30 hover:bg-white/[0.08] focus-visible:bg-white/[0.14] aria-expanded:bg-black/[0.08]"
       >
         {busy ? (
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

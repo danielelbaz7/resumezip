@@ -24,7 +24,7 @@ test("an address for a resume this browser doesn't have says so", async ({ page 
   const errors = pageErrors(page)
   await page.goto("/create/new/not-in-this-browser")
   await expect(page.getByRole("heading", { name: "Resume not found" })).toBeVisible()
-  await expect(page.getByRole("link", { name: "Go to your resumes" })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Go to the dashboard" })).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -76,8 +76,8 @@ test("resumes open in the page from links and the history, each one afresh", asy
   await page.getByLabel("Full name").fill("Ada Lovelace")
 
   // So does the dashboard's New resume.
-  await page.getByRole("link", { name: "Your resumes" }).click()
-  await page.getByRole("main").getByRole("button", { name: "New resume" }).click()
+  await page.getByRole("link", { name: "Dashboard" }).click()
+  await page.getByRole("main").getByRole("button", { name: "New resume" }).first().click()
   const dialog = page.getByRole("dialog", { name: "New resume" })
   await dialog.getByLabel("Name").fill("Second")
   await dialog.getByRole("button", { name: "Create" }).click()
@@ -85,7 +85,7 @@ test("resumes open in the page from links and the history, each one afresh", asy
   expect(page.url()).not.toBe(first)
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   await expect(editorHeading(page, "Experience")).toBeVisible()
 
@@ -97,7 +97,7 @@ test("resumes open in the page from links and the history, each one afresh", asy
   await expect(await templateChosen(page)).toContainText("Harvard")
 
   // And the dashboard's link to a resume opens that one.
-  await page.getByRole("link", { name: "Your resumes" }).click()
+  await page.getByRole("link", { name: "Dashboard" }).click()
   await page.getByRole("link", { name: "Second", exact: true }).click()
   await expect(page.getByLabel("Resume name")).toHaveValue("Second")
   await expect(page.getByLabel("Full name")).toBeVisible()

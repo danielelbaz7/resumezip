@@ -13,7 +13,7 @@ const ENTRY = {
   Start: "Jan 2024",
   End: "Present",
 }
-const BULLETS = "What you did · one bullet per line"
+const BULLETS = "What you did"
 const LONG_BULLETS = [
   "Built a service that cut page load time by 30% for twelve million monthly visitors across four regions",
   "Led the migration of the billing system from a monolith to event-driven services with zero downtime",
@@ -36,7 +36,7 @@ async function writeExperience(page: Page, width: number, height: number) {
   await page.getByLabel(BULLETS).fill(LONG_BULLETS)
 }
 
-const experience = (page: Page) => page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: /^\d+ Experience$/ })
+const experience = (page: Page) => page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: /^Experience$/ })
 const preview = (page: Page) => page.getByRole("region", { name: "Live preview" })
 const views = (page: Page) => page.getByRole("group", { name: "View" })
 /** Whether the page's own check for a wide screen passes, which some scrolling depends on. */
@@ -45,17 +45,19 @@ const wideByScript = (page: Page) => page.evaluate((query) => matchMedia(query).
 const bulletsHidden = (page: Page) => page.getByLabel(BULLETS).evaluate((box) => box.scrollHeight - box.clientHeight)
 
 /**
- * How wide a box's text is, drawn in the box's own font, and how wide the box
- * is inside its padding. A text box's scrollWidth doesn't reliably show a
- * clipped value, so the text is measured instead.
+ * How wide a box's text is, drawn in the box's own font and letter-spacing,
+ * and how wide the box is inside its padding. A text box's scrollWidth doesn't
+ * reliably show a clipped value, so the text is measured instead.
  */
 const textFit = (input: Locator) =>
   input.evaluate((box: HTMLInputElement) => {
     const style = getComputedStyle(box)
     const context = document.createElement("canvas").getContext("2d")!
     context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+    // "normal" is no extra space; otherwise it's after every letter.
+    const spacing = (parseFloat(style.letterSpacing) || 0) * [...box.value].length
     return {
-      needed: Math.ceil(context.measureText(box.value).width),
+      needed: Math.ceil(context.measureText(box.value).width + spacing),
       shown: box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
     }
   })
@@ -226,7 +228,7 @@ test("on a wide screen, the section list says how many entries each section has"
   await page.getByRole("button", { name: "Add experience" }).click()
   await expect(experience(page)).toHaveText(/Experience\s*2$/)
   // Sections with nothing in them have no number.
-  await expect(page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: /^\d+ Projects$/ })).toHaveText(/Projects$/)
+  await expect(page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: /^Projects$/ })).toHaveText(/Projects$/)
   await expect(preview(page).getByText("Analyst").first()).toBeVisible()
   expect(errors).toEqual([])
 })
