@@ -2,10 +2,11 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { INK_PILL, OUTLINE_PILL } from "@/components/pills"
+import { ArrowLeft, ArrowRight, BookOpen, Check, X } from "lucide-react"
+import { BLUE_PILL, sheetPill } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
-import { SHEET } from "@/components/site/sheet"
+import { PAPER_FRAME } from "@/components/site/sheet"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import StructuredData from "@/components/site/StructuredData"
 import { pageMetadata, SHARE_IMAGE_SIZE } from "@/lib/site"
@@ -20,7 +21,7 @@ import {
   templatePath,
   templateSlug,
 } from "@/lib/templates"
-import { checksPassed, READING_CHECKS } from "../how-they-read/checks"
+import { checksPassed, READING_CHECKS, READING_RESULTS, WHY_NOT } from "../how-they-read/checks"
 import { ABOUT } from "./about"
 
 // A page for each template, built ahead of time; any other address is a 404.
@@ -48,106 +49,162 @@ export async function generateMetadata({ params }: TemplatePageProps): Promise<M
   })
 }
 
-const LEDGER_ROW = "flex justify-between gap-6 border-t border-rule py-3"
-
+/**
+ * A template's own page, on the sheet the templates page is on: its page big
+ * on a card, what it's like and Use, which starts a resume with it, how it
+ * reads as plain text, and the other templates.
+ */
 export default async function TemplatePage({ params }: TemplatePageProps) {
   const template = templateBySlug((await params).template)
   if (!template) notFound()
   const about = ABOUT[template.id]
   const tags: readonly string[] = template.tags
+  const why = WHY_NOT[template.id]
 
   return (
-    <div className="desk flex min-h-screen flex-col">
+    <div className="desk desk-bright flex min-h-screen flex-col">
       <SiteHeader />
       <StructuredData data={breadcrumbs([TEMPLATES_CRUMB, { name: titleOf(template), path: templatePath(template) }])} />
 
-      <main className={`${SHEET} flex flex-col gap-16`}>
-        <div className="grid gap-10 md:grid-cols-2 md:gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
-          <div className="flex flex-col gap-6 md:sticky md:top-28 md:self-start">
-            <Link href="/templates" className="label-mono self-start text-ink-2 underline-offset-4 hover:text-ink hover:underline">
-              Templates
-            </Link>
-            <h1 className="text-balance font-serif text-5xl leading-[1.02] tracking-[-0.035em] md:text-[64px] md:leading-[0.98]">
-              {printedName(template)} resume <em className="text-accent">template</em>
-            </h1>
-            {about.text.map((paragraph) => (
-              <p key={paragraph} className="text-pretty text-[17px] leading-relaxed text-ink-2">
-                {paragraph}
-              </p>
-            ))}
-            {about.latex && (
-              <p className="text-pretty text-[17px] leading-relaxed text-ink-2">
-                You don’t need LaTeX or Overleaf: fill in the form and your browser makes the PDF. To keep editing in Overleaf too, download
-                a LaTeX file from the editor.
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-3 pt-2">
-              <StartWritingLink template={template.id} className={INK_PILL} preloadOnHover>
-                Use this template
-              </StartWritingLink>
-              <Link href="/templates" className={OUTLINE_PILL}>
-                See all templates
+      <div className={PAPER_FRAME}>
+        <main className="paper paper-sky flex flex-1 flex-col px-4 pb-10 pt-4 sm:px-6 sm:pt-6 md:px-9 md:pb-12 md:pt-[30px]">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+            <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-3 text-[15px]">
+              <Link href="/templates" className="group inline-flex items-center gap-3 text-ink-3 hover:text-ink">
+                <span className="white-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink">
+                  <ArrowLeft className="h-[18px] w-[18px]" aria-hidden="true" />
+                </span>
+                Templates
               </Link>
+              <span aria-hidden="true" className="text-ink-3">
+                /
+              </span>
+              <span aria-current="page" className="truncate text-ink">
+                {template.name}
+              </span>
+            </nav>
+            <div className="flex items-center gap-2.5 max-sm:w-full max-sm:[&>*]:flex-1">
+              <Link href="/templates/how-they-read" className={sheetPill("white")}>
+                <BookOpen aria-hidden="true" />
+                How it reads
+              </Link>
+              <StartWritingLink template={template.id} className={BLUE_PILL} preloadOnHover>
+                Use {template.name}
+                <ArrowRight aria-hidden="true" />
+              </StartWritingLink>
+            </div>
+          </div>
+
+          <div className="mt-[30px] grid gap-10 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14">
+            {/* The template's own picture, made from its sample resume. */}
+            <div className="tile self-start md:sticky md:top-28">
+              <div className="tile-page rounded-[23px] max-sm:rounded-[17px]">
+                <Image
+                  src={template.image}
+                  alt={templateImageAlt(template)}
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 45vw, (min-width: 768px) 45vw, 100vw"
+                  className="object-cover object-top"
+                />
+              </div>
             </div>
 
-            <dl className="label-mono mt-2 border-b border-rule text-ink-2">
-              <div className={LEDGER_ROW}>
-                <dt>Set in</dt>
-                <dd className="text-right text-ink">{fontsOf(template)[0].family}</dd>
-              </div>
-              {tags.length > 0 && (
-                <div className={LEDGER_ROW}>
-                  <dt>Style</dt>
-                  <dd className="text-right text-ink">{tags.join(" · ")}</dd>
-                </div>
+            <div className="flex min-w-0 flex-col md:pt-2">
+              <span className="label-mono text-ink-3">{[...tags, "Free"].join(" · ")}</span>
+              <h1 className="mt-3.5 text-balance font-serif text-[44px] leading-[1.02] tracking-[-0.035em] sm:text-[56px] lg:text-[64px]">
+                {printedName(template)} resume <em className="pr-[0.04em] text-accent">template</em>
+              </h1>
+              <p className="mt-3 text-[16px] text-ink-3">Set in {fontsOf(template)[0].family} · Letter or A4</p>
+              {about.text.map((paragraph) => (
+                <p key={paragraph} className="mt-4 max-w-[620px] text-pretty text-[16px] leading-relaxed text-ink-2">
+                  {paragraph}
+                </p>
+              ))}
+              {about.latex && (
+                <p className="mt-4 max-w-[620px] text-pretty text-[16px] leading-relaxed text-ink-2">
+                  You don’t need LaTeX or Overleaf: fill in the form and your browser makes the PDF. To keep editing in Overleaf too,
+                  download a LaTeX file from the editor.
+                </p>
               )}
-              <div className={LEDGER_ROW}>
-                <dt>Read as plain text</dt>
-                <dd className="text-right text-ink">
+
+              <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-3">
+                <StartWritingLink
+                  template={template.id}
+                  className={sheetPill("blue", "h-[46px] px-[22px] text-[16px] font-medium")}
+                  preloadOnHover
+                >
+                  Use {template.name}
+                  <ArrowRight aria-hidden="true" />
+                </StartWritingLink>
+                <span className="text-[14px] text-ink-3">Switch any time; your writing stays put.</span>
+              </div>
+
+              <section aria-labelledby="reads" className="mt-10">
+                <div className="flex items-baseline justify-between gap-4 border-b border-hairline pb-3">
+                  <h2 id="reads" className="label-mono text-ink-3">
+                    How it reads as plain text
+                  </h2>
                   <Link
                     href="/templates/how-they-read"
-                    className="underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
+                    className="text-[14px] text-ink underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
                   >
                     {checksPassed(template.id).length} of {READING_CHECKS.length} checks
                   </Link>
-                </dd>
-              </div>
-            </dl>
-            <p className="text-[15px] leading-relaxed text-ink-2">Switch templates any time; your writing stays put.</p>
+                </div>
+                <ul>
+                  {READING_CHECKS.map((check) => {
+                    const reads = READING_RESULTS[template.id][check.id].length === 0
+                    return (
+                      <li key={check.id} className="flex items-center justify-between gap-4 border-b border-hairline py-3 text-[15px]">
+                        <span className={reads ? "text-ink-2" : "text-ink"}>{check.name}</span>
+                        {reads ? (
+                          <span className="shrink-0">
+                            <Check className="h-[18px] w-[18px] text-ink" strokeWidth={2.25} aria-hidden="true" />
+                            <span className="sr-only">Reads as typed</span>
+                          </span>
+                        ) : (
+                          <span className="shrink-0">
+                            <X className="h-[18px] w-[18px] text-ink-3" strokeWidth={2.25} aria-hidden="true" />
+                            <span className="sr-only">Doesn’t read as typed</span>
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+                {why && <p className="mt-3 max-w-[620px] text-pretty text-[14px] leading-relaxed text-ink-3">{why}</p>}
+              </section>
+            </div>
           </div>
 
-          {/* The template's own picture, made from its sample resume. */}
-          <div className="relative aspect-[1280/1656] w-full overflow-hidden bg-sheet shadow-[0_1px_2px_rgb(17_19_24/0.08),0_28px_44px_-22px_rgb(30_40_90/0.5)]">
-            <Image
-              src={template.image}
-              alt={templateImageAlt(template)}
-              fill
-              priority
-              sizes="(min-width: 1024px) 55vw, (min-width: 768px) 50vw, 100vw"
-              className="object-cover object-top"
-            />
-          </div>
-        </div>
-
-        <nav aria-labelledby="other-templates" className="flex flex-col gap-5 border-t border-ink pt-6">
-          <h2 id="other-templates" className="font-serif text-[28px] leading-[1.15] tracking-[-0.02em] md:text-[32px]">
-            Other templates
-          </h2>
-          <ul className="flex flex-wrap gap-x-6 gap-y-3 text-[17px]">
-            {TEMPLATES.filter((other) => other.id !== template.id).map((other) => (
-              <li key={other.id}>
-                <Link
-                  href={templatePath(other)}
-                  className="text-ink underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
-                >
-                  {other.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </main>
+          <nav aria-labelledby="other-templates" className="mt-14 flex flex-col gap-4">
+            <h2 id="other-templates" className="label-mono text-ink-3">
+              Other templates
+            </h2>
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
+              {TEMPLATES.filter((other) => other.id !== template.id).map((other) => (
+                <li key={other.id} className="min-w-0">
+                  <Link href={templatePath(other)} className="tile">
+                    <span className="tile-stage">
+                      <span className="tile-page block">
+                        <Image
+                          src={other.image}
+                          alt=""
+                          fill
+                          sizes="(min-width: 1024px) 200px, (min-width: 640px) 30vw, 50vw"
+                          className="object-cover object-top"
+                        />
+                      </span>
+                    </span>
+                    <span className="tile-text truncate px-3.5 py-2.5 text-[14px] font-medium tracking-[-0.01em]">{other.name}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </main>
+      </div>
 
       <SiteFooter />
     </div>

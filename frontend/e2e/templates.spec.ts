@@ -1,5 +1,5 @@
-import { expect, test, type Page } from "@playwright/test"
-import { countSlides, inkCovers, pageErrors, templateChosen } from "./helpers"
+import { expect, test, type Locator, type Page } from "@playwright/test"
+import { countThumbSlides, instantScrolling, pageErrors, seriousAccessibilityProblems, templateChosen, thumbCovers } from "./helpers"
 import { TEMPLATES } from "../src/lib/templates"
 
 // The templates page's search and style chips. Each card's picture leads to its template's page.
@@ -53,23 +53,51 @@ test("a chip shows the templates with that style, and says it's picked", async (
   await expect(cards(page)).toHaveCount(every)
 })
 
-test("the picked chip's ink slides across to the next one picked, or jumps there with less motion", async ({ page }) => {
+test("the picked chip's white pill slides across to the next one picked, or jumps there with less motion", async ({ page }) => {
   await page.goto("/templates")
   const chips = page.getByRole("group", { name: "Filter by style" })
-  await expect.poll(() => inkCovers(chips, chips.getByRole("button", { name: "All" }))).toBe(true)
-  const slides = await countSlides(chips)
+  await expect.poll(() => thumbCovers(chips, chips.getByRole("button", { name: "All" }))).toBe(true)
+  const slides = await countThumbSlides(chips)
 
   const latex = chips.getByRole("button", { name: "LaTeX look" })
   await latex.click()
-  await expect.poll(() => inkCovers(chips, latex)).toBe(true)
+  await expect.poll(() => thumbCovers(chips, latex)).toBe(true)
   expect(await slides()).toBe(1)
 
   // It's there as soon as it's picked, so there was nothing to slide.
   await page.emulateMedia({ reducedMotion: "reduce" })
   const serif = chips.getByRole("button", { name: "Serif", exact: true })
   await serif.click()
-  await expect.poll(() => inkCovers(chips, serif)).toBe(true)
+  await expect.poll(() => thumbCovers(chips, serif)).toBe(true)
   expect(await slides()).toBe(1)
+})
+
+test("the page is the dashboard's sheet: a title on the left, the search and styles in one bar, and Start blank", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto("/templates")
+  const main = page.getByRole("main")
+  const title = page.getByRole("heading", { level: 1 })
+  await expect(title).toHaveText("Pick a template.")
+  // On the left of the sheet, not centred: as far left as the bar below it.
+  const bar = page.getByRole("searchbox", { name: "Search templates" })
+  expect(Math.abs((await title.boundingBox())!.x - (await main.boundingBox())!.x - 36)).toBeLessThan(2)
+  expect((await bar.boundingBox())!.y).toBeGreaterThan((await title.boundingBox())!.y)
+  // The styles beside the search, on one line; no sort, and no Pages or List.
+  const chips = page.getByRole("group", { name: "Filter by style" })
+  const middle = async (locator: Locator) => {
+    const box = (await locator.boundingBox())!
+    return box.y + box.height / 2
+  }
+  expect(Math.abs((await middle(chips)) - (await middle(bar)))).toBeLessThan(3)
+  await expect(main.getByRole("group", { name: "View" })).toHaveCount(0)
+  expect(await seriousAccessibilityProblems(page)).toEqual([])
+
+  // Start blank starts a resume in the template every resume starts in.
+  await main.getByRole("link", { name: "Start blank" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  await expect(await templateChosen(page)).toContainText("Jake's")
+  expect(errors).toEqual([])
 })
 
 test("when nothing matches, it says so, and one click shows every template again", async ({ page }) => {
@@ -119,6 +147,7 @@ test("at most one template is marked new", async ({ page }) => {
 
 test("pointed at, a card's Use plate whitens gradually, and its Use stays lit with the pointer on it", async ({ page }) => {
   await page.goto("/templates")
+  await instantScrolling(page)
   await page.getByRole("link", { name: /^Jake's resume template/ }).hover()
   const plate = page.getByRole("link", { name: "Use Jake's", exact: true })
   const use = plate.getByText("Use", { exact: true })
@@ -136,6 +165,8 @@ test("pointed at, a card's Use plate whitens gradually, and its Use stays lit wi
       fade.finish()
     }),
   )
+  // Pointed at once it has come up: hidden under the page, it would be missed, and looked for with a scroll.
+  await expect(plate).toBeInViewport({ ratio: 1 })
   await plate.hover({ position: { x: 30, y: 30 } })
   await expect(plate).toHaveAttribute("data-halfway", /linear-gradient/)
   const top = Number(
@@ -159,15 +190,22 @@ test("pointed at, a card's Use plate whitens gradually, and its Use stays lit wi
   await expect(await templateChosen(page)).toContainText("Jake's")
 })
 
-test("a card's picture leads to its template's page, whose Use this template starts a resume with it", async ({ page }) => {
+test("a card's picture leads to its template's page, whose Use starts a resume with it", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/templates")
   await page.getByRole("link", { name: /^Harvard resume template/ }).click()
   await expect(page).toHaveURL(/\/templates\/harvard$/)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Harvard resume template")
   await expect(page.getByRole("img", { name: "Harvard resume template: a sample one-page resume" })).toBeVisible()
+  // Back to every template, from the top of the page.
+  await expect(page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Templates" })).toHaveAttribute(
+    "href",
+    "/templates",
+  )
 
-  await page.getByRole("link", { name: "Use this template" }).click()
+  // One Use at the top, and one under what the template's like.
+  await expect(page.getByRole("link", { name: "Use Harvard" })).toHaveCount(2)
+  await page.getByRole("link", { name: "Use Harvard" }).last().click()
   await expect(page).toHaveURL(/\/create\/new\//)
   await expect(await templateChosen(page)).toContainText("Harvard")
   expect(errors).toEqual([])
@@ -220,4 +258,26 @@ test("on a phone, how each template reads is a line for each template", async ({
   await expect(page.getByRole("table")).toBeHidden()
   await expect(page.getByRole("link", { name: "4 of 5: not Headings" })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+})
+
+test.describe("on a touch screen", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
+
+  test("there's nothing to point with, so each card's Use is a button under its name, and its page shows in full", async ({ page }) => {
+    const errors = pageErrors(page)
+    await page.goto("/templates")
+    const card = page.getByRole("listitem").filter({ has: page.getByRole("link", { name: /^Compact resume template/ }) })
+    // One Use for each card, under the name, with the plate over the page gone.
+    const use = card.getByRole("link", { name: "Use Compact" })
+    await expect(use).toHaveCount(1)
+    await expect(use).toBeVisible()
+    const picture = (await card.getByRole("link", { name: /^Compact resume template/ }).boundingBox())!
+    expect((await use.boundingBox())!.y).toBeGreaterThan(picture.y + picture.height)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+
+    await use.tap()
+    await expect(page).toHaveURL(/\/create\/new\//)
+    await expect(await templateChosen(page)).toContainText("Compact")
+    expect(errors).toEqual([])
+  })
 })

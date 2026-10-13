@@ -335,17 +335,10 @@
     mask-image: linear-gradient(to bottom, transparent 50%, #000 75%);
   }
 
-  /* The templates page's cards: paper on the desk. A hover, or focus on its
-     link or its Use, lifts the page, and a glass plate with Use slides up over its foot. The plate only
-     moves, never fades: glass that's see-through stops blurring (glass.css). */
-  .template-card .template-page {
-    box-shadow:
-      0 1px 2px rgb(17 19 24 / 0.08),
-      0 14px 30px -18px rgb(30 40 90 / 0.4);
-    transition:
-      transform 300ms var(--ease-glide),
-      box-shadow 300ms var(--ease-glide);
-  }
+  /* The templates page's cards (TemplateGallery.tsx), as the dashboard's are
+     (.tile in dashboard.css). A hover, or focus on its link or its Use, slides
+     a glass plate with Use up over the foot of its page. The plate only moves,
+     never fades: glass that's see-through stops blurring (glass.css). */
   /* Pointed at, the plate whitens and an ink outline comes in, both fading
      rather than snapping. A gradient can't be transitioned, so its fill is
      built from two registered colours, which can, under .search-field's own
@@ -377,30 +370,16 @@
       outline-color: rgb(17 19 24 / 0.45);
     }
   }
-  .template-card:hover .template-page,
-  .template-card:has(:focus-visible) .template-page {
-    transform: translateY(-6px);
-    box-shadow:
-      0 1px 2px rgb(17 19 24 / 0.08),
-      0 28px 44px -22px rgb(30 40 90 / 0.5);
-  }
   .template-card:hover .template-use,
   .template-card:has(:focus-visible) .template-use {
     transform: none;
-  }
-  /* Without a pointer to hover with, it's always there to say what a tap does. */
-  @media (hover: none) {
-    .template-card .template-use {
-      transform: none;
-    }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .site-pill,
     .ink-fill::before,
     .question-sign::before,
-    .question-sign::after,
-    .template-card .template-page {
+    .question-sign::after {
       transition: none;
     }
     /* It still whitens gradually: a fade isn't motion. */
@@ -416,10 +395,6 @@
     .focus-word {
       filter: none;
       opacity: 1;
-    }
-    .template-card:hover .template-page,
-    .template-card:has(:focus-visible) .template-page {
-      transform: none;
     }
   }
 
