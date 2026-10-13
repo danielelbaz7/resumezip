@@ -34,6 +34,9 @@ export const SCALES: Record<TuneScale, { min: number; max: number; step: number 
 
 export const PAPERS: readonly Paper[] = ["us-letter", "a4"]
 
+/** Each paper as the editor and New resume name it. */
+export const PAPER_NAMES: Record<Paper, string> = { "us-letter": "Letter", a4: "A4" }
+
 /**
  * Each template's own settings, which the panel shows the multiples against:
  * its text size in points (its `#set text(size:)`), its left and right
@@ -113,6 +116,11 @@ export function withSetting<Key extends keyof Tune>(tune: Tune | null | undefine
   if (value === undefined) delete next[key]
   else next[key] = value
   return readTune(next).tune
+}
+
+/** The tune printed on `paper`: with no paper of its own when that's the template's own, as Fine-tune leaves it. */
+export function withPaper(tune: Tune | null | undefined, template: TemplateId, paper: Paper): Tune | null {
+  return withSetting(tune, "paper", paper === TEMPLATE_SETTINGS[template].paper ? undefined : paper)
 }
 
 /** A saved tune as the templates print it: every setting there, read defensively. */

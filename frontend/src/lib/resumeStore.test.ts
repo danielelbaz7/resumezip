@@ -539,6 +539,29 @@ describe("adding resumes", () => {
     expect(tab.getState().resumes.a.workExperienceSection).toHaveLength(1)
     expect(tab.duplicate("missing")).toBeUndefined()
   })
+
+  test("a copy can be in another template, and on other paper, keeping the rest of how it's set", () => {
+    const storage = memoryStorage(saved({ ...ada, selectedTemplate: "jake", tune: { size: 0.9 } }))
+    const tab = openTab(storage)
+    const copy = tab.duplicate("a", { template: "swiss", paper: "a4" })!
+    expect(stored(storage, copy)).toMatchObject({ selectedTemplate: "swiss", tune: { size: 0.9, paper: "a4" } })
+    // Its template's own paper is no paper of its own.
+    const back = tab.duplicate(copy, { paper: "us-letter" })!
+    expect(stored(storage, back)?.tune).toEqual({ size: 0.9 })
+    expect(tab.getState().resumes.a).toMatchObject({ selectedTemplate: "jake", tune: { size: 0.9 } })
+  })
+})
+
+describe("a new resume", () => {
+  test("is in the template it's given, on its template's own paper unless another is chosen", () => {
+    const storage = memoryStorage({})
+    const tab = openTab(storage)
+    const letter = tab.create("Letter", "professional", "swiss", "us-letter")
+    const a4 = tab.create("A4", "professional", "swiss", "a4")
+    expect(stored(storage, letter)).toMatchObject({ resumeTitle: "Letter", resumeTag: "professional", selectedTemplate: "swiss" })
+    expect(stored(storage, letter)?.tune).toBeUndefined()
+    expect(stored(storage, a4)).toMatchObject({ selectedTemplate: "swiss", tune: { paper: "a4" } })
+  })
 })
 
 describe("renaming", () => {

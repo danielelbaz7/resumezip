@@ -10,14 +10,14 @@ interface ResumeActions extends Pick<
   ResumeStore,
   "addSection" | "editSection" | "includeSection" | "removeSection" | "deleteSection" | "reorderSections"
 > {
-  createNewResume: (title: string, tag: string, template?: string) => string
+  createNewResume: ResumeStore["create"]
   importResume: (content: ResumeContent, title: string, options?: { keepId?: boolean; tag?: string }) => string
   /** Adds the resumes from a JSON file of them all. */
   importAll: ResumeStore["importAll"]
   replaceResume: ResumeStore["replace"]
   undoReplace: (id: string) => void
   /** Adds a copy of a resume, and returns its id. */
-  duplicateResume: (id: string) => string | undefined
+  duplicateResume: ResumeStore["duplicate"]
   /** Renames a resume, numbering the name if it's taken. */
   renameResume: (id: string, title: string) => void
   /** Changes one field of a resume. */
