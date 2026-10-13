@@ -20,12 +20,22 @@ export const HOME_TITLE = "resumezip: Free, private, open-source resume builder"
 /** Other pages set a short title, e.g. "Templates" becomes "Templates · resumezip". */
 export const TITLE_TEMPLATE = `%s · ${SITE_NAME}`
 
+/** The size of a shared link's picture, which link previews show at 1.91:1. */
+export const SHARE_IMAGE_SIZE = { width: 1200, height: 630 }
+
+/** A picture a shared link shows. */
+export interface ShareImage {
+  url: string
+  width: number
+  height: number
+  alt: string
+}
+
 /** The picture a link to the site shows when it's shared. */
-export const SHARE_IMAGE = {
+export const SHARE_IMAGE: ShareImage = {
   // The logo's key drawn as a zipper, with the home page headline.
   url: "/og.png",
-  width: 1200,
-  height: 630,
+  ...SHARE_IMAGE_SIZE,
   alt: "resumezip: Your resume. Not our data.",
 }
 
@@ -35,6 +45,8 @@ interface PageInfo {
   /** The page's short title, which TITLE_TEMPLATE completes. Left out on the home page, which uses HOME_TITLE. */
   title?: string
   description: string
+  /** The picture a shared link to the page shows, when it has one of its own: SHARE_IMAGE otherwise. */
+  image?: ShareImage
 }
 
 /**
@@ -44,13 +56,13 @@ interface PageInfo {
  * this a shared link to any page previews as the home page. Not for a layout:
  * every page under it would claim the layout's address.
  */
-export function pageMetadata({ path, title, description }: PageInfo): Metadata {
+export function pageMetadata({ path, title, description, image = SHARE_IMAGE }: PageInfo): Metadata {
   const shown = title === undefined ? HOME_TITLE : TITLE_TEMPLATE.replace("%s", title)
   return {
     ...(title !== undefined && { title }),
     description,
     alternates: { canonical: path },
     // X's card takes its title, description and picture from these.
-    openGraph: { title: shown, description, url: path, siteName: SITE_NAME, images: [SHARE_IMAGE], type: "website" },
+    openGraph: { title: shown, description, url: path, siteName: SITE_NAME, images: [image], type: "website" },
   }
 }

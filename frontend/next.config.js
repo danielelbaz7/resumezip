@@ -1,3 +1,13 @@
+// Each template's picture was named by its template's id, some of which are
+// other products' names, until the pictures were named after their pages
+// (src/lib/templates.ts). Search engines list them under the old names, so
+// those send them on to the new ones for good.
+// prettier-ignore
+const RENAMED_PICTURES = {
+  jake: "jakes", modernjack: "modern-jakes", levelsfyi: "blueprint", referme: "compact", ian: "ians", resumeworded: "harvard",
+  margin: "margin", swiss: "swiss", mono: "mono", accent: "accent", deedy: "deedy", zero2sudo: "zero2sudo",
+}
+
 module.exports = {
   webpack(config) {
     // Typst resume templates are imported as source strings (src/lib/typst).
@@ -16,7 +26,14 @@ module.exports = {
   // this address, still land on its form. Here rather than in a page, whose
   // redirect() answers 307 (temporary), so search engines list About instead.
   async redirects() {
-    return [{ source: "/contact", destination: "/about#contact", permanent: true }]
+    return [
+      { source: "/contact", destination: "/about#contact", permanent: true },
+      ...Object.entries(RENAMED_PICTURES).map(([id, page]) => ({
+        source: `/previews/${id}.webp`,
+        destination: `/previews/${page}-resume-template.webp`,
+        permanent: true,
+      })),
+    ]
   },
   // Files in public/ are otherwise checked with the server every time they're
   // shown. These keep their names when they change (e.g. a template's new

@@ -1,10 +1,14 @@
+import { readdirSync } from "node:fs"
 import { describe, expect, test } from "vitest"
+import { render, samples } from "@/lib/import/testRender"
+import { pageCount } from "@/lib/tune"
 import {
   newTemplate,
   TEMPLATE_TAGS,
   TEMPLATES,
   templateById,
   templateBySlug,
+  templateImageAlt,
   templateMatches,
   templatePath,
   templateSlug,
@@ -89,5 +93,23 @@ describe("each template's page", () => {
   test("leads back to its template, and an id isn't an address", () => {
     for (const template of TEMPLATES) expect(templateBySlug(templateSlug(template))).toBe(template)
     expect(templateBySlug("levelsfyi")).toBeUndefined()
+  })
+})
+
+describe("each template's picture", () => {
+  // Search engines go by a picture's address, and an id can be another
+  // product's name: Blueprint's is levelsfyi.
+  test("is named after its page, not its id", () => {
+    for (const template of TEMPLATES) expect(template.image, template.name).toBe(`/previews/${templateSlug(template)}-resume-template.webp`)
+  })
+
+  test("is in public/previews, with no picture there that isn't a template's", () => {
+    const files = readdirSync("public/previews").map((file) => `/previews/${file}`)
+    expect(files.sort()).toEqual(TEMPLATES.map((template) => template.image).sort())
+  })
+
+  test("is of a one-page sample, as its alt text says", async () => {
+    expect(templateImageAlt(templateById("levelsfyi"))).toBe("Blueprint resume template: a sample one-page resume")
+    for (const sample of samples) expect(pageCount(await render(sample)), sample.selectedTemplate as string).toBe(1)
   })
 })

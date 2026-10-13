@@ -8,7 +8,15 @@ import { StartWritingLink } from "@/components/site/StartWriting"
 import { FILTER_CHIP, GLASS_BAR, OUTLINE_PILL } from "@/components/pills"
 import { SLIDING_PILL, useSlidingPill } from "@/components/useSlidingPill"
 import { typingIn } from "@/lib/keys"
-import { TEMPLATE_TAGS, TEMPLATES, templateMatches, templatePath, type TemplateId, type TemplateTag } from "@/lib/templates"
+import {
+  TEMPLATE_TAGS,
+  TEMPLATES,
+  templateImageAlt,
+  templateMatches,
+  templatePath,
+  type TemplateId,
+  type TemplateTag,
+} from "@/lib/templates"
 
 const names = new Intl.ListFormat("en", { type: "conjunction" })
 
@@ -160,7 +168,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
                 <Link href={templatePath(template)} className="absolute inset-0">
                   <Image
                     src={template.image}
-                    alt={`${template.name} template`}
+                    alt={templateImageAlt(template)}
                     fill
                     sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                     className="object-cover object-top"

@@ -199,7 +199,7 @@ test("pressing a template's Use starts the compiler before the click", async ({ 
   const errors = pageErrors(page)
   const workers = compilerWorkers(page)
   await page.goto("/templates")
-  await page.getByRole("link", { name: /^Harvard template/ }).hover()
+  await page.getByRole("link", { name: /^Harvard resume template/ }).hover()
   await page.getByRole("link", { name: "Use Harvard" }).hover()
   await page.waitForTimeout(500)
   expect(workers).toEqual([])

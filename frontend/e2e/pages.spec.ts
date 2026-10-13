@@ -1,4 +1,5 @@
 import { type APIRequestContext, expect, test } from "@playwright/test"
+import { TEMPLATES, templateImageAlt, templatePath } from "../src/lib/templates"
 import { pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 const PAGES = [
@@ -109,10 +110,40 @@ test.describe("search engines", () => {
     }
   })
 
+  // Its own card for a template's page, drawn from its picture when the site
+  // is built; the site's for the rest. Next leaves out a page's
+  // opengraph-image when its metadata names a picture, so each is checked here.
+  test("preview a link to a template's page with that template, and the rest with the site's picture", async ({ request }) => {
+    const cards = new Map(TEMPLATES.map((template) => [templatePath(template), template]))
+    for (const url of await sitemapUrls(request)) {
+      const path = new URL(url).pathname
+      const html = await head(request, path)
+      const template = cards.get(path)
+      const picture = new URL(property(html, "og:image")!)
+      expect(picture.pathname, path).toBe(template ? `${path}/opengraph-image` : "/og.png")
+      // React writes the apostrophe in "Jake's" as &#x27;.
+      if (template) expect(property(html, "og:image:alt")?.replace(/&#x27;/g, "'"), path).toBe(templateImageAlt(template))
+      expect([property(html, "og:image:width"), property(html, "og:image:height")], path).toEqual(["1200", "630"])
+      const response = await request.get(picture.pathname)
+      expect(response.ok(), `${path}'s picture`).toBe(true)
+      expect(response.headers()["content-type"], `${path}'s picture`).toBe("image/png")
+    }
+  })
+
   test("are sent from the old contact address to About for good", async ({ request }) => {
     const response = await request.get("/contact", { maxRedirects: 0 })
     expect(response.status()).toBe(308)
     expect(response.headers().location).toBe("/about#contact")
+  })
+
+  // Named by id, before they were named after their pages. A template added
+  // since had no picture under its id.
+  test("are sent from a template picture's old address to its new one for good", async ({ request }) => {
+    for (const template of TEMPLATES.filter(({ added }) => added <= "2026-10-12")) {
+      const response = await request.get(`/previews/${template.id}.webp`, { maxRedirects: 0 })
+      expect(response.status(), template.name).toBe(308)
+      expect(response.headers().location, template.name).toBe(template.image)
+    }
   })
 
   test("are asked to leave the dashboard and the editor out", async ({ request }) => {

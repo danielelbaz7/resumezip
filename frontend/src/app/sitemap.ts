@@ -2,10 +2,15 @@ import type { MetadataRoute } from "next"
 import { SITE_URL } from "@/lib/site"
 import { TEMPLATES, templatePath } from "@/lib/templates"
 
-// The pages people search for, with each template's own. The editor, the
-// dashboard and the Google Drive sign-in page say noindex instead.
-const PAGES = ["/", "/templates", ...TEMPLATES.map(templatePath), "/templates/how-they-read", "/about", "/terms"]
+const url = (path: string) => new URL(path, SITE_URL).href
 
+// The pages people search for, with each template's own, which lists its
+// picture for image search. The editor, the dashboard and the Google Drive
+// sign-in page say noindex instead.
 export default function sitemap(): MetadataRoute.Sitemap {
-  return PAGES.map((path) => ({ url: new URL(path, SITE_URL).href }))
+  return [
+    ...["/", "/templates"].map((path) => ({ url: url(path) })),
+    ...TEMPLATES.map((template) => ({ url: url(templatePath(template)), images: [url(template.image)] })),
+    ...["/templates/how-they-read", "/about", "/terms"].map((path) => ({ url: url(path) })),
+  ]
 }

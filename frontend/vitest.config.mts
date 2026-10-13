@@ -5,6 +5,9 @@ export default defineConfig({
   resolve: {
     alias: { "@": path.resolve(import.meta.dirname, "src") },
   },
+  // tsconfig leaves JSX to Next ("preserve"); a test that imports a .tsx
+  // module, like a share card's, needs it compiled.
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     include: ["src/**/*.test.ts"],
     // Starting the Typst compiler and rendering a resume takes a few seconds.

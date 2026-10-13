@@ -3,10 +3,11 @@
 import Image from "next/image"
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
+import { templateById } from "@/lib/templates"
 
 // The sample resume (Modern Jake's preview), and where its parts sit on the
 // page, as percentages of its width and height, measured from the picture.
-const PAGE = { src: "/previews/modernjack.webp", width: 1280, height: 1656 }
+const PAGE = { src: templateById("modernjack").image, width: 1280, height: 1656 }
 
 const PARTS: { label: string; top: number; height: number }[] = [
   { label: "Name & contact", top: 3.5, height: 6.5 },
