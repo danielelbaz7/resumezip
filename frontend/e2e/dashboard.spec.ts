@@ -959,7 +959,7 @@ test("with no resumes, the page keeps its toolbar and buttons, and the empty pag
   await expect(page.getByRole("button", { name: "Download all" })).toBeDisabled()
 
   const choosing = page.waitForEvent("filechooser")
-  await page.getByRole("button", { name: "Drop a PDF or Docx file Choose a file" }).click()
+  await page.getByRole("button", { name: "Drop a PDF, Word or JSON file Choose a file" }).click()
   await choosing
   await page.getByRole("button", { name: "New resume" }).first().click()
   await expect(page.getByRole("dialog", { name: "New resume" })).toBeVisible()

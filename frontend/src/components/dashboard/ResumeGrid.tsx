@@ -187,7 +187,7 @@ export function DropTile({ onChooseFile, dragging }: { onChooseFile: () => void;
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
         <path className="drop-arrow" d="M12 19V6m-5 5 5-5 5 5M5 3.5h14" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="text-[15px] font-medium leading-snug text-ink">Drop a PDF or Docx file</span>
+      <span className="text-[15px] font-medium leading-snug text-ink">Drop a PDF, Word or JSON file</span>
       {/* Looks like a button; the whole tile is the one. */}
       <span className="white-button inline-flex h-9 items-center rounded-full px-4 text-sm font-medium">Choose a file</span>
     </button>
