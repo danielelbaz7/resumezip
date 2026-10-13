@@ -196,7 +196,7 @@ test("leaving the page stops reading the file", async ({ page }) => {
   const pdfjs = await holdPdfjs(page)
 
   await page.goto("/about")
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Your resumes" }).click()
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Dashboard" }).click()
   await page.locator('input[type="file"]').setInputFiles(pdf([RESUME]))
   await expect.poll(() => pdfjs.held).toBe(true)
   await page.goBack()

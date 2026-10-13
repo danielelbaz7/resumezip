@@ -651,6 +651,15 @@ test("on a phone, the search stays in the toolbar, with its matches under it, an
   expect(errors).toEqual([])
 })
 
+test("the header's Dashboard opens the dashboard, which the tab calls Dashboard", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.goto("/about")
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Dashboard" }).click()
+  await expect(page).toHaveURL(/\/create\/dashboard$/)
+  await expect(page).toHaveTitle(/^Dashboard/)
+  expect(errors).toEqual([])
+})
+
 test("the tags show their resumes, with how many each has", async ({ page }) => {
   const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Ada"), resume("b", "Grace", { resumeTag: "personal" }), resume("c", "Kestrel")])

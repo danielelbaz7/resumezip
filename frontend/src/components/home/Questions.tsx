@@ -29,9 +29,9 @@ const QUESTIONS: { question: string; answer: React.ReactNode }[] = [
     question: "How do I edit it later, or on another computer?",
     answer: (
       <>
-        On{" "}
+        On the{" "}
         <Link href="/create/dashboard" className={TEXT_LINK}>
-          Your Resumes
+          Dashboard
         </Link>
         , open the PDF you downloaded: resumezip reads your resume back out of it. A JSON file, from the ▾ beside Download PDF, opens the
         same way, and keeps what you left out of the PDF too.
@@ -46,7 +46,7 @@ const QUESTIONS: { question: string; answer: React.ReactNode }[] = [
   {
     question: "Can I bring the resume I already have?",
     answer:
-      "Yes. Open a PDF or Word (.docx) file from Your Resumes, and resumezip sorts it into the editor’s fields for you to check. It’s read in your browser, not uploaded.",
+      "Yes. Open a PDF or Word (.docx) file from the Dashboard, and resumezip sorts it into the editor’s fields for you to check. It’s read in your browser, not uploaded.",
   },
 ]
 

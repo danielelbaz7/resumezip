@@ -129,13 +129,13 @@ Yes. Every template and every download. No ads, no trial, no watermark.
 No. It's saved in your browser, and we don't store it. The code is right here, so anyone can check.
 
 **How do I edit it later, or on another computer?**
-On Your Resumes, open the PDF you downloaded: resumezip reads your resume back out of it. A JSON file, from the ▾ beside Download PDF, opens the same way, and keeps what you left out of the PDF too.
+On the Dashboard, open the PDF you downloaded: resumezip reads your resume back out of it. A JSON file, from the ▾ beside Download PDF, opens the same way, and keeps what you left out of the PDF too.
 
 **Will hiring software be able to read it?**
 Yes. The PDF is real text, not a picture, and its links and contact details are printed as text.
 
 **Can I bring the resume I already have?**
-Yes. Open a PDF or Word (.docx) file from Your Resumes, and resumezip sorts it into the editor's fields for you to check.
+Yes. Open a PDF or Word (.docx) file from the Dashboard, and resumezip sorts it into the editor's fields for you to check.
 
 </details>
 
@@ -183,7 +183,7 @@ npm run dev   # http://localhost:3000
 
 ```
 frontend/
-├── src/app/                  pages: home, templates, editor, Your Resumes
+├── src/app/                  pages: home, templates, editor, dashboard
 ├── src/components/editor/    the editor: Write, Check and Style, the preview
 ├── src/lib/typst/            PDF engine, templates and fonts
 ├── src/lib/import/           opening PDF and Word files

@@ -56,7 +56,7 @@ for (const width of [390, 1440]) {
       expect(await pillTop(page), path).toBe(top)
       const header = (await page.getByRole("banner").boundingBox())!
       expect((await page.getByRole("main").boundingBox())!.y).toBeGreaterThanOrEqual(header.y + header.height)
-      // An empty Your resumes is too short to scroll.
+      // An empty dashboard is too short to scroll.
       if (path === "/create/dashboard") continue
 
       await page.mouse.wheel(0, 600)
