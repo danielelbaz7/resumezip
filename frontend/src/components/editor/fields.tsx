@@ -100,7 +100,7 @@ export function Field({
   const hintId = useId()
   const describedBy = [hint && hintId, flag && noteId].filter(Boolean).join(" ") || undefined
   const look = `relative w-full min-w-0 border-0 bg-transparent py-2 text-base text-ink outline-none transition-colors focus-visible:outline-none ${
-    !flag ? "border-b border-rule-strong" : "border-b-2 border-accent"
+    !flag ? "border-b border-rule-strong hover:border-ink/40" : "border-b-2 border-accent"
   }`
   const Labelled = multiline ? "div" : "label"
   return (
@@ -237,20 +237,52 @@ export function FormatHint({ moveLines = false }: { moveLines?: boolean }) {
   )
 }
 
+/** How much of a bullet an open card shows until its box is used, in characters, cut at a word: about a line and a half. */
+const PREVIEW_CHARACTERS = 70
+/** How many bullets an open card shows until its box is used. */
+const PREVIEW_BULLETS = 2
+
+/** A bullet's words without their bold and italic marks, cut short at a word, with "…" where they were cut. */
+function previewOf(words: string): string {
+  const plain = markedPieces(words)
+    .map((piece) => piece.text)
+    .join("")
+  if (plain.length <= PREVIEW_CHARACTERS) return plain
+  const cut = plain.slice(0, PREVIEW_CHARACTERS + 1)
+  const space = cut.lastIndexOf(" ")
+  return `${(space > PREVIEW_CHARACTERS / 2 ? cut.slice(0, space) : cut.slice(0, PREVIEW_CHARACTERS)).replace(/[\s,.;:]+$/, "")}…`
+}
+
 /**
  * A box for bullet points: one per line, and Enter starts a new bullet. Bold
  * and italic words show as they print, and are saved as **bold**, *italic*
  * and ***both***; ⌘B and ⌘I add or remove them. Alt+↑ and Alt+↓ move the line
  * the cursor is on. "Arrange" shows the bullets as a list instead, to move
  * them and leave them out of the PDF.
+ *
+ * With `compact`, as in an entry's card, it shows its first bullets cut short
+ * and how many more there are until it's used: the box itself is over them,
+ * unseen, so a click or Tab goes into it, and screen readers read all of it.
  */
-export function BulletsField({ label, value, placeholder, className = "", onChange, name, flag, request }: FieldProps) {
+export function BulletsField({
+  label,
+  value,
+  placeholder,
+  className = "",
+  onChange,
+  name,
+  flag,
+  request,
+  compact = false,
+}: FieldProps & { compact?: boolean }) {
   const text = withBullets(value)
   const boxId = useId()
   const hintId = useId()
   const noteId = useId()
   const bullets = bulletLines(text)
   const [arranging, setArranging] = useState(false)
+  // Once the box has been used, it shows in full until its card is folded.
+  const [used, setUsed] = useState(false)
   // Choosing a finding here shows the text, where the cursor goes to it. Only a
   // new choice does: the finding is found afresh each time the checker runs,
   // and it's gone while the person is in Write mode, then back.
@@ -258,7 +290,13 @@ export function BulletsField({ label, value, placeholder, className = "", onChan
   if (request !== undefined && request !== shownRequest) {
     setShownRequest(request)
     setArranging(false)
+    setUsed(true)
   }
+  const previewing = compact && !used && !arranging && bullets.length > 0
+  // A white box with a thin edge, which darkens while it's typed in; the cut-short bullets are drawn in the same box.
+  const box = `w-full rounded-[6px] border bg-sheet px-4 py-3.5 text-[16px] leading-[1.7] text-ink outline-none transition-colors duration-200 focus-visible:outline-none motion-reduce:transition-none md:text-[15px] ${
+    !flag ? "border-rule focus:border-ink/30" : "border-accent ring-1 ring-accent"
+  }`
 
   return (
     <div data-field={name} className={`group/field flex min-w-0 flex-col gap-2 ${className}`}>
@@ -275,9 +313,12 @@ export function BulletsField({ label, value, placeholder, className = "", onChan
         {(arranging || bullets.length > 0) && (
           <button
             type="button"
-            onClick={() => setArranging(!arranging)}
+            onClick={() => {
+              setArranging(!arranging)
+              setUsed(true)
+            }}
             aria-label={arranging ? "Done arranging bullets" : "Arrange bullets"}
-            className="-my-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-ink-2 transition-colors hover:bg-ink/[0.05] hover:text-ink"
+            className="-my-1.5 -mr-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-ink-2 transition-colors hover:bg-ink/[0.05] hover:text-ink"
           >
             {arranging ? (
               "Done"
@@ -293,25 +334,39 @@ export function BulletsField({ label, value, placeholder, className = "", onChan
       {arranging ? (
         <ArrangedBullets labelId={`${boxId}-label`} text={text} onChange={onChange} />
       ) : (
-        <StyledBox
-          kind="bullets"
-          id={boxId}
-          value={value}
-          onChange={onChange}
-          labelId={`${boxId}-label`}
-          describedBy={flag ? `${hintId} ${noteId}` : hintId}
-          invalid={flag?.level === "fix"}
-          placeholder={placeholder}
-          // A soft blue halo while it has focus, as a field's glow: a shadow, so nothing moves.
-          className={`min-h-[132px] w-full rounded-[4px] border bg-sheet px-4 py-3.5 text-[15px] leading-[1.7] text-ink outline-none transition-[border-color,box-shadow] duration-200 ease-out focus:shadow-[0_0_0_4px_rgb(46_91_230/0.1),0_10px_28px_-12px_rgb(46_91_230/0.5)] focus-visible:outline-none motion-reduce:transition-none ${
-            !flag ? "border-rule focus:border-accent" : "border-accent ring-1 ring-accent"
-          }`}
-        />
+        <div className="relative" onFocus={() => setUsed(true)}>
+          {previewing && (
+            <div aria-hidden="true" className={`${box} flex flex-col`}>
+              {bullets.slice(0, PREVIEW_BULLETS).map((bullet) => (
+                <p key={bullet.line} className={bullet.leftOut ? "text-ink-2" : undefined}>
+                  {bullet.leftOut ? "○" : "•"} {previewOf(bullet.words)}
+                </p>
+              ))}
+              {bullets.length > PREVIEW_BULLETS && (
+                <p className="mt-0.5 text-[13px] text-ink-2">+ {bullets.length - PREVIEW_BULLETS} more</p>
+              )}
+            </div>
+          )}
+          {/* While the bullets show cut short, the box is over them, unseen, and no taller. */}
+          <div className={previewing ? "absolute inset-0 overflow-hidden opacity-0" : undefined}>
+            <StyledBox
+              kind="bullets"
+              id={boxId}
+              value={value}
+              onChange={onChange}
+              labelId={`${boxId}-label`}
+              describedBy={flag ? `${hintId} ${noteId}` : hintId}
+              invalid={flag?.level === "fix"}
+              placeholder={placeholder}
+              className={`${box} ${compact ? "min-h-[110px]" : "min-h-[132px]"}`}
+            />
+          </div>
+        </div>
       )}
       {flag && <FlagNote id={noteId} finding={flag} />}
       {!arranging && (
-        <span id={hintId} className="text-[13px] leading-normal text-ink-2">
-          <FormatHint moveLines />
+        <span id={hintId} className={`text-[13px] leading-normal text-ink-2 ${previewing ? "sr-only" : ""}`}>
+          One bullet per line · <FormatHint moveLines />
           {bullets.some((bullet) => bullet.leftOut) && " · Lines starting with ○ are left out of the PDF."}
         </span>
       )}
@@ -351,7 +406,7 @@ function ArrangedBullets({ labelId, text, onChange }: { labelId: string; text: s
 
   return (
     <div className="flex flex-col gap-2">
-      <ul aria-labelledby={labelId} className="flex flex-col overflow-hidden rounded-[4px] border border-rule bg-sheet">
+      <ul aria-labelledby={labelId} className="flex flex-col overflow-hidden rounded-[6px] border border-rule bg-sheet">
         {keyed.map((bullet, index) => (
           <li key={bullet.key} className="flex items-start gap-3 border-b border-rule px-4 py-2 last:border-b-0">
             <input
@@ -391,20 +446,20 @@ function ArrangedBullets({ labelId, text, onChange }: { labelId: string; text: s
 }
 
 interface SectionHeadingProps {
-  /** e.g. "03 / 08" */
-  position: string
   title: string
+  /** A line under the title, as "3 entries · drag to reorder". */
+  note?: string
   /** When given, the title can be renamed. */
   onRename?: (title: string) => void
   /** What the checker found about the section or its title, while the person is fixing it. */
   flag?: Finding | null
   allowEmpty?: boolean
-  /** At the far end of the title's line, as a section's Delete. */
+  /** At the far end of the title, as a section's Delete. */
   end?: React.ReactNode
 }
 
-/** The big serif title at the top of each section, optionally renameable. */
-export function SectionHeading({ position, title, onRename, flag, allowEmpty = false, end }: SectionHeadingProps) {
+/** The big serif title at the top of each section, optionally renameable, with a note under it. */
+export function SectionHeading({ title, note, onRename, flag, allowEmpty = false, end }: SectionHeadingProps) {
   const [draft, setDraft] = useState<string | null>(null)
   const renameButton = useRef<HTMLButtonElement>(null)
   // Set when the rename ends from the keyboard, so the focus goes back to the
@@ -423,46 +478,50 @@ export function SectionHeading({ position, title, onRename, flag, allowEmpty = f
   }
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <span className="label-mono text-ink-2">{position}</span>
-      {draft === null ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 tabIndex={-1} className="font-serif text-[40px] leading-[1.1] tracking-[-0.02em]">
-            {title}
-          </h1>
-          {onRename && (
-            <button
-              ref={renameButton}
-              type="button"
-              aria-label="Rename section"
-              title="Rename section"
-              onClick={() => setDraft(title)}
-              className="rounded-full p-1.5 text-ink-2 transition-colors hover:text-ink"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-col gap-[5px]">
+          {draft === null ? (
+            <div className="group/title flex min-w-0 flex-wrap items-center gap-1.5">
+              <h1 tabIndex={-1} className="min-w-0 font-serif text-[34px] leading-[1.1] tracking-[-0.03em] wrap-anywhere sm:text-[40px]">
+                {title}
+              </h1>
+              {onRename && (
+                <button
+                  ref={renameButton}
+                  type="button"
+                  aria-label="Rename section"
+                  title="Rename section"
+                  onClick={() => setDraft(title)}
+                  className="rounded-full p-1.5 text-ink-3 transition-[color,opacity] hover:text-ink [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/title:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <input
+              aria-label="Section title"
+              autoFocus
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={save}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== "Escape") return
+                // The focus is back on the rename button before Enter is done, so
+                // Enter mustn't go on to press it and open the rename again.
+                event.preventDefault()
+                refocus.current = true
+                if (event.key === "Enter") save()
+                else setDraft(null)
+              }}
+              className="w-full border-0 border-b-[1.5px] border-accent bg-transparent font-serif text-[34px] leading-[1.1] tracking-[-0.03em] outline-none focus-visible:outline-none sm:text-[40px]"
+            />
           )}
-          {end && <div className="ml-auto">{end}</div>}
+          {note && <p className="text-[14px] leading-5 text-ink-3">{note}</p>}
         </div>
-      ) : (
-        <input
-          aria-label="Section title"
-          autoFocus
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={save}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter" && event.key !== "Escape") return
-            // The focus is back on the rename button before Enter is done, so
-            // Enter mustn't go on to press it and open the rename again.
-            event.preventDefault()
-            refocus.current = true
-            if (event.key === "Enter") save()
-            else setDraft(null)
-          }}
-          className="w-full border-0 border-b-[1.5px] border-accent bg-transparent font-serif text-[40px] leading-[1.1] tracking-[-0.02em] outline-none focus-visible:outline-none"
-        />
-      )}
+        {end && <div className="-mb-1.5 ml-auto shrink-0">{end}</div>}
+      </div>
       {flag && <FlagNote finding={flag} />}
     </div>
   )

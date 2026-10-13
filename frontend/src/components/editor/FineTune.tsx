@@ -5,6 +5,7 @@ import { useOpenResume, useResumeField } from "@/context/ResumeContext"
 import { templateById } from "@/lib/templates"
 import { onPreviewFit, previewFit } from "@/lib/typst/compile"
 import {
+  PAPER_NAMES,
   printedTune,
   readTune,
   SCALES,
@@ -15,8 +16,6 @@ import {
   type Tune,
   type TuneScale,
 } from "@/lib/tune"
-
-const PAPER_NAMES: Record<Paper, string> = { "us-letter": "Letter", a4: "A4" }
 
 // Numbers as the panel shows them: no more decimals than they need.
 const decimals = (value: number, places: number) => String(Number(value.toFixed(places)))

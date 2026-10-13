@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { memo, useEffect, useRef, useState } from "react"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Layers } from "lucide-react"
 import { TEMPLATES, templateById, type TemplateId } from "@/lib/templates"
 import { reducedMotion } from "./layout"
 
@@ -88,26 +88,32 @@ function TemplatePicker({ value, onChange }: TemplatePickerProps) {
   }, [open])
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative min-w-0">
       <button
         ref={buttonRef}
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (open ? hide() : show())}
-        className="glass glass-float inline-flex h-10 items-center gap-2.5 rounded-full pl-4 pr-3.5 text-sm text-ink transition-[filter] hover:brightness-[1.03] aria-expanded:brightness-[0.98]"
+        className="white-button inline-flex h-10 max-w-full items-center gap-2.5 rounded-full pl-3.5 pr-3 text-[14px] font-medium tracking-[-0.01em]"
       >
-        {/* Said, but not shown, on phones, so the button fits beside Download PDF. */}
-        <span className="label-mono text-ink-2 max-sm:sr-only">Template</span>
-        {current.name}
-        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        <Layers className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {/* Said, but not shown: the icon stands for it. */}
+        <span className="sr-only">Template</span>
+        <span className="max-w-[9rem] truncate">{current.name}</span>
+        <ChevronDown
+          className={`-ml-0.5 h-3.5 w-3.5 shrink-0 text-ink-2 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
       </button>
 
       {shown && (
         // Below 1024px this covers the screen, over a light blur of the page,
-        // and a click around the gallery closes it. It fades in (`starting:` is
-        // CSS @starting-style): the dialog grows into place, and the panel on
-        // wider screens drops into it. It fades away the same way, as a dialog does.
+        // and a click around the gallery closes it. Wider, it drops from under
+        // its button, which is about 5rem down the window, and ends at least
+        // 1rem above its foot. It fades in (`starting:` is CSS @starting-style):
+        // the dialog grows into place, and the panel on wider screens drops into
+        // it. It fades away the same way, as a dialog does.
         <div
           inert={closing}
           className={`fixed inset-0 z-50 flex items-center justify-center bg-ink/15 p-4 backdrop-blur-[3px] transition-opacity motion-reduce:transition-none starting:opacity-0 lg:absolute lg:inset-auto lg:right-0 lg:top-12 lg:z-30 lg:block lg:bg-transparent lg:p-0 lg:backdrop-blur-none ${
@@ -122,7 +128,7 @@ function TemplatePicker({ value, onChange }: TemplatePickerProps) {
             role="dialog"
             aria-modal="true"
             aria-label="Choose a template"
-            className={`glass glass-frost flex max-h-full w-full max-w-[560px] flex-col rounded-panel transition-[scale,translate] motion-reduce:transition-none starting:scale-[0.98] lg:max-h-[calc(100dvh-6rem)] lg:w-[560px] lg:starting:-translate-y-1 lg:starting:scale-100 ${
+            className={`glass glass-frost flex max-h-full w-full max-w-[560px] flex-col rounded-panel transition-[scale,translate] motion-reduce:transition-none starting:scale-[0.98] lg:max-h-[calc(100dvh-8rem)] lg:w-[560px] lg:starting:-translate-y-1 lg:starting:scale-100 ${
               // Glass under a fading parent stops blurring, which would show the page through it as
               // it goes: it fades as a nearly solid sheet instead.
               closing

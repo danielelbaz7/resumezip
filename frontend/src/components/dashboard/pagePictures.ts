@@ -14,8 +14,8 @@ import type { PDFWorker } from "pdfjs-dist"
 import type { Resume } from "@/lib/resume"
 import { compileResume, failureOf, printedOf } from "@/lib/typst/compile"
 
-/** How wide the page is drawn, in pixels: twice the widest tile, so it's sharp on high-density screens. */
-const DRAWN_WIDTH = 560
+/** How wide the page is drawn, in pixels: twice the widest card's, so it's sharp on high-density screens. */
+const DRAWN_WIDTH = 600
 
 export interface Picture {
   /** What the resume printed when it was drawn (printedKey). */

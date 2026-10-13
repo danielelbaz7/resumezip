@@ -1,15 +1,14 @@
 "use client"
 
-import { Check, ChevronDown, LayoutGrid, List } from "lucide-react"
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react"
+import { ArrowDownWideNarrow, Check, ChevronDown, LayoutGrid, List } from "lucide-react"
+import { useId, type ReactNode } from "react"
 import { MENU_ITEM, MENU_PANEL, useMenu } from "./MoreMenu"
-import { FILTER_CHIP, GLASS_BAR } from "@/components/pills"
-import { SLIDING_PILL, useSlidingPill } from "@/components/useSlidingPill"
+import LiquidLens from "@/components/LiquidLens"
+import { SEGMENT, SEGMENTS } from "@/components/pills"
+import { useThumb } from "@/components/useThumb"
 
 export type View = "pages" | "list"
 export type Sort = "edited" | "name"
-
-const TAG = FILTER_CHIP
 
 const SORTS: { id: Sort; name: string }[] = [
   { id: "edited", name: "Last edited" },
@@ -30,96 +29,79 @@ interface FiltersProps {
 }
 
 /**
- * The row above the resumes: the search, a chip for each tag, how they're
- * sorted, and pages or a list. Where it's too narrow for one line, the chips
- * go under the rest (dashboard.css).
+ * The bar above the resumes, in liquid glass: the search, a chip for each
+ * tag, how they're sorted, and pages or a list. Where it's too narrow for one
+ * line, the chips go under the rest (dashboard.css).
  */
 export default function Filters({ search, tags, tag, onTag, sort, onSort, view, onView }: FiltersProps) {
-  const { group, pill, placed } = useSlidingPill(tag, tags.map((option) => option.id).join("\n"))
-  const views = useViewThumb(view)
+  const chips = useThumb(tag, tags.map((option) => `${option.id} ${option.count}`).join("\n"))
+  const views = useThumb(view)
   return (
-    // One glass bar, as on the templates page (dashboard.css lays out what's in it).
-    <div className={`dash-toolbar ${GLASS_BAR}`}>
+    <div className="dash-toolbar glass glass-liquid">
+      <LiquidLens bevel={26} strength={1.25} />
       <div className="dash-toolbar-search">{search}</div>
       <div className="dash-toolbar-chips">
-        {/* One line that scrolls sideways where it's too narrow, as the templates page's styles do. */}
+        {/* One line that scrolls sideways where it's too narrow. */}
         <div
-          ref={group}
+          ref={chips.group}
           role="group"
           aria-label="Show"
-          className="relative flex min-w-0 gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className={`${SEGMENTS} overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
         >
+          <span ref={chips.thumb} aria-hidden="true" className={`segment-thumb ${chips.placed ? "" : "invisible"}`} />
           {tags.map((option) => {
             const pressed = tag === option.id
-            // Until the pill is placed, the pressed chip draws itself as picked. Under the pill, it has
-            // no line round it to show at the pill's edge.
-            const look = !pressed ? "text-ink hover:bg-ink/[0.06]" : placed ? "text-ink" : "bg-ink text-white"
             return (
               <button
                 key={option.id}
                 type="button"
                 aria-pressed={pressed}
                 onClick={() => onTag(option.id)}
-                className={`${TAG} transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none ${look}`}
+                // Until the white pill is placed, the pressed chip draws its own.
+                className={`${SEGMENT} gap-[7px] px-4 font-normal ${pressed ? "text-ink" : "text-ink-2 hover:text-ink"} ${pressed && !chips.placed ? "bg-sheet shadow-[0_1px_3px_rgb(17_19_24/0.14)]" : ""}`}
               >
-                {option.name}{" "}
-                <span className={`font-mono text-[11px] font-normal ${pressed && !placed ? "text-white/70" : "text-ink-2"}`}>
-                  {option.count}
-                </span>
+                {option.name} <span className="text-[12px] tabular-nums text-ink-3">{option.count}</span>
               </button>
             )
           })}
-          <div ref={pill} aria-hidden="true" className={`${SLIDING_PILL} flex w-max min-w-full gap-0.5 ${placed ? "" : "invisible"}`}>
-            {tags.map((option) => (
-              <span key={option.id} className={TAG}>
-                {option.name} <span className="font-mono text-[11px] font-normal text-white/70">{option.count}</span>
-              </span>
-            ))}
-          </div>
         </div>
       </div>
       <div className="dash-toolbar-controls">
-        <div className="flex items-center gap-1">
-          <SortMenu sort={sort} onSort={onSort} />
-          {/* Left and right switch between the two, as the editor's Write / Check / Style do. Only the
+        <SortMenu sort={sort} onSort={onSort} />
+        {/* Left and right switch between the two, as the editor's Write / Check / Style do. Only the
             chosen one is in the Tab order, so focus is always on the white pill and needs no ring. */}
-          <div
-            ref={views.group}
-            role="group"
-            aria-label="View"
-            onKeyDown={(event) => {
-              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
-              event.preventDefault()
-              const next = view === "pages" ? "list" : "pages"
-              onView(next)
-              event.currentTarget.querySelector<HTMLElement>(`[data-view="${next}"]`)?.focus()
-            }}
-            className="relative inline-flex h-9 rounded-full bg-ink/[0.06] p-[3px]"
+        <div
+          ref={views.group}
+          role="group"
+          aria-label="View"
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
+            event.preventDefault()
+            const next = view === "pages" ? "list" : "pages"
+            onView(next)
+            event.currentTarget.querySelector<HTMLElement>(`[data-view="${next}"]`)?.focus()
+          }}
+          className="segment-track h-[46px] p-[5px]"
+        >
+          <span ref={views.thumb} aria-hidden="true" className={`segment-thumb ${views.placed ? "" : "invisible"}`} />
+          <ViewButton
+            view="pages"
+            pressed={view === "pages"}
+            placed={views.placed}
+            onClick={() => onView("pages")}
+            icon={<LayoutGrid className="h-[17px] w-[17px]" aria-hidden="true" />}
           >
-            <span
-              ref={views.thumb}
-              aria-hidden="true"
-              className={`absolute bottom-[3px] left-0 top-[3px] rounded-full bg-sheet shadow-[0_1px_3px_rgb(17_19_24/0.14)] transition-[translate,width] duration-300 ease-glide motion-reduce:transition-none ${views.placed ? "" : "invisible"}`}
-            />
-            <ViewButton
-              view="pages"
-              pressed={view === "pages"}
-              placed={views.placed}
-              onClick={() => onView("pages")}
-              icon={<LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />}
-            >
-              Pages
-            </ViewButton>
-            <ViewButton
-              view="list"
-              pressed={view === "list"}
-              placed={views.placed}
-              onClick={() => onView("list")}
-              icon={<List className="h-3.5 w-3.5" aria-hidden="true" />}
-            >
-              List
-            </ViewButton>
-          </div>
+            Pages
+          </ViewButton>
+          <ViewButton
+            view="list"
+            pressed={view === "list"}
+            placed={views.placed}
+            onClick={() => onView("list")}
+            icon={<List className="h-[17px] w-[17px]" aria-hidden="true" />}
+          >
+            List
+          </ViewButton>
         </div>
       </div>
     </div>
@@ -140,11 +122,13 @@ function SortMenu({ sort, onSort }: { sort: Sort; onSort: (sort: Sort) => void }
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         onClick={() => setOpen((open) => !open)}
-        className="inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] text-ink transition-colors duration-200 hover:bg-ink/[0.06] motion-reduce:transition-none"
+        aria-label={`Sort ${current.name}`}
+        className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-[14px] text-ink-2 transition-colors duration-200 hover:bg-white/60 hover:text-ink motion-reduce:transition-none"
       >
-        <span className="text-ink-2">Sort</span> {current.name}
+        <ArrowDownWideNarrow className="h-4 w-4" aria-hidden="true" />
+        {current.name}
         <ChevronDown
-          className={`h-3.5 w-3.5 text-ink-2 transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
+          className={`h-3.5 w-3.5 transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
           aria-hidden="true"
         />
       </button>
@@ -180,48 +164,6 @@ function SortMenu({ sort, onSort }: { sort: Sort; onSort: (sort: Sort) => void }
   )
 }
 
-/**
- * The white pill under the pressed View button, which slides to the other one
- * when it's pressed. `group` goes on the buttons' parent, which is `relative`,
- * and `thumb` on the pill, in it. Until it's `placed`, as in the page as built
- * before React runs, the pressed button draws its own. When a button changes
- * size, as when the font loads or the labels hide on a phone, the pill is put
- * in place without sliding.
- */
-function useViewThumb(view: View) {
-  const group = useRef<HTMLDivElement>(null)
-  const thumb = useRef<HTMLSpanElement>(null)
-  // The view the pill was last put on, so a new one slides it there.
-  const at = useRef<View | null>(null)
-  const [placed, setPlaced] = useState(false)
-
-  useLayoutEffect(() => {
-    const row = group.current
-    const pill = thumb.current
-    const pressed = row?.querySelector<HTMLElement>('[aria-pressed="true"]')
-    if (!row || !pill || !pressed) return
-    const spot = () => `${pressed.offsetLeft} ${pressed.offsetWidth}`
-    let placedAt = ""
-    const place = (slide: boolean) => {
-      placedAt = spot()
-      pill.style.transitionDuration = slide ? "" : "0s"
-      pill.style.translate = `${pressed.offsetLeft}px`
-      pill.style.width = `${pressed.offsetWidth}px`
-    }
-    place(at.current !== null && at.current !== view)
-    at.current = view
-    setPlaced(true)
-    // The observer also reports the sizes as it starts, which isn't a change.
-    const observer = new ResizeObserver(() => {
-      if (spot() !== placedAt) place(false)
-    })
-    for (const button of row.querySelectorAll("[aria-pressed]")) observer.observe(button)
-    return () => observer.disconnect()
-  }, [view])
-
-  return { group, thumb, placed }
-}
-
 function ViewButton({
   view,
   pressed,
@@ -232,7 +174,7 @@ function ViewButton({
 }: {
   view: View
   pressed: boolean
-  /** Whether the sliding pill (useViewThumb) is drawn, so the pressed button needn't draw its own. */
+  /** Whether the sliding pill (useThumb) is drawn, so the pressed button needn't draw its own. */
   placed: boolean
   onClick: () => void
   icon: ReactNode
@@ -245,13 +187,13 @@ function ViewButton({
       aria-pressed={pressed}
       tabIndex={pressed ? 0 : -1}
       onClick={onClick}
-      className={`relative inline-flex h-full items-center gap-1.5 rounded-full px-3.5 text-[15px] transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none motion-reduce:transition-none ${
-        !pressed ? "text-ink-2 hover:text-ink" : placed ? "text-ink" : "bg-sheet text-ink shadow-[0_1px_3px_rgb(17_19_24/0.14)]"
+      className={`relative inline-flex h-9 w-10 items-center justify-center rounded-full transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none motion-reduce:transition-none ${
+        !pressed ? "text-ink-3 hover:text-ink" : placed ? "text-ink" : "bg-sheet text-ink shadow-[0_1px_3px_rgb(17_19_24/0.14)]"
       }`}
     >
       {icon}
-      {/* Said, but not shown, on phones, where the bar's last line has room only for the icons. */}
-      <span className="max-sm:sr-only">{children}</span>
+      {/* Said, but not shown: the icons are the switch. */}
+      <span className="sr-only">{children}</span>
     </button>
   )
 }

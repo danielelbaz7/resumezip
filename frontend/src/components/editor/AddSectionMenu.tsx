@@ -3,41 +3,16 @@
 import type React from "react"
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import {
-  AlignLeft,
-  Award,
-  BookOpen,
-  BriefcaseBusiness,
-  ChevronLeft,
-  ChevronRight,
-  Flag,
-  FolderKanban,
-  GraduationCap,
-  HandHeart,
-  List,
-  Plus,
-  Wrench,
-  type LucideIcon,
-} from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import type { ExtraKind } from "@/lib/resumeSections"
 import { reducedMotion, WIDE_SCREEN } from "./layout"
+import { EXTRA_ICONS, SECTION_ICONS } from "./sectionIcons"
 import { SECTIONS, type SectionName } from "./sections"
 
-const ICONS: Record<SectionName, LucideIcon> = {
-  Education: GraduationCap,
-  Work: BriefcaseBusiness,
-  Skills: Wrench,
-  Projects: FolderKanban,
-  Publications: BookOpen,
-  Volunteership: HandHeart,
-  Leadership: Flag,
-  Awards: Award,
-}
-
 /** What Custom section offers: a section of the person's own, of text or of bullets. */
-const CUSTOM: { kind: ExtraKind; title: string; Icon: LucideIcon }[] = [
-  { kind: "text", title: "Text", Icon: AlignLeft },
-  { kind: "list", title: "Bullet list", Icon: List },
+const CUSTOM: { kind: ExtraKind; title: string }[] = [
+  { kind: "text", title: "Text" },
+  { kind: "list", title: "Bullet list" },
 ]
 
 // How long the menu takes to fade away, in milliseconds (matches duration-150).
@@ -174,9 +149,9 @@ export default function AddSectionMenu({ sections, onAdd }: AddSectionMenuProps)
       if (menu.current?.contains(target) || button.current?.contains(target)) return
       latestClose.current()
     }
-    const follow = () => {
-      if (button.current) setPlace(placeBy(button.current))
-    }
+    // Only a menu that's still there moves: a scroll in the moment it goes, as the page scrolls to the
+    // section just added, mustn't put it back.
+    const follow = () => setPlace((current) => (current && button.current ? placeBy(button.current) : current))
     document.addEventListener("pointerdown", onPointerDown)
     window.addEventListener("resize", follow)
     window.addEventListener("scroll", follow, true)
@@ -217,11 +192,12 @@ export default function AddSectionMenu({ sections, onAdd }: AddSectionMenuProps)
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => (open ? close() : show())}
-        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-dashed border-ink/25 px-3.5 text-sm text-ink-2 transition-[color,border-color,scale] duration-150 hover:border-ink hover:text-ink active:scale-[0.98] aria-expanded:border-ink aria-expanded:text-ink motion-reduce:transition-none xl:mt-3 xl:h-10 xl:w-full"
+        // In the list on wide screens, a row of its own, as wide as the sections, which the menu takes; in the row of tabs, a pill.
+        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[15px] font-medium tracking-[-0.01em] text-accent transition-[background-color,scale] duration-150 hover:bg-accent/[0.06] active:scale-[0.98] aria-expanded:bg-accent/[0.06] motion-reduce:transition-none xl:mt-[6px] xl:h-10 xl:w-full xl:justify-start xl:gap-3 xl:rounded-[12px] xl:px-[11px]"
       >
         {/* It turns into a cross while the menu is open. */}
         <Plus
-          className={`h-4 w-4 transition-transform duration-200 ease-out motion-reduce:transition-none ${open ? "rotate-45" : ""}`}
+          className={`h-4 w-4 transition-transform duration-200 ease-out motion-reduce:transition-none xl:mx-px ${open ? "rotate-45" : ""}`}
           aria-hidden="true"
         />
         Add section
@@ -260,7 +236,7 @@ export default function AddSectionMenu({ sections, onAdd }: AddSectionMenuProps)
                         {/* Two columns where there's room: the first as wide as its words, so the second has room for "Awards & Certifications". */}
                         <div className={`grid gap-0.5 ${place.narrow ? "" : "grid-cols-[auto_1fr]"}`}>
                           {sections.map((name) => {
-                            const Icon = ICONS[name]
+                            const Icon = SECTION_ICONS[name]
                             return (
                               <button key={name} type="button" role="menuitem" onClick={() => choose(name)} className={item}>
                                 <Icon className={icon} aria-hidden="true" />
@@ -285,12 +261,15 @@ export default function AddSectionMenu({ sections, onAdd }: AddSectionMenuProps)
                       Back
                     </button>
                     <div role="separator" className="mx-3 my-1.5 h-px bg-ink/10" />
-                    {CUSTOM.map(({ kind, title, Icon }) => (
-                      <button key={kind} type="button" role="menuitem" onClick={() => choose(kind)} className={item}>
-                        <Icon className={icon} aria-hidden="true" />
-                        {title}
-                      </button>
-                    ))}
+                    {CUSTOM.map(({ kind, title }) => {
+                      const Icon = EXTRA_ICONS[kind]
+                      return (
+                        <button key={kind} type="button" role="menuitem" onClick={() => choose(kind)} className={item}>
+                          <Icon className={icon} aria-hidden="true" />
+                          {title}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>

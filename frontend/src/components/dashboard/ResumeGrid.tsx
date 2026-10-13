@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { Plus } from "lucide-react"
 import type { ResumeWithId } from "@/lib/resume"
 import { templateById } from "@/lib/templates"
 import MoreMenu from "./MoreMenu"
@@ -27,6 +28,13 @@ export function editedAgo(value: string | undefined, now = new Date()): string {
   return (date.getFullYear() === now.getFullYear() ? dayFormat : yearFormat).format(date)
 }
 
+/** "Edited yesterday", "Edited 5 min ago", "Edited Oct 2", or nothing when the time can't be read. */
+export function editedPhrase(value: string | undefined, now = new Date()): string {
+  const ago = editedAgo(value, now)
+  if (ago === "—") return ""
+  return `Edited ${ago === "Just now" || ago === "Yesterday" ? ago.toLowerCase() : ago}`
+}
+
 interface ResumeGridProps {
   resumes: ResumeWithId[]
   actions: ListActions
@@ -37,28 +45,29 @@ interface ResumeGridProps {
   leaving: ReadonlySet<string>
   /** A resume Undo just put back, whose page is still flying back to it. */
   returning: string | null
-  onChooseFile: () => void
-  /** A file is being dragged over the page. */
-  dragging: boolean
+  /** Opens New resume, from the last tile. */
+  onNew: () => void
 }
 
 /**
- * Every resume as its first page, newest first, with its name and template
- * under it. Pointing at a page, or moving focus into it, shows what can be
- * done with it; on touch screens that's always showing, and on phones it's
- * under the name. The last tile takes a file to open.
+ * Every resume as a card: its first page across its top, then its type in
+ * small capitals, its name, and its template and when it was last edited.
+ * Pointing at a card, or moving focus into it, shows what can be done with
+ * it; on touch screens that's always showing, and on phones it's under the
+ * name. The last tile starts a new one.
  */
-export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leaving, returning, onChooseFile, dragging }: ResumeGridProps) {
+export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leaving, returning, onNew }: ResumeGridProps) {
   const { downloading, downloaded, renaming, setRenaming, finishRenaming, copied, duplicate, download } = actions
   const now = new Date()
   const open = useOpenResume()
 
   return (
-    <ul aria-label="Resumes" className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 md:gap-x-6 lg:grid-cols-4 xl:grid-cols-5">
+    <ul aria-label="Resumes" className="resume-grid">
       {resumes.map((resume, index) => {
         const href = `/create/new/${resume.id}`
         const name = nameOf(resume)
         const busy = downloading.includes(resume.id)
+        const edited = editedPhrase(resume.updatedAt, now)
         return (
           <li
             key={resume.id}
@@ -68,61 +77,55 @@ export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leavi
               resume.id === copied ? "is-copied" : ""
             }`}
           >
-            <div data-resume-page className="tile-page relative aspect-[8.5/11]" style={morph("page", index)}>
-              {/* The picture opens the resume too. The name's link is the one announced, so this one's skipped. */}
-              <Link href={href} onClick={open} tabIndex={-1} aria-hidden="true" className="absolute inset-0">
-                <PagePicture
-                  id={resume.id}
-                  resume={resume}
-                  sizes="(min-width: 1280px) 260px, (min-width: 768px) 30vw, 50vw"
-                  className="h-full w-full"
-                />
-              </Link>
-              {resume.resumeTag && (
-                <span aria-hidden="true" className="tile-tag">
-                  {tagName(resume.resumeTag)}
-                </span>
-              )}
+            <div className="tile-stage">
+              {/* The stage opens the resume too. The name's link is the one announced, so this one's skipped. */}
+              <Link href={href} onClick={open} tabIndex={-1} aria-hidden="true" className="absolute inset-0 z-[1] rounded-[inherit]" />
+              <div data-resume-page className="tile-page" style={morph("page", index)}>
+                <PagePicture id={resume.id} resume={resume} sizes="(min-width: 640px) 300px, 50vw" className="h-full w-full" />
+              </div>
             </div>
 
-            {renaming?.id === resume.id ? (
-              <input
-                aria-label="Resume name"
-                value={renaming.draft}
-                placeholder="Untitled resume"
-                maxLength={200}
-                autoFocus
-                onFocus={(event) => event.currentTarget.select()}
-                onChange={(event) => setRenaming({ id: resume.id, draft: event.target.value })}
-                onBlur={() => finishRenaming(resume, true, false)}
-                onKeyDown={(event) => {
-                  // Enter or Escape while typing with an input method (as for Japanese) picks or cancels a character.
-                  if (event.nativeEvent.isComposing) return
-                  if (event.key === "Enter") finishRenaming(resume, true, true)
-                  else if (event.key === "Escape") finishRenaming(resume, false, true)
-                }}
-                className="mt-3 w-full min-w-0 border-0 border-b border-accent bg-transparent py-0.5 font-serif text-[19px] leading-tight text-ink outline-none placeholder:text-ink-2 focus-visible:outline-none md:text-[21px]"
-              />
-            ) : (
-              <Link
-                href={href}
-                onClick={open}
-                title={name}
-                data-resume-link={resume.id}
-                style={morph("name", index)}
-                className="mt-3 line-clamp-2 font-serif text-[19px] leading-tight wrap-anywhere hover:underline hover:underline-offset-4 md:text-[21px]"
-              >
-                {name}
-              </Link>
-            )}
-            <p className="label-mono mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-ink-2">
-              {/* The tag on the page is only a picture of it; this is what's read out. */}
-              <span>
-                {resume.resumeTag && <span className="sr-only">{tagName(resume.resumeTag)}, </span>}
-                {templateById(resume.selectedTemplate).name}
+            <div className="tile-text flex min-w-0 flex-col gap-1 px-4 pb-3.5 pt-3 max-sm:px-3 max-sm:pb-1.5 max-sm:pt-2.5">
+              {/* Its type, over its name. One without a type keeps the line, so the names in a row line up. */}
+              <span aria-hidden={!resume.resumeTag || undefined} className="label-mono mb-[3px] truncate leading-[14px] text-ink-3">
+                {resume.resumeTag ? tagName(resume.resumeTag) : "\u00a0"}
               </span>
-              <span>{editedAgo(resume.updatedAt, now)}</span>
-            </p>
+              {renaming?.id === resume.id ? (
+                <input
+                  aria-label="Resume name"
+                  value={renaming.draft}
+                  placeholder="Untitled resume"
+                  maxLength={200}
+                  autoFocus
+                  onFocus={(event) => event.currentTarget.select()}
+                  onChange={(event) => setRenaming({ id: resume.id, draft: event.target.value })}
+                  onBlur={() => finishRenaming(resume, true, false)}
+                  onKeyDown={(event) => {
+                    // Enter or Escape while typing with an input method (as for Japanese) picks or cancels a character.
+                    if (event.nativeEvent.isComposing) return
+                    if (event.key === "Enter") finishRenaming(resume, true, true)
+                    else if (event.key === "Escape") finishRenaming(resume, false, true)
+                  }}
+                  // Underlined, as a name being typed is in the list and the editor. Its line hangs 1px
+                  // below, where the link's text would end, so nothing under it moves.
+                  className="-mb-px w-full min-w-0 border-0 border-b border-accent bg-transparent p-0 text-[16px] font-medium leading-[1.3] tracking-[-0.02em] text-ink outline-none placeholder:text-ink-3 focus-visible:outline-none sm:text-[18px]"
+                />
+              ) : (
+                <Link
+                  href={href}
+                  onClick={open}
+                  title={name}
+                  data-resume-link={resume.id}
+                  style={morph("name", index)}
+                  className="truncate text-[16px] font-medium leading-[1.3] tracking-[-0.02em] hover:underline hover:underline-offset-4 sm:text-[18px]"
+                >
+                  {name}
+                </Link>
+              )}
+              <p className="truncate text-[13px] leading-5 text-ink-3 sm:text-[14px]">
+                {[templateById(resume.selectedTemplate).name, edited].filter(Boolean).join(" · ")}
+              </p>
+            </div>
 
             <div className="tile-actions">
               <div className="tile-bar glass glass-float">
@@ -158,10 +161,22 @@ export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leavi
           </li>
         )
       })}
-      <li data-glide="drop" className={`min-w-0 ${dragging ? "relative z-[45]" : ""}`}>
-        <DropTile onChooseFile={onChooseFile} dragging={dragging} />
+      <li data-glide="new" className="min-w-0">
+        <NewTile onNew={onNew} />
       </li>
     </ul>
+  )
+}
+
+/** A dashed card that starts a new resume, last in the grid. */
+export function NewTile({ onNew }: { onNew: () => void }) {
+  return (
+    <button type="button" onClick={onNew} className="new-tile">
+      <span className="new-tile-plus" aria-hidden="true">
+        <Plus className="h-[22px] w-[22px]" strokeWidth={2} />
+      </span>
+      <span className="text-[15px] font-medium text-ink">New resume</span>
+    </button>
   )
 }
 
@@ -172,11 +187,9 @@ export function DropTile({ onChooseFile, dragging }: { onChooseFile: () => void;
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
         <path className="drop-arrow" d="M12 19V6m-5 5 5-5 5 5M5 3.5h14" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="text-[15px] leading-snug text-ink md:text-[17px]">Drop a PDF or Docx file</span>
+      <span className="text-[15px] font-medium leading-snug text-ink">Drop a PDF, Word or JSON file</span>
       {/* Looks like a button; the whole tile is the one. */}
-      <span className="mt-1 inline-flex h-9 items-center rounded-full bg-sheet/80 px-4 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15">
-        Choose a file
-      </span>
+      <span className="white-button inline-flex h-9 items-center rounded-full px-4 text-sm font-medium">Choose a file</span>
     </button>
   )
 }

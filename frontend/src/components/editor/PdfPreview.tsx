@@ -410,7 +410,7 @@ function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPre
         ref={scrollerRef}
         tabIndex={0}
         onCopy={(event) => pdf && copyPlainText(event, pdf.pdfjs)}
-        className="preview-canvas relative min-h-[480px] flex-1 overflow-auto px-5 pb-10 focus-visible:outline-offset-[-2px] md:px-8 xl:min-h-0 xl:px-2 xl:pb-4 xl:pt-3"
+        className="preview-canvas relative min-h-[480px] flex-1 overflow-auto rounded-[inherit] px-5 pb-10 focus-visible:outline-offset-[-2px] md:px-8 xl:min-h-0 xl:px-3 xl:pb-4 xl:pt-5"
       >
         {loadError || (error && drawings.length === 0) ? (
           <div className="flex h-full min-h-[480px] items-center justify-center text-sm text-ink-2">
@@ -491,15 +491,15 @@ function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPre
         )}
       </div>
 
-      {/* On wide screens, the zoom in a glass pill under the page. */}
-      <div className="glass glass-float mt-2 hidden h-11 shrink-0 items-center gap-1 self-center rounded-full px-2 font-mono text-xs text-ink-2 xl:flex">
+      {/* On wide screens, the zoom in a white pill under the page. */}
+      <div className="mb-[17px] mt-2 hidden h-[41px] shrink-0 items-center gap-1 self-center rounded-full bg-sheet px-2 font-mono text-[14px] text-ink shadow-[0_0_0_1px_rgb(17_19_24/0.04),0_6px_16px_-6px_rgb(17_19_24/0.22)] xl:flex">
         {zoomControls}
-        <span aria-hidden="true" className="mx-1.5 h-5 w-px bg-ink/10" />
+        <span aria-hidden="true" className="mx-2 h-5 w-px bg-ink/10" />
         <button
           type="button"
           onClick={fit}
           title="Show the whole page"
-          className="h-8 rounded-full px-3 font-sans text-[13px] text-ink-2 transition-colors hover:bg-ink/[0.05] hover:text-ink"
+          className="h-8 rounded-full px-3 font-sans text-[14px] font-medium text-ink transition-colors hover:bg-fill"
         >
           Fit
         </button>
@@ -521,7 +521,7 @@ function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPre
 function ZoomControls({ zoom, onOut, onReset, onIn }: { zoom: number; onOut: () => void; onReset: () => void; onIn: () => void }) {
   // At the smallest or largest zoom, its button stays focusable but does nothing, as MoveButtons do.
   const iconButton =
-    "inline-flex h-8 w-8 items-center justify-center rounded-full text-ink-2 transition-colors hover:text-ink aria-disabled:cursor-default aria-disabled:opacity-30 aria-disabled:hover:text-ink-2"
+    "inline-flex h-8 w-8 items-center justify-center rounded-full text-[18px] text-ink-2 transition-colors hover:bg-fill hover:text-ink aria-disabled:cursor-default aria-disabled:opacity-30 aria-disabled:hover:bg-transparent aria-disabled:hover:text-ink-2"
   return (
     <>
       <button type="button" aria-label="Zoom out" aria-disabled={zoom <= MIN_ZOOM || undefined} onClick={onOut} className={iconButton}>

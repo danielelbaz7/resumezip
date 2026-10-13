@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
-import { chooseTemplate, editorHeading, pageErrors } from "./helpers"
+import { chooseTemplate, editorHeading, instantScrolling, pageErrors } from "./helpers"
 
 // The first preview waits for the PDF compiler to download. A stand-in page
 // shows meanwhile (components/editor/PrintingPage.tsx), and the dashboard
@@ -199,8 +199,12 @@ test("pressing a template's Use starts the compiler before the click", async ({ 
   const errors = pageErrors(page)
   const workers = compilerWorkers(page)
   await page.goto("/templates")
+  await instantScrolling(page)
   await page.getByRole("link", { name: /^Harvard resume template/ }).hover()
-  await page.getByRole("link", { name: "Use Harvard" }).hover()
+  // Pointed at once its plate has come up: hidden under the page, it would be missed, and looked for with a scroll.
+  const use = page.getByRole("link", { name: "Use Harvard" })
+  await expect(use).toBeInViewport({ ratio: 1 })
+  await use.hover()
   await page.waitForTimeout(500)
   expect(workers).toEqual([])
 
@@ -268,7 +272,7 @@ test("the form can be used before the code that draws the preview and drags sect
   await name.pressSequentially("Grace Hopper")
   await expect(name).toHaveValue("Grace Hopper")
   const sections = page.getByRole("navigation", { name: "Sections" })
-  const experience = sections.getByRole("button", { name: /^\d+ Experience$/ })
+  const experience = sections.getByRole("button", { name: /^Experience$/ })
   await experience.click()
   await expect(editorHeading(page, "Experience")).toBeVisible()
   const preview = page.getByRole("region", { name: "Live preview" })
@@ -302,11 +306,13 @@ test("an entry being typed in when the drag and drop arrives keeps the cursor, a
   await page.goto(`/create/new/${resume.id}`)
   await expect.poll(() => held).toBe(true)
   const sections = page.getByRole("navigation", { name: "Sections" })
-  await sections.getByRole("button", { name: /^\d+ Experience$/ }).click()
+  await sections.getByRole("button", { name: /^Experience$/ }).click()
 
   // It arrives while the cursor is in the open entry, which stays as it is, cursor and all.
+  // The cursor goes at the end of the entry's name, whose box is only as wide as it.
   const role = page.getByLabel("Role", { exact: true })
-  await role.click()
+  const { width, height } = (await role.boundingBox())!
+  await role.click({ position: { x: width - 2, y: height / 2 } })
   await page.keyboard.press("End")
   await page.keyboard.type(" II")
   release()

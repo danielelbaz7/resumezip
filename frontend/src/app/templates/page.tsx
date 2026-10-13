@@ -1,12 +1,15 @@
 import Link from "next/link"
+import { BookOpen, Layers, PenLine } from "lucide-react"
+import { BLUE_PILL, sheetPill } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
+import { PAPER_FRAME } from "@/components/site/sheet"
+import { StartWritingLink } from "@/components/site/StartWriting"
 import StructuredData from "@/components/site/StructuredData"
 import { pageMetadata } from "@/lib/site"
 import { breadcrumbs, TEMPLATES_CRUMB } from "@/lib/structuredData"
-import { newTemplate, TEMPLATES } from "@/lib/templates"
+import { DEFAULT_TEMPLATE, newTemplate, TEMPLATES } from "@/lib/templates"
 import TemplateGallery from "./TemplateGallery"
-import { SHEET } from "@/components/site/sheet"
 
 export const metadata = pageMetadata({
   path: "/templates",
@@ -20,31 +23,41 @@ export default function TemplatesPage() {
   const marked = newTemplate(Date.now())
 
   return (
-    <div className="desk flex min-h-screen flex-col">
+    <div className="desk desk-bright flex min-h-screen flex-col">
       <SiteHeader />
       <StructuredData data={breadcrumbs([TEMPLATES_CRUMB])} />
 
-      <main className={`${SHEET} flex flex-col gap-10`}>
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between md:gap-10">
-          <div className="flex flex-col gap-4">
-            <span className="label-mono text-ink-2">Templates · {TEMPLATES.length}, all free</span>
-            <h1 className="font-serif text-5xl leading-[1.02] tracking-[-0.035em] md:text-[96px] md:leading-[0.95]">
-              Pick a <em className="text-accent">template</em>.
-            </h1>
+      {/* The dashboard's sheet, the sky showing through it a little, so the white cards on it stand out. */}
+      <div className={PAPER_FRAME}>
+        <main className="paper paper-sky flex flex-1 flex-col px-4 pb-10 pt-4 sm:px-6 sm:pt-6 md:px-9 md:pb-12 md:pt-[30px]">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <p className="inline-flex h-[34px] min-w-0 items-center gap-2 rounded-full bg-white/70 px-4 text-[14px] text-[#3a3e46] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.9),0_1px_2px_rgb(17_19_24/0.06)]">
+                <Layers className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">{TEMPLATES.length} templates · All free</span>
+              </p>
+              <Link href="/templates/how-they-read" className={sheetPill("text", "h-[34px] px-3.5 text-[14px]")}>
+                <BookOpen aria-hidden="true" />
+                How they read as plain text
+              </Link>
+            </div>
+            {/* A blank resume in the default template, for someone who'd rather pick one later. */}
+            <StartWritingLink template={DEFAULT_TEMPLATE} className={`${BLUE_PILL} max-sm:w-full`} preloadOnHover>
+              <PenLine aria-hidden="true" />
+              Start blank
+            </StartWritingLink>
           </div>
-          <div className="flex max-w-[340px] flex-col gap-2 text-[17px] leading-relaxed text-ink-2 md:items-end md:pb-3 md:text-right">
-            <p>Switch any time; your writing stays put.</p>
-            <Link
-              href="/templates/how-they-read"
-              className="text-ink underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
-            >
-              How they read as plain text
-            </Link>
-          </div>
-        </div>
 
-        <TemplateGallery newId={marked?.id} />
-      </main>
+          <div className="mt-9 flex flex-col gap-2 md:mt-[17px]">
+            <h1 className="text-balance font-serif text-[38px] leading-[1.05] tracking-[-0.025em] sm:text-[52px] md:text-[64px] md:leading-[1.02]">
+              Pick a <em className="pr-[0.04em] text-accent">template</em>.
+            </h1>
+            <p className="text-balance text-[16px] leading-snug text-ink-3 md:text-[18.5px]">Switch any time; your writing stays put.</p>
+          </div>
+
+          <TemplateGallery newId={marked?.id} />
+        </main>
+      </div>
 
       <SiteFooter />
     </div>

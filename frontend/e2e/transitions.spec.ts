@@ -58,7 +58,7 @@ test("a section, Write, Check or Style, and the template gallery fade in as they
   await newResume(page)
   const sections = page.getByRole("navigation", { name: "Sections" })
 
-  const experience = await fadingIn(sections.getByRole("button", { name: /^\d+ Experience$/ }), editorHeading(page, "Experience"))
+  const experience = await fadingIn(sections.getByRole("button", { name: /^Experience$/ }), editorHeading(page, "Experience"))
   expect(experience.some((text) => text.includes("Add experience"))).toBe(true)
   await expect(editorHeading(page, "Experience")).toBeVisible()
 
@@ -202,7 +202,7 @@ test.describe("with less motion", () => {
     await newResume(page)
     expect(
       await fadingIn(
-        page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: /^\d+ Experience$/ }),
+        page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: /^Experience$/ }),
         editorHeading(page, "Experience"),
       ),
     ).toEqual([])

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { cleanTag, type ResumeWithId } from "@/lib/resume"
 import Modal, { useModalClose } from "./Modal"
 import TypePicker from "./TypePicker"
-import { INK_PILL, OUTLINE_PILL } from "@/components/pills"
+import { BLUE_PILL, TEXT_PILL } from "@/components/pills"
 
 interface TypeModalProps {
   resume: ResumeWithId
@@ -28,10 +28,10 @@ export default function TypeModal({ resume, own, onClose, onSave }: TypeModalPro
           onSave(cleanTag(tag))
         }}
       >
-        <TypePicker value={tag} onChange={setTag} own={own} />
+        <TypePicker value={tag} onChange={setTag} own={own} focusChosen />
         <div className="flex justify-end gap-2">
           <CancelButton />
-          <button type="submit" className={INK_PILL}>
+          <button type="submit" className={BLUE_PILL}>
             Save
           </button>
         </div>
@@ -44,7 +44,7 @@ export default function TypeModal({ resume, own, onClose, onSave }: TypeModalPro
 function CancelButton() {
   const close = useModalClose()
   return (
-    <button type="button" onClick={close} className={OUTLINE_PILL}>
+    <button type="button" onClick={close} className={TEXT_PILL}>
       Cancel
     </button>
   )

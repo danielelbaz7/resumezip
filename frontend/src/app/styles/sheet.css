@@ -1,0 +1,251 @@
+/* The white sheet the dashboard and the editor are on, and the controls drawn
+   on it: one opaque sheet of paper over the sky, in a frosted frame. What's on
+   the sheet is calm (white, cool greys, ink and the one blue); the sky round it
+   brings the color. */
+
+@layer components {
+  /* The sky at full color, with no wash (nothing is read straight off it: the
+     words are on the sheet), under a fine grid of dots, 2px squares 4px apart.
+     The dots are fixed with the picture, so the two move together. The
+     footer's strip of sky (SiteFooter.tsx) is a desk of its own, which takes
+     the same sky, so there's no seam where it starts. */
+  .desk.desk-bright,
+  .desk-bright .desk {
+    --desk-wash: 0;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect x='1' y='1' width='2' height='2' fill='%23fff' fill-opacity='.32'/%3E%3C/svg%3E"),
+      var(--desk-sky);
+    background-size:
+      4px 4px,
+      cover;
+    background-position:
+      0 0,
+      center bottom;
+    background-repeat: repeat, no-repeat;
+    background-attachment: fixed;
+  }
+
+  /* The frame round the sheet: a band of frosted glass with a lit rim. Its
+     frost is on ::before, so the frame isn't the backdrop root of the glass
+     inside the sheet (menus, the search's veil), which blurs the whole screen. */
+  .paper-frame {
+    position: relative;
+    isolation: isolate;
+    border-radius: 36px;
+    /* A 1px rim, and 12px of frost inside it. */
+    padding: 13px;
+  }
+  /* The rim is drawn here, over the frost, not on the frame: the frame's own
+     shadow would be under it. */
+  .paper-frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: rgb(255 255 255 / 0.28);
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.82),
+      inset 0 2px 0 rgb(255 255 255 / 0.9);
+    -webkit-backdrop-filter: blur(1.5px) saturate(1.3) brightness(1.06);
+    backdrop-filter: blur(1.5px) saturate(1.3) brightness(1.06);
+  }
+  /* The sheet itself. On it, secondary text is the paper's own grey again,
+     rather than the darker one the desk sets for words on the sky. */
+  .paper {
+    --color-ink-2: #5f6166;
+    border-radius: 28px;
+    background: var(--color-sheet);
+    box-shadow:
+      0 1px 2px rgb(17 19 24 / 0.05),
+      0 10px 24px -14px rgb(17 19 24 / 0.22);
+  }
+  /* The dashboard's sheet lets a little of the sky through, so the white
+     cards on it stand out: three quarters white, over a slight blur. It's
+     drawn on ::before, as the frame's frost is, so the sheet isn't the
+     backdrop root of the glass in it. Its secondary text is a shade darker
+     than on white, to keep 4.5:1 over the sky's bluest part. */
+  .paper.paper-sky {
+    --color-ink-3: #5b6070;
+    position: relative;
+    isolation: isolate;
+    background: transparent;
+  }
+  .paper.paper-sky::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: rgb(255 255 255 / 0.74);
+    -webkit-backdrop-filter: blur(2px) saturate(1.15);
+    backdrop-filter: blur(2px) saturate(1.15);
+  }
+  /* Phones have little room to spare for sky: a thinner frame, nearer the edge. */
+  @media (max-width: 39.99rem) {
+    .paper-frame {
+      border-radius: 26px;
+      padding: 7px;
+    }
+    .paper {
+      border-radius: 21px;
+    }
+  }
+  /* While the search is lifted, its veil covers the whole screen: the frame
+     it's in rises over the header and the footer (dashboard.css). */
+  [data-spotlight] .paper-frame {
+    z-index: 45;
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .paper-frame::before {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      background: rgb(255 255 255 / 0.78);
+    }
+    /* The sky's pale blue, without the sky. */
+    .paper.paper-sky::before {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      background: #e8f0fc;
+    }
+  }
+
+  /* A dialog (components/dashboard/Modal.tsx): a white sheet over the
+     softened page, with the paper's own grey for secondary text. */
+  .dialog-sheet {
+    --color-ink-2: #5f6166;
+    border-radius: 30px;
+    background: var(--color-sheet);
+    box-shadow:
+      0 0 0 1px rgb(17 19 24 / 0.04),
+      0 0 40px -6px rgb(30 45 80 / 0.18),
+      0 28px 64px -18px rgb(30 45 80 / 0.42);
+  }
+  @media (max-width: 39.99rem) {
+    .dialog-sheet {
+      border-radius: 24px;
+    }
+  }
+
+  /* A row of choices on a grey track, the chosen one on a white pill that
+     slides to the next (Write / Check / Style, the dashboard's tags and views,
+     the New resume dialog's tabs). The pill is a separate element, laid over
+     the track (useThumb.ts). */
+  .segment-track {
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    border-radius: 999px;
+    background: var(--color-fill);
+    box-shadow: inset 0 0 0 1px var(--color-fill-line);
+  }
+  .segment-thumb {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: -1;
+    border-radius: 999px;
+    background: var(--color-sheet);
+    box-shadow:
+      0 0 0 0.5px rgb(17 19 24 / 0.04),
+      0 1px 2px rgb(17 19 24 / 0.06),
+      0 2px 6px -1px rgb(17 19 24 / 0.1);
+    transition:
+      translate 300ms var(--ease-glide),
+      width 300ms var(--ease-glide);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .segment-thumb {
+      transition: none;
+    }
+  }
+}
+
+/* The main action on the sheet: a blue pill, lighter at its top, in a soft
+   halo of its own color. A shade brighter under the pointer, darker as it's
+   pressed, which sinks it a little. Keyboard focus shades it, as it shades
+   everything on the site (globals.css), a little more so it shows on blue. */
+@utility blue-button {
+  position: relative;
+  color: #fff;
+  background-image: linear-gradient(180deg, #5b97fb, #2c65e8);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 0 0 4px rgb(59 130 246 / 0.15),
+    0 6px 14px -5px rgb(37 99 235 / 0.55);
+  transition:
+    filter 150ms,
+    box-shadow 200ms,
+    scale 120ms ease-out;
+  &:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+  &:active:not(:disabled) {
+    filter: brightness(0.93);
+    scale: 0.97;
+  }
+  &:focus-visible {
+    background-image: linear-gradient(rgb(17 19 24 / 0.16), rgb(17 19 24 / 0.16)), linear-gradient(180deg, #5b97fb, #2c65e8);
+  }
+  &:disabled {
+    filter: saturate(0.6);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:active:not(:disabled) {
+      scale: none;
+    }
+  }
+}
+
+/* blue-button's blue and halo alone, for a pill whose halves are buttons of their own (Download PDF and its ▾). */
+@utility blue-fill {
+  background-image: linear-gradient(180deg, #5b97fb, #2c65e8);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 0 0 4px rgb(59 130 246 / 0.15),
+    0 6px 14px -5px rgb(37 99 235 / 0.55);
+}
+
+/* Any other button standing on the sheet: white, greying a little toward its
+   foot, with a hairline edge and a soft shadow. Keyboard focus shades it and
+   darkens its edge, as focus shows across the site (globals.css): no ring. */
+@utility white-button {
+  color: var(--color-ink);
+  background-image: linear-gradient(180deg, #ffffff, #f7f8fa);
+  box-shadow:
+    inset 0 0 0 1px #e6e8ec,
+    0 1px 2px rgb(17 19 24 / 0.04),
+    0 3px 8px -3px rgb(17 19 24 / 0.1);
+  transition:
+    box-shadow 200ms,
+    background-color 150ms,
+    scale 120ms ease-out;
+  &:hover:not(:disabled) {
+    box-shadow:
+      inset 0 0 0 1px #d3d7de,
+      0 1px 2px rgb(17 19 24 / 0.05),
+      0 4px 10px -3px rgb(17 19 24 / 0.14);
+  }
+  &:active:not(:disabled) {
+    scale: 0.98;
+  }
+  &[aria-expanded="true"] {
+    box-shadow:
+      inset 0 0 0 1px #d3d7de,
+      0 1px 2px rgb(17 19 24 / 0.05);
+  }
+  &:focus-visible {
+    background-image: linear-gradient(rgb(17 19 24 / 0.06), rgb(17 19 24 / 0.06)), linear-gradient(180deg, #ffffff, #f7f8fa);
+    box-shadow:
+      inset 0 0 0 1px #b9bec7,
+      0 1px 2px rgb(17 19 24 / 0.05),
+      0 3px 8px -3px rgb(17 19 24 / 0.1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:active:not(:disabled) {
+      scale: none;
+    }
+  }
+}

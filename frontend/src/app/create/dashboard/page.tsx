@@ -4,12 +4,13 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
-import { FileDown, FileUp, Plus } from "lucide-react"
+import { Download, HardDrive, Plus, Upload } from "lucide-react"
 import { openResumes, useResumeContext } from "@/context/ResumeContext"
 import CreateResumeModal from "@/components/dashboard/CreateResumeModal"
 import TypeModal from "@/components/dashboard/TypeModal"
 import DeletedToast from "@/components/dashboard/DeletedToast"
 import EmptyShelf from "@/components/dashboard/EmptyShelf"
+import Greeting from "@/components/dashboard/Greeting"
 import Filters, { type Sort, type View } from "@/components/dashboard/Filters"
 import { fly, glideFrom, pageOf, placesIn, restingBox } from "@/components/dashboard/flight"
 import { AllConflictDialog, ConflictDialog, OpenErrorDialog, ReadingDialog, type Differing } from "@/components/dashboard/OpenFileDialogs"
@@ -21,10 +22,9 @@ import SearchBar, { matches } from "@/components/dashboard/SearchBar"
 import UnreadableData from "@/components/dashboard/UnreadableData"
 import { focusShown, nameOf, useListActions } from "@/components/dashboard/useListActions"
 import { switchView } from "@/components/dashboard/viewSwitch"
-import { DOCK_PILL, GLASS_DOCK, INK_GLASS_PILL, OUTLINE_PILL } from "@/components/pills"
+import { BLUE_PILL, sheetPill, WHITE_PILL } from "@/components/pills"
 import DownloadFailed from "@/components/site/DownloadFailed"
 import NotSaved from "@/components/site/NotSaved"
-import PageIntro from "@/components/site/PageIntro"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import type { OpenedFile } from "@/lib/import/open"
@@ -35,7 +35,9 @@ import { copyHere } from "@/lib/resumeStore"
 import { saveFile } from "@/lib/saveFile"
 import { loadCompiler, savingData } from "@/lib/typst/compile"
 import { templateIdOf } from "@/lib/typst/resumeData"
-import { SHEET } from "@/components/site/sheet"
+import type { TemplateId } from "@/lib/templates"
+import type { Paper } from "@/lib/tune"
+import { PAPER_FRAME } from "@/components/site/sheet"
 
 // Only loaded when someone opens a file that isn't a resumezip PDF.
 const ImportReview = dynamic(() => import("@/components/dashboard/ImportReview"))
@@ -195,9 +197,16 @@ export default function DashboardPage() {
     announce,
   })
 
-  const create = (title: string, tag: string) => {
+  const create = ({ title, tag, template, paper }: { title: string; tag: string; template: TemplateId; paper: Paper }) => {
     setCreating(false)
-    router.push(`/create/new/${createNewResume(title, tag)}`)
+    router.push(`/create/new/${createNewResume(title, tag, template, paper)}`)
+  }
+
+  // A copy made from New resume opens, as a new resume does; one made from a resume's Duplicate stays in the list.
+  const copy = (id: string, look: { template: TemplateId; paper: Paper }) => {
+    setCreating(false)
+    const copied = duplicateResume(id, look)
+    if (copied) router.push(`/create/new/${copied}`)
   }
 
   const edit = (id: string) => {
@@ -302,6 +311,8 @@ export default function DashboardPage() {
   }
 
   const openFile = async (file: File) => {
+    // Opening a file is a way to start a resume too, so New resume, if it's open, gives way to it.
+    setCreating(false)
     // A file may have the resume just deleted in it, which would otherwise look like it's still here.
     finishDeleting()
     reading.current?.abort()
@@ -472,153 +483,146 @@ export default function DashboardPage() {
   // The latest copies, in case one was renamed or deleted since.
   const failedResumes = kept.filter((resume) => actions.failed[resume.id])
 
-  const openFileButton = (
-    <button type="button" onClick={chooseFile} className={DOCK_PILL}>
-      <FileUp className="h-4 w-4" aria-hidden="true" />
-      Open a file
-    </button>
-  )
-  const downloadAllButton = (
-    // With nothing to download it's there, as the rest of the page is, but can't be used.
-    <button
-      type="button"
-      onClick={downloadAll}
-      disabled={total === 0}
-      className={`${DOCK_PILL} disabled:cursor-default disabled:opacity-45`}
-    >
-      <FileDown className="h-4 w-4" aria-hidden="true" />
-      Download all
-    </button>
-  )
-  const newResumeButton = (
-    <button type="button" onClick={() => setCreating(true)} className={`${INK_GLASS_PILL} max-sm:col-span-2`}>
-      <Plus className="h-4 w-4" aria-hidden="true" />
-      New resume
-    </button>
-  )
-
   return (
-    <div className="desk flex min-h-screen flex-col">
+    <div className="desk desk-bright flex min-h-screen flex-col">
       <SiteHeader />
 
-      {/* One etched pane over the sky, holding the title, the toolbar, the resumes and the note. */}
-      <main className={`${SHEET} flex flex-col gap-10 md:gap-12`}>
-        <PageIntro
-          label={
-            loaded
-              ? `${count(total, "resume")} · ${saveStatus === "saved" ? "stored in this browser" : "not saved"}`
-              : "Stored in this browser"
-          }
-          title="Your Resumes"
-          // The same with no resumes, so the page doesn't change shape when the first arrives.
-          actions={
-            loaded ? (
-              // One pane of glass, as a toolbar. On phones, where the three don't fit on a line,
-              // the two lesser ones share the top and New resume runs across the foot.
-              <div className={`${GLASS_DOCK} max-sm:grid max-sm:w-full max-sm:grid-cols-2`}>
-                {downloadAllButton}
-                {openFileButton}
-                {newResumeButton}
-              </div>
-            ) : undefined
-          }
-        />
-
-        <NotSaved className="max-w-[720px]" />
-        <UnreadableData />
-        {allOpened && (
-          <div className="flex max-w-[720px] flex-wrap items-baseline gap-x-6 gap-y-2">
-            <span className="label-mono shrink-0 text-ink-2">Opened</span>
-            <p className="min-w-0 flex-[1_1_280px] text-sm leading-relaxed text-ink">{allOpened}</p>
-          </div>
-        )}
-        {failedResumes.length > 0 && (
-          <div className="flex max-w-[720px] flex-col gap-4">
-            {failedResumes.map((resume) => (
-              <DownloadFailed
-                key={`${resume.id}-${actions.failed[resume.id].count}`}
-                failure={actions.failed[resume.id]}
-                title={nameOf(resume)}
-                retrying={actions.downloading.includes(resume.id)}
-                onRetry={() => actions.download(resume)}
-              />
-            ))}
-          </div>
-        )}
-        <p role="status" className="sr-only">
-          {announcement}
-        </p>
-
-        {loaded && (
-          <div className="flex flex-col gap-8">
-            <Filters
-              search={<SearchBar resumes={kept} query={query} onQuery={setQuery} />}
-              tags={tags}
-              tag={tag}
-              onTag={setTag}
-              sort={sort}
-              onSort={setSort}
-              view={view}
-              onView={chooseView}
-            />
-            {showing.length === 0 ? (
-              <EmptyShelf onNew={() => setCreating(true)} onChooseFile={chooseFile} dragging={dragging} />
-            ) : shown.length === 0 ? (
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                <p className="font-serif text-[24px] leading-tight tracking-[-0.02em]">
-                  {query.trim() ? (
-                    <>
-                      No resumes match &ldquo;{query.trim()}&rdquo;{tag !== EVERY_TYPE && ` in ${tagName(tag)}`}.
-                    </>
-                  ) : (
-                    "None here."
-                  )}
-                </p>
+      {/* One sheet in a frosted frame over the sky, holding the greeting, the toolbar and the resumes. The
+          sky shows through it a little (paper-sky), so the white cards on it stand out. */}
+      <div className={PAPER_FRAME}>
+        <main className="paper paper-sky flex flex-1 flex-col px-4 pb-10 pt-4 sm:px-6 sm:pt-6 md:px-9 md:pb-12 md:pt-[30px]">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <p className="inline-flex h-[34px] min-w-0 items-center gap-2 rounded-full bg-white/70 px-4 text-[14px] text-[#3a3e46] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.9),0_1px_2px_rgb(17_19_24/0.06)]">
+                <HardDrive className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">
+                  {loaded
+                    ? `${count(total, "resume")} · ${saveStatus === "saved" ? "Saved in this browser" : "Not saved"}`
+                    : "Saved in this browser"}
+                </span>
+              </p>
+              {/* With nothing to download it's there, as the rest of the page is, but can't be used. */}
+              {loaded && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setQuery("")
-                    setTag(EVERY_TYPE)
-                  }}
-                  className={OUTLINE_PILL}
+                  onClick={downloadAll}
+                  disabled={total === 0}
+                  className={sheetPill("text", "h-[34px] px-3.5 text-[14px]")}
                 >
-                  Show all
+                  <Download aria-hidden="true" />
+                  Download all
                 </button>
-              </div>
-            ) : (
-              // A new one for each view, so the fade starts from nothing.
-              <div key={view} ref={viewRef} className={fadeIn ? "view-fade" : undefined}>
-                {view === "pages" ? (
-                  <ResumeGrid
-                    resumes={shown}
-                    actions={actions}
-                    onDelete={remove}
-                    onRetype={setRetyping}
-                    leaving={leaving}
-                    returning={returning}
-                    onChooseFile={chooseFile}
-                    dragging={dragging}
-                  />
-                ) : (
-                  <ResumeTable
-                    resumes={shown}
-                    actions={actions}
-                    onDelete={remove}
-                    onRetype={setRetyping}
-                    leaving={leaving}
-                    returning={returning}
-                  />
-                )}
+              )}
+            </div>
+            {/* The same with no resumes, so the page doesn't change shape when the first arrives. */}
+            {loaded && (
+              <div className="flex flex-wrap items-center gap-2.5 max-sm:w-full max-sm:[&>*]:flex-1">
+                <button type="button" onClick={chooseFile} className={WHITE_PILL}>
+                  <Upload aria-hidden="true" />
+                  Open a file
+                </button>
+                <button type="button" onClick={() => setCreating(true)} className={BLUE_PILL}>
+                  <Plus aria-hidden="true" />
+                  New resume
+                </button>
               </div>
             )}
           </div>
-        )}
 
-        <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm text-ink-2">
-          <span className="label-mono text-accent">Stored locally</span>
-          Only in this browser. Any PDF you download opens here again.
-        </p>
-      </main>
+          <Greeting resumes={kept} loaded={loaded} />
+
+          {(saveStatus !== "saved" || allOpened || failedResumes.length > 0) && (
+            <div className="mx-auto mt-8 flex w-full max-w-[720px] flex-col gap-4">
+              <NotSaved />
+              {allOpened && (
+                <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                  <span className="label-mono shrink-0 text-ink-2">Opened</span>
+                  <p className="min-w-0 flex-[1_1_280px] text-sm leading-relaxed text-ink">{allOpened}</p>
+                </div>
+              )}
+              {failedResumes.map((resume) => (
+                <DownloadFailed
+                  key={`${resume.id}-${actions.failed[resume.id].count}`}
+                  failure={actions.failed[resume.id]}
+                  title={nameOf(resume)}
+                  retrying={actions.downloading.includes(resume.id)}
+                  onRetry={() => actions.download(resume)}
+                />
+              ))}
+            </div>
+          )}
+          <div className="mx-auto w-full max-w-[720px] empty:hidden [&>*]:mt-8">
+            <UnreadableData />
+          </div>
+          <p role="status" className="sr-only">
+            {announcement}
+          </p>
+
+          {loaded && (
+            <div className="mt-8 flex flex-col gap-5 md:mt-[34px] md:gap-[22px]">
+              <Filters
+                search={<SearchBar resumes={kept} query={query} onQuery={setQuery} />}
+                tags={tags}
+                tag={tag}
+                onTag={setTag}
+                sort={sort}
+                onSort={setSort}
+                view={view}
+                onView={chooseView}
+              />
+              {showing.length === 0 ? (
+                <EmptyShelf onNew={() => setCreating(true)} onChooseFile={chooseFile} dragging={dragging} />
+              ) : shown.length === 0 ? (
+                <div className="flex flex-col items-center gap-4 py-16 text-center">
+                  <p className="text-[22px] font-medium leading-tight tracking-[-0.02em]">
+                    {query.trim() ? (
+                      <>
+                        No resumes match &ldquo;{query.trim()}&rdquo;{tag !== EVERY_TYPE && ` in ${tagName(tag)}`}.
+                      </>
+                    ) : (
+                      "None here."
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery("")
+                      setTag(EVERY_TYPE)
+                    }}
+                    className={WHITE_PILL}
+                  >
+                    Show all
+                  </button>
+                </div>
+              ) : (
+                // A new one for each view, so the fade starts from nothing.
+                <div key={view} ref={viewRef} className={fadeIn ? "view-fade" : undefined}>
+                  {view === "pages" ? (
+                    <ResumeGrid
+                      resumes={shown}
+                      actions={actions}
+                      onDelete={remove}
+                      onRetype={setRetyping}
+                      leaving={leaving}
+                      returning={returning}
+                      onNew={() => setCreating(true)}
+                    />
+                  ) : (
+                    <ResumeTable
+                      resumes={shown}
+                      actions={actions}
+                      onDelete={remove}
+                      onRetype={setRetyping}
+                      leaving={leaving}
+                      returning={returning}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
 
       <SiteFooter />
 
@@ -653,7 +657,17 @@ export default function DashboardPage() {
         />
       )}
 
-      {creating && <CreateResumeModal own={ownTypes} onClose={() => setCreating(false)} onCreate={create} />}
+      {creating && (
+        <CreateResumeModal
+          own={ownTypes}
+          resumes={kept}
+          dragging={dragging}
+          onClose={() => setCreating(false)}
+          onCreate={create}
+          onCopy={copy}
+          onChooseFile={chooseFile}
+        />
+      )}
       {retyping && (
         <TypeModal
           resume={retyping}

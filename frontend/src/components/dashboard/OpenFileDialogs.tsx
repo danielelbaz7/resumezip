@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react"
 import Modal from "./Modal"
-import { INK_PILL, OUTLINE_PILL } from "@/components/pills"
+import { BLUE_PILL, TEXT_PILL, WHITE_PILL } from "@/components/pills"
 
 export function ReadingDialog({ fileName, onCancel }: { fileName: string; onCancel: () => void }) {
   return (
@@ -12,7 +12,7 @@ export function ReadingDialog({ fileName, onCancel }: { fileName: string; onCanc
         <span className="min-w-0 truncate">Reading {fileName} in your browser…</span>
       </p>
       <div className="mt-7 flex justify-end">
-        <button type="button" onClick={onCancel} className={OUTLINE_PILL}>
+        <button type="button" onClick={onCancel} className={TEXT_PILL}>
           Cancel
         </button>
       </div>
@@ -25,10 +25,10 @@ export function OpenErrorDialog({ message, onClose, onRetry }: { message: string
     <Modal title="Couldn't open that file" onClose={onClose}>
       <p className="mt-4 text-[15px] leading-relaxed text-ink-2">{message}</p>
       <div className="mt-7 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className={OUTLINE_PILL}>
+        <button type="button" onClick={onClose} className={TEXT_PILL}>
           Close
         </button>
-        <button type="button" onClick={onRetry} className={INK_PILL}>
+        <button type="button" onClick={onRetry} className={BLUE_PILL}>
           Choose another file
         </button>
       </div>
@@ -87,13 +87,13 @@ export function ConflictDialog({
         {losesLeftOut && " What you left out of the PDF isn't in the file, so replacing deletes it."}
       </p>
       <div className="mt-7 flex flex-wrap justify-end gap-2">
-        <button type="button" onClick={onCancel} className={OUTLINE_PILL}>
+        <button type="button" onClick={onCancel} className={TEXT_PILL}>
           Cancel
         </button>
-        <button type="button" onClick={onKeepBoth} className={replaceFirst ? OUTLINE_PILL : INK_PILL}>
+        <button type="button" onClick={onKeepBoth} className={replaceFirst ? WHITE_PILL : BLUE_PILL}>
           Keep both
         </button>
-        <button type="button" onClick={onReplace} className={replaceFirst ? INK_PILL : OUTLINE_PILL}>
+        <button type="button" onClick={onReplace} className={replaceFirst ? BLUE_PILL : WHITE_PILL}>
           Replace with the {file}
         </button>
       </div>
@@ -143,13 +143,13 @@ export function AllConflictDialog({ differing, onCancel, onKeepBoth, onReplace }
           `${one ? "The file's copy is" : older === count ? "The file's copies are" : `${older} of the file's copies are`} older: replacing loses your changes since then.`}
       </p>
       <div className="mt-7 flex flex-wrap justify-end gap-2">
-        <button type="button" onClick={onCancel} className={OUTLINE_PILL}>
+        <button type="button" onClick={onCancel} className={TEXT_PILL}>
           Cancel
         </button>
-        <button type="button" onClick={onKeepBoth} className={replaceFirst ? OUTLINE_PILL : INK_PILL}>
+        <button type="button" onClick={onKeepBoth} className={replaceFirst ? WHITE_PILL : BLUE_PILL}>
           Keep both
         </button>
-        <button type="button" onClick={onReplace} className={replaceFirst ? INK_PILL : OUTLINE_PILL}>
+        <button type="button" onClick={onReplace} className={replaceFirst ? BLUE_PILL : WHITE_PILL}>
           {one ? "Replace it" : "Replace them"}
         </button>
       </div>

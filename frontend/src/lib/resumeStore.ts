@@ -33,7 +33,8 @@ import {
   type SaveStatus,
 } from "./resumeStorage"
 import { numberDuplicateTitles, uniqueTitle } from "./resumeTitles"
-import { DEFAULT_TEMPLATE } from "./templates"
+import { DEFAULT_TEMPLATE, templateById } from "./templates"
+import { withPaper, type Paper } from "./tune"
 import {
   extraKey,
   extraRef,
@@ -315,10 +316,11 @@ export function createResumeStore(delay = SAVE_DELAY) {
     if (JSON.stringify(resolveSections(resume)) !== JSON.stringify(next)) commit(id, { sectionOrder: next }, ["sectionOrder"])
   }
 
-  /** Adds an empty resume, and returns its id. */
-  function create(title: string, tag: string, template: string = DEFAULT_TEMPLATE): string {
+  /** Adds an empty resume, and returns its id. It's printed on its template's own paper unless `paper` is another. */
+  function create(title: string, tag: string, template: string = DEFAULT_TEMPLATE, paper?: Paper): string {
     const id = crypto.randomUUID()
-    add(id, title, { ...blankResume(template), id, resumeTag: tag, updatedAt: new Date().toISOString() })
+    const tune = paper ? withPaper(null, templateById(template).id, paper) : null
+    add(id, title, { ...blankResume(template), ...(tune && { tune }), id, resumeTag: tag, updatedAt: new Date().toISOString() })
     return id
   }
 
@@ -374,14 +376,19 @@ export function createResumeStore(delay = SAVE_DELAY) {
 
   /**
    * Adds a copy of a resume, everything in it under a new id, named
-   * "<name> copy", and returns its id.
+   * "<name> copy", and returns its id. It can be in another template, or
+   * printed on other paper, than the one it's a copy of.
    */
-  function duplicate(id: string): string | undefined {
+  function duplicate(id: string, { template, paper }: { template?: string; paper?: Paper } = {}): string | undefined {
     if (!has(id)) return undefined
     const original = state.resumes[id]
     const copy = crypto.randomUUID()
+    const selectedTemplate = template ?? original.selectedTemplate
+    const tune = paper ? withPaper(original.tune, templateById(selectedTemplate).id, paper) : original.tune
     add(copy, `${original.resumeTitle?.trim() || "Untitled resume"} copy`, {
       ...structuredClone(original),
+      selectedTemplate,
+      ...(tune !== undefined && { tune: structuredClone(tune) }),
       id: copy,
       updatedAt: new Date().toISOString(),
     })

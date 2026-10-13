@@ -84,7 +84,7 @@ test("a text section shows bold and italic words as they print, and keeps their 
   await open(page)
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Notes$/ })
+    .getByRole("button", { name: /^Notes$/ })
     .click()
   const box = page.getByRole("textbox", { name: "Text", exact: true })
   await expect(box.getByRole("strong")).toHaveText("French")

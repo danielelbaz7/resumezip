@@ -17,7 +17,7 @@ async function resumeToCheck(page: Page) {
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Company").fill("Analytical Engines")
@@ -78,7 +78,7 @@ test("the left bar switches between writing and checking, and remembers which", 
   // A name and an entry, so there's something to check: a resume with nothing
   // to check yet always opens on Write.
   await page.getByLabel("Full name").fill("Ada Lovelace")
-  await sections.getByRole("button", { name: /^\d+ Experience$/ }).click()
+  await sections.getByRole("button", { name: /^Experience$/ }).click()
   await expect(editorHeading(page, "Experience")).toBeVisible()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Role").fill("Analyst")
@@ -143,8 +143,8 @@ test("the left bar switches between writing and checking, and remembers which", 
   await expect(check).toHaveAttribute("aria-selected", "true")
   await expect(preview).toBeVisible()
   await checked()
-  await page.getByRole("link", { name: "Your resumes" }).click()
-  await page.getByRole("button", { name: "New resume" }).click()
+  await page.getByRole("link", { name: "Dashboard" }).click()
+  await page.getByRole("button", { name: "New resume" }).first().click()
   await page.getByRole("dialog").getByRole("button", { name: "Create" }).click()
   await expect(page).toHaveURL(/\/create\/new\//)
   await expect(write).toHaveAttribute("aria-selected", "true")
@@ -171,7 +171,7 @@ test("the checker asks for a name and an entry first, then scores the resume and
   await write.click()
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Company").fill("Analytical Engines")
@@ -230,7 +230,7 @@ test("the score goes up as a problem is fixed", async ({ page }) => {
   await page.getByLabel("Email").fill("ada@example")
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Company").fill("Analytical Engines")
@@ -369,7 +369,7 @@ test("choosing a finding opens its field, where it shows while Check is open, fi
   await page.getByLabel("Email").fill("ada@example")
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Company").fill("Analytical Engines")
@@ -424,14 +424,14 @@ const lineWidths = (paragraph: Locator) =>
 
 test("the note under a field doesn't leave a word or two on a line of their own, and sets its sentences apart", async ({ page }) => {
   const errors = pageErrors(page)
-  // At this width the email's reason runs a word or two past one line.
-  await page.setViewportSize({ width: 480, height: 900 })
+  // At this width the email is a field on its own line, and its reason runs a few words past one line.
+  await page.setViewportSize({ width: 440, height: 900 })
   await newResume(page)
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page.getByLabel("Email").fill("ada@example")
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Company").fill("Analytical Engines")
@@ -472,7 +472,7 @@ test("with Check open, the PDF is read too: a bullet that runs three lines is fl
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Company").fill("Analytical Engines")
@@ -510,7 +510,7 @@ test("when the preview can't be built, the checker says its PDF checks are left 
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Company").fill("Analytical Engines")

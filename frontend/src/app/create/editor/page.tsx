@@ -10,14 +10,14 @@ import { DownloadIcon } from "@/components/dashboard/RowActions"
 import { CheckProvider } from "@/components/editor/CheckContext"
 import { DriveIcon, JsonIcon, LatexIcon, ShareIcon, WordIcon } from "@/components/editor/FormatIcons"
 import DownloadMenu, { type MenuNotice } from "@/components/editor/DownloadMenu"
-import LeftBar from "@/components/editor/LeftBar"
+import LeftBar, { ModeTabs } from "@/components/editor/LeftBar"
 import PdfPreview from "@/components/editor/PdfPreview"
 import Loader from "@/components/site/Loader"
 import ProfileForm from "@/components/editor/ProfileForm"
 import Replaced from "@/components/editor/Replaced"
 import SectionForm, { type DeletedEntry } from "@/components/editor/SectionForm"
 import ExtraSectionForm from "@/components/editor/ExtraSectionForm"
-import { reducedMotion, WIDE_SCREEN } from "@/components/editor/layout"
+import { reducedMotion, useWideScreen, WIDE_SCREEN } from "@/components/editor/layout"
 import SectionNav, { type ActiveSection } from "@/components/editor/SectionNav"
 import StylePanel from "@/components/editor/StylePanel"
 import TemplatePicker from "@/components/editor/TemplatePicker"
@@ -37,8 +37,6 @@ import { fileNameOf, saveFile } from "@/lib/saveFile"
 import { compilePreview, forgetPreviewFit, loadCompiler, makeDownload, printedOf, Superseded } from "@/lib/typst/compile"
 import { templateIdOf } from "@/lib/typst/resumeData"
 import type { TemplateId } from "@/lib/templates"
-
-const pad = (n: number) => String(n).padStart(2, "0")
 
 // After a change, the preview waits about as long as a compile takes before
 // compiling: fast computers update quickly, and slow phones don't compile
@@ -61,7 +59,7 @@ const EDITOR_ADDRESS = "/create/new/"
 
 // The notes under the top bar's row, across the top bar: what wasn't saved, a
 // resume replaced by an opened file, a download that failed.
-const BANNER = "border-t border-ink/[0.08] px-5 py-3 lg:px-6"
+const BANNER = "border-t border-hairline px-5 py-3 lg:px-6"
 
 /**
  * The resume id in an editor address: all of the path after /create/new/, as
@@ -144,6 +142,8 @@ function Editor({ id }: { id: string }) {
   const [latexNotice, setLatexNotice] = useState<MenuNotice | null>(null)
   // Small screens show the form or the preview, not both.
   const [view, setView] = useState<"edit" | "preview">("edit")
+  // The Write | Check | Style tabs are in the top bar on wide screens, and atop the left bar narrower.
+  const wide = useWideScreen()
   const [typing, setTyping] = useState(false)
   const editScroll = useRef(0)
   // How long the last preview took.
@@ -485,7 +485,7 @@ function Editor({ id }: { id: string }) {
 
   if (!loaded) {
     return (
-      <div className="desk flex min-h-screen items-center justify-center">
+      <div className="desk desk-bright flex min-h-screen items-center justify-center">
         <Loader />
       </div>
     )
@@ -494,238 +494,247 @@ function Editor({ id }: { id: string }) {
   // Resumes only exist in the browser that created them.
   if (!found) {
     return (
-      <div className="desk flex min-h-screen items-center justify-center px-4">
-        {/* On a pane of glass over the sky, as the site's pages are. */}
-        <div className="glass glass-frost flex w-full max-w-[520px] flex-col items-center gap-4 rounded-panel px-6 py-12 text-center sm:px-12">
-          <span className="label-mono text-ink-2">Not in this browser</span>
-          <h1 className="font-serif text-[40px] leading-tight tracking-[-0.02em]">Resume not found</h1>
-          <p className="max-w-md text-[15px] leading-relaxed text-ink-2">
-            Resumes are saved in the browser you made them in. Open this link on that device, or start a new one.
-          </p>
-          <Link
-            href="/create/dashboard"
-            className="ink-button lift-button mt-2 inline-flex h-11 items-center rounded-full px-[18px] text-[15px] font-medium"
-          >
-            Go to your resumes
-          </Link>
+      <div className="desk desk-bright flex min-h-screen items-center justify-center px-4">
+        {/* On a white sheet in its frame over the sky, as the editor is. */}
+        <div className="paper-frame w-full max-w-[560px]">
+          <div className="paper flex flex-col items-center gap-4 px-6 py-12 text-center sm:px-12">
+            <span className="inline-flex h-[30px] items-center rounded-full bg-fill px-3.5 text-[13px] text-[#3a3e46]">
+              Not in this browser
+            </span>
+            <h1 className="font-serif text-[40px] leading-tight tracking-[-0.02em]">Resume not found</h1>
+            <p className="max-w-md text-[15px] leading-relaxed text-ink-2">
+              Resumes are saved in the browser you made them in. Open this link on that device, or start a new one.
+            </p>
+            <Link
+              href="/create/dashboard"
+              className="blue-button mt-2 inline-flex h-11 items-center rounded-full px-5 text-[15px] font-medium"
+            >
+              Go to the dashboard
+            </Link>
+          </div>
         </div>
       </div>
     )
   }
 
-  const total = sections.length + 1
-  const position = (index: number) => `${pad(index)} / ${pad(total)}`
-
   return (
-    // The editor is on the desk at every width. On wide screens (WIDE_SCREEN) it's a top bar over
-    // three panels: the sections (or what Check found, or Style) on the left, the form in the
-    // middle, and the page on the right. Narrower, the same parts stack: the top bar, the left bar's
-    // tabs, the form, and an Edit / Preview switch for the page.
-    <div className="desk desk-quiet flex min-h-screen flex-col pb-24 xl:h-screen xl:gap-4 xl:overflow-hidden xl:p-4">
+    // The editor is one white sheet in a frosted frame over the sky. On wide screens (WIDE_SCREEN)
+    // it fills the window: a top bar over three columns, the sections (or what Check found, or
+    // Style) on the left, the form in the middle, and the page on the right. Narrower, the same
+    // parts stack on the sheet: the top bar, the left bar's tabs, the form, and an Edit / Preview
+    // switch for the page.
+    <div className="desk desk-bright flex min-h-screen flex-col p-2 pb-24 sm:p-6 sm:pb-24 xl:h-screen xl:overflow-hidden xl:pb-6">
       {/* All of it shares what the checker found: the left bar lists it and the forms point at it. */}
       <CheckProvider onSelect={select} preview={preview} unbuilt={unbuilt}>
-        {/* The glass makes the top bar a stacking context, so it's raised (z-40) over the panels
-            and the Edit / Preview switch: the menus and the gallery that open
-            from it go over them. */}
-        <header ref={headerRef} className="glass glass-frost relative z-40 mx-3 mt-3 rounded-panel xl:m-0 xl:shrink-0">
-          <div className="flex min-h-[60px] flex-wrap items-center justify-between gap-x-6 gap-y-2 py-2.5 pl-4 pr-2.5 sm:pl-5">
-            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-              <Link
-                href="/create/dashboard"
-                className="-ml-2 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-sm text-ink-2 transition-colors hover:bg-ink/[0.05] hover:text-ink"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                Your Resumes
-              </Link>
-              <span className="h-5 w-px shrink-0 bg-ink/15" aria-hidden="true" />
-              <ResumeName />
-            </div>
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-              {/* Here rather than after the name, so it stays put while the name is typed. */}
-              <SavedNote />
-              <TemplatePicker value={selectedTemplate} onChange={chooseTemplate} />
-              {/* Download PDF is the main way out; the ▾ beside it has the others. The button's
-                  least width fits "Download PDF", so it doesn't shrink when it says Downloaded. */}
-              <div className="relative flex">
-                <button
-                  type="button"
-                  onClick={download}
-                  disabled={downloading}
-                  className="download-button ink-glass relative inline-flex h-10 items-center justify-center gap-2 overflow-hidden rounded-l-full pl-[18px] pr-4 text-sm font-medium disabled:cursor-wait sm:min-w-[10.5rem] sm:text-[15px] [&_svg]:size-4 xl:h-11"
-                >
-                  <DownloadIcon state={downloading ? "busy" : downloaded ? "done" : "idle"} />
-                  {/* Fills along the bottom while the PDF is made, then the rest of the way, and fades, once it's downloaded. */}
-                  <span
-                    aria-hidden="true"
-                    // The fill's time, and the wait after it, from DOWNLOAD_FILL_MS, as the save is.
-                    style={{ animationDuration: `${DOWNLOAD_FILL_MS}ms, 20s`, animationDelay: `0s, ${DOWNLOAD_FILL_MS}ms` }}
-                    className={`absolute inset-x-0 bottom-0 h-0.5 origin-left bg-accent ${
-                      downloading
-                        ? "scale-x-0 motion-safe:animate-download-progress"
-                        : downloaded
-                          ? "scale-x-100 opacity-0 [transition:scale_180ms_ease-out,opacity_450ms_ease-out_200ms] motion-reduce:transition-none"
-                          : "scale-x-0"
-                    }`}
-                  />
-                  {/* Just "PDF" on phones, so it fits beside the template picker. */}
-                  {downloaded ? (
-                    <span>
-                      <span className="max-sm:sr-only">Downloaded</span>
-                      <span className="sm:hidden">PDF</span>
-                    </span>
-                  ) : (
-                    <span>
-                      <span className="max-sm:sr-only">Download </span>PDF
-                    </span>
-                  )}
-                </button>
-                <DownloadMenu
-                  choices={[
-                    { title: "Word", hint: "To edit in Word, Google Docs or Pages", icon: <WordIcon />, onChoose: downloadWord },
-                    {
-                      title: "LaTeX",
-                      hint: "To edit on Overleaf, laid out like your PDF",
-                      icon: <LatexIcon />,
-                      onChoose: downloadLatex,
-                    },
-                    {
-                      title: "Save to Google Drive",
-                      hint: "Puts the PDF in your Drive. Google asks you first.",
-                      icon: <DriveIcon />,
-                      onChoose: drive.save,
-                    },
-                    {
-                      title: "JSON",
-                      hint: "A backup with everything, even what the PDF leaves out",
-                      icon: <JsonIcon />,
-                      onChoose: downloadJson,
-                    },
-                    // It opens the device's share sheet, so it's apart from the formats.
-                    ...(sharePdf.shareable
-                      ? [{ title: "Share PDF…", hint: "", icon: <ShareIcon />, apart: true, onChoose: sharePdf.share }]
-                      : []),
-                  ]}
-                  busy={sharePdf.making}
-                  onOpen={() => {
-                    // The last LaTeX file's note goes as the menu opens: it's about that
-                    // file, and whatever is chosen next is another.
-                    setLatexNotice(null)
-                    if (sharePdf.shareable) preparePdf()
-                  }}
-                  notice={
-                    drive.saving
-                      ? { title: "Saving to Google Drive…", working: true }
-                      : drive.saved
-                        ? {
-                            title: "Saved to Google Drive",
-                            file: drive.saved.name,
-                            icon: <DriveIcon />,
-                            link: { href: drive.saved.link, label: "Open it", name: "Open it in Google Drive" },
-                          }
-                        : latexNotice
-                  }
-                  onNoticeClose={() => {
-                    drive.dismiss()
-                    setLatexNotice(null)
-                  }}
-                />
-              </div>
-              <span role="status" className="sr-only">
-                {downloaded ? "PDF downloaded. This PDF carries your resume. Open it here on any computer to keep editing." : ""}
-              </span>
-              <span role="status" className="sr-only">
-                {savedAs}
-              </span>
-            </div>
-          </div>
-          <NotSaved className={BANNER} onDownload={download} downloading={downloading} />
-          <Replaced id={id} className={BANNER} />
-          {failure && (
-            <DownloadFailed
-              key={failure.count}
-              failure={failure}
-              retrying={downloading}
-              onRetry={failure.of === "LaTeX file" ? downloadLatex : failure.of ? downloadWord : download}
-              className={BANNER}
-            />
-          )}
-          {sharePdf.failure && (
-            <DownloadFailed
-              key={sharePdf.failure.count}
-              doing="share"
-              failure={sharePdf.failure}
-              retrying={sharePdf.sharing}
-              onRetry={sharePdf.share}
-              className={BANNER}
-            />
-          )}
-          {drive.failure && (
-            <DownloadFailed
-              key={drive.failure.count}
-              doing="save"
-              failure={drive.failure}
-              retrying={drive.saving}
-              onRetry={drive.save}
-              className={BANNER}
-            />
-          )}
-        </header>
-
-        <div className="flex flex-1 flex-col xl:min-h-0 xl:flex-row xl:gap-4">
-          <LeftBar hidden={view === "preview"} style={style}>
-            {nav}
-          </LeftBar>
-
-          {/* The form, on a glass sheet. On wide screens it's the middle panel, as wide as is
-              comfortable to write in, and scrolls inside it (useKeepFormPlace keeps the place
-              across the two). In Style mode on narrower screens, Style takes its place. */}
-          <div
-            ref={formRef}
-            className={`editor-form glass glass-frost mx-3 mt-3 rounded-panel sm:mx-auto sm:w-[calc(100%-48px)] sm:max-w-[720px] xl:m-0 xl:flex xl:w-[clamp(536px,38vw,640px)] xl:max-w-none xl:shrink-0 xl:flex-col xl:overflow-hidden ${
-              view === "preview" ? "hidden" : ""
-            }`}
-          >
-            <main ref={mainRef} className="min-w-0 flex-1 px-5 pb-12 pt-8 sm:px-10 xl:overflow-y-auto xl:px-7 xl:pb-14 xl:pt-7">
-              {/* The fields fit the form's own width rather than the window's. Each grid of
-                  them is in a container (ProfileForm, SectionForm), not the whole form, so
-                  an entry being dragged isn't in one: SectionForm says why. */}
-              <div className="mx-auto max-w-[640px]">
-                {/* Each section fades in as it's chosen: a new key mounts it anew, and
-                    `starting:` (CSS @starting-style) is where its transition starts from. */}
-                <div
-                  key={selected}
-                  className="transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none starting:translate-y-1 starting:opacity-0"
-                >
-                  {selected === "Profile" ? (
-                    <ProfileForm position={position(1)} />
-                  ) : extraKey(selected) !== null ? (
-                    <ExtraSectionForm
-                      sectionId={extraKey(selected)!}
-                      position={position(sections.indexOf(selected) + 2)}
-                      onDelete={remove}
+        <div className="paper-frame flex flex-1 flex-col xl:min-h-0">
+          <div className="paper flex flex-1 flex-col xl:min-h-0">
+            {/* Raised (z-40) over the columns and the Edit / Preview switch: the menus and the
+                gallery that open from it go over them. */}
+            <header ref={headerRef} className="relative z-40 border-b border-hairline">
+              <div className="flex min-h-[72px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-[13px] sm:px-[14px] xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                <div className="flex min-w-0 items-center gap-3 sm:gap-[15px]">
+                  <Link
+                    href="/create/dashboard"
+                    aria-label="Dashboard"
+                    title="Dashboard"
+                    className="white-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                  >
+                    <ArrowLeft className="h-[18px] w-[18px]" aria-hidden="true" />
+                  </Link>
+                  <ResumeName />
+                  <SavedNote />
+                </div>
+                {/* In the middle of the bar, whatever the name's length, on wide screens; narrower, atop the left bar. */}
+                {wide && <ModeTabs />}
+                {/* On the narrowest phones the template's name is cut short, so Download PDF still fits. */}
+                <div className="flex min-w-0 items-center justify-end gap-2.5 sm:gap-[15px]">
+                  <TemplatePicker value={selectedTemplate} onChange={chooseTemplate} />
+                  {/* Download PDF is the main way out; the ▾ beside it has the others. One blue pill,
+                      split. The button's least width fits "Download PDF", so it doesn't shrink when it
+                      says Downloaded. */}
+                  <div className="relative flex shrink-0 rounded-full text-white">
+                    {/* The pill's blue is under the two halves, not on what holds them: a filter
+                        there would brighten the menu that opens from the ▾, and keep it from blurring
+                        what's behind it. */}
+                    <span aria-hidden="true" className="blue-fill pointer-events-none absolute inset-0 rounded-full" />
+                    <button
+                      type="button"
+                      onClick={download}
+                      disabled={downloading}
+                      className="download-button relative inline-flex h-10 items-center justify-center gap-2 overflow-hidden rounded-l-full pl-[18px] pr-4 text-sm font-medium transition-colors hover:bg-white/[0.08] focus-visible:bg-white/[0.14] disabled:cursor-wait sm:min-w-[160px] sm:text-[15px] [&_svg]:size-4"
+                    >
+                      <DownloadIcon state={downloading ? "busy" : downloaded ? "done" : "idle"} />
+                      {/* Fills along the bottom while the PDF is made, then the rest of the way, and fades, once it's downloaded. */}
+                      <span
+                        aria-hidden="true"
+                        // The fill's time, and the wait after it, from DOWNLOAD_FILL_MS, as the save is.
+                        style={{ animationDuration: `${DOWNLOAD_FILL_MS}ms, 20s`, animationDelay: `0s, ${DOWNLOAD_FILL_MS}ms` }}
+                        className={`absolute inset-x-0 bottom-0 h-0.5 origin-left bg-white/80 ${
+                          downloading
+                            ? "scale-x-0 motion-safe:animate-download-progress"
+                            : downloaded
+                              ? "scale-x-100 opacity-0 [transition:scale_180ms_ease-out,opacity_450ms_ease-out_200ms] motion-reduce:transition-none"
+                              : "scale-x-0"
+                        }`}
+                      />
+                      {/* Just "PDF" on phones, so it fits beside the template picker. */}
+                      {downloaded ? (
+                        <span>
+                          <span className="max-sm:sr-only">Downloaded</span>
+                          <span className="sm:hidden">PDF</span>
+                        </span>
+                      ) : (
+                        <span>
+                          <span className="max-sm:sr-only">Download </span>PDF
+                        </span>
+                      )}
+                    </button>
+                    <DownloadMenu
+                      choices={[
+                        { title: "Word", hint: "To edit in Word, Google Docs or Pages", icon: <WordIcon />, onChoose: downloadWord },
+                        {
+                          title: "LaTeX",
+                          hint: "To edit on Overleaf, laid out like your PDF",
+                          icon: <LatexIcon />,
+                          onChoose: downloadLatex,
+                        },
+                        {
+                          title: "Save to Google Drive",
+                          hint: "Puts the PDF in your Drive. Google asks you first.",
+                          icon: <DriveIcon />,
+                          onChoose: drive.save,
+                        },
+                        {
+                          title: "JSON",
+                          hint: "A backup with everything, even what the PDF leaves out",
+                          icon: <JsonIcon />,
+                          onChoose: downloadJson,
+                        },
+                        // It opens the device's share sheet, so it's apart from the formats.
+                        ...(sharePdf.shareable
+                          ? [{ title: "Share PDF…", hint: "", icon: <ShareIcon />, apart: true, onChoose: sharePdf.share }]
+                          : []),
+                      ]}
+                      busy={sharePdf.making}
+                      onOpen={() => {
+                        // The last LaTeX file's note goes as the menu opens: it's about that
+                        // file, and whatever is chosen next is another.
+                        setLatexNotice(null)
+                        if (sharePdf.shareable) preparePdf()
+                      }}
+                      notice={
+                        drive.saving
+                          ? { title: "Saving to Google Drive…", working: true }
+                          : drive.saved
+                            ? {
+                                title: "Saved to Google Drive",
+                                file: drive.saved.name,
+                                icon: <DriveIcon />,
+                                link: { href: drive.saved.link, label: "Open it", name: "Open it in Google Drive" },
+                              }
+                            : latexNotice
+                      }
+                      onNoticeClose={() => {
+                        drive.dismiss()
+                        setLatexNotice(null)
+                      }}
                     />
-                  ) : (
-                    <SectionForm
-                      section={SECTIONS[selected as SectionName]}
-                      position={position(sections.indexOf(selected) + 2)}
-                      onDelete={remove}
-                      onEntryDeleted={entryDeleted}
-                      restored={restored}
-                      onRestored={forgetRestored}
-                    />
-                  )}
+                  </div>
+                  <span role="status" className="sr-only">
+                    {downloaded ? "PDF downloaded. This PDF carries your resume. Open it here on any computer to keep editing." : ""}
+                  </span>
+                  <span role="status" className="sr-only">
+                    {savedAs}
+                  </span>
                 </div>
               </div>
-            </main>
-          </div>
+              <NotSaved className={BANNER} onDownload={download} downloading={downloading} />
+              <Replaced id={id} className={BANNER} />
+              {failure && (
+                <DownloadFailed
+                  key={failure.count}
+                  failure={failure}
+                  retrying={downloading}
+                  onRetry={failure.of === "LaTeX file" ? downloadLatex : failure.of ? downloadWord : download}
+                  className={BANNER}
+                />
+              )}
+              {sharePdf.failure && (
+                <DownloadFailed
+                  key={sharePdf.failure.count}
+                  doing="share"
+                  failure={sharePdf.failure}
+                  retrying={sharePdf.sharing}
+                  onRetry={sharePdf.share}
+                  className={BANNER}
+                />
+              )}
+              {drive.failure && (
+                <DownloadFailed
+                  key={drive.failure.count}
+                  doing="save"
+                  failure={drive.failure}
+                  retrying={drive.saving}
+                  onRetry={drive.save}
+                  className={BANNER}
+                />
+              )}
+            </header>
 
-          {/* The page, on the desk: on wide screens in the room the panels leave. */}
-          <section
-            aria-label="Live preview"
-            className={`mt-3 min-w-0 flex-col xl:mt-0 xl:flex xl:flex-1 xl:overflow-hidden ${view === "preview" ? "flex max-xl:flex-1" : "hidden"}`}
-          >
-            <PdfPreview pdfUrl={pdfUrl} template={shownTemplate} error={compileError} updating={switchingTemplate && !compileError} />
-          </section>
+            <div className="flex flex-1 flex-col xl:min-h-0 xl:flex-row">
+              <LeftBar hidden={view === "preview"} tabs={!wide} style={style}>
+                {nav}
+              </LeftBar>
+
+              {/* The form. On wide screens it's the middle column, as wide as is comfortable to
+                  write in, and scrolls inside it (useKeepFormPlace keeps the place across the two).
+                  In Style mode on narrower screens, Style takes its place. */}
+              <div
+                ref={formRef}
+                className={`editor-form xl:flex xl:w-[clamp(480px,39vw,560px)] xl:shrink-0 xl:flex-col xl:overflow-hidden ${
+                  view === "preview" ? "hidden" : ""
+                }`}
+              >
+                <main ref={mainRef} className="min-w-0 flex-1 px-4 pb-12 pt-7 sm:px-9 xl:overflow-y-auto xl:pb-14 xl:pt-[28px]">
+                  {/* The fields fit the form's own width rather than the window's. Each grid of
+                      them is in a container (ProfileForm, SectionForm), not the whole form, so
+                      an entry being dragged isn't in one: SectionForm says why. */}
+                  <div className="mx-auto max-w-[640px]">
+                    {/* Each section fades in as it's chosen: a new key mounts it anew, and
+                        `starting:` (CSS @starting-style) is where its transition starts from. */}
+                    <div
+                      key={selected}
+                      className="transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none starting:translate-y-1 starting:opacity-0"
+                    >
+                      {selected === "Profile" ? (
+                        <ProfileForm />
+                      ) : extraKey(selected) !== null ? (
+                        <ExtraSectionForm sectionId={extraKey(selected)!} onDelete={remove} />
+                      ) : (
+                        <SectionForm
+                          section={SECTIONS[selected as SectionName]}
+                          onDelete={remove}
+                          onEntryDeleted={entryDeleted}
+                          restored={restored}
+                          onRestored={forgetRestored}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </main>
+              </div>
+
+              {/* The page, on a grey panel: on wide screens in the room the columns leave. */}
+              <section
+                aria-label="Live preview"
+                className={`min-w-0 flex-col p-3 xl:flex xl:flex-1 xl:overflow-hidden xl:pl-0 ${view === "preview" ? "flex max-xl:flex-1" : "hidden"}`}
+              >
+                <div className="flex min-h-0 flex-1 flex-col rounded-[22px] bg-[#eef0f4] xl:rounded-[24px]">
+                  <PdfPreview pdfUrl={pdfUrl} template={shownTemplate} error={compileError} updating={switchingTemplate && !compileError} />
+                </div>
+              </section>
+            </div>
+          </div>
         </div>
       </CheckProvider>
 
@@ -742,12 +751,16 @@ function Editor({ id }: { id: string }) {
 
       <div
         data-covers="bottom"
-        // Out of the way while typing, below the foot of the screen: it slides rather than fades, as see-through glass stops blurring.
+        // Out of the way while typing, below the foot of the screen.
         className={`fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 flex justify-center transition-transform duration-200 xl:hidden ${
           typing ? "pointer-events-none translate-y-24" : ""
         }`}
       >
-        <div role="group" aria-label="View" className="glass glass-clear flex gap-1 rounded-full p-1">
+        <div
+          role="group"
+          aria-label="View"
+          className="flex gap-1 rounded-full bg-sheet p-[5px] shadow-[0_0_0_1px_rgb(17_19_24/0.06),0_10px_28px_-8px_rgb(17_19_24/0.3)]"
+        >
           {(["edit", "preview"] as const).map((option) => {
             const Icon = option === "edit" ? PencilLine : Eye
             return (
@@ -756,11 +769,11 @@ function Editor({ id }: { id: string }) {
                 type="button"
                 aria-pressed={view === option}
                 onClick={() => show(option)}
-                className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors ${
-                  view === option ? "bg-ink text-white" : "text-ink-2 hover:text-ink"
+                className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-[15px] font-medium transition-colors ${
+                  view === option ? "bg-ink text-white" : "text-ink-3 hover:text-ink"
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                <Icon className="h-4 w-4" aria-hidden="true" />
                 {option === "edit" ? "Edit" : "Preview"}
               </button>
             )
@@ -796,34 +809,42 @@ function ResumeName() {
     if (unique !== title) update("resumeTitle", unique)
   }
 
+  // As wide as its words: an unseen copy of them sizes the box, which the input fills.
   return (
-    <input
-      aria-label="Resume name"
-      value={title ?? ""}
-      placeholder="Untitled resume"
-      size={Math.max(14, (title ?? "").length + 1)}
-      onChange={(event) => update("resumeTitle", event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") event.currentTarget.blur()
-      }}
-      className="min-w-0 max-w-[50vw] border-0 border-b border-transparent bg-transparent py-0.5 font-serif text-[19px] text-ink outline-none transition-colors placeholder:text-ink-2 hover:border-rule-strong focus:border-accent focus-visible:outline-none lg:max-w-[36vw] xl:text-[21px] xl:tracking-[-0.01em]"
-    />
+    <span className="grid min-w-0 text-[17px] font-medium tracking-[-0.02em] sm:text-[18px]">
+      <span
+        aria-hidden="true"
+        className="invisible col-start-1 row-start-1 overflow-hidden whitespace-pre border-b border-transparent py-0.5 pr-1"
+      >
+        {title || "Untitled resume"}
+      </span>
+      <input
+        aria-label="Resume name"
+        value={title ?? ""}
+        placeholder="Untitled resume"
+        // The least a box can be, so its unseen copy, not its own width, is what sizes it.
+        size={1}
+        onChange={(event) => update("resumeTitle", event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur()
+        }}
+        className="col-start-1 row-start-1 w-full min-w-0 border-0 border-b border-transparent bg-transparent py-0.5 text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-rule-strong focus:border-accent focus-visible:outline-none"
+      />
+    </span>
   )
 }
 
 /**
  * "Saving…" from a change until it's saved and typing has paused a moment,
- * then "Saved in this browser", with a tick that draws itself after a save.
- * Nothing while saving fails: NotSaved says so instead.
+ * then "Saved". Nothing while saving fails: NotSaved says so instead.
  */
 function SavedNote() {
   const saveStatus = useResumeState((state) => state.saveStatus)
   const unsaved = useResumeState((state) => state.unsaved)
   const savedAt = useResumeState((state) => state.savedAt)
-  // Saved since the page opened, so the tick has something to draw itself for.
+  // When it was last saved as the page opened: "Saving…" waits a moment after each save since.
   const openedSavedAt = useRef(savedAt)
-  const saved = savedAt !== openedSavedAt.current
   const [settling, setSettling] = useState(false)
 
   useEffect(() => {
@@ -835,27 +856,6 @@ function SavedNote() {
 
   if (saveStatus !== "saved") return null
   return (
-    <span className="saved-note label-mono mr-2 hidden shrink-0 items-center gap-1.5 text-ink-2 xl:inline-flex">
-      {unsaved || settling ? (
-        "Saving…"
-      ) : (
-        <>
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path className={saved ? "tick" : undefined} pathLength={1} d="m5 12.5 4.5 4.5L19 7.5" />
-          </svg>
-          Saved in this browser
-        </>
-      )}
-    </span>
+    <span className="hidden shrink-0 whitespace-nowrap text-[14px] text-ink-3 xl:inline">{unsaved || settling ? "Saving…" : "Saved"}</span>
   )
 }

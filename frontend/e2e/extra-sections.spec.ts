@@ -48,7 +48,7 @@ test("optional section lifecycle, duplicate headings, keyboard movement and v2 P
   await page
     .getByRole("textbox", { name: "Bullet points", exact: true })
     .fill("• **Public** list item\n○ PRIVATE_SENTINEL\n• Final list item")
-  await expect(nav(page).getByRole("button", { name: /^\d+ Experience, section \d+$/ })).toHaveCount(3)
+  await expect(nav(page).getByRole("button", { name: /^Experience, section \d+$/ })).toHaveCount(3)
   await expect.poll(async () => Object.keys((await saved(page)).extraSections ?? {})).toHaveLength(2)
   await nav(page)
     .getByRole("button", { name: /Profile$/ })
@@ -90,7 +90,7 @@ test("optional section lifecycle, duplicate headings, keyboard movement and v2 P
   await previewShown(page)
   // The last section is one of the two added.
   await nav(page)
-    .getByRole("button", { name: /^\d+ Experience, section \d+$/ })
+    .getByRole("button", { name: /^Experience, section \d+$/ })
     .last()
     .click()
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
@@ -108,8 +108,8 @@ test("a resume starts with four sections, and the optional ones are added and de
   const errors = pageErrors(page)
   await open(page)
   await previewShown(page)
-  await expect(nav(page).getByRole("button", { name: /^\d+ (Education|Experience|Skills|Projects)$/ })).toHaveCount(4)
-  await expect(nav(page).getByRole("button", { name: /^\d+ Awards & Certifications$/ })).toHaveCount(0)
+  await expect(nav(page).getByRole("button", { name: /^(Education|Experience|Skills|Projects)$/ })).toHaveCount(4)
+  await expect(nav(page).getByRole("button", { name: /^Awards & Certifications$/ })).toHaveCount(0)
   await add(page, "Awards & Certifications")
   await expect(editorHeading(page, "Awards & Certifications", { exact: true })).toBeVisible()
   await expect.poll(async () => (await saved(page)).sectionOrder).toContain("Awards")
@@ -129,8 +129,33 @@ test("a resume starts with four sections, and the optional ones are added and de
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused()
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
-  await expect(nav(page).getByRole("button", { name: /^\d+ Awards & Certifications$/ })).toHaveCount(0)
+  await expect(nav(page).getByRole("button", { name: /^Awards & Certifications$/ })).toHaveCount(0)
   await expect.poll(async () => (await saved(page)).sectionOrder).not.toContain("Awards")
+  expect(errors).toEqual([])
+})
+
+test("the Add section menu stays closed once a section is chosen, though the page scrolls as it goes", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await open(page)
+  await previewShown(page)
+  // The page scrolls to the new section as the menu goes, and the menu follows its button as anything
+  // scrolls. Here a scroll comes the moment each timer runs, the menu's own included, so one lands as it goes.
+  await page.evaluate(() => {
+    const later = window.setTimeout
+    window.setTimeout = ((run: TimerHandler, wait?: number, ...rest: unknown[]) =>
+      later(() => {
+        if (typeof run === "function") run(...rest)
+        window.dispatchEvent(new Event("scroll"))
+      }, wait)) as typeof window.setTimeout
+  })
+  await nav(page).getByRole("button", { name: "Add section", exact: true }).click()
+  await menu(page).getByRole("menuitem", { name: "Publications", exact: true }).click()
+  await expect(editorHeading(page, "Publications", { exact: true })).toBeVisible()
+  await expect(menu(page)).toBeHidden()
+  // A fixed wait: proving it doesn't come back.
+  await page.waitForTimeout(500)
+  await expect(menu(page)).toBeHidden()
   expect(errors).toEqual([])
 })
 
@@ -203,7 +228,7 @@ test("a resume from before sections were added from the list shows only the ones
     if (!localStorage.getItem("resume:older")) localStorage.setItem("resume:older", JSON.stringify(resume))
   }, older)
   await page.goto("/create/new/older")
-  const listed = (name: string) => nav(page).getByRole("button", { name: new RegExp(`^\\d+ ${name}$`) })
+  const listed = (name: string) => nav(page).getByRole("button", { name: new RegExp(`^${name}$`) })
   await expect(listed("Leadership")).toHaveCount(1)
   for (const empty of ["Publications", "Volunteer", "Awards & Certifications"]) await expect(listed(empty)).toHaveCount(0)
   await previewShown(page)
@@ -225,7 +250,7 @@ test("a section the resume started with can be deleted, and added back from the 
   const errors = pageErrors(page)
   await open(page)
   await previewShown(page)
-  const education = nav(page).getByRole("button", { name: /^\d+ Education$/ })
+  const education = nav(page).getByRole("button", { name: /^Education$/ })
   await education.click()
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused()

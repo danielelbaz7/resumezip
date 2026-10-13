@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react"
+
 /**
  * Wide enough for the editor's three panels: the left bar, the form and the
  * preview side by side, under the top bar. Narrower, the sections are a row
@@ -9,6 +11,19 @@
  * the two agree even when the browser's text size isn't the usual 16px.
  */
 export const WIDE_SCREEN = "(min-width: 80rem)"
+
+/** Whether the window is WIDE_SCREEN wide, following it as it's resized. False in the page as built, which has no window. */
+export function useWideScreen(): boolean {
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(WIDE_SCREEN).matches)
+  useEffect(() => {
+    const query = window.matchMedia(WIDE_SCREEN)
+    const sync = () => setWide(query.matches)
+    sync()
+    query.addEventListener("change", sync)
+    return () => query.removeEventListener("change", sync)
+  }, [])
+  return wide
+}
 
 /** The part of the window that the editor's pinned bars (on narrower screens) leave uncovered. */
 export function uncovered() {

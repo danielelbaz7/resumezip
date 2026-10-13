@@ -170,10 +170,10 @@ test("an older PDF of a resume in this browser says it's older, and replacing th
   const openExperience = () =>
     page
       .getByRole("navigation", { name: "Sections" })
-      .getByRole("button", { name: /^\d+ Experience$/ })
+      .getByRole("button", { name: /^Experience$/ })
       .click()
   const role = page.getByLabel("Role", { exact: true })
-  const bullets = page.getByLabel("What you did · one bullet per line")
+  const bullets = page.getByLabel("What you did")
 
   // The PDF is downloaded, then the resume changes: a new role, and a new bullet.
   await page.goto("/create/new/ada")
@@ -194,9 +194,9 @@ test("an older PDF of a resume in this browser says it's older, and replacing th
   const conflict = page.getByRole("dialog", { name: "You already have this resume" })
   await expect(conflict).toContainText("The PDF is older")
   await expect(conflict).toContainText("Replacing loses your changes since then.")
-  // The main choice is the dark one.
-  await expect(conflict.getByRole("button", { name: "Keep both" })).toHaveCSS("background-color", "rgb(17, 19, 24)")
-  await expect(conflict.getByRole("button", { name: "Replace with the PDF" })).not.toHaveCSS("background-color", "rgb(17, 19, 24)")
+  // The main choice is the blue one, with white words.
+  await expect(conflict.getByRole("button", { name: "Keep both" })).toHaveCSS("color", "rgb(255, 255, 255)")
+  await expect(conflict.getByRole("button", { name: "Replace with the PDF" })).not.toHaveCSS("color", "rgb(255, 255, 255)")
 
   // Replacing anyway brings back the PDF's version, as last edited when the PDF says.
   await conflict.getByRole("button", { name: "Replace with the PDF" }).click()
@@ -209,7 +209,7 @@ test("an older PDF of a resume in this browser says it's older, and replacing th
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
 
   // So the same PDF opened again is nothing new, and opens without asking. The undo is still there.
-  await page.getByRole("link", { name: "Your resumes" }).click()
+  await page.getByRole("link", { name: "Dashboard" }).click()
   await page.locator('input[type="file"]').setInputFiles(pdf)
   await expect(page).toHaveURL(/\/create\/new\/ada$/)
   await expect(page.getByRole("dialog")).toHaveCount(0)

@@ -7,6 +7,7 @@ import { paperIdOf } from "@/lib/papers/link"
 import { lookUp } from "@/lib/papers/lookup"
 import { publicationOf, type PublicationFields } from "@/lib/papers/publication"
 import type { Entry } from "@/lib/resume"
+import { BLUE_PILL, sheetPill } from "@/components/pills"
 
 type Reason = "no-doi" | "not-found" | "unreachable"
 
@@ -37,8 +38,8 @@ interface PaperFromLinkProps {
   owner: () => string
   /** Adds papers as new entries. `show` brings the first into view. */
   onAdd: (papers: Partial<PublicationFields>[], show: boolean) => void
-  /** The section's own add button, shown first. */
-  children: React.ReactNode
+  /** The section's own add button, shown first, where it has no tabs to be at the end of. */
+  children?: React.ReactNode
 }
 
 /**
@@ -202,15 +203,15 @@ export default function PaperFromLink({ entries, owner, onAdd, children }: Paper
           onClick={open ? close : show}
           aria-expanded={open}
           aria-controls={open ? panelId : undefined}
-          className="inline-flex h-10 items-center gap-2 rounded-full bg-sheet/70 px-4 text-sm text-ink ring-1 ring-ink/15 transition-shadow hover:ring-ink/40"
+          className={sheetPill("white", "h-10 px-4 text-[14px] font-medium")}
         >
-          <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+          <Link2 aria-hidden="true" />
           Add from DOI or link
         </button>
       </div>
 
       {open && (
-        <div id={panelId} className="mt-5 flex flex-col gap-3 border-t border-ink pt-5" onKeyDown={onKeyDown}>
+        <div id={panelId} className="mt-5 flex flex-col gap-3 border-t border-hairline pt-5" onKeyDown={onKeyDown}>
           <label className="flex flex-col gap-2">
             <span className="label-mono text-ink-2">DOI or link · one per line</span>
             <textarea
@@ -227,10 +228,10 @@ export default function PaperFromLink({ entries, owner, onAdd, children }: Paper
               spellCheck={false}
               autoCapitalize="off"
               autoCorrect="off"
-              className="w-full resize-y rounded-[4px] border border-rule bg-sheet px-4 py-3.5 font-mono text-[13px] leading-[1.7] text-ink outline-none transition-colors placeholder:text-ink-2/50 focus:border-accent focus-visible:outline-none"
+              className="w-full resize-y rounded-[6px] border border-rule bg-sheet px-4 py-3.5 font-mono text-[13px] leading-[1.7] text-ink outline-none transition-colors placeholder:text-ink-2/50 focus:border-ink/30 focus-visible:outline-none"
             />
           </label>
-          <p id={noteId} className="text-[13px] leading-normal text-ink-2">
+          <p id={noteId} className="text-[13px] leading-normal text-ink-3">
             Only each paper’s DOI is sent, to Crossref or doi.org, to look it up. Nothing else from your resume leaves your browser.
           </p>
 
@@ -267,12 +268,12 @@ export default function PaperFromLink({ entries, owner, onAdd, children }: Paper
                 else void run()
               }}
               disabled={!progress && !text.trim()}
-              className="ink-button lift-button h-10 rounded-full px-[18px] text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+              className={BLUE_PILL}
             >
               {progress ? "Stop" : "Add papers"}
             </button>
             {!progress && (
-              <button type="button" onClick={close} className="py-2 text-sm text-ink-2 transition-colors hover:text-ink">
+              <button type="button" onClick={close} className={sheetPill("text", "h-10 px-4 text-[15px]")}>
                 Cancel
               </button>
             )}
@@ -280,7 +281,7 @@ export default function PaperFromLink({ entries, owner, onAdd, children }: Paper
         </div>
       )}
 
-      <p role="status" className={`text-[13px] leading-normal text-ink-2 ${progress || status ? "mt-3" : ""}`}>
+      <p role="status" className={`text-[13px] leading-normal text-ink-3 ${progress || status ? "mt-3" : ""}`}>
         {progress ? `Looking up ${progress.at} of ${progress.of}…` : status}
       </p>
     </div>

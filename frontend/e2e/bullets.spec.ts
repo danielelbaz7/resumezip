@@ -7,7 +7,7 @@ import { boxText, cursorInBox, pageErrors, selectInBox } from "./helpers"
 // a line with no bullet get one, and a list typed or pasted gets one bullet a
 // line. Each edit is undone and redone, as typing is.
 
-const LABEL = "What you did · one bullet per line"
+const LABEL = "What you did"
 const BULLETS = "• Built the search index\n• Cut serving costs by 30%"
 const RESUME = {
   id: "undo",
@@ -73,7 +73,7 @@ async function openBox(page: Page, bullets: string): Promise<Locator> {
   await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
   await page
     .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^\d+ Experience$/ })
+    .getByRole("button", { name: /^Experience$/ })
     .click()
   const box = page.getByLabel(LABEL)
   await box.focus()

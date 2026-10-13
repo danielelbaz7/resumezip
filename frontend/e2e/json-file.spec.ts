@@ -163,8 +163,8 @@ test("Download all saves every resume in one file, which opens them all, with on
   await expect(question).toContainText(
     "“Grace” is in this browser, and the file has a different copy. The file's copy is older: replacing loses your changes since then.",
   )
-  // Keeping both is the main choice, as replacing loses something.
-  await expect(question.getByRole("button", { name: "Keep both" })).toHaveCSS("background-color", "rgb(17, 19, 24)")
+  // Keeping both is the main choice, as replacing loses something: the blue one, with white words.
+  await expect(question.getByRole("button", { name: "Keep both" })).toHaveCSS("color", "rgb(255, 255, 255)")
   expect(await seriousAccessibilityProblems(page)).toEqual([])
 
   await question.getByRole("button", { name: "Replace it" }).click()

@@ -4,7 +4,7 @@
    there's nothing behind it to see, so it reads as a plain card.
 
    Its blur sits on ::before, under the pane's own content, so text on the
-   pane stays sharp. Tints set --glass-fill and --glass-blur. */
+   pane stays sharp. Tints set --glass-fill, --glass-blur and --glass-saturate. */
 @layer components {
   .glass {
     position: relative;
@@ -20,8 +20,8 @@
     z-index: -1;
     border-radius: inherit;
     pointer-events: none;
-    -webkit-backdrop-filter: blur(var(--glass-blur, 16px)) saturate(1.6) brightness(1.04);
-    backdrop-filter: blur(var(--glass-blur, 16px)) saturate(1.6) brightness(1.04);
+    -webkit-backdrop-filter: blur(var(--glass-blur, 16px)) saturate(var(--glass-saturate, 1.6)) brightness(1.04);
+    backdrop-filter: blur(var(--glass-blur, 16px)) saturate(var(--glass-saturate, 1.6)) brightness(1.04);
     background:
       radial-gradient(130% 70% at 18% 0%, rgb(255 255 255 / 0.35), transparent 55%),
       var(--glass-fill, linear-gradient(180deg, rgb(255 255 255 / 0.62), rgb(255 255 255 / 0.44)));
@@ -63,6 +63,24 @@
   .glass-clear {
     --glass-blur: 3px;
     --glass-fill: linear-gradient(180deg, rgb(255 255 255 / 0.42), rgb(255 255 255 / 0.16));
+  }
+  /* Liquid glass: nearly clear, barely frosted, and only a little more
+     colorful than what's behind it, over a layer that bends what's under its
+     rim (LiquidLens.tsx, .liquid-lens below). For a bar the page shows
+     through, as the dashboard's search and filters. */
+  .glass-liquid {
+    --glass-blur: 1.5px;
+    --glass-saturate: 1.2;
+    --glass-fill: linear-gradient(180deg, rgb(255 255 255 / 0.34), rgb(255 255 255 / 0.12));
+  }
+  /* The bend, under the pane's frost (.glass::before), so the frost and its
+     lit edges are drawn over what's bent, not bent with it. */
+  .liquid-lens {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    border-radius: inherit;
+    pointer-events: none;
   }
   /* Heavily frosted and nearly white, for floating controls and menus with
      words on them (the zoom pill, the ▾ menu, the home page's Start writing). */
@@ -109,12 +127,6 @@
       --desk-sky: url("/backgrounds/sky-tall.webp");
     }
   }
-  /* The editor is for work, and the page in it is what to look at: the sky
-     there is mostly washed out, a tint of color rather than a picture. */
-  .desk.desk-quiet {
-    --desk-wash: 0.58;
-  }
-
   /* An etched pane: frosted glass laid on the sky, nearly square, with no
      shadow, only a lit top edge and a white hairline round it. For How it
      works' steps and the dashboard's sheet. The blur is on ::before, so the
@@ -149,6 +161,9 @@
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
       background: var(--color-sheet);
+    }
+    .liquid-lens {
+      display: none;
     }
     /* Already solid: it stays ink rather than turning white like the rest. */
     .glass-ink::before {

@@ -12,6 +12,7 @@ import { resumeOf } from "@/lib/resumeStore"
 import AddSectionMenu from "./AddSectionMenu"
 import { loadDragAndDrop, type DragAndDrop } from "./dragAndDrop"
 import { WIDE_SCREEN } from "./layout"
+import { EXTRA_ICONS, PROFILE_ICON, SECTION_ICONS } from "./sectionIcons"
 import { SECTION_NAMES, SECTIONS, type SectionName } from "./sections"
 
 export type ActiveSection = "Profile" | SectionRef
@@ -27,11 +28,10 @@ interface SectionNavProps {
   onAdd?: (kind: ExtraKind | SectionName) => void
 }
 
-const pad = (n: number) => String(n).padStart(2, "0")
-
 /**
- * The numbered sections: a list in the left panel on wide screens, a row of pill tabs on narrower
- * ones. Profile stays first; the rest can be dragged into any order.
+ * The sections, each with its icon: a list in the left column on wide screens, with how many
+ * entries each has, and a row of pill tabs on narrower ones. Profile stays first; the rest can be
+ * dragged into any order by their icons.
  */
 function SectionNav({ sections, headings, extras, active, onSelect, onReorder, onAdd }: SectionNavProps) {
   const navRef = useRef<HTMLElement>(null)
@@ -165,56 +165,67 @@ function SectionNav({ sections, headings, extras, active, onSelect, onReorder, o
   }, [active, sections, allTitles, wide, dnd, dragging])
 
   // Keyboard focus shows as a soft shade and dark text rather than the site's blue ring, which boxed the row in.
-  // The chosen section has the white tab behind it already, so a shade there would draw a second pill inside it.
+  // The chosen section has the grey tab behind it already, so a shade there would draw a second one inside it.
   const item = (isActive: boolean) =>
-    `flex shrink-0 items-center gap-3 whitespace-nowrap rounded-full py-[9px] pl-2 pr-3.5 text-left text-sm transition-colors focus-visible:outline-none xl:w-full xl:min-w-0 xl:shrink xl:py-[8px] ${
-      isActive ? "font-medium text-ink" : "text-ink-2 hover:text-ink focus-visible:bg-ink/[0.06] focus-visible:text-ink"
+    `flex h-9 w-full min-w-0 shrink-0 items-center gap-3 whitespace-nowrap rounded-full pl-9 pr-3.5 text-left text-[15px] tracking-[-0.01em] transition-colors focus-visible:outline-none xl:h-10 xl:shrink xl:rounded-[12px] xl:pl-[41px] xl:pr-[15px] ${
+      isActive ? "font-medium text-ink" : "text-[#3a3e46] hover:text-ink focus-visible:bg-ink/[0.05] focus-visible:text-ink"
     }`
-  // A row's own background: the white tab is drawn behind the chosen one,
+  // A row's own background: the grey tab is drawn behind the chosen one,
   // except while a section is dragged, when the rows move under it and the
-  // chosen one has its own. Another is shaded while pointed at. The tab's line
-  // is inside its edge, so it's the size of that shade.
-  const rowBackground = (isActive: boolean) => (isActive ? (dragging ? "bg-sheet ring-1 ring-inset ring-rule" : "") : "hover:bg-ink/[0.04]")
+  // chosen one has its own. Another is shaded while pointed at.
+  const rowBackground = (isActive: boolean) => (isActive ? (dragging ? "bg-[#f1f3f8]" : "") : "hover:bg-[#f6f7f9]")
+  // The section's icon, which turns into a grip while the row is pointed at or its handle has the keyboard.
+  const iconClass = (isActive: boolean) =>
+    `h-[18px] w-[18px] transition-colors ${isActive ? "text-accent" : "text-[#8b9099] group-hover/row:text-ink-2"}`
 
   // A section, the same with or without dragging, so the list doesn't move as dragging loads.
   const renderSection = (name: SectionRef, index: number, drag?: DraggableProvided, isDragged = false) => {
     const isActive = active === name
+    const key = extraKey(name)
     // Added sections have no entries to count.
-    const count = extraKey(name) === null ? entries[name as SectionName] : 0
+    const count = key === null ? entries[name as SectionName] : 0
+    const Icon = key === null ? SECTION_ICONS[name as SectionName] : EXTRA_ICONS[extras?.[key]?.kind ?? "text"]
     return (
       <div
         key={name}
         ref={drag?.innerRef}
         {...drag?.draggableProps}
         data-section-row
-        className={`flex shrink-0 items-center rounded-full pl-1 transition-[opacity,translate,background-color] duration-300 ease-out motion-reduce:transition-none ${
+        className={`group/row relative flex shrink-0 items-center rounded-full transition-[opacity,translate,background-color] duration-300 ease-out motion-reduce:transition-none xl:rounded-[12px] ${
           added.has(name) ? "starting:-translate-x-2 starting:opacity-0" : ""
-        } ${isDragged ? "bg-sheet shadow-sm ring-1 ring-rule" : rowBackground(isActive)}`}
+        } ${isDragged ? "bg-sheet shadow-[0_8px_20px_-8px_rgb(17_19_24/0.3)] ring-1 ring-hairline" : rowBackground(isActive)}`}
       >
+        {/* The icon is the handle a section is dragged by; pressed without dragging, it opens the section as the row does. */}
         <span
           {...drag?.dragHandleProps}
           aria-label={drag && `Reorder ${labelOf(name, index)}`}
-          className="flex h-9 w-6 shrink-0 items-center justify-center rounded-full text-ink-2 hover:text-ink focus-visible:bg-ink/[0.06] focus-visible:text-ink focus-visible:outline-none"
+          onClick={() => onSelect(name)}
+          className="group/handle absolute inset-y-0 left-0 z-[1] flex w-9 items-center justify-center rounded-full focus-visible:bg-ink/[0.06] focus-visible:outline-none xl:w-10 xl:rounded-[12px]"
         >
-          <GripVertical className="h-3.5 w-3.5" />
+          <Icon
+            className={`${iconClass(isActive)} ${drag ? "group-hover/row:hidden group-focus-visible/handle:hidden" : ""} ${isDragged ? "hidden" : ""}`}
+            aria-hidden="true"
+          />
+          {drag && (
+            <GripVertical
+              className={`h-4 w-4 text-ink-2 ${isDragged ? "block" : "hidden group-hover/row:block group-focus-visible/handle:block"}`}
+              aria-hidden="true"
+            />
+          )}
         </span>
         <button
           type="button"
           onClick={() => onSelect(name)}
-          className={`${item(isActive)} relative -ml-1 ${count > 0 ? "xl:pr-[calc(1.25rem+var(--digits)*1ch)]" : ""}`}
-          style={{ "--digits": String(count).length } as React.CSSProperties}
+          className={item(isActive)}
           aria-current={isActive || undefined}
-          aria-label={`${pad(index + 2)} ${labelOf(name, index)}`}
+          aria-label={labelOf(name, index)}
           data-section-ref={name}
         >
-          <span className={`font-mono text-[11px] ${isActive ? "text-accent" : ""}`}>{pad(index + 2)}</span>
           {/* A title too long for the list, as a section can be renamed, is cut short rather than running under the count. */}
           <span className="min-w-0 truncate">{titleOf(name)}</span>
-          {/* How many entries it has, in the list on wide screens. It's set at the right edge, with
-              room kept for it, so the longest titles still fit beside it. The form lists the entries,
-              so it isn't read out. */}
+          {/* How many entries it has, in the list on wide screens. The form lists the entries, so it isn't read out. */}
           {count > 0 && (
-            <span aria-hidden="true" className="absolute right-3.5 hidden font-mono text-[11px] tabular-nums text-ink-2 xl:inline">
+            <span aria-hidden="true" className="ml-auto hidden text-[13px] tabular-nums text-ink-3 xl:inline">
               {count}
             </span>
           )}
@@ -252,32 +263,31 @@ function SectionNav({ sections, headings, extras, active, onSelect, onReorder, o
       ref={navRef}
       onKeyDown={onArrowKey}
       aria-label="Sections"
-      className="relative isolate flex gap-1 overflow-x-auto px-2 py-2 [scrollbar-width:none] xl:flex-col xl:gap-0.5 xl:overflow-visible xl:p-0 [&::-webkit-scrollbar]:hidden"
+      className="relative isolate flex gap-1 overflow-x-auto px-2 py-2 [scrollbar-width:none] xl:flex-col xl:overflow-visible xl:p-0 [&::-webkit-scrollbar]:hidden"
     >
       <span
         ref={tabRef}
         aria-hidden="true"
-        className={`absolute left-0 top-0 -z-10 rounded-full bg-sheet shadow-[0_1px_3px_rgb(17_19_24/0.08)] ring-1 ring-inset ring-ink/[0.06] transition-[transform,width] duration-300 ease-glide motion-reduce:transition-none ${
+        className={`absolute left-0 top-0 -z-10 rounded-full bg-[#f1f3f8] transition-[transform,width] duration-300 ease-glide motion-reduce:transition-none xl:rounded-[12px] ${
           dragging ? "invisible" : ""
         }`}
       />
-      <span className="label-mono hidden px-3 pb-3 text-ink-2 xl:block">Sections</span>
 
-      {/* Laid out as the other sections are, with an empty space where they have their
-          handle, so the numbers and titles line up in the list. */}
+      {/* Laid out as the other sections are, its icon where theirs are, but with nothing to drag it by. */}
       <div
         data-section-row
-        className={`flex shrink-0 items-center rounded-full pl-1 transition-colors ${rowBackground(active === "Profile")}`}
+        className={`group/row relative flex shrink-0 items-center rounded-full transition-colors xl:rounded-[12px] ${rowBackground(active === "Profile")}`}
       >
-        <span className="hidden h-9 w-6 shrink-0 xl:block" aria-hidden="true" />
+        <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 flex w-9 items-center justify-center xl:w-10">
+          <PROFILE_ICON className={iconClass(active === "Profile")} />
+        </span>
         <button
           type="button"
           data-section-ref="Profile"
           onClick={() => onSelect("Profile")}
-          className={`${item(active === "Profile")} xl:-ml-1`}
+          className={item(active === "Profile")}
           aria-current={active === "Profile" || undefined}
         >
-          <span className={`font-mono text-[11px] ${active === "Profile" ? "text-accent" : ""}`}>01</span>
           Profile
         </button>
       </div>
@@ -286,7 +296,7 @@ function SectionNav({ sections, headings, extras, active, onSelect, onReorder, o
         <dnd.DragDropContext onDragStart={() => setDragging(true)} onDragEnd={onDragEnd}>
           <dnd.Droppable droppableId="sections" direction={wide ? "vertical" : "horizontal"}>
             {(drop) => (
-              <div ref={drop.innerRef} {...drop.droppableProps} className="flex gap-1 xl:flex-col xl:gap-0.5">
+              <div ref={drop.innerRef} {...drop.droppableProps} className="flex gap-1 xl:flex-col">
                 {sections.map((name, index) => (
                   <dnd.Draggable key={name} draggableId={name} index={index}>
                     {(drag, snapshot) => renderSection(name, index, drag, snapshot.isDragging)}
@@ -298,14 +308,12 @@ function SectionNav({ sections, headings, extras, active, onSelect, onReorder, o
           </dnd.Droppable>
         </dnd.DragDropContext>
       ) : (
-        <div className="flex gap-1 xl:flex-col xl:gap-0.5">{sections.map((name, index) => renderSection(name, index))}</div>
+        <div className="flex gap-1 xl:flex-col">{sections.map((name, index) => renderSection(name, index))}</div>
       )}
 
       {onAdd && <AddSectionMenu sections={addable} onAdd={onAdd} />}
 
-      <p className="mx-1 mt-4 hidden border-t border-ink/[0.08] px-2 pt-4 text-[13px] leading-normal text-ink-2 xl:block">
-        Drag a section to change its place on the page.
-      </p>
+      <p className="mt-[19px] hidden px-3 text-[13px] leading-5 text-ink-3 xl:block">Drag a section to change its place on the page.</p>
     </nav>
   )
 }

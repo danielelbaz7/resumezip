@@ -1,49 +1,45 @@
 "use client"
 
 import type React from "react"
-import { memo, useId, useRef } from "react"
+import { memo, useRef } from "react"
+import { PenLine, ShieldCheck, SlidersHorizontal, type LucideIcon } from "lucide-react"
+import { SEGMENT, SEGMENTS } from "@/components/pills"
+import { useThumb } from "@/components/useThumb"
 import { useCheck, useCheckActions, type Mode } from "./CheckContext"
 import CheckPanel from "./CheckPanel"
 import { WIDE_SCREEN } from "./layout"
 
-const MODES: { id: Mode; label: string }[] = [
-  { id: "write", label: "Write" },
-  { id: "check", label: "Check" },
-  { id: "style", label: "Style" },
+const MODES: { id: Mode; label: string; icon: LucideIcon }[] = [
+  { id: "write", label: "Write", icon: PenLine },
+  { id: "check", label: "Check", icon: ShieldCheck },
+  { id: "style", label: "Style", icon: SlidersHorizontal },
 ]
 
-interface LeftBarProps {
-  /** Hidden while small screens show the preview. */
-  hidden: boolean
-  /** The section list, shown in Write mode. */
-  children: React.ReactNode
-  /** The templates and Fine-tune, shown in Style mode. */
-  style: React.ReactNode
-}
+// The tabs and the panel they show, by these ids: the tabs are in the top bar
+// on wide screens and at the top of the left bar on narrower ones, but only
+// ever in one of them.
+const tabId = (mode: Mode) => `editor-mode-${mode}`
+const PANEL_ID = "editor-mode-panel"
 
 /**
- * The editor's left part: a Write | Check | Style switch, then the section
- * list, what the checker found, or the templates and Fine-tune. On wide
- * screens it's the left of the three panels and scrolls on its own. Narrower,
- * it's a panel above the form, pinned in Write mode so the section tabs stay
- * at hand; in Style mode it takes the form's place (styles/editor.css).
+ * The Write | Check | Style switch: a grey track with the chosen one on a
+ * white pill. On wide screens it's in the middle of the top bar; narrower,
+ * it's at the top of the left bar, and on a phone its tabs share the width.
  */
-function LeftBar({ hidden, children, style }: LeftBarProps) {
+export function ModeTabs({ stretch = false }: { stretch?: boolean }) {
   const { mode } = useCheck()
   const { chooseMode } = useCheckActions()
-  const id = useId()
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const bar = useRef<HTMLElement>(null)
-  const chosen = MODES.findIndex((option) => option.id === mode)
+  const thumb = useThumb(mode)
 
   const choose = (next: Mode) => {
     chooseMode(next)
     // On small screens the bar is only pinned in Write mode, so if the page
     // was scrolled down the form, go back up to show what Check or Style has.
-    // It stops 12px short of the top, where the pinned bar sits (top-3).
+    // It stops at the top, where the pinned bar sits.
     if (next !== "write" && !window.matchMedia(WIDE_SCREEN).matches) {
       requestAnimationFrame(() => {
-        const top = (bar.current?.getBoundingClientRect().top ?? 0) - 12
+        const top = document.getElementById(PANEL_ID)?.closest("aside")?.getBoundingClientRect().top ?? 0
         if (top < 0) window.scrollTo({ top: window.scrollY + top })
       })
     }
@@ -66,63 +62,86 @@ function LeftBar({ hidden, children, style }: LeftBarProps) {
   }
 
   return (
+    <div
+      ref={thumb.group}
+      role="tablist"
+      aria-label="Write, check or style"
+      className={`${SEGMENTS} ${stretch ? "flex w-full sm:inline-flex sm:w-auto" : ""}`}
+    >
+      <span ref={thumb.thumb} aria-hidden="true" className={`segment-thumb ${thumb.placed ? "" : "invisible"}`} />
+      {MODES.map((option, index) => {
+        const selected = option.id === mode
+        const Icon = option.icon
+        return (
+          <button
+            key={option.id}
+            ref={(element) => {
+              tabRefs.current[index] = element
+            }}
+            type="button"
+            role="tab"
+            id={tabId(option.id)}
+            aria-selected={selected}
+            aria-controls={PANEL_ID}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => choose(option.id)}
+            onKeyDown={(event) => onKeyDown(event, index)}
+            // No ring on keyboard focus: arrows choose the tab as they move, so the white pill shows where focus is.
+            // Until the pill is placed, the chosen tab draws its own.
+            className={`${SEGMENT} px-4 ${stretch ? "min-w-0 flex-1 max-sm:px-2 sm:flex-none" : ""} ${selected ? "text-ink" : "text-ink-3 hover:text-ink"} ${
+              selected && !thumb.placed ? "bg-sheet shadow-[0_1px_3px_rgb(17_19_24/0.14)]" : ""
+            }`}
+          >
+            <Icon aria-hidden="true" />
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+interface LeftBarProps {
+  /** Hidden while small screens show the preview. */
+  hidden: boolean
+  /** Whether the Write | Check | Style tabs are here, as on narrower screens; on wide ones they're in the top bar. */
+  tabs: boolean
+  /** The section list, shown in Write mode. */
+  children: React.ReactNode
+  /** Fine-tune, shown in Style mode. */
+  style: React.ReactNode
+}
+
+/**
+ * The editor's left part: the section list, what the checker found, or
+ * Fine-tune. On wide screens it's the left column of the sheet and scrolls on
+ * its own. Narrower, it's a bar above the form with the Write | Check | Style
+ * tabs, pinned in Write mode so the section tabs stay at hand; in Style mode
+ * it takes the form's place (styles/editor.css).
+ */
+function LeftBar({ hidden, tabs, children, style }: LeftBarProps) {
+  const { mode } = useCheck()
+
+  return (
     <aside
-      ref={bar}
       data-covers="top"
       data-mode={mode}
-      className={`glass glass-frost mx-3 mt-3 shrink-0 rounded-panel xl:m-0 xl:flex xl:w-[280px] xl:flex-col xl:overflow-hidden min-[90rem]:w-[288px] ${
-        mode === "write" ? "max-xl:sticky max-xl:top-3 max-xl:z-20" : ""
+      className={`shrink-0 border-b border-hairline bg-sheet xl:flex xl:w-[270px] xl:flex-col xl:overflow-hidden xl:rounded-bl-[28px] xl:border-b-0 xl:border-r xl:bg-transparent ${
+        mode === "write" ? "max-xl:sticky max-xl:top-0 max-xl:z-20" : ""
       } ${hidden ? "hidden" : ""}`}
     >
-      <div
-        role="tablist"
-        aria-label="Write, check or style"
-        className="relative isolate mx-2 mt-2 flex shrink-0 gap-1 rounded-full bg-ink/[0.06] p-1 sm:max-w-[420px] xl:mx-3 xl:mt-3 xl:max-w-none"
-      >
-        {/* The white pill behind the chosen tab, which slides across to another. The tabs
-            share the width inside the 4px padding, 4px apart (p-1, gap-1). */}
-        <span
-          aria-hidden="true"
-          className="absolute inset-y-1 left-1 -z-10 rounded-full bg-sheet shadow-[0_1px_3px_rgb(17_19_24/0.1)] ring-1 ring-ink/[0.06] transition-transform duration-300 ease-glide motion-reduce:transition-none"
-          style={{
-            width: `calc((100% - ${8 + 4 * (MODES.length - 1)}px) / ${MODES.length})`,
-            transform: `translateX(calc(${chosen} * (100% + 4px)))`,
-          }}
-        />
-        {MODES.map((option, index) => {
-          const selected = option.id === mode
-          return (
-            <button
-              key={option.id}
-              ref={(element) => {
-                tabRefs.current[index] = element
-              }}
-              type="button"
-              role="tab"
-              id={`${id}-${option.id}`}
-              aria-selected={selected}
-              aria-controls={`${id}-panel`}
-              tabIndex={selected ? 0 : -1}
-              onClick={() => choose(option.id)}
-              onKeyDown={(event) => onKeyDown(event, index)}
-              // No ring on keyboard focus: arrows choose the tab as they move, so the white pill shows where focus is.
-              className={`inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full text-sm font-medium transition-colors focus-visible:outline-none ${
-                selected ? "text-ink" : "text-ink-2 hover:text-ink"
-              }`}
-            >
-              {option.label}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* On wide screens it scrolls inside the panel, fading at its foot as a sign there's
+      {tabs && (
+        <div className="px-3 pt-3 sm:px-4">
+          <ModeTabs stretch />
+        </div>
+      )}
+      {/* On wide screens it scrolls inside the column, fading at its foot as a sign there's
           more; the padding lets the last row clear the fade. */}
       <div
         role="tabpanel"
-        id={`${id}-panel`}
-        aria-labelledby={`${id}-${mode}`}
-        className="xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:px-3 xl:pb-8 xl:pt-5 xl:[mask-image:linear-gradient(to_bottom,#000_calc(100%-24px),transparent)]"
+        id={PANEL_ID}
+        aria-labelledby={tabId(mode)}
+        className="xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:px-4 xl:pb-8 xl:pt-6 xl:[mask-image:linear-gradient(to_bottom,#000_calc(100%-24px),transparent)]"
       >
         {/* Switching fades the other one in (`starting:` is CSS @starting-style). */}
         <div key={mode} className="transition-opacity duration-200 ease-out motion-reduce:transition-none starting:opacity-0">
