@@ -214,7 +214,8 @@ export default function AboutPage() {
                 <Wordmark /> is a free, open-source resume builder (MIT license) that runs in your browser. You fill in a form and see the
                 page as you type, and it checks your resume as you write. Download it as a PDF, a Word file, a LaTeX file for Overleaf or
                 JSON, or save the PDF to Google Drive. It opens resumes from PDF, Word and JSON files, and prints on US Letter or A4.
-                There’s no account, and your resume is saved only in your browser.
+                There’s no account, and <Wordmark /> keeps your resume only in your browser: a copy goes anywhere else only when you
+                download or save one.
               </p>
             </div>
           </section>
