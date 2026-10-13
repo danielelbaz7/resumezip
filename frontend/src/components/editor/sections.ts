@@ -160,7 +160,11 @@ const DEFINITIONS = {
       label: "Links",
       options: [
         { value: "show", label: "Show the link", hint: "Printed as text, like github.com/you/project. Easiest for ATS to read." },
-        { value: "title", label: "Link the title", hint: "The project name links to its GitHub, or to its website if it has no GitHub." },
+        {
+          value: "title",
+          label: "Link the title",
+          hint: "The project name links to its GitHub, or to its website if it has no GitHub. The address isn't printed, and a website next to a GitHub is left out.",
+        },
       ],
     },
     fields: [

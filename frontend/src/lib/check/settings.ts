@@ -94,6 +94,9 @@ export const MAX_WORD_LENGTH = 60
 
 // Contact & personal details (C1–C10).
 
+/** A metro area or region where a city would be: "Bay Area", "Greater Boston", "DC Metro" (C4). */
+export const METRO_AREA = /\b(?:greater\s+\p{L}+|\p{L}+\s+area|metro(?:politan)?(?:\s+area)?|tri-?state)\b/iu
+
 /** Plausibility bounds, not validation against every country's numbering plan. */
 export const MIN_PHONE_DIGITS = 6
 export const MAX_PHONE_DIGITS = 15
@@ -170,7 +173,7 @@ export const PERSONAL_DETAILS = [
  */
 export const SSN = /\b\d{3}[- ]\d{2}[- ]\d{4}\b|\b(ssn|social security(\s+(number|no\.?))?)\s*[:#]?\s*\d{9}\b/i
 
-// Sections & entries (S1–S10).
+// Sections & entries (S1–S12).
 
 /** Fewer years than this since the first job, and a missing school or skills section is a must-fix (S2, S5). */
 export const EARLY_CAREER_YEARS = 5
@@ -199,6 +202,38 @@ export const HIGH_SCHOOL_NAME = /\bhigh school\b/i
 
 /** "References available upon request", however it's worded. */
 export const REFERENCES_ON_REQUEST = /\breferences?\b[^.]{0,30}?\brequest(ed)?\b/i
+
+/** A heading for what the person wants, not what they offer (S11). */
+export const OBJECTIVE_HEADING = /^(career\s+|job\s+|professional\s+)?objectives?$/i
+
+/** A summary that says what the person wants: "Seeking a software engineering role", "Objective: to obtain a position…" (S11). */
+export const OBJECTIVE_PHRASE =
+  /^objective\b|\b(seeking|looking for|in search of|hoping to (find|join|land)|to (obtain|secure|gain|land|find))\b[^.]{0,60}?\b(position|role|job|opportunit(y|ies)|internship|employment|career)\b/i
+
+/** More words than this, and a summary reads as a paragraph to skip (S11). */
+export const SUMMARY_WORDS = 50
+
+/** A GPA under this, out of 4.0, is often left off unless the job asks for it (S12). */
+export const GPA_CUTOFF = 3.5
+
+/** The usual GPA scale, and the largest that's still a 4-point scale with an A+ above 4.0 (S12). */
+export const GPA_SCALE = 4
+export const GPA_SCALE_WITH_PLUS = 4.33
+
+/** Soft skills listed as skills: a recruiter believes them shown in a bullet, not claimed (S5). */
+// prettier-ignore
+export const SOFT_SKILLS = [
+  "communication", "communication skills", "teamwork", "team player", "collaboration", "leadership", "problem solving",
+  "problem-solving", "critical thinking", "time management", "hard worker", "hardworking", "hard-working", "work ethic",
+  "adaptability", "flexibility", "attention to detail", "detail-oriented", "creativity", "interpersonal skills",
+  "people skills", "self-motivated", "fast learner", "quick learner", "multitasking", "organizational skills",
+]
+
+/** A skill group that's about the person, where soft skills belong if anywhere: "Interests", "Hobbies" (S5). */
+export const INTERESTS_GROUP = /\b(interests?|hobbies|activities)\b/i
+
+/** A self-rating on a skill: "Python (Expert)", "Java 4/5", "★★★". Spoken languages' levels ("Fluent", "Native") aren't (S5). */
+export const SKILL_RATING = /\((?:expert|proficient|familiar|beginner|novice)\)|\b\d(?:\.\d)?\s*\/\s*(?:5|10)\b|[★☆]/i
 
 // Dates (D1–D9).
 

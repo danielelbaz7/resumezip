@@ -1,7 +1,10 @@
-// Sections & entries (S1–S9 in issue #58, and S10): what the resume has, and
-// whether each entry says what it is and where it was.
+// Sections & entries (S1–S9 in issue #58, and S10–S12): what the resume has,
+// whether each entry says what it is and where it was, and what's worth
+// saying in the summary, skills and education.
 
 import { SECTIONS, type FieldKey, type FieldKeyOf, type SectionName } from "@/components/editor/sections"
+import { BUZZ } from "./bullets"
+import { stageOf } from "./career"
 import type { Problem, Rule } from "./engine"
 import { LOCATION_FIELDS, type Place } from "./places"
 import { datesOf } from "./readDate"
@@ -11,11 +14,20 @@ import {
   COLLEGE_NAME,
   EARLY_CAREER_YEARS,
   FRESHMAN_YEARS_LEFT,
+  GPA_CUTOFF,
+  GPA_SCALE,
+  GPA_SCALE_WITH_PLUS,
   HIGH_SCHOOL_NAME,
+  INTERESTS_GROUP,
   MAX_COURSES,
   MAX_SKILLS_PER_LINE,
+  OBJECTIVE_HEADING,
+  OBJECTIVE_PHRASE,
   REFERENCES_ON_REQUEST,
   SCHOOL_YEAR_STARTS,
+  SKILL_RATING,
+  SOFT_SKILLS,
+  SUMMARY_WORDS,
 } from "./settings"
 
 const at = (entry: Entry, field?: FieldKey): Place => ({ kind: "entry", section: entry.section, entry: entry.index, field })
@@ -246,12 +258,32 @@ const skills: Rule = {
           suggestion: "Split them into groups, like Languages and Tools.",
         })
       }
+      // Interests are about the person, so soft skills can go there.
+      const interests = INTERESTS_GROUP.test(entry.values.skillName)
       for (const item of items) {
         const same = item.toLowerCase().replace(/\s+/g, " ")
         if (seen.has(same)) {
           problems.push({ place: at(entry, "skillDetails"), message: `“${item}” is listed twice`, text: item })
         }
         seen.add(same)
+        if (!interests && SOFT_SKILLS.includes(same)) {
+          problems.push({
+            advisory: true,
+            place: at(entry, "skillDetails"),
+            message: `“${item}” is a soft skill`,
+            text: item,
+            suggestion: "Show it in a bullet instead, with what you did.",
+          })
+        }
+        if (SKILL_RATING.test(item)) {
+          problems.push({
+            advisory: true,
+            place: at(entry, "skillDetails"),
+            message: `“${item}” rates the skill`,
+            text: item,
+            suggestion: "Leave the rating off: list only what you could be interviewed on, most relevant first.",
+          })
+        }
       }
     }
     return { checked, problems }
@@ -320,16 +352,30 @@ const coursework: Rule = {
   reads: "form",
   title: "Short coursework lists",
   why: "A long list of courses buries the ones that matter.",
-  check: ({ resume }) => {
+  check: ({ resume, today }) => {
     const entries = filled(resume.sections.Education).filter(({ values }) => values.coursework)
     if (entries.length === 0) return null
+    // Courses show what a student knows; a few years on, the work does.
+    const experienced = stageOf(resume, today) === "experienced"
     return {
       checked: entries.length,
-      problems: entries.flatMap((entry) => {
+      problems: entries.flatMap((entry): Problem[] => {
         const courses = listOf(entry.values.coursework).length
-        return courses > MAX_COURSES
-          ? [{ place: at(entry, "coursework"), message: `${courses} courses listed`, suggestion: "Keep the few that fit the job best." }]
-          : []
+        return [
+          ...(courses > MAX_COURSES
+            ? [{ place: at(entry, "coursework"), message: `${courses} courses listed`, suggestion: "Keep the few that fit the job best." }]
+            : []),
+          ...(experienced
+            ? [
+                {
+                  advisory: true,
+                  place: at(entry, "coursework"),
+                  message: "Coursework, years after school",
+                  suggestion: "Coursework helps while you're in school or just out; now your work says more.",
+                },
+              ]
+            : []),
+        ]
       }),
     }
   },
@@ -351,6 +397,110 @@ const references: Rule = {
   }),
 }
 
+const objective: Rule = {
+  id: "S11",
+  category: "sections",
+  level: "look",
+  reads: "form",
+  title: "A summary of what you offer, not what you want",
+  why: "Recruiters read the top to see what you offer; an objective tells them what you want.",
+  check: ({ resume }) => {
+    const texts = textsOf(resume).filter(
+      ({ place }) =>
+        (place.kind === "profile" && place.field === "summary") ||
+        place.kind === "heading" ||
+        place.kind === "extra-heading" ||
+        (place.kind === "extra-text" && place.field === "text"),
+    )
+    if (texts.length === 0) return null
+    return {
+      checked: texts.length,
+      problems: texts.flatMap(({ place, text }): Problem[] => {
+        if (place.kind === "heading" || place.kind === "extra-heading") {
+          return OBJECTIVE_HEADING.test(text)
+            ? [
+                {
+                  place,
+                  message: "An objective section",
+                  suggestion: "Make it a short summary: what you do, for how long, and what you're best at.",
+                },
+              ]
+            : []
+        }
+        const problems: Problem[] = []
+        if (OBJECTIVE_PHRASE.test(text)) {
+          problems.push({
+            place,
+            message: "Reads as an objective",
+            suggestion: "Say what you do, for how long, and what you're best at, in 2–3 sentences.",
+          })
+        }
+        if (place.kind !== "profile") return problems
+        const buzzword = BUZZ.exec(text)?.[1]
+        if (buzzword) {
+          const word = buzzword[0].toUpperCase() + buzzword.slice(1)
+          problems.push({
+            place,
+            text: buzzword,
+            message: `“${word}” says little on its own`,
+            suggestion: "Say what you've done that shows it.",
+          })
+        }
+        const words = text.split(/\s+/).filter(Boolean).length
+        if (words > SUMMARY_WORDS) {
+          problems.push({ advisory: true, place, message: `${words} words`, suggestion: "Keep it to 2–3 sentences, so it's read." })
+        }
+        return problems
+      }),
+    }
+  },
+}
+
+// "3.6 / 4.0", "3.6 out of 4", "4.3 on a 5.0 scale": a GPA and the scale it's out of.
+const GPA_OUT_OF = /(\d+(?:\.\d+)?)\s*(?:\/|out of|on an?)\s*(\d+(?:\.\d+)?)/i
+
+/** A GPA as typed, and its scale: 4.0 when none is given and it could be out of 4. Null when it can't be read, as a percentage can't. */
+function gpaOf(text: string): { value: number; scale: number } | null {
+  if (/%/.test(text)) return null
+  const outOf = GPA_OUT_OF.exec(text)
+  const value = Number(outOf?.[1] ?? /\d+(?:\.\d+)?/.exec(text)?.[0])
+  const scale = outOf ? Number(outOf[2]) : GPA_SCALE
+  return Number.isFinite(value) && scale > 0 && value <= scale ? { value, scale } : null
+}
+
+const gpa: Rule = {
+  id: "S12",
+  category: "sections",
+  level: "look",
+  advisory: true,
+  reads: "form",
+  title: "Your GPA, when it helps",
+  why: "A GPA under 3.5 out of 4.0 rarely helps, unless the job asks for one.",
+  check: ({ resume }) => {
+    const entries = filled(resume.sections.Education).filter(({ values }) => values.gpa)
+    if (entries.length === 0) return null
+    return {
+      checked: entries.length,
+      problems: entries.flatMap((entry): Problem[] => {
+        const found = gpaOf(entry.values.gpa)
+        if (!found) return []
+        // On a 4-point scale an A is 4.0, even where an A+ is more; elsewhere the same share of the top.
+        const fourPoint = found.scale >= GPA_SCALE && found.scale <= GPA_SCALE_WITH_PLUS
+        const low = fourPoint ? found.value < GPA_CUTOFF : found.value / found.scale < GPA_CUTOFF / GPA_SCALE
+        return low
+          ? [
+              {
+                place: at(entry, "gpa"),
+                message: `A GPA of ${entry.values.gpa}`,
+                suggestion: "Many leave a GPA under 3.5 out of 4.0 off, unless the job asks for it.",
+              },
+            ]
+          : []
+      }),
+    }
+  },
+}
+
 export const SECTION_RULES: readonly Rule[] = [
   experience,
   education,
@@ -362,4 +512,6 @@ export const SECTION_RULES: readonly Rule[] = [
   coursework,
   references,
   located,
+  objective,
+  gpa,
 ]

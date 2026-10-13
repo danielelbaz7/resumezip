@@ -159,7 +159,8 @@ const pronouns: Rule = {
   },
 }
 
-const BUZZ = new RegExp(String.raw`(?<![\w-])(${BUZZWORDS.map(escaped).join("|")})(?![\w-])`, "i")
+/** A buzzword, not as part of a longer word: "passionate", but not "data-driven". */
+export const BUZZ = new RegExp(String.raw`(?<![\w-])(${BUZZWORDS.map(escaped).join("|")})(?![\w-])`, "i")
 const VAGUE = new RegExp(String.raw`(?<![\w-])(${VAGUE_WORDS.map(escaped).join("|")})(?![\w-])`, "i")
 
 const buzzwords: Rule = {
