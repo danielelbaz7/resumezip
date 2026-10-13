@@ -1,18 +1,19 @@
-import type { Metadata } from "next"
 import Link from "next/link"
 import { Check, X } from "lucide-react"
 import PageIntro from "@/components/site/PageIntro"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
+import { pageMetadata } from "@/lib/site"
 import { TEMPLATES, templatePath } from "@/lib/templates"
 import { READING_CHECKS, READING_RESULTS, WHY_NOT } from "./checks"
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/templates/how-they-read",
   title: "How each template reads",
   description:
     "Every resumezip template’s sample PDF, read back as plain text the way hiring software reads it, on every change to the code. What’s checked, and what it finds.",
-}
+})
 
 const TEST_URL = "https://github.com/ian-hoang/resumezip/blob/main/frontend/src/lib/import/readsCleanly.test.ts"
 

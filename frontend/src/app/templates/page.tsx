@@ -1,16 +1,17 @@
-import type { Metadata } from "next"
 import Link from "next/link"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
+import { pageMetadata } from "@/lib/site"
 import { newTemplate, TEMPLATES } from "@/lib/templates"
 import TemplateGallery from "./TemplateGallery"
 import { SHEET } from "@/components/site/sheet"
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/templates",
   title: "Templates",
   description:
     "Free resume templates made for the hiring software (ATS) that reads them. Pick one, write in your browser, and download the PDF.",
-}
+})
 
 export default function TemplatesPage() {
   // The page is built ahead of time, so the newest template is marked new until a build after it's no longer new.

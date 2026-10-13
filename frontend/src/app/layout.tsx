@@ -1,7 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono, Newsreader, Outfit } from "next/font/google"
-import { SITE_DESCRIPTION, SITE_URL } from "@/lib/site"
+import { HOME_TITLE, SHARE_IMAGE, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TITLE_TEMPLATE } from "@/lib/site"
 import "./globals.css"
 
 // Self-hosted at build time, so visitors never load fonts from Google.
@@ -17,29 +17,13 @@ const outfit = Outfit({ subsets: ["latin"], weight: "500", variable: "--font-out
 export const metadata: Metadata = {
   // Links and images below are relative to the live site.
   metadataBase: new URL(SITE_URL),
-  title: {
-    default: "resumezip: Free, private, open-source resume builder",
-    // Other pages set a short title, e.g. "Templates" becomes "Templates · resumezip".
-    template: "%s · resumezip",
-  },
+  title: { default: HOME_TITLE, template: TITLE_TEMPLATE },
   description: SITE_DESCRIPTION,
-  openGraph: {
-    title: "resumezip: Free, private, open-source resume builder",
-    description: SITE_DESCRIPTION,
-    url: "/",
-    siteName: "resumezip",
-    images: [
-      {
-        // The logo's key drawn as a zipper, with the home page headline.
-        url: "/og.png",
-        width: 1200,
-        height: 630,
-        alt: "resumezip: Your resume. Not our data.",
-      },
-    ],
-    type: "website",
-  },
-  // X uses the Open Graph image above; this asks it to show the image full width.
+  // For pages that don't set their own, like the editor and the 404 page. Pages
+  // people land on set theirs, with their address, through pageMetadata. There's
+  // no address here, or every other page would claim it.
+  openGraph: { title: HOME_TITLE, description: SITE_DESCRIPTION, siteName: SITE_NAME, images: [SHARE_IMAGE], type: "website" },
+  // X uses the Open Graph image; this asks it to show the image full width.
   twitter: { card: "summary_large_image" },
 }
 
