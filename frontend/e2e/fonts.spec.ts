@@ -19,13 +19,13 @@ test("a name with a letter that isn't preloaded still shows in the site's font",
   await page.goto("/create/dashboard")
   await expect(page.getByRole("link", { name: "Łukasz Kowalski" })).toBeVisible()
 
-  // Whether the page has downloaded a Newsreader face with "Ł" in it, rather
-  // than drawing the letter in the fallback font.
+  // Whether the page has downloaded a face of Geist, which the dashboard shows
+  // names in, with "Ł" in it, rather than drawing the letter in the fallback font.
   const downloadedŁ = () =>
     page.evaluate(() =>
       [...document.fonts].some(
         (face) =>
-          /^"?Newsreader"?$/.test(face.family) &&
+          /^"?Geist"?$/.test(face.family) &&
           face.status === "loaded" &&
           face.unicodeRange.split(",").some((range) => {
             const [from, to = from] = range.trim().slice(2).split("-")

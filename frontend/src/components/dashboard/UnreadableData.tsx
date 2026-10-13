@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useResumeContext } from "@/context/ResumeContext"
 import Modal from "./Modal"
-import { DANGER_PILL, OUTLINE_PILL } from "@/components/pills"
+import { sheetPill, TEXT_PILL, WHITE_PILL } from "@/components/pills"
 
 /**
  * Saved data that couldn't be read is kept aside instead of being saved over
@@ -38,10 +38,10 @@ export default function UnreadableData() {
           Some data saved in this browser couldn&apos;t be read, so resumezip kept a copy instead of saving over it.
         </p>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={download} className={OUTLINE_PILL}>
+          <button type="button" onClick={download} className={WHITE_PILL}>
             Download the copy
           </button>
-          <button type="button" onClick={() => setDeleting(true)} className={OUTLINE_PILL}>
+          <button type="button" onClick={() => setDeleting(true)} className={WHITE_PILL}>
             Delete it
           </button>
         </div>
@@ -51,7 +51,7 @@ export default function UnreadableData() {
         <Modal title="Delete the copy?" onClose={() => setDeleting(false)}>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-2">It will be removed from this browser. This can&apos;t be undone.</p>
           <div className="mt-7 flex justify-end gap-2">
-            <button type="button" onClick={() => setDeleting(false)} className={OUTLINE_PILL}>
+            <button type="button" onClick={() => setDeleting(false)} className={TEXT_PILL}>
               Cancel
             </button>
             <button
@@ -60,7 +60,7 @@ export default function UnreadableData() {
                 deleteUnreadable()
                 setDeleting(false)
               }}
-              className={DANGER_PILL}
+              className={sheetPill("danger")}
             >
               Delete
             </button>

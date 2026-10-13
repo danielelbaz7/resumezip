@@ -19,7 +19,7 @@ import {
 } from "@/lib/import/parse"
 import type { ResumeContent } from "@/lib/resume"
 import Modal from "./Modal"
-import { INK_PILL, OUTLINE_PILL } from "@/components/pills"
+import { BLUE_PILL, TEXT_PILL, WHITE_PILL } from "@/components/pills"
 
 type ParsedFile = Extract<OpenedFile, { kind: "parsed" }>
 
@@ -424,14 +424,14 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
               {nothingTicked && "Tick something to create a resume."}
             </p>
             <div className="flex gap-2">
-              <button type="button" onClick={close} className={OUTLINE_PILL}>
+              <button type="button" onClick={close} className={TEXT_PILL}>
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => onCreate(toResumeContent(parsed, skipped, { keepAs }))}
                 disabled={nothingTicked}
-                className={INK_PILL}
+                className={BLUE_PILL}
               >
                 Create resume
               </button>
@@ -452,10 +452,10 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
             Closing loses what you unticked and swapped, and no resume is created from this file.
           </p>
           <div className="mt-7 flex justify-end gap-2">
-            <button type="button" onClick={() => setClosing(false)} className={OUTLINE_PILL}>
+            <button type="button" onClick={() => setClosing(false)} className={WHITE_PILL}>
               Keep reviewing
             </button>
-            <button type="button" onClick={onCancel} className={INK_PILL}>
+            <button type="button" onClick={onCancel} className={BLUE_PILL}>
               Discard
             </button>
           </div>

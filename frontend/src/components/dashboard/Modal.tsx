@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useId, useRef, useState } from "react"
+import { X } from "lucide-react"
 import { reducedMotion } from "@/components/editor/layout"
 
 interface ModalProps {
@@ -16,6 +17,10 @@ interface ModalProps {
    * (the import review asking "Discard your changes?" first).
    */
   fade?: boolean
+  /** As wide as New resume's (700px), rather than the usual 448px. */
+  large?: boolean
+  /** A round × beside the title, which closes it as Escape does. */
+  closeButton?: boolean
   children: React.ReactNode
 }
 
@@ -34,8 +39,12 @@ export const useModalClose = () => useContext(CloseContext)
 // What Tab can reach inside a dialog, before leaving out what's hidden or has tabindex="-1".
 const TABBABLE = "a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]"
 
-/** A centred dialog of glass that closes on Escape or a click outside it, and keeps Tab inside it while it's open. */
-export default function Modal({ title, onClose, wide = false, fade = false, children }: ModalProps) {
+/**
+ * A centred dialog, a white sheet, that closes on Escape or a click outside
+ * it, and keeps Tab inside it while it's open. It opens with the focus on its
+ * control marked data-autofocus, or else its first.
+ */
+export default function Modal({ title, onClose, wide = false, fade = false, large = false, closeButton = false, children }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   // Its own, as another dialog can be open alongside it.
   const titleId = useId()
@@ -107,14 +116,17 @@ export default function Modal({ title, onClose, wide = false, fade = false, chil
       tabbable[event.shiftKey ? (before + tabbable.length) % tabbable.length : Math.max(after, 0)].focus()
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close.current()
+      // An Escape a menu in the dialog has handled closes only that menu (useMenu in MoreMenu.tsx):
+      // React's own listener on the document runs first, and its stopPropagation can't stop this one.
+      if (event.key === "Escape" && !event.defaultPrevented) close.current()
       else if (event.key === "Tab") keepTabInside(event)
     }
     document.addEventListener("keydown", onKeyDown)
     // Start keyboard users inside the dialog, and put them back where they were once it closes.
     const openedFrom = document.activeElement
     opener.current = openedFrom
-    panelRef.current?.querySelector<HTMLElement>("input, button")?.focus()
+    const panel = panelRef.current
+    ;(panel?.querySelector<HTMLElement>("[data-autofocus]") ?? panel?.querySelector<HTMLElement>("input, button"))?.focus()
     return () => {
       document.removeEventListener("keydown", onKeyDown)
       // Gone some other way while it faded: its own close doesn't follow.
@@ -147,14 +159,33 @@ export default function Modal({ title, onClose, wide = false, fade = false, chil
         role="dialog"
         aria-modal="true"
         aria-labelledby={wide ? "modal-title" : titleId}
-        className={`glass glass-frost rounded-panel transition-[scale,translate] motion-reduce:transition-none starting:translate-y-2 starting:scale-[0.97] ${
+        className={`dialog-sheet transition-[scale,translate] motion-reduce:transition-none starting:translate-y-2 starting:scale-[0.97] ${
           closing ? "translate-y-2 scale-[0.97] duration-[260ms] ease-in-out" : "duration-300 ease-glide"
-        } ${wide ? "flex h-[min(88vh,880px)] w-full max-w-[1120px] flex-col overflow-hidden" : "w-full max-w-md p-7"}`}
+        } ${
+          wide
+            ? "flex h-[min(88vh,880px)] w-full max-w-[1120px] flex-col overflow-hidden"
+            : `max-h-[calc(100dvh-2rem)] w-full overflow-y-auto overscroll-contain p-6 sm:p-[30px] ${large ? "max-w-[700px]" : "max-w-md"}`
+        }`}
       >
         {!wide && (
-          <h2 id={titleId} className="font-serif text-[30px] leading-tight tracking-[-0.02em]">
-            {title}
-          </h2>
+          <div className="flex items-start justify-between gap-4">
+            <h2
+              id={titleId}
+              className={`font-serif tracking-[-0.03em] ${large ? "text-[30px] leading-9 sm:text-[36px]" : "text-[30px] leading-[1.1]"}`}
+            >
+              {title}
+            </h2>
+            {closeButton && (
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => close.current()}
+                className="-mr-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f3f4f7] text-ink transition-colors duration-150 hover:bg-[#e9ebef] sm:mr-0"
+              >
+                <X className="h-[18px] w-[18px]" aria-hidden="true" />
+              </button>
+            )}
+          </div>
         )}
         <CloseContext.Provider value={close.current}>{children}</CloseContext.Provider>
       </div>

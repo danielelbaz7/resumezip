@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import { countSlides, inkCovers, pageErrors, seriousAccessibilityProblems, settled } from "./helpers"
+import { countThumbSlides, pageErrors, seriousAccessibilityProblems, settled, thumbCovers } from "./helpers"
 
 const resume = (id: string, resumeTitle: string, more: { resumeTag?: string; selectedTemplate?: string; updatedAt?: string } = {}) => ({
   id,
@@ -180,7 +180,7 @@ test("on a tablet, two resumes whose names differ only by a number both show it"
 test("closing a dialog puts focus back on what opened it, however it's closed", async ({ page }) => {
   const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Short one")])
-  const newResume = page.getByRole("main").getByRole("button", { name: "New resume" })
+  const newResume = page.getByRole("main").getByRole("button", { name: "New resume" }).first()
   const dialog = page.getByRole("dialog", { name: "New resume" })
 
   await newResume.press("Enter")
@@ -202,27 +202,133 @@ test("closing a dialog puts focus back on what opened it, however it's closed", 
   expect(errors).toEqual([])
 })
 
+test("New resume starts one blank in the template and paper chosen, copies one here, or opens a file", async ({ page }) => {
+  const errors = pageErrors(page)
+  await dashboardWith(page, [resume("a", "Ada")])
+  const newResume = page.getByRole("main").getByRole("button", { name: "New resume" }).first()
+  const dialog = page.getByRole("dialog", { name: "New resume" })
+  // The resume the editor has open, as saved.
+  const opened = () => page.evaluate(() => JSON.parse(localStorage.getItem(`resume:${location.pathname.split("/").pop()}`) ?? "null"))
+
+  // Blank, in Harvard, on A4 rather than its own Letter.
+  await newResume.click()
+  await dialog.getByLabel("Name").fill("For Kestrel")
+  await dialog.getByRole("button", { name: "Template Jake's" }).click()
+  await dialog.getByRole("menu", { name: "Template" }).getByRole("menuitemradio", { name: "Harvard" }).click()
+  await dialog.getByRole("button", { name: "Paper Letter" }).click()
+  await dialog.getByRole("menu", { name: "Paper" }).getByRole("menuitemradio", { name: "A4" }).click()
+  await dialog.getByRole("button", { name: "Create" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  await expect.poll(opened).toMatchObject({ resumeTitle: "For Kestrel", selectedTemplate: "resumeworded", tune: { paper: "a4" } })
+
+  // A copy of Ada's, which starts in Ada's template, put in Compact.
+  await page.goto("/create/dashboard")
+  await newResume.click()
+  await dialog.getByRole("tab", { name: "Copy one" }).click()
+  await dialog.getByText("Ada", { exact: true }).click()
+  await expect(dialog.getByRole("radio", { name: /^Ada/ })).toBeChecked()
+  await dialog.getByRole("button", { name: "Template Jake's" }).click()
+  await dialog.getByRole("menu", { name: "Template" }).getByRole("menuitemradio", { name: "Compact" }).click()
+  await dialog.getByRole("button", { name: "Create" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  await expect
+    .poll(opened)
+    .toMatchObject({ resumeTitle: "Ada copy", selectedTemplate: "referme", profileSection: { fullName: "Ada Lovelace" } })
+
+  // Or a file.
+  await page.goto("/create/dashboard")
+  await newResume.click()
+  await dialog.getByRole("tab", { name: "Open a file" }).click()
+  const choosing = page.waitForEvent("filechooser")
+  await dialog.getByRole("button", { name: "Choose a file" }).click()
+  await choosing
+  expect(errors).toEqual([])
+})
+
+test("New resume's template menu opens on the chosen one, scrolls inside its glass, and Escape closes only it", async ({ page }) => {
+  const errors = pageErrors(page)
+  await dashboardWith(page, [resume("a", "Ada")])
+  await page.getByRole("main").getByRole("button", { name: "New resume" }).first().click()
+  const dialog = page.getByRole("dialog", { name: "New resume" })
+  const template = dialog.getByRole("button", { name: /^Template/ })
+  const menu = dialog.getByRole("menu", { name: "Template" })
+  await template.click()
+  await menu.getByRole("menuitemradio", { name: "Accent" }).click()
+  await template.click()
+
+  // Opened again, the one chosen, far down the list, is in view, with the keyboard on it.
+  const accent = menu.getByRole("menuitemradio", { name: "Accent" })
+  await expect(accent).toBeFocused()
+  await expect(accent).toBeInViewport()
+  // Its list scrolls inside the glass, not the glass itself, whose frost would scroll away and leave it see-through.
+  expect(await menu.evaluate((element) => element.scrollHeight - element.clientHeight)).toBe(0)
+  expect(await accent.evaluate((item) => item.parentElement!.scrollTop)).toBeGreaterThan(0)
+
+  // Escape closes the menu, back on its button, and only then the dialog.
+  await page.keyboard.press("Escape")
+  await expect(menu).toBeHidden()
+  await expect(dialog).toBeVisible()
+  await expect(template).toBeFocused()
+  await page.keyboard.press("Escape")
+  await expect(dialog).toBeHidden()
+
+  // With nothing to copy, there's no template or paper to choose for a copy.
+  await dashboardWith(page, [])
+  await page.evaluate(() => localStorage.clear())
+  await page.reload()
+  await page.getByRole("main").getByRole("button", { name: "New resume" }).first().click()
+  await dialog.getByRole("tab", { name: "Copy one" }).click()
+  await expect(dialog.getByText("No resumes to copy yet.")).toBeVisible()
+  await expect(template).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+test("the page greets by the time of day, with the first name on the resume edited last", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.clock.setFixedTime(new Date("2026-10-13T15:30:00"))
+  await dashboardWith(page, [
+    resume("a", "Ada", { updatedAt: "2026-10-08T12:00:00.000Z" }),
+    { ...resume("b", "Grace", { updatedAt: "2026-10-09T12:00:00.000Z" }), profileSection: { fullName: "Dr. Grace Hopper" } },
+  ])
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Good afternoon, Grace")
+  await expect(page.getByText("Pick up where you left off, or start a new one.")).toBeVisible()
+  expect(errors).toEqual([])
+})
+
 test("Tab stays inside an open dialog, going round from its last control to its first", async ({ page }) => {
   const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Short one")])
-  await page.getByRole("main").getByRole("button", { name: "New resume" }).click()
+  await page.getByRole("main").getByRole("button", { name: "New resume" }).first().click()
   const dialog = page.getByRole("dialog", { name: "New resume" })
   const name = dialog.getByLabel("Name")
   await expect(name).toBeFocused()
 
+  // Back past the tabs and the close button, and round to the last control.
+  await page.keyboard.press("Shift+Tab")
+  await expect(dialog.getByRole("tab", { name: "Start blank" })).toBeFocused()
+  await page.keyboard.press("Shift+Tab")
+  await expect(dialog.getByRole("button", { name: "Close" })).toBeFocused()
   await page.keyboard.press("Shift+Tab")
   await expect(dialog.getByRole("button", { name: "Create" })).toBeFocused()
   await page.keyboard.press("Tab")
-  await expect(name).toBeFocused()
-  // Through the type's choices, the box for a type of your own, Cancel and Create, and round again.
-  await page.keyboard.press("Tab")
-  await expect(dialog.getByRole("radio", { name: "Personal" })).toBeFocused()
-  await page.keyboard.press("Tab")
-  await expect(dialog.getByLabel("Or your own")).toBeFocused()
-  await page.keyboard.press("Tab")
+  await expect(dialog.getByRole("button", { name: "Close" })).toBeFocused()
+  // Through the tab chosen, the name, the type's choices (one stop), Your own, the template, the paper, Cancel and Create.
   await page.keyboard.press("Tab")
   await page.keyboard.press("Tab")
   await expect(name).toBeFocused()
+  await page.keyboard.press("Tab")
+  await expect(dialog.getByRole("radio", { name: "Professional" })).toBeFocused()
+  for (const control of [
+    dialog.getByRole("button", { name: "Your own" }),
+    dialog.getByRole("button", { name: /^Template/ }),
+    dialog.getByRole("button", { name: /^Paper/ }),
+    dialog.getByRole("button", { name: "Cancel" }),
+    dialog.getByRole("button", { name: "Create" }),
+    dialog.getByRole("button", { name: "Close" }),
+  ]) {
+    await page.keyboard.press("Tab")
+    await expect(control).toBeFocused()
+  }
   expect(errors).toEqual([])
 })
 
@@ -400,7 +506,7 @@ for (const [layout, width] of [
     await page.getByRole("menuitem", { name: "Delete" }).click()
     await expect(pages(page).getByRole("link", { name: "Ada", exact: true })).toHaveCount(0)
     await expect(page.getByRole("status").filter({ hasText: "deleted" })).toHaveText("“Ada” deleted")
-    await expect(page.getByText(/^\d+ resumes?\W+stored in this browser$/i)).toHaveText(/^2 resumes/i)
+    await expect(page.getByText(/^\d+ resumes?\W+saved in this browser$/i)).toHaveText(/^2 resumes/i)
     await page.getByRole("button", { name: "Undo" }).click()
     await expect(pages(page).getByRole("link", { name: "Ada", exact: true })).toBeFocused()
     expect(await saved(page, "a")).toBe(before)
@@ -530,7 +636,6 @@ test("in use, the search lifts into the middle of the screen, and Escape or a pr
   browserName,
 }) => {
   const errors = pageErrors(page)
-  // Tall, so the footer is on screen under the page once nothing matches.
   await page.setViewportSize({ width: 1280, height: 1200 })
   await dashboardWith(page, [resume("a", "Ada"), resume("b", "Grace")])
   const search = page.getByRole("combobox", { name: "Search your resumes" })
@@ -549,16 +654,15 @@ test("in use, the search lifts into the middle of the screen, and Escape or a pr
   await search.fill("ada")
   await expect(page.getByRole("listbox", { name: "Matching resumes" })).toBeVisible()
 
-  // With nothing to list, it says so; and the softened page covers the whole
-  // screen, the footer included (on a tall screen, with the page now short).
+  // With nothing to list, it says so; and the softened page covers the whole screen.
   await search.fill("zzz")
   // The panel's line and the screen readers' status say the same.
   await expect(page.getByText("No resume matches “zzz”").filter({ visible: true })).toHaveCount(2)
   // Playwright's WebKit on Linux draws no backdrop-filter at all (no glass blurs there, the
   // search field's own included), so the blur is only measured where it's drawn.
   if (browserName !== "webkit") {
-    // Once the veil's faded in, the footer under it is blurred too: no sharp edges
-    // (as its zipper's teeth have), only small steps from one pixel to the next.
+    // Once the veil's faded in, the foot of the screen is blurred too: no sharp edges
+    // (as the sheet's sides have against the sky), only small steps from one pixel to the next.
     await page.evaluate(() =>
       Promise.all(
         document
@@ -567,10 +671,7 @@ test("in use, the search lifts into the middle of the screen, and Escape or a pr
           .map((animation) => animation.finished.catch(() => undefined)),
       ),
     )
-    const footer = (await page.getByRole("contentinfo").boundingBox())!
-    const top = Math.max(0, Math.round(footer.y))
-    expect(top).toBeLessThan(1100)
-    const shot = await page.screenshot({ clip: { x: 120, y: top, width: 1040, height: 1200 - top } })
+    const shot = await page.screenshot({ clip: { x: 0, y: 1000, width: 1280, height: 200 } })
     const sharpest = await page.evaluate(async (png) => {
       const image = new Image()
       image.src = `data:image/png;base64,${png}`
@@ -651,6 +752,22 @@ test("on a phone, the search stays in the toolbar, with its matches under it, an
   expect(errors).toEqual([])
 })
 
+test("each card says its resume's type over its name, and one without a type keeps the line", async ({ page }) => {
+  const errors = pageErrors(page)
+  await dashboardWith(page, [
+    resume("a", "Ada"),
+    resume("b", "Grace", { resumeTag: "personal" }),
+    resume("c", "Kestrel", { resumeTag: "" }),
+  ])
+  await expect(tile(page, "Ada").getByText("Professional", { exact: true })).toBeVisible()
+  await expect(tile(page, "Grace").getByText("Personal", { exact: true })).toBeVisible()
+  // The names in a row line up, with a type over them or not.
+  const top = async (name: string) => (await page.getByRole("link", { name, exact: true }).boundingBox())!.y
+  expect(Math.abs((await top("Ada")) - (await top("Kestrel")))).toBeLessThan(1)
+  expect(await seriousAccessibilityProblems(page)).toEqual([])
+  expect(errors).toEqual([])
+})
+
 test("the header's Dashboard opens the dashboard, which the tab calls Dashboard", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/about")
@@ -671,29 +788,29 @@ test("the tags show their resumes, with how many each has", async ({ page }) => 
   expect(errors).toEqual([])
 })
 
-test("the picked tag's ink slides across to the next one picked, and stays with it as the tags change", async ({ page }) => {
+test("the picked tag's white pill slides across to the next one picked, and stays with it as the tags change", async ({ page }) => {
   const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Ada"), resume("b", "Grace", { resumeTag: "personal" }), resume("c", "Kestrel")])
   const row = page.getByRole("group", { name: "Show" })
   const tags = row.getByRole("button")
   await expect(tags).toHaveText(["All 3", "Personal 1", "Professional 2"])
-  await expect.poll(() => inkCovers(row, tags.filter({ hasText: "All" }))).toBe(true)
-  const slides = await countSlides(row)
+  await expect.poll(() => thumbCovers(row, tags.filter({ hasText: "All" }))).toBe(true)
+  const slides = await countThumbSlides(row)
 
   const professional = tags.filter({ hasText: "Professional" })
   await professional.click()
-  await expect.poll(() => inkCovers(row, professional)).toBe(true)
+  await expect.poll(() => thumbCovers(row, professional)).toBe(true)
   expect(await slides()).toBe(1)
 
   // Searching for one with no Personal resume takes that tag away, which moves Professional over, and
-  // clearing the search brings it back. The ink goes with Professional, without sliding.
+  // clearing the search brings it back. The pill goes with Professional, without sliding.
   const search = page.getByRole("combobox", { name: "Search your resumes" })
   await search.fill("Kestrel")
   await expect(tags).toHaveText(["All 1", "Professional 1"])
-  await expect.poll(() => inkCovers(row, professional)).toBe(true)
+  await expect.poll(() => thumbCovers(row, professional)).toBe(true)
   await search.fill("")
   await expect(tags).toHaveText(["All 3", "Personal 1", "Professional 2"])
-  await expect.poll(() => inkCovers(row, professional)).toBe(true)
+  await expect.poll(() => thumbCovers(row, professional)).toBe(true)
   expect(await slides()).toBe(1)
   expect(errors).toEqual([])
 })
@@ -711,8 +828,11 @@ test("a type of your own named all is a tag of its own, apart from All", async (
 test("typing a type of your own that runs on past one already in use keeps every letter", async ({ page }) => {
   const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Ada", { resumeTag: "Data roles" })])
-  await page.getByRole("main").getByRole("button", { name: "New resume" }).click()
-  const own = page.getByRole("dialog", { name: "New resume" }).getByLabel("Or your own")
+  await page.getByRole("main").getByRole("button", { name: "New resume" }).first().click()
+  const dialog = page.getByRole("dialog", { name: "New resume" })
+  await dialog.getByRole("button", { name: "Your own" }).click()
+  const own = dialog.getByLabel("Your own type")
+  await expect(own).toBeFocused()
   await own.pressSequentially("Data roles 2")
   await expect(own).toHaveValue("Data roles 2")
   expect(errors).toEqual([])

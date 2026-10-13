@@ -157,6 +157,35 @@ export async function countSlides(row: Locator): Promise<() => Promise<number>> 
 }
 
 /**
+ * Whether the white pill on a grey track of choices (useThumb) covers the
+ * chosen one to within a pixel, and is the only white there.
+ */
+export async function thumbCovers(row: Locator, choice: Locator): Promise<boolean> {
+  const box = (await choice.boundingBox())!
+  const white = await row.evaluate((row) =>
+    [...row.querySelectorAll("*")].flatMap((element) => {
+      const style = getComputedStyle(element)
+      if (style.backgroundColor !== "rgb(255, 255, 255)" || style.visibility !== "visible") return []
+      const { x, y, width, height } = element.getBoundingClientRect()
+      return [{ x, y, width, height }]
+    }),
+  )
+  return white.length === 1 && (["x", "y", "width", "height"] as const).every((side) => Math.abs(white[0][side] - box[side]) < 1)
+}
+
+/** Counts the slides of the white pill on a grey track of choices from now on: the translate transitions that start on it. */
+export async function countThumbSlides(row: Locator): Promise<() => Promise<number>> {
+  const count = await row.evaluateHandle((row) => {
+    const count = { slides: 0 }
+    row.addEventListener("transitionrun", (event) => {
+      if ((event as TransitionEvent).propertyName === "translate") count.slides++
+    })
+    return count
+  })
+  return () => count.evaluate((count) => count.slides)
+}
+
+/**
  * The page's serious and critical problems under WCAG 2.1 A and AA, as
  * readable lines, leaving out the parts matching `exclude`.
  */

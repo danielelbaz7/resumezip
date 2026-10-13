@@ -11,15 +11,6 @@ export const INK_PILL = `${SHAPE} ink-button lift-button`
 
 export const OUTLINE_PILL = `${PILL} bg-sheet/70 text-ink ring-1 ring-inset ring-ink/15 hover:bg-sheet hover:ring-ink/40`
 
-/**
- * A row of buttons on one pane of frosted glass, as a toolbar: rounded like a
- * pill on one line, and still rounded where it wraps onto two.
- */
-export const GLASS_DOCK = "glass glass-float inline-flex flex-wrap items-center gap-1 rounded-[25px] p-[5px]"
-
-/** A button in a GLASS_DOCK: no fill or edge of its own, a tint under the pointer. */
-export const DOCK_PILL = `${PILL} text-ink hover:bg-ink/[0.06] disabled:hover:bg-transparent`
-
 /** A main action on glass: ink glass, with a glossy lit top (ink-glass in globals.css). */
 export const INK_GLASS_PILL = `${SHAPE} ink-glass`
 

@@ -2,24 +2,32 @@
 
 /* In the components layer, so a Tailwind utility on the same element still wins. */
 @layer components {
-  /* The row above the resumes (Filters.tsx): the search, the tag chips, and
-     sort and view. On phones each on a line of its own; then the search with
-     sort and view beside it, and the chips under them; and on wide screens all
-     on one line. */
-  /* It's a pane of glass (GLASS_BAR), so a layer of its own: over the pages
-     below it, as the search's panel, menus and veil in it have to be. */
+  /* The bar above the resumes (Filters.tsx), in liquid glass: the search,
+     the tag chips, and sort and view. On phones each on a line of its own;
+     then the search with sort and view beside it, and the chips under them;
+     and on wide screens all on one line, sort and view at its far end. Its
+     corners are round where it wraps, and it's a capsule on one line. */
   .dash-toolbar {
+    /* A layer of its own, over the pages below it, as the search's panel and the menus in it have to be. */
+    position: relative;
     z-index: 20;
     display: grid;
-    /* Never wider than the bar, however wide what's in it would like to be. */
+    /* Never wider than the sheet, however wide what's in it would like to be. */
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "search" "chips" "controls";
     align-items: center;
     gap: 12px;
+    padding: 7px;
+    border-radius: 26px;
+  }
+  /* The tag chips and the view switch have no track of their own in it: the glass is theirs. */
+  .dash-toolbar .segment-track {
+    background: transparent;
+    box-shadow: none;
   }
   .dash-toolbar-search {
     grid-area: search;
-    /* Over the pages below it, for its panel. */
+    /* Over the chips and pages below it, for its panel. */
     position: relative;
     z-index: 20;
   }
@@ -37,59 +45,63 @@
   }
   @media (min-width: 40rem) {
     .dash-toolbar {
-      grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+      grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
       grid-template-areas: "search controls" "chips chips";
     }
     .dash-toolbar-controls {
       justify-content: flex-end;
+      gap: 16px;
     }
+  }
+  @media (min-width: 64rem) {
+    .dash-toolbar {
+      grid-template-columns: 300px minmax(0, max-content) minmax(0, 1fr);
+      grid-template-areas: "search chips controls";
+      column-gap: 13px;
+      border-radius: 999px;
+    }
+  }
+  /* The templates page's bar (TemplateGallery.tsx): the search and the style
+     chips, with no sort or view after them. The search has its own line until
+     there's room for every chip beside it. */
+  .dash-toolbar.dash-toolbar-plain {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "search" "chips";
+    border-radius: 26px;
   }
   @media (min-width: 80rem) {
-    .dash-toolbar {
-      grid-template-columns: 300px minmax(0, 1fr) auto;
-      grid-template-areas: "search chips controls";
-      column-gap: 8px;
-    }
-    /* A hairline before the chips and before the controls, as the templates page's bar has. */
-    .dash-toolbar-chips,
-    .dash-toolbar-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .dash-toolbar-chips::before,
-    .dash-toolbar-controls::before {
-      content: "";
-      flex: none;
-      width: 1px;
-      height: 28px;
-      margin: 0 4px;
-      background: rgb(17 19 24 / 0.15);
+    .dash-toolbar.dash-toolbar-plain {
+      grid-template-columns: 300px minmax(0, 1fr);
+      grid-template-areas: "search chips";
+      border-radius: 999px;
     }
   }
-  /* In the bar, at rest (and its copy left in the bar while it's lifted),
-     the search is a plain white field, as the templates page's is, rather than
-     glass on glass; lifted, it's glass again. */
+  /* At rest (and its copy left in the toolbar while it's lifted), the search
+     is a white field in the glass bar; lifted, it's glass of its own again. */
   .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *) {
-    box-shadow: inset 0 0 0 1px rgb(17 19 24 / 0.06);
+    box-shadow:
+      0 1px 2px rgb(17 19 24 / 0.08),
+      0 4px 10px -6px rgb(17 19 24 / 0.2);
   }
   .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *)::before {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-    background: rgb(255 255 255 / 0.55);
+    background: rgb(255 255 255 / 0.94);
     box-shadow: none;
   }
+  .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *):hover::before {
+    background: var(--color-sheet);
+  }
   .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *):focus-within::before {
-    background: rgb(255 255 255 / 0.8);
+    background: var(--color-sheet);
   }
   .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *)::after {
     display: none;
   }
 
-  /* The search field (and the glass bar it sits in, GLASS_BAR, and the
-     templates page's plates): clear glass, with a lit top edge and a rim. Its
-     blur is on ::before, as .glass's is (styles/glass.css), so its words stay
-     sharp. */
+  /* The search field (and the templates page's Use plates, home.css): clear
+     glass, with a lit top edge and a rim. Its blur is on ::before, as
+     .glass's is (styles/glass.css), so its words stay sharp. */
   .search-field {
     position: relative;
     isolation: isolate;
@@ -290,51 +302,81 @@
     }
   }
 
-  /* A resume as its first page (ResumeGrid.tsx). */
-  .tile-page {
-    overflow: hidden;
-    box-shadow:
-      0 0 0 1px var(--color-rule),
-      0 1px 2px rgb(17 19 24 / 0.06);
-    transition:
-      box-shadow 200ms ease-out,
-      translate 320ms var(--ease-glide);
+  /* The resumes as cards (ResumeGrid.tsx): two to a row on phones, then as
+     many as fit, up to 300px wide, so four fill the widest sheet. */
+  .resume-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
-  /* Pointed at: a hairline that darkens rather than a heavy outline, and the page lifts. */
-  .tile:hover .tile-page,
-  .tile:focus-within .tile-page {
-    box-shadow:
-      0 0 0 1px rgb(17 19 24 / 0.45),
-      0 16px 32px -20px rgb(17 19 24 / 0.5);
-    translate: 0 -2px;
+  @media (min-width: 40rem) {
+    .resume-grid {
+      grid-template-columns: repeat(auto-fill, minmax(260px, 300px));
+      gap: 20px;
+    }
   }
-  .tile.is-copied .tile-page {
-    box-shadow:
-      0 0 0 2px var(--color-accent),
-      0 16px 32px -20px rgb(17 19 24 / 0.5);
-  }
-  .tile-tag {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    padding: 3px 7px 2px;
-    border: 1px solid var(--color-rule-strong);
-    border-radius: 2px;
+  /* A card: the resume's first page across its top, then its type and name,
+     then (on phones) what can be done with it. Wider, that's a bar laid over
+     the foot of the page, in the same cell. White, with a light rim and a
+     shadow tinted with the sky, on the sheet the sky shows through. Each card
+     is drawn as one layer (isolation), so the link over one card's page
+     can't cover another card's open menu. */
+  .tile {
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    border: 1px solid rgb(255 255 255 / 0.9);
+    border-radius: 24px;
     background: var(--color-sheet);
-    color: var(--color-ink);
-    /* label-mono's, set here so phones can make it smaller. */
-    font-family: var(--font-geist-mono), ui-monospace, monospace;
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    box-shadow:
+      0 1px 2px rgb(17 19 24 / 0.06),
+      0 16px 36px -20px rgb(30 45 80 / 0.5);
+    transition:
+      border-color 200ms ease-out,
+      box-shadow 200ms ease-out;
+  }
+  /* Pointed at, it stands off the sheet a little more. */
+  .tile:hover,
+  .tile:focus-within {
+    border-color: var(--color-sheet);
+    box-shadow:
+      0 1px 2px rgb(17 19 24 / 0.08),
+      0 24px 44px -20px rgb(30 45 80 / 0.58);
+  }
+  .tile.is-copied {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px var(--color-accent);
+  }
+  /* Where the page is: the card's whole width, with a line under it. */
+  .tile-stage {
+    position: relative;
+    grid-area: 1 / 1;
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  /* A resume's first page, rounded at the top with its card. It's rounded
+     itself rather than cut by what holds it, so it's rounded in the view
+     switch's transition (viewSwitch.ts) and on its way to Undo too. */
+  .tile-page {
+    position: relative;
+    aspect-ratio: 8.5 / 11;
+    overflow: hidden;
+    border-radius: 23px 23px 0 0;
+    background: var(--color-sheet);
+  }
+  .tile-text {
+    grid-area: 2 / 1;
   }
 
   /* What can be done with a resume. On phones, a row of buttons under its
      name; wider, a glass bar over the foot of its page that shows while the
-     page is pointed at or has focus in it, and always on touch screens. */
+     card is pointed at or has focus in it, and always on touch screens. It's
+     over the link on the page, which the More menu opens over. */
   .tile-actions {
+    grid-area: 3 / 1;
+    z-index: 2;
     display: flex;
-    margin: 6px 0 0 -10px;
+    padding: 0 4px 4px;
   }
   .tile-bar {
     display: flex;
@@ -355,15 +397,11 @@
   }
   @media (min-width: 40rem) {
     .tile-actions {
-      position: absolute;
-      top: 0;
-      right: 0;
-      left: 0;
-      aspect-ratio: 8.5 / 11;
-      margin: 0;
-      padding: 10px;
-      align-items: flex-end;
-      justify-content: center;
+      grid-area: 1 / 1;
+      align-self: end;
+      justify-self: center;
+      margin: 0 0 12px;
+      padding: 0;
       pointer-events: none;
       opacity: 0;
       translate: 0 6px;
@@ -381,14 +419,6 @@
       opacity: 1;
       translate: 0 -2px;
     }
-    /* The bar covers the tag; it would only peek out from under it. */
-    .tile-tag {
-      transition: opacity 180ms ease-out;
-    }
-    .tile:hover .tile-tag,
-    .tile:focus-within .tile-tag {
-      opacity: 0;
-    }
     .tile-open {
       display: inline-flex;
       align-items: center;
@@ -405,47 +435,43 @@
       opacity: 1;
       translate: 0 0;
     }
-    .tile-tag {
-      display: none;
-    }
   }
-
   @media (max-width: 39.99rem) {
-    .tile-tag {
-      bottom: 6px;
-      left: 6px;
-      padding: 2px 5px 1px;
-      font-size: 9px;
+    .tile {
+      border-radius: 18px;
+    }
+    .tile-page {
+      border-radius: 17px 17px 0 0;
     }
   }
   /* Deleting, from the pages or the list (flight.ts): a resume keeps its
      place for a moment, unseen, as a copy of its page lifts off toward the
      Undo message, then the rest slide into the gap. Put back, its page is
-     unseen until the copy flying back lands on it, and doesn't lift with the
-     focus it's given (.tile:focus-within) till then, so it's where the copy lands. */
+     unseen until the copy flying back lands on it. */
   [data-glide].is-leaving {
     visibility: hidden;
   }
   [data-glide].is-returning [data-resume-page] {
     visibility: hidden;
-    translate: none;
   }
 
-  /* The last tile, which takes a file to open, and the empty dashboard's New resume. */
-  .drop-tile,
-  .new-slot {
+  /* The last card, which starts a new resume, and the empty dashboard's
+     card for opening a file: dashed and half see-through, as tall as a
+     resume's card, with what's on it centered where the others' pages are. */
+  .new-tile,
+  .drop-tile {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 14px;
     width: 100%;
-    aspect-ratio: 8.5 / 11;
-    padding: 20px 16px;
-    border: 1.5px dashed rgb(17 19 24 / 0.3);
-    /* Frosted, so the dashes and words stay clear over the sky's clouds. */
-    background: rgb(255 255 255 / 0.42);
-    backdrop-filter: blur(10px);
+    height: 100%;
+    min-height: 100%;
+    padding: 20px 16px 76px;
+    border: 1px dashed rgb(17 19 24 / 0.2);
+    border-radius: 24px;
+    background: rgb(255 255 255 / 0.4);
     color: var(--color-ink-2);
     text-align: center;
     transition:
@@ -453,10 +479,10 @@
       background-color 200ms,
       box-shadow 200ms;
   }
-  .drop-tile:hover,
-  .new-slot:hover {
-    border-color: var(--color-ink-2);
-    background: rgb(255 255 255 / 0.55);
+  .new-tile:hover,
+  .drop-tile:hover {
+    border-color: rgb(17 19 24 / 0.32);
+    background: rgb(255 255 255 / 0.62);
   }
   .drop-tile:hover .drop-arrow {
     animation: arrow-lift 900ms ease-in-out infinite;
@@ -467,23 +493,35 @@
     box-shadow: 0 0 0 6px rgb(46 91 230 / 0.14);
     color: var(--color-accent);
   }
-  .new-slot {
-    border-color: var(--color-ink-2);
-  }
-  .new-slot-plus {
+  .new-tile-plus {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    margin-bottom: 4px;
+    width: 52px;
+    height: 52px;
     border-radius: 999px;
-    background: var(--color-ink);
-    color: white;
+    color: #fff;
+    background: linear-gradient(180deg, #5b97fb, #2c65e8);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.25),
+      0 0 0 6px rgb(59 130 246 / 0.12),
+      0 8px 18px -6px rgb(37 99 235 / 0.55);
     transition: scale 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  .new-slot:hover .new-slot-plus {
-    scale: 1.08;
+  .new-tile:hover .new-tile-plus {
+    scale: 1.06;
+  }
+  @media (max-width: 39.99rem) {
+    .new-tile,
+    .drop-tile {
+      gap: 10px;
+      padding-bottom: 56px;
+      border-radius: 18px;
+    }
+    .new-tile-plus {
+      width: 44px;
+      height: 44px;
+    }
   }
 
   /* "Deleted · Undo", at the foot of the screen (DeletedToast.tsx), with the deleted page in it, or a crumpled one. */
@@ -574,13 +612,17 @@
     transform-origin: 0 100%;
   }
   /* An open menu can reach over the next page, which is drawn later. Its
-     z-index only counts inside its glass bar (isolation), so its page comes
+     z-index only counts inside its card (isolation), so its card comes
      forward. */
   .tile:has(.more-menu) {
     z-index: 1;
   }
   .sort-menu {
     transform-origin: 100% 0;
+  }
+  /* New resume's template and paper menus grow up out of their buttons, at the dialog's foot. */
+  .choice-menu {
+    transform-origin: 0 100%;
   }
 }
 
@@ -638,12 +680,11 @@
    simply gone (the page skips the wait too), and nothing grows, lands or hops. */
 @media (prefers-reduced-motion: reduce) {
   .view-fade,
-  .tile-page,
-  .tile-tag,
+  .tile,
   .tile-actions,
   .drop-tile,
-  .new-slot,
-  .new-slot-plus {
+  .new-tile,
+  .new-tile-plus {
     transition: none;
   }
   .search-panel,
@@ -660,8 +701,6 @@
   .menu-panel > * {
     animation: none;
   }
-  .tile:hover .tile-page,
-  .tile:focus-within .tile-page,
   .tile:hover .tile-actions,
   .tile:focus-within .tile-actions {
     translate: none;
