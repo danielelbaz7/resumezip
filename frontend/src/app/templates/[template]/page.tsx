@@ -7,6 +7,7 @@ import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
 import { StartWritingLink } from "@/components/site/StartWriting"
+import { pageMetadata } from "@/lib/site"
 import { fontsOf, TEMPLATES, templateBySlug, templatePath, templateSlug } from "@/lib/templates"
 import { checksPassed, READING_CHECKS } from "../how-they-read/checks"
 import { ABOUT } from "./about"
@@ -25,7 +26,11 @@ interface TemplatePageProps {
 export async function generateMetadata({ params }: TemplatePageProps): Promise<Metadata> {
   const template = templateBySlug((await params).template)
   if (!template) return {}
-  return { title: `${template.name} resume template`, description: ABOUT[template.id].description }
+  return pageMetadata({
+    path: templatePath(template),
+    title: `${template.name} resume template`,
+    description: ABOUT[template.id].description,
+  })
 }
 
 // Names in the template list are typed with straight apostrophes; a heading gets the curly one.

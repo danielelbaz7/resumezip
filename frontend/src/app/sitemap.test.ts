@@ -11,7 +11,6 @@ const LEFT_OUT: Record<string, string> = {
   "/create/dashboard": "the app: says noindex",
   "/create/editor": "the app: says noindex",
   "/google-drive": "only opened by Google's sign-in: says noindex",
-  "/contact": "redirects to About",
 }
 
 // The addresses each page with a [name] in its path is built for.

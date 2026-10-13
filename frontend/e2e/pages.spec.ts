@@ -74,11 +74,15 @@ test.describe("search engines", () => {
     return (await response.text()).split("</head>")[0]
   }
   const meta = (html: string, name: string) => html.match(new RegExp(`<meta name="${name}" content="([^"]*)"`))?.[1]
+  const property = (html: string, name: string) => html.match(new RegExp(`<meta property="${name}" content="([^"]*)"`))?.[1]
+  const sitemapUrls = async (request: APIRequestContext) =>
+    [...(await (await request.get("/sitemap.xml")).text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, url]) => url)
+  // "https://…com" and "https://…com/" are the same address.
+  const address = (url: string | undefined) => url && new URL(url).href
 
   test("find every page in the sitemap, each with its own description", async ({ request }) => {
     expect(await (await request.get("/robots.txt")).text()).toContain("Sitemap: https://www.tryresumezip.com/sitemap.xml")
-    const sitemap = await (await request.get("/sitemap.xml")).text()
-    const paths = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, url]) => new URL(url).pathname)
+    const paths = (await sitemapUrls(request)).map((url) => new URL(url).pathname)
     expect(paths).toEqual(expect.arrayContaining(["/", "/templates", "/about", "/terms"]))
 
     const descriptions = new Map<string, string>()
@@ -90,6 +94,25 @@ test.describe("search engines", () => {
       expect(descriptions.get(description!), `${path} has the same description as`).toBeUndefined()
       descriptions.set(description!, path)
     }
+  })
+
+  // A page that sets no Open Graph data gets its parent's, which would give
+  // every shared link the home page's title and address.
+  test("list each page under its own address, and preview a link to it with its own title", async ({ request }) => {
+    for (const url of await sitemapUrls(request)) {
+      const path = new URL(url).pathname
+      const html = await head(request, path)
+      expect(address(html.match(/<link rel="canonical" href="([^"]*)"/)?.[1]), `${path}'s canonical address`).toBe(url)
+      expect(address(property(html, "og:url")), `${path}'s preview address`).toBe(url)
+      expect(property(html, "og:title"), path).toBe(html.match(/<title>([^<]*)<\/title>/)?.[1])
+      expect(property(html, "og:description"), path).toBe(meta(html, "description"))
+    }
+  })
+
+  test("are sent from the old contact address to About for good", async ({ request }) => {
+    const response = await request.get("/contact", { maxRedirects: 0 })
+    expect(response.status()).toBe(308)
+    expect(response.headers().location).toBe("/about#contact")
   })
 
   test("are asked to leave the dashboard and the editor out", async ({ request }) => {

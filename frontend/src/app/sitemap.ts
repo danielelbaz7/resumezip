@@ -3,8 +3,7 @@ import { SITE_URL } from "@/lib/site"
 import { TEMPLATES, templatePath } from "@/lib/templates"
 
 // The pages people search for, with each template's own. The editor, the
-// dashboard and the Google Drive sign-in page say noindex instead, and
-// /contact redirects to About.
+// dashboard and the Google Drive sign-in page say noindex instead.
 const PAGES = ["/", "/templates", ...TEMPLATES.map(templatePath), "/templates/how-they-read", "/about", "/terms"]
 
 export default function sitemap(): MetadataRoute.Sitemap {

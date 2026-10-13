@@ -10,6 +10,9 @@ import Questions from "@/components/home/Questions"
 import StructuredData from "@/components/home/StructuredData"
 import SiteFooter from "@/components/site/SiteFooter"
 import { StartWritingLink } from "@/components/site/StartWriting"
+import { pageMetadata, SITE_DESCRIPTION } from "@/lib/site"
+
+export const metadata = pageMetadata({ path: "/", description: SITE_DESCRIPTION })
 
 function ArrowUpRight() {
   return (

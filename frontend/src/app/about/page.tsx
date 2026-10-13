@@ -1,4 +1,3 @@
-import type { Metadata } from "next"
 import Image from "next/image"
 import { Star } from "lucide-react"
 import EmailContact from "@/components/site/EmailContact"
@@ -6,11 +5,13 @@ import { INK_GLASS_PILL } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
+import { pageMetadata } from "@/lib/site"
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/about",
   title: "About",
   description: "Who makes resumezip, what it promises, how your PDF is made in your own browser, and how to get in touch.",
-}
+})
 
 const REPO_URL = "https://github.com/ian-hoang/resumezip"
 const ISSUES_URL = `${REPO_URL}/issues`
