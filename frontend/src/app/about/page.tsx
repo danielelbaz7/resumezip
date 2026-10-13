@@ -204,6 +204,21 @@ export default function AboutPage() {
             </ul>
           </section>
 
+          {/* What resumezip is, in plain facts that search engines and AI answers can quote. Each has to stay true of the app. */}
+          <section className={SECTION} aria-labelledby="does">
+            <h2 id="does" className={HEADING}>
+              What it does
+            </h2>
+            <div className="md:col-span-2">
+              <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
+                <Wordmark /> is a free, open-source resume builder (MIT license) that runs in your browser. You fill in a form and see the
+                page as you type, and it checks your resume as you write. Download it as a PDF, a Word file, a LaTeX file for Overleaf or
+                JSON, or save the PDF to Google Drive. It opens resumes from PDF, Word and JSON files, and prints on US Letter or A4.
+                There’s no account, and your resume is saved only in your browser.
+              </p>
+            </div>
+          </section>
+
           <section className={SECTION} aria-labelledby="made">
             <h2 id="made" className={HEADING}>
               How it’s made
