@@ -25,17 +25,20 @@ const withWork = (...work: ReturnType<typeof job>[]) => ({ ...jake, workExperien
 const onlyWork = (...work: ReturnType<typeof job>[]) => ({ profileSection: jake.profileSection, workExperienceSection: work })
 
 /** What one rule says about a resume. */
-function check(id: string, resume: Resume) {
+function check(id: string, resume: Resume, today?: Date) {
   const rule = RULES.find((rule) => rule.id === id)!
-  const report = runChecks(resume, { rules: [rule] })
+  const report = runChecks(resume, { rules: [rule], today })
   return { status: report.results[0].status, messages: report.findings.map((finding) => finding.message), findings: report.findings }
 }
 
 const placeOf = (section: string, entry: number, field: string) => ({ kind: "entry", section, entry, field })
 
+// The day the tests read dates on, for rules that depend on it.
+const today = new Date(2026, 9, 13)
+
 test("well-kept dates pass every date rule", () => {
-  for (const id of ["D1", "D2", "D3", "D4", "D6", "D7"]) {
-    expect(check(id, jake).status, id).toBe("passed")
+  for (const id of ["D1", "D2", "D3", "D4", "D6", "D7", "D8", "D9"]) {
+    expect(check(id, jake, today).status, id).toBe("passed")
   }
   // Only one “Present”, so there's nothing to compare it with.
   expect(check("D5", jake).status).toBe("skipped")
@@ -157,8 +160,18 @@ describe("D4 dates written different ways", () => {
   })
 
   test("flags a year on its own among months in a section, and a month among years", () => {
-    expect(check("D4", withWork(job("Jan 2025", "Present"), job("Jun 2023", "2024"))).findings).toEqual([
-      expect.objectContaining({ place: placeOf("Work", 1, "workEndDate"), message: "No month, unlike the rest of this section" }),
+    const leadership = {
+      ...jake,
+      leadershipExperienceSection: [
+        { id: 1, leadershipRole: "President", leadershipOrg: "ACM", leadershipStartDate: "Jan 2025", leadershipEndDate: "Present" },
+        { id: 2, leadershipRole: "Treasurer", leadershipOrg: "ACM", leadershipStartDate: "Jun 2023", leadershipEndDate: "2024" },
+      ],
+    }
+    expect(check("D4", leadership).findings).toEqual([
+      expect.objectContaining({
+        place: placeOf("Leadership", 1, "leadershipEndDate"),
+        message: "No month, unlike the rest of this section",
+      }),
     ])
     const projects = {
       ...jake,
@@ -175,6 +188,30 @@ describe("D4 dates written different ways", () => {
         suggestion: "Write just the year: “2022”.",
       }),
     ])
+  })
+
+  test("leaves a job's missing month to D8, and never tells a school to drop its month", () => {
+    expect(check("D4", withWork(job("Jan 2025", "Present"), job("Jun 2023", "2024"))).status).toBe("passed")
+    const schools = {
+      ...jake,
+      educationSection: [
+        { id: 1, schoolName: "Georgia Tech", degree: "M.S.", schoolStartDate: "2020", schoolEndDate: "2022" },
+        { id: 2, schoolName: "University of Texas at Austin", degree: "B.S.", schoolStartDate: "2016", schoolEndDate: "May 2020" },
+      ],
+    }
+    expect(check("D4", schools, today).status).toBe("passed")
+  })
+
+  test("leaves a student's graduation month to D9", () => {
+    const student = {
+      ...jake,
+      educationSection: [
+        { id: 1, schoolName: "University of Texas at Austin", degree: "B.S.", schoolStartDate: "Aug 2023", schoolEndDate: "2027" },
+      ],
+      workExperienceSection: [job("Jun 2025", "Aug 2025")],
+    }
+    expect(check("D4", student, today).status).toBe("passed")
+    expect(check("D9", student, today).messages).toEqual(["No month"])
   })
 
   test("leaves publications to their citation style", () => {
@@ -264,5 +301,71 @@ describe("D7 apostrophe years", () => {
       expect.objectContaining({ place: placeOf("Work", 1, "workEndDate"), message: "Year written as “’20”" }),
     ])
     expect(check("D7", withWork(job("Jun '99", "Aug '99"))).findings[0].suggestion).toBe("Write the whole year: “1999”.")
+  })
+})
+
+describe("D8 month and year on every job", () => {
+  test("flags a job dated by the year alone, with its month to add", () => {
+    expect(check("D8", withWork(job("Jan 2025", "Present"), job("2023", "Dec 2024"))).findings).toEqual([
+      expect.objectContaining({
+        place: placeOf("Work", 1, "workStartDate"),
+        message: "No month",
+        suggestion: "Add the month, like “Jun 2023”.",
+      }),
+    ])
+  })
+
+  test("takes a season, and a job still going", () => {
+    expect(check("D8", withWork(job("Summer 2024", "Present"))).status).toBe("passed")
+  })
+})
+
+describe("D9 month and year on your graduation date", () => {
+  const studentAt = (schoolStartDate: string, schoolEndDate: string, schoolName = "University of Texas at Austin") => ({
+    ...jake,
+    educationSection: [{ id: 1, schoolName, degree: "B.S.", schoolStartDate, schoolEndDate }],
+    workExperienceSection: [job("Jun 2025", "Aug 2025")],
+  })
+
+  test("asks a student for the month they graduate", () => {
+    for (const end of ["2027", "Class of 2027"]) {
+      expect(check("D9", studentAt("Aug 2023", end), today).findings, end).toEqual([
+        expect.objectContaining({
+          place: placeOf("Education", 0, "schoolEndDate"),
+          message: "No month",
+          suggestion: "Write it like “Expected May 2027”.",
+        }),
+      ])
+    }
+    expect(check("D9", studentAt("Aug 2023", "Expected May 2027"), today).status).toBe("passed")
+  })
+
+  test("asks a student with no end date, or “Present”, when they graduate", () => {
+    expect(check("D9", studentAt("Aug 2023", ""), today).messages).toEqual(["No graduation date"])
+    expect(check("D9", studentAt("Aug 2023", "Present"), today).messages).toEqual(["No graduation date"])
+  })
+
+  test("flags an expected date that has passed, for anyone", () => {
+    expect(check("D9", studentAt("Aug 2020", "Expected May 2024"), today).messages).toEqual(["This date has passed"])
+    const experienced = {
+      ...jake,
+      educationSection: [
+        { id: 1, schoolName: "University of Texas at Austin", degree: "B.S.", schoolStartDate: "2012", schoolEndDate: "Expected 2016" },
+      ],
+      workExperienceSection: [job("Jun 2016", "Present")],
+    }
+    expect(check("D9", experienced, today).messages).toEqual(["This date has passed"])
+  })
+
+  test("takes a year alone later in a career, and leaves high school alone", () => {
+    const experienced = {
+      ...jake,
+      educationSection: [
+        { id: 1, schoolName: "University of Texas at Austin", degree: "B.S.", schoolStartDate: "2008", schoolEndDate: "2012" },
+      ],
+      workExperienceSection: [job("Jun 2016", "Present")],
+    }
+    expect(check("D9", experienced, today).status).toBe("passed")
+    expect(check("D9", studentAt("2022", "2026", "Westlake High School"), today).status).toBe("skipped")
   })
 })

@@ -35,6 +35,13 @@ sent anywhere.
   "01/2024", "2024", "Fall 2023", "Expected May 2027", "Present", and ranges
   in one field like "Jun – Aug 2025"), and compares them. Rules that need to
   know when something started or ended use it.
+- `career.ts` reads the person's working years and career stage from those
+  dates. Years of work are the months the printed jobs cover, with
+  overlapping jobs counted once and gaps not at all, so L1 allows a second
+  page from 10 years of work. Early in a career means still in school or
+  graduated in the last 3 years with under 3 years of work; D9 asks for a
+  graduation date's month only then, when it decides which internships and
+  new-grad roles someone can apply for.
 - `verbs.ts` reads the verb a bullet starts with: which verb, its tense, and
   other verbs to suggest. The verbs themselves are listed in `settings.ts`.
 - `text.ts` has helpers for rules that read words: every bullet with its
@@ -119,11 +126,12 @@ sent anywhere.
   earns nothing. While a must-fix is left the score stays at 89 or below,
   3 lower for each must-fix after the first. The bullets are what a
   recruiter reads, and the rest is easy to pass with a template, so until
-  they earn 90% of their points they take at least enough to keep the total
-  under a cap that runs from 30, for bullets that earn nothing, up to 100,
-  and other problems cost on top of that. `calibration.test.ts` holds
-  resumes of known quality, from trash to strong, to the scores they should
-  get, so tuning the weights in `settings.ts` can't drift. Rules
+  they earn 75% of their points (`CONTENT_FULL`) they take at least enough
+  to keep the total under a cap that runs from 30, for bullets that earn
+  nothing, up to 100, and other problems cost on top of that.
+  `calibration.test.ts` holds resumes of known quality, from trash to
+  strong, to the scores they should get, so tuning the weights in
+  `settings.ts` can't drift. Rules
   that don't apply are left out, and a category none of whose rules apply
   gives its points to the others. Points are rounded down, so 100 means
   every scored check passed; optional advice may remain.

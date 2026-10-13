@@ -1,12 +1,14 @@
-// Dates (D1–D7 in issue #58): that each entry has them, that they make sense,
-// and that they're written one way.
+// Dates (D1–D9 in issue #58): that each entry has them, that they make sense,
+// that they're written one way, and that jobs and graduations give the month.
 
 import type { FieldKey, SectionName } from "@/components/editor/sections"
+import { isHighSchool, stageOf } from "./career"
 import type { Problem, Rule } from "./engine"
 import type { Place } from "./places"
-import { compareDates, datesOf, DATE_FIELDS, monthName, type EntryDates, type ResumeDate, type Written } from "./readDate"
+import { compareDates, datesOf, DATE_FIELDS, latestOf, monthName, type EntryDates, type ResumeDate, type Written } from "./readDate"
 import type { Entry, ResumeView } from "./resume"
-import { mostCommon } from "./text"
+import { EXPECTED_WORDS } from "./settings"
+import { escaped, mostCommon } from "./text"
 
 // Jobs, schools and roles: what has a start and an end.
 const SPANS: SectionName[] = ["Work", "Education", "Leadership", "Volunteership"]
@@ -155,13 +157,25 @@ const mixedFormats: Rule = {
   reads: "form",
   title: "Dates written one way",
   why: "Dates written the same way read as careful work.",
-  check: ({ resume }) => {
+  check: ({ resume, today }) => {
     // Publications follow their citation style, as IEEE's “Aug. 2023”.
-    const sections = allDates(
+    const entryDates = allDates(
       resume,
       resume.order.filter((section) => section !== "Publications"),
-    ).map((entries) => entries.flatMap(writtenIn).filter((written): written is MonthDate => !written.date.present))
+    )
+    const sections = entryDates.map((entries) =>
+      entries.flatMap(writtenIn).filter((written): written is MonthDate => !written.date.present),
+    )
     const dates = sections.flat()
+    // D9 asks for a graduation date's month early in a career, so that's left to it here.
+    const graduations = new Set(
+      stageOf(resume, today) === "early"
+        ? entryDates
+            .flat()
+            .filter((dates) => dates.entry.section === "Education" && !isHighSchool(dates.entry))
+            .map((dates) => dates.end)
+        : [],
+    )
     if (dates.length < 2) return null
     const problems = new Map<string, Problem>()
     const flag = (written: Written, problem: Omit<Problem, "place" | "text">) => {
@@ -169,19 +183,23 @@ const mixedFormats: Rule = {
       if (!problems.has(key)) problems.set(key, { place: at(written.entry, written.field), text: written.text, ...problem })
     }
     // Years on their own, or with months: one way within a section, so
-    // projects can go by year while jobs have months.
+    // projects can go by year while jobs have months. Jobs always need their
+    // months (D8), and a school is never told to drop one.
     for (const written of sections) {
+      const section = written[0]?.entry.section
+      if (section === "Work") continue
       const hasMonth = (date: MonthDate) => date.date.month !== undefined
       const withMonths = written.filter(hasMonth).length
       const yearsOnly = written.length - withMonths
       if (withMonths === 0 || yearsOnly === 0) continue
       for (const date of written) {
         if (yearsOnly <= withMonths && !hasMonth(date)) {
+          if (graduations.has(date)) continue
           flag(date, {
             message: "No month, unlike the rest of this section",
             suggestion: "Add the month, or use only years in this section.",
           })
-        } else if (yearsOnly > withMonths && hasMonth(date)) {
+        } else if (yearsOnly > withMonths && hasMonth(date) && section !== "Education") {
           flag(date, { message: "Has a month, unlike the rest of this section", suggestion: `Write just the year: “${date.date.year}”.` })
         }
       }
@@ -286,4 +304,114 @@ const apostropheYears: Rule = {
   },
 }
 
-export const DATE_RULES: readonly Rule[] = [noDates, backwards, unreadable, mixedFormats, presentWords, newestFirst, apostropheYears]
+const jobMonths: Rule = {
+  id: "D8",
+  category: "dates",
+  level: "look",
+  reads: "form",
+  title: "Month and year on every job",
+  why: "A year alone could mean one month or twelve, so recruiters can't tell how long you were there.",
+  check: ({ resume }) => {
+    const dates = allDates(resume, ["Work"])
+      .flat()
+      .flatMap(writtenIn)
+      .filter((written): written is MonthDate => !written.date.present)
+    if (dates.length === 0) return null
+    return {
+      checked: dates.length,
+      problems: dates
+        .filter((written) => written.date.month === undefined)
+        .map((written) => ({
+          place: at(written.entry, written.field),
+          text: written.text,
+          message: "No month",
+          suggestion: `Add the month, like “Jun ${written.date.year}”.`,
+        })),
+    }
+  },
+}
+
+// "Expected May 2027", "May 2027 (Expected)": a date that hasn't come yet, as written.
+const EXPECTED_WORD = EXPECTED_WORDS.map(escaped).join("|")
+const EXPECTED = new RegExp(String.raw`^(?:${EXPECTED_WORD})(?=[\s:]|$)|\((?:${EXPECTED_WORD})\)$`, "i")
+
+const graduationMonth: Rule = {
+  id: "D9",
+  category: "dates",
+  level: "look",
+  reads: "form",
+  title: "Month and year on your graduation date",
+  why: "Recruiters read the month to see which internships and new-grad roles you can apply for.",
+  check: ({ resume, today }) => {
+    const schools = allDates(resume, ["Education"])
+      .flat()
+      .filter((dates) => dates.filled > 0 && !isHighSchool(dates.entry))
+    if (schools.length === 0) return null
+    const now: ResumeDate = {
+      present: false,
+      year: today.getFullYear(),
+      month: today.getMonth() + 1,
+      style: { kind: "number" },
+      shortYear: false,
+    }
+    // Later in a career a year is enough ("B.S., 2012"); the month matters while internships and new-grad roles do.
+    const early = stageOf(resume, today) === "early"
+    const endField = (DATE_FIELDS.Education as { end: FieldKey }).end
+    const problems = schools.flatMap(({ entry, end }): Problem[] => {
+      if (!end) {
+        // Unreadable is D3's to say.
+        return early && entry.values[endField] === ""
+          ? [
+              {
+                place: at(entry, endField),
+                message: "No graduation date",
+                suggestion: "Add when you graduate, like “Expected May 2027”.",
+              },
+            ]
+          : []
+      }
+      const place = at(entry, end.field)
+      if (end.date.present) {
+        return early
+          ? [
+              {
+                place,
+                text: end.text,
+                message: "No graduation date",
+                suggestion: "Write when you expect to graduate, like “Expected May 2027”.",
+              },
+            ]
+          : []
+      }
+      if (EXPECTED.test(end.text.trim()) && compareDates(latestOf(end.date), now) < 0) {
+        return [
+          {
+            place,
+            text: end.text,
+            message: "This date has passed",
+            suggestion: "Update it to when you graduated, or your new expected date.",
+          },
+        ]
+      }
+      if (early && end.date.month === undefined) {
+        const year = end.date.year!
+        const suggestion = year > today.getFullYear() ? `Write it like “Expected May ${year}”.` : `Add the month, like “May ${year}”.`
+        return [{ place, text: end.text, message: "No month", suggestion }]
+      }
+      return []
+    })
+    return { checked: schools.length, problems }
+  },
+}
+
+export const DATE_RULES: readonly Rule[] = [
+  noDates,
+  backwards,
+  unreadable,
+  mixedFormats,
+  presentWords,
+  newestFirst,
+  apostropheYears,
+  jobMonths,
+  graduationMonth,
+]

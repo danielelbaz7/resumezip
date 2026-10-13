@@ -94,9 +94,12 @@ const experience: Rule = {
 }
 
 /**
- * Whether the person started working less than EARLY_CAREER_YEARS ago, or
- * the resume doesn't say when: early in a career, a missing school or skills
- * is a gap recruiters notice, while later the work can speak for itself.
+ * Whether the earliest year on any job, project, leadership or volunteer role
+ * (its start, or its end when it has no start) is less than
+ * EARLY_CAREER_YEARS ago, or none of them says: early in a career, a missing
+ * school or skills is a gap recruiters notice, while later the work can speak
+ * for itself. A student's old project or volunteer role counts too, so this
+ * reads a career as longer than career.ts's stageOf does.
  */
 function earlyCareer(resume: ResumeView, today: Date): boolean {
   const years = EXPERIENCE.flatMap((section) => resume.sections[section]).flatMap((entry) => {

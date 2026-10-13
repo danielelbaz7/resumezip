@@ -200,13 +200,22 @@ export const HIGH_SCHOOL_NAME = /\bhigh school\b/i
 /** "References available upon request", however it's worded. */
 export const REFERENCES_ON_REQUEST = /\breferences?\b[^.]{0,30}?\brequest(ed)?\b/i
 
-// Dates (D1–D7).
+// Dates (D1–D9).
 
 /** Words for a date that hasn't come yet: an entry that's still going. */
 export const PRESENT_WORDS = ["Present", "Current", "Now", "Ongoing", "Today"]
 
 /** Words before a date that aren't part of it: "Expected May 2027", "Class of 2027". */
 export const DATE_PREFIXES = ["Expected", "Anticipated", "Exp.", "Est.", "Estimated", "Graduated", "Graduating", "Graduation", "Class of"]
+
+/** The DATE_PREFIXES that say a date hasn't come yet: an "Expected May 2024" that has passed is out of date (D9). */
+export const EXPECTED_WORDS = ["Expected", "Anticipated", "Exp.", "Est.", "Estimated", "Graduating"]
+
+/** Graduated this many months ago or less, or still in school, is early in a career (career.ts). */
+export const RECENT_GRAD_MONTHS = 36
+
+/** Years of work that make someone experienced whenever they graduated, as with a master's after a few years of work (career.ts). */
+export const EXPERIENCED_WORK_YEARS = 3
 
 // Bullets (B1–B9).
 
@@ -427,6 +436,9 @@ export const ODD_SYMBOLS =
 export const FINE_SYMBOLS = ["©", "®", "™"]
 
 // Length & layout (L1–L5).
+
+/** Years of work (career.ts) from which a resume can run to two pages, and never more. */
+export const TWO_PAGE_YEARS = 10
 
 /** This many lines or fewer on the last page is a spill-over. */
 export const SPILL_LINES = 5
