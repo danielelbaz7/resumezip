@@ -318,6 +318,36 @@ describe("R5 symbols and emoji", () => {
   })
 })
 
+describe("R7 project links printed as text", () => {
+  const withProjects = (projectLinks: string) => ({
+    ...jake,
+    projectLinks,
+    projectsSection: [
+      { id: 1, projectName: "Gitlytics", projectGithub: "github.com/jake/gitlytics" },
+      { id: 2, projectName: "Raft", projectGithub: "github.com/jake/raft", additionalLink: "raft.dev" },
+      { id: 3, projectName: "Notes" },
+    ],
+  })
+
+  test("flags a link only behind the project's name, and a website left out next to it", () => {
+    expect(check("R7", withProjects("title")).findings).toEqual([
+      expect.objectContaining({
+        place: { kind: "entry", section: "Projects", entry: 0, field: "projectGithub" },
+        message: "Link not printed",
+      }),
+      expect.objectContaining({
+        place: { kind: "entry", section: "Projects", entry: 1, field: "projectGithub" },
+        message: "Link not printed, and its website left out",
+      }),
+    ])
+  })
+
+  test("skips links printed as text", () => {
+    expect(check("R7", withProjects("show")).status).toBe("skipped")
+    expect(check("R7", jake).status).toBe("skipped")
+  })
+})
+
 describe("R6 bullet characters typed into bullets", () => {
   test("is a fix for a bullet that starts with one", () => {
     const resume = {

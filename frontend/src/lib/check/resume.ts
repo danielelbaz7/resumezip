@@ -79,6 +79,8 @@ export interface ResumeView {
   /** Mixed print order; semantic rules continue to use the builtin-only order above. */
   allOrder: SectionRef[]
   extras: Record<string, ExtraView>
+  /** How projects' links print: as text, or only behind the project's name (the Projects section's Links choice). */
+  projectLinks: "show" | "title"
 }
 
 export interface ExtraView {
@@ -181,6 +183,7 @@ export function viewOf(resume: Resume): ResumeView {
     order: allOrder.filter((ref): ref is SectionName => extraKey(ref) === null),
     allOrder,
     extras,
+    projectLinks: resume.projectLinks === "title" ? "title" : "show",
   }
 }
 

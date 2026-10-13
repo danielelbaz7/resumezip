@@ -9,6 +9,7 @@ import {
   LINKEDIN_RANDOM_ENDING,
   MAX_PHONE_DIGITS,
   MAX_PHONE_EXTENSION_DIGITS,
+  METRO_AREA,
   MIN_PHONE_DIGITS,
   PERSONAL_DETAILS,
   SSN,
@@ -150,18 +151,34 @@ const location: Rule = {
   reads: "form",
   title: "Your location or work availability",
   why: "Location can help when a role has geographic requirements.",
-  check: ({ resume }) => ({
-    checked: 1,
-    problems: resume.profile.location
-      ? []
-      : [
+  check: ({ resume }) => {
+    const { location } = resume.profile
+    if (!location) {
+      return {
+        checked: 1,
+        problems: [
           {
             place: profile("location"),
             message: "Consider adding your location or work availability",
             suggestion: "A city and region or country, “Remote”, or a relocation note can help when relevant to the job.",
           },
         ],
-  }),
+      }
+    }
+    // Recruiters and hiring software search for candidates by city.
+    return {
+      checked: 1,
+      problems: METRO_AREA.test(location)
+        ? [
+            {
+              place: profile("location"),
+              message: "An area, not a city",
+              suggestion: "Give a city, like “San Francisco, CA”: recruiters and hiring software search by city.",
+            },
+          ]
+        : [],
+    }
+  },
 }
 
 const linkedin: Rule = {

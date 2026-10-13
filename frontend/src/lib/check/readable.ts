@@ -1,6 +1,6 @@
-// Readable by hiring software (R1–R6 in issue #58): the preview PDF read back
-// the way hiring software reads a resume and compared with what was typed,
-// and characters that may not come through.
+// Readable by hiring software (R1–R6 in issue #58, and R7): the preview PDF
+// read back the way hiring software reads a resume and compared with what was
+// typed, characters that may not come through, and links that don't print.
 
 import { SECTIONS, type FieldKey, type FieldKeyOf, type ProfileKey, type SectionName } from "@/components/editor/sections"
 import { BULLET_CHARS } from "@/lib/import/lines"
@@ -338,4 +338,33 @@ const typedBullets: Rule = {
   },
 }
 
-export const READABLE_RULES: readonly Rule[] = [contactRead, headings, entriesRead, unplaced, symbols, typedBullets]
+const projectLinks: Rule = {
+  id: "R7",
+  category: "readable",
+  level: "look",
+  reads: "form",
+  title: "Project links printed as text",
+  why: "On paper, and to hiring software reading the text, a link behind a name doesn't show.",
+  check: ({ resume }) => {
+    // A project's name only carries its link with "Link the title" chosen, and only when it has a name (typst/resumeData.ts).
+    if (resume.projectLinks !== "title") return null
+    const linked = resume.sections.Projects.filter(
+      ({ blank, values }) => !blank && values.projectName && (values.projectGithub || values.additionalLink),
+    )
+    if (linked.length === 0) return null
+    return {
+      checked: linked.length,
+      problems: linked.map((entry) => {
+        const { projectGithub, additionalLink } = entry.values
+        return {
+          place: { kind: "entry", section: "Projects", entry: entry.index, field: projectGithub ? "projectGithub" : "additionalLink" },
+          // The name links to the GitHub, so a website next to it isn't printed or linked at all.
+          message: projectGithub && additionalLink ? "Link not printed, and its website left out" : "Link not printed",
+          suggestion: "Choose “Show the link” under Projects → Links.",
+        }
+      }),
+    }
+  },
+}
+
+export const READABLE_RULES: readonly Rule[] = [contactRead, headings, entriesRead, unplaced, symbols, typedBullets, projectLinks]

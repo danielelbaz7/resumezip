@@ -141,6 +141,15 @@ describe("C4 location", () => {
       expect(check("C4", withProfile({ location })).status).toBe("passed")
     }
   })
+
+  test("suggests a city in place of a metro area", () => {
+    for (const location of ["San Francisco Bay Area", "Greater Boston", "New York Metropolitan Area"]) {
+      expect(check("C4", withProfile({ location })).findings, location).toEqual([
+        expect.objectContaining({ message: "An area, not a city", advisory: true }),
+      ])
+    }
+    expect(check("C4", withProfile({ location: "San Francisco, CA" })).status).toBe("passed")
+  })
 })
 
 describe("C5 and C6 LinkedIn", () => {

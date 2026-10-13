@@ -292,6 +292,90 @@ describe("S8 coursework", () => {
   test("skips a resume without coursework", () => {
     expect(check("S8", { ...jake, educationSection: [college] }).status).toBe("skipped")
   })
+
+  test("suggests leaving coursework off a few years after school, as advice", () => {
+    const graduate = { ...jake, educationSection: [{ ...college, schoolEndDate: "May 2019", coursework: "Operating Systems, Databases" }] }
+    expect(check("S8", graduate).findings).toEqual([expect.objectContaining({ message: "Coursework, years after school", advisory: true })])
+    const student = { ...jake, educationSection: [{ ...college, schoolEndDate: "Expected May 2027", coursework: "Operating Systems" }] }
+    expect(check("S8", student).status).toBe("passed")
+  })
+})
+
+describe("S5 soft skills and ratings", () => {
+  const skillsOf = (skillName: string, skillDetails: string) => ({ ...jake, skillsSection: [{ id: 1, skillName, skillDetails }] })
+
+  test("points out soft skills listed as skills, as advice, but not among interests", () => {
+    expect(check("S5", skillsOf("Skills", "TypeScript, Teamwork, Go")).findings).toEqual([
+      expect.objectContaining({ message: "“Teamwork” is a soft skill", text: "Teamwork", advisory: true }),
+    ])
+    expect(check("S5", skillsOf("Interests", "Teamwork, Climbing")).status).toBe("passed")
+  })
+
+  test("points out skills rated, but not a spoken language's level", () => {
+    expect(check("S5", skillsOf("Languages", "Python (Expert), Java 4/5, Go")).findings).toEqual([
+      expect.objectContaining({ message: "“Python (Expert)” rates the skill", advisory: true }),
+      expect.objectContaining({ message: "“Java 4/5” rates the skill", advisory: true }),
+    ])
+    expect(check("S5", skillsOf("Languages", "English (Native), Spanish (Fluent)")).status).toBe("passed")
+  })
+})
+
+describe("S11 a summary, not an objective", () => {
+  const withSummary = (summary: string) => ({ ...jake, profileSection: { ...jake.profileSection, summary } })
+
+  test("flags a summary that says what the person wants", () => {
+    for (const summary of ["Seeking a software engineering position at a fast-growing startup.", "Objective: to obtain a backend role."]) {
+      expect(check("S11", withSummary(summary)).findings, summary).toEqual([
+        expect.objectContaining({ place: { kind: "profile", field: "summary" }, message: "Reads as an objective" }),
+      ])
+    }
+    expect(check("S11", withSummary("Backend engineer with 5 years in payments, who cut checkout latency by 40%.")).status).toBe("passed")
+  })
+
+  test("flags a section titled Objective", () => {
+    const id = "11111111-1111-4111-8111-111111111111"
+    const resume: Resume = {
+      ...jake,
+      extraSections: { [id]: { kind: "text", heading: "Career Objective", text: "To grow as an engineer." } },
+      sectionOrder: ["Education", `extra:${id}`, "Work", "Projects", "Skills"],
+    }
+    expect(check("S11", resume).messages).toEqual(["An objective section"])
+  })
+
+  test("flags self-praise in the summary, but not a word that only contains it", () => {
+    expect(check("S11", withSummary("Passionate engineer who builds web apps.")).findings).toEqual([
+      expect.objectContaining({ message: "“Passionate” says little on its own", text: "Passionate" }),
+    ])
+    expect(check("S11", withSummary("Engineer who builds data-driven web apps.")).status).toBe("passed")
+  })
+
+  test("suggests a shorter summary over 50 words, as advice", () => {
+    const long = Array.from({ length: 60 }, () => "word").join(" ")
+    expect(check("S11", withSummary(long)).findings).toEqual([expect.objectContaining({ message: "60 words", advisory: true })])
+  })
+
+  test("skips a resume without a summary", () => {
+    expect(check("S11", jake).status).toBe("skipped")
+  })
+})
+
+describe("S12 GPA", () => {
+  const withGpa = (gpa: string) => ({ ...jake, educationSection: [{ ...college, gpa }] })
+
+  test("suggests leaving a GPA under 3.5 out of 4.0 off, as advice", () => {
+    for (const gpa of ["3.2 / 4.0", "3.4", "4.3/5.0"]) {
+      expect(check("S12", withGpa(gpa)).findings, gpa).toEqual([
+        expect.objectContaining({ place: { kind: "entry", section: "Education", entry: 0, field: "gpa" }, advisory: true }),
+      ])
+    }
+  })
+
+  test("leaves a good GPA, and one it can't read, alone", () => {
+    for (const gpa of ["3.6/4.0", "3.6/4.3", "8.9/10", "85%"]) {
+      expect(check("S12", withGpa(gpa)).status, gpa).toBe("passed")
+    }
+    expect(check("S12", jake).status).toBe("skipped")
+  })
 })
 
 describe("S9 references", () => {
