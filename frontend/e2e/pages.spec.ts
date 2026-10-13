@@ -121,12 +121,29 @@ test.describe("search engines", () => {
     }
   })
 
-  test("read on the home page that resumezip is a free web app", async ({ request }) => {
-    const html = await (await request.get("/")).text()
-    const json = html.match(/<script type="application\/ld\+json">([^<]*)<\/script>/)?.[1]
-    const graph: { "@type": string; name: string; offers?: { price: string } }[] = JSON.parse(json ?? "{}")["@graph"]
-    expect(graph.find((item) => item["@type"] === "WebSite")?.name).toBe("resumezip")
-    expect(graph.find((item) => item["@type"] === "WebApplication")?.offers?.price).toBe("0")
+  const structuredData = async (request: APIRequestContext, path: string) =>
+    [...(await (await request.get(path)).text()).matchAll(/<script type="application\/ld\+json">([^<]*)<\/script>/g)].map(([, json]) =>
+      JSON.parse(json),
+    )
+
+  test("read on the home page who makes resumezip, and that it's a free web app", async ({ request }) => {
+    const [data] = await structuredData(request, "/")
+    type Item = {
+      "@type": string
+      name: string
+      alternateName?: string[]
+      sameAs?: string[]
+      logo?: { url: string }
+      offers?: { price: string }
+    }
+    const item = (type: string) => (data["@graph"] as Item[]).find((item) => item["@type"] === type)
+    expect(item("WebSite")?.name).toBe("resumezip")
+    expect(item("WebSite")?.alternateName).toContain("tryresumezip.com")
+    expect(item("Organization")?.sameAs).toContain("https://github.com/ian-hoang/resumezip")
+    // The logo's address is on the live site, which serves the same file as this build.
+    const logo = await request.get(new URL(item("Organization")!.logo!.url).pathname)
+    expect(logo.headers()["content-type"]).toBe("image/png")
+    expect(item("WebApplication")?.offers?.price).toBe("0")
   })
 })
 

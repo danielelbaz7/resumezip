@@ -3,8 +3,8 @@
 import type React from "react"
 import { useId, useState } from "react"
 import Link from "next/link"
+import { REPO_URL } from "@/lib/site"
 
-const REPO_URL = "https://github.com/ian-hoang/resumezip"
 const TEXT_LINK = "text-ink underline underline-offset-4 hover:decoration-2"
 
 // Each answer has to stay true of the app: check the code before changing one.

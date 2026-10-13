@@ -5,7 +5,7 @@ import { INK_GLASS_PILL } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
-import { pageMetadata } from "@/lib/site"
+import { LINKEDIN_URL, pageMetadata, REPO_URL } from "@/lib/site"
 
 export const metadata = pageMetadata({
   path: "/about",
@@ -13,9 +13,7 @@ export const metadata = pageMetadata({
   description: "Who makes resumezip, what it promises, how your PDF is made in your own browser, and how to get in touch.",
 })
 
-const REPO_URL = "https://github.com/ian-hoang/resumezip"
 const ISSUES_URL = `${REPO_URL}/issues`
-const LINKEDIN_URL = "https://www.linkedin.com/company/resumezip"
 
 const SECTION = "mt-16 grid gap-6 border-t border-ink pt-6 md:grid-cols-3 md:gap-12"
 const HEADING = "font-serif text-[28px] leading-[1.15] tracking-[-0.02em] md:text-[32px]"
