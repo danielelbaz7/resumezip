@@ -96,6 +96,7 @@ test("a resume that runs onto a second page is flagged, unless it's academic", a
   }
   const pdf = await readingOf(resume)
   expect(pdf.pages.length).toBeGreaterThan(1)
-  expect(check(resume, pdf, ["L1"]).findings.map(({ message }) => message)).toEqual([`${pdf.pages.length} pages`])
+  // The sample's jobs come to 1 whole year of work by the day these tests read dates on.
+  expect(check(resume, pdf, ["L1"]).findings.map(({ message }) => message)).toEqual([`${pdf.pages.length} pages for 1 year of work`])
   expect(check({ ...resume, resumeTag: "academic" }, pdf, ["L1"]).results[0].status).toBe("skipped")
 })

@@ -1,9 +1,10 @@
 // Length & layout (L1–L5 in issue #58): how the preview PDF fills its pages,
 // and how each bullet wraps.
 
+import { yearsOfWork } from "./career"
 import type { Rule } from "./engine"
 import { printedLayoutBullets } from "./pdf"
-import { LONG_BULLET_LINES, MIN_PAGE_FULL, SHORT_LAST_LINE, SPILL_LINES } from "./settings"
+import { LONG_BULLET_LINES, MIN_PAGE_FULL, SHORT_LAST_LINE, SPILL_LINES, TWO_PAGE_YEARS } from "./settings"
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`
 
@@ -15,26 +16,36 @@ const pages: Rule = {
   category: "length",
   level: "look",
   reads: "pdf",
-  title: "One page, unless it's an academic CV",
-  why: "Recruiters spend seconds on a resume; one page keeps the best of it in view.",
-  check: ({ resume, pdf }) => {
+  title: "One page, or two after 10 years of work, unless it's an academic CV",
+  why: "Recruiters spend seconds on a resume; a short one keeps the best of it in view.",
+  check: ({ resume, pdf, today }) => {
     // An academic CV runs as long as it needs to.
     if (resume.type === "academic") return null
     const count = pdf.pages.length
+    const years = yearsOfWork(resume, today)
+    const allowed = years >= TWO_PAGE_YEARS ? 2 : 1
+    if (count <= allowed) return { checked: 1, problems: [] }
+    // Whole years, rounded down, so 9.8 years doesn't read as the 10 that would allow two pages.
+    const worked = Math.floor(years)
     return {
       checked: 1,
-      problems:
-        count > 1
-          ? [
-              {
-                place: { kind: "page", page: 2 },
-                message: `${plural(count, "page")}`,
-                // The page count, so a dismissal ends if the resume grows another page.
-                text: plural(count, "page"),
-                suggestion: "Cut what matters least to fit one page.",
-              },
-            ]
-          : [],
+      problems: [
+        {
+          place: { kind: "page", page: allowed + 1 },
+          message:
+            allowed === 2
+              ? `${plural(count, "page")}; 2 at most`
+              : worked > 0
+                ? `${plural(count, "page")} for ${plural(worked, "year")} of work`
+                : plural(count, "page"),
+          // The page count, and what's allowed once that's two, so a dismissal
+          // ends if the resume grows a page or the work reaches 10 years. One
+          // page allowed keeps the text it always had, so dismissals saved
+          // before two pages were allowed still hold.
+          text: allowed === 1 ? plural(count, "page") : `${plural(count, "page")} of 2`,
+          suggestion: allowed === 1 ? "Cut what matters least to fit one page." : "Cut what matters least to fit two pages.",
+        },
+      ],
     }
   },
 }

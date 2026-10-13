@@ -17,10 +17,18 @@ const resumeWith = (bullets: string[], resumeTag = "professional") => ({
 const lines = (count: number, { page = 1, from = 40 } = {}) =>
   Array.from({ length: count }, (_, i) => line(`Line ${i + 1}`, { page, top: from + i * 14 }))
 
+// Working at one job since a date, for L1's years of work.
+const workingSince = (workStartDate: string, resumeTag = "professional") => ({
+  ...resumeWith(["Built it"], resumeTag),
+  workExperienceSection: [
+    { id: 1, workRole: "Engineer", companyName: "Google", workStartDate, workEndDate: "Present", workDescription: "• Built it" },
+  ],
+})
+
 /** What one rule says about a resume and its PDF. */
-function check(id: string, resume: Resume, pdf: PdfReading) {
+function check(id: string, resume: Resume, pdf: PdfReading, today?: Date) {
   const rule = RULES.find((rule) => rule.id === id)!
-  const report = runChecks(resume, { rules: [rule], pdf })
+  const report = runChecks(resume, { rules: [rule], pdf, today })
   return { status: report.results[0].status, messages: report.findings.map((finding) => finding.message), findings: report.findings }
 }
 
@@ -35,6 +43,27 @@ describe("L1 pages", () => {
     ])
     expect(check("L1", resumeWith(["Built it"], "academic"), twoPages).status).toBe("skipped")
     expect(check("L1", resumeWith(["Built it"]), full([])).status).toBe("passed")
+  })
+
+  test("allows two pages after 10 years of work, and never three", () => {
+    const today = new Date(2026, 9, 13)
+    const twoPages = reading([...lines(50), ...lines(20, { page: 2 })], {}, 2)
+    const threePages = reading([...lines(50), ...lines(50, { page: 2 }), ...lines(20, { page: 3 })], {}, 3)
+    // Jan 2015 to now is 11.8 years.
+    expect(check("L1", workingSince("Jan 2015"), twoPages, today).status).toBe("passed")
+    expect(check("L1", workingSince("Jan 2015"), threePages, today).findings).toEqual([
+      expect.objectContaining({ place: { kind: "page", page: 3 }, message: "3 pages; 2 at most" }),
+    ])
+    // Jun 2019 to now is 7.4 years.
+    expect(check("L1", workingSince("Jun 2019"), twoPages, today).findings).toEqual([
+      expect.objectContaining({ place: { kind: "page", page: 2 }, message: "2 pages for 7 years of work" }),
+    ])
+    expect(check("L1", workingSince("Jan 2015", "academic"), threePages, today).status).toBe("skipped")
+  })
+
+  test("keeps the text a one-page dismissal was saved with", () => {
+    const twoPages = reading([...lines(50), ...lines(20, { page: 2 })], {}, 2)
+    expect(check("L1", workingSince("Jun 2019"), twoPages, new Date(2026, 9, 13)).findings[0].text).toBe("2 pages")
   })
 
   test("a dismissal lasts while the page count does", () => {
