@@ -7,10 +7,11 @@ import CheckDemo from "@/components/home/CheckDemo"
 import HowItWorks from "@/components/home/HowItWorks"
 import PrefetchCompiler from "@/components/home/PrefetchCompiler"
 import Questions from "@/components/home/Questions"
-import StructuredData from "@/components/home/StructuredData"
+import StructuredData from "@/components/site/StructuredData"
 import SiteFooter from "@/components/site/SiteFooter"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import { pageMetadata, SITE_DESCRIPTION } from "@/lib/site"
+import { HOME_DATA } from "@/lib/structuredData"
 
 export const metadata = pageMetadata({ path: "/", description: SITE_DESCRIPTION })
 
@@ -31,7 +32,7 @@ const OUTLINE_PILL =
 export default function Home() {
   return (
     <div className="home relative flex flex-col bg-sheet text-ink">
-      <StructuredData />
+      <StructuredData data={HOME_DATA} />
       <HomeChrome />
 
       <section

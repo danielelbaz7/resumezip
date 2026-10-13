@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { Menu, Star, X } from "lucide-react"
+import { REPO_URL } from "@/lib/site"
 import Logo from "./Logo"
 
 const LINKS = [
@@ -14,8 +15,6 @@ const LINKS = [
 
 // Tailwind's `md`, where the header's links replace the menu; in rem like Tailwind's, so the two agree.
 const WIDE_HEADER = "(min-width: 48rem)"
-
-const REPO_URL = "https://github.com/ian-hoang/resumezip"
 
 // The light phone menu's fill: nearly solid, so the page's words don't show through its links.
 const MENU_FILL_LIGHT = "[--glass-fill:linear-gradient(180deg,rgb(255_255_255/0.96),rgb(255_255_255/0.92))]"

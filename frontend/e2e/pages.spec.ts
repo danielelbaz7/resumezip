@@ -121,12 +121,43 @@ test.describe("search engines", () => {
     }
   })
 
-  test("read on the home page that resumezip is a free web app", async ({ request }) => {
-    const html = await (await request.get("/")).text()
-    const json = html.match(/<script type="application\/ld\+json">([^<]*)<\/script>/)?.[1]
-    const graph: { "@type": string; name: string; offers?: { price: string } }[] = JSON.parse(json ?? "{}")["@graph"]
-    expect(graph.find((item) => item["@type"] === "WebSite")?.name).toBe("resumezip")
-    expect(graph.find((item) => item["@type"] === "WebApplication")?.offers?.price).toBe("0")
+  const structuredData = async (request: APIRequestContext, path: string) =>
+    [...(await (await request.get(path)).text()).matchAll(/<script type="application\/ld\+json">([^<]*)<\/script>/g)].map(([, json]) =>
+      JSON.parse(json),
+    )
+
+  test("read on the home page who makes resumezip, and that it's a free web app", async ({ request }) => {
+    const [data] = await structuredData(request, "/")
+    type Item = {
+      "@type": string
+      name: string
+      alternateName?: string[]
+      sameAs?: string[]
+      logo?: { url: string }
+      offers?: { price: string }
+    }
+    const item = (type: string) => (data["@graph"] as Item[]).find((item) => item["@type"] === type)
+    expect(item("WebSite")?.name).toBe("resumezip")
+    expect(item("WebSite")?.alternateName).toContain("tryresumezip.com")
+    expect(item("Organization")?.sameAs).toContain("https://github.com/ian-hoang/resumezip")
+    // The logo's address is on the live site, which serves the same file as this build.
+    const logo = await request.get(new URL(item("Organization")!.logo!.url).pathname)
+    expect(logo.headers()["content-type"]).toBe("image/png")
+    expect(item("WebApplication")?.offers?.price).toBe("0")
+  })
+
+  test("read where each page under Templates sits, from the home page down to it", async ({ request }) => {
+    const urls = await sitemapUrls(request)
+    const under = urls.filter((url) => new URL(url).pathname.startsWith("/templates"))
+    expect(under).toContain("https://www.tryresumezip.com/templates/jakes")
+    for (const url of under) {
+      const path = new URL(url).pathname
+      const crumbs = (await structuredData(request, path)).find((data) => data["@type"] === "BreadcrumbList")
+      const trail: string[] = crumbs?.itemListElement.map((crumb: { item: string }) => crumb.item) ?? []
+      expect(trail[0], path).toBe("https://www.tryresumezip.com/")
+      expect(trail.at(-1), path).toBe(url)
+      for (const crumb of trail) expect(urls, `${path}'s breadcrumbs`).toContain(crumb)
+    }
   })
 })
 

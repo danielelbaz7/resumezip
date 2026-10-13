@@ -5,6 +5,12 @@ export const SITE_URL = "https://www.tryresumezip.com"
 
 export const SITE_NAME = "resumezip"
 
+export const REPO_URL = "https://github.com/ian-hoang/resumezip"
+export const LINKEDIN_URL = "https://www.linkedin.com/company/resumezip"
+
+/** The logo as a picture, for search engines: Google wants one at least 112 px square, which logo.svg doesn't say it is. */
+export const LOGO_IMAGE = { url: "/logo.png", width: 1024, height: 1024 }
+
 /** What search results and link previews say about resumezip, unless a page says something of its own. */
 export const SITE_DESCRIPTION = "Free, open-source resume builder that runs in your browser."
 

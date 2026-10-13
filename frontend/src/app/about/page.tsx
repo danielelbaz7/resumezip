@@ -5,7 +5,7 @@ import { INK_GLASS_PILL } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
-import { pageMetadata } from "@/lib/site"
+import { LINKEDIN_URL, pageMetadata, REPO_URL } from "@/lib/site"
 
 export const metadata = pageMetadata({
   path: "/about",
@@ -13,9 +13,7 @@ export const metadata = pageMetadata({
   description: "Who makes resumezip, what it promises, how your PDF is made in your own browser, and how to get in touch.",
 })
 
-const REPO_URL = "https://github.com/ian-hoang/resumezip"
 const ISSUES_URL = `${REPO_URL}/issues`
-const LINKEDIN_URL = "https://www.linkedin.com/company/resumezip"
 
 const SECTION = "mt-16 grid gap-6 border-t border-ink pt-6 md:grid-cols-3 md:gap-12"
 const HEADING = "font-serif text-[28px] leading-[1.15] tracking-[-0.02em] md:text-[32px]"
@@ -204,6 +202,22 @@ export default function AboutPage() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          {/* What resumezip is, in plain facts that search engines and AI answers can quote. Each has to stay true of the app. */}
+          <section className={SECTION} aria-labelledby="does">
+            <h2 id="does" className={HEADING}>
+              What it does
+            </h2>
+            <div className="md:col-span-2">
+              <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">
+                <Wordmark /> is a free, open-source resume builder (MIT license) that runs in your browser. You fill in a form and see the
+                page as you type, and it checks your resume as you write. Download it as a PDF, a Word file, a LaTeX file for Overleaf or
+                JSON, or save the PDF to Google Drive. It opens resumes from PDF, Word and JSON files, and prints on US Letter or A4.
+                There’s no account, and <Wordmark /> keeps your resume only in your browser: a copy goes anywhere else only when you
+                download or save one.
+              </p>
+            </div>
           </section>
 
           <section className={SECTION} aria-labelledby="made">

@@ -7,8 +7,10 @@ import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
 import { StartWritingLink } from "@/components/site/StartWriting"
+import StructuredData from "@/components/site/StructuredData"
 import { pageMetadata } from "@/lib/site"
-import { fontsOf, TEMPLATES, templateBySlug, templatePath, templateSlug } from "@/lib/templates"
+import { breadcrumbs, TEMPLATES_CRUMB } from "@/lib/structuredData"
+import { fontsOf, type Template, TEMPLATES, templateBySlug, templatePath, templateSlug } from "@/lib/templates"
 import { checksPassed, READING_CHECKS } from "../how-they-read/checks"
 import { ABOUT } from "./about"
 
@@ -23,12 +25,14 @@ interface TemplatePageProps {
   params: Promise<{ template: string }>
 }
 
+const titleOf = (template: Template) => `${template.name} resume template`
+
 export async function generateMetadata({ params }: TemplatePageProps): Promise<Metadata> {
   const template = templateBySlug((await params).template)
   if (!template) return {}
   return pageMetadata({
     path: templatePath(template),
-    title: `${template.name} resume template`,
+    title: titleOf(template),
     description: ABOUT[template.id].description,
   })
 }
@@ -47,6 +51,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
   return (
     <div className="desk flex min-h-screen flex-col">
       <SiteHeader />
+      <StructuredData data={breadcrumbs([TEMPLATES_CRUMB, { name: titleOf(template), path: templatePath(template) }])} />
 
       <main className={`${SHEET} flex flex-col gap-16`}>
         <div className="grid gap-10 md:grid-cols-2 md:gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
