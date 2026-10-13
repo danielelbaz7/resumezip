@@ -68,7 +68,7 @@ test("resumes open in the page from links and the history, each one afresh", asy
   await page.evaluate(() => (window.marked = true))
 
   // A template's Use starts a resume with it. It comes up over the card's picture.
-  await page.getByRole("link", { name: /^Harvard template/ }).hover()
+  await page.getByRole("link", { name: /^Harvard resume template/ }).hover()
   await page.getByRole("link", { name: "Use Harvard" }).click()
   await expect(page).toHaveURL(/\/create\/new\//)
   const first = page.url()

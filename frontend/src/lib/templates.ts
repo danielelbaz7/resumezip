@@ -1,10 +1,12 @@
 // Every resume template, in the order they're shown. The home page, the
 // templates page, the editor's template picker and the dashboard all read
 // this list, and each id needs a matching src/lib/typst/templates/<id>.typ
-// and a picture of its first page in public/previews/<id>.webp, made from
-// the sample resume in src/lib/typst/preview-samples/<id>.json. `font` is
-// the family its text is set in, `weights` the weights of it the template
-// uses when its family has more, and `alsoFonts` any other family it sets
+// and a picture of its first page, made from the sample resume in
+// src/lib/typst/preview-samples/<id>.json. The picture is named after the
+// template's page, not its id, as public/previews/<slug>-resume-template.webp
+// (see templateSlug): an id can be an older name, some of other products.
+// `font` is the family its text is set in, `weights` the weights of it the
+// template uses when its family has more, and `alsoFonts` any other family it sets
 // some words in; they're downloaded before its first PDF. One of `alsoFonts`
 // may be its fallback (see FontUse), downloaded only for a resume with a
 // letter it prints. `firstColumn` names the sections a template prints in a
@@ -50,7 +52,7 @@ export const TEMPLATES = [
   {
     id: "jake",
     name: "Jake's",
-    image: "/previews/jake.webp",
+    image: "/previews/jakes-resume-template.webp",
     font: "New Computer Modern",
     added: "2025-04-20",
     tags: ["Serif", "LaTeX look"],
@@ -58,7 +60,7 @@ export const TEMPLATES = [
   {
     id: "modernjack",
     name: "Modern Jake's",
-    image: "/previews/modernjack.webp",
+    image: "/previews/modern-jakes-resume-template.webp",
     font: "Lato",
     weights: [400, 700],
     added: "2025-04-20",
@@ -67,7 +69,7 @@ export const TEMPLATES = [
   {
     id: "levelsfyi",
     name: "Blueprint",
-    image: "/previews/levelsfyi.webp",
+    image: "/previews/blueprint-resume-template.webp",
     font: "TeX Gyre Heros",
     alsoFonts: [SOURCE_SANS_FALLBACK],
     added: "2025-04-20",
@@ -76,7 +78,7 @@ export const TEMPLATES = [
   {
     id: "referme",
     name: "Compact",
-    image: "/previews/referme.webp",
+    image: "/previews/compact-resume-template.webp",
     font: "TeX Gyre Heros",
     alsoFonts: [SOURCE_SANS_FALLBACK],
     added: "2025-04-20",
@@ -85,7 +87,7 @@ export const TEMPLATES = [
   {
     id: "ian",
     name: "Ian's",
-    image: "/previews/ian.webp",
+    image: "/previews/ians-resume-template.webp",
     font: "Lato",
     weights: [400, 700],
     added: "2026-10-05",
@@ -94,7 +96,7 @@ export const TEMPLATES = [
   {
     id: "resumeworded",
     name: "Harvard",
-    image: "/previews/resumeworded.webp",
+    image: "/previews/harvard-resume-template.webp",
     font: "EB Garamond",
     added: "2026-10-05",
     tags: ["Serif", "Students"],
@@ -102,7 +104,7 @@ export const TEMPLATES = [
   {
     id: "margin",
     name: "Margin",
-    image: "/previews/margin.webp",
+    image: "/previews/margin-resume-template.webp",
     font: "Charis SIL",
     alsoFonts: ["Linux Biolinum O", { family: "EB Garamond", fallback: true, script: "Greek" }],
     added: "2026-10-10",
@@ -111,7 +113,7 @@ export const TEMPLATES = [
   {
     id: "swiss",
     name: "Swiss",
-    image: "/previews/swiss.webp",
+    image: "/previews/swiss-resume-template.webp",
     font: "TeX Gyre Heros",
     alsoFonts: [SOURCE_SANS_FALLBACK],
     added: "2026-10-10",
@@ -120,7 +122,7 @@ export const TEMPLATES = [
   {
     id: "mono",
     name: "Mono",
-    image: "/previews/mono.webp",
+    image: "/previews/mono-resume-template.webp",
     font: "IBM Plex Mono",
     alsoFonts: [SOURCE_SANS_FALLBACK],
     added: "2026-10-10",
@@ -129,7 +131,7 @@ export const TEMPLATES = [
   {
     id: "accent",
     name: "Accent",
-    image: "/previews/accent.webp",
+    image: "/previews/accent-resume-template.webp",
     font: "Source Sans 3",
     added: "2026-10-10",
     tags: ["Sans-serif", "Color headings"],
@@ -137,7 +139,7 @@ export const TEMPLATES = [
   {
     id: "deedy",
     name: "Deedy",
-    image: "/previews/deedy.webp",
+    image: "/previews/deedy-resume-template.webp",
     font: "Lato",
     alsoFonts: ["Raleway-v4020", { family: "Lato", fallback: true, script: "Greek" }],
     firstColumn: ["Education", "Skills"],
@@ -147,7 +149,7 @@ export const TEMPLATES = [
   {
     id: "zero2sudo",
     name: "zero2sudo",
-    image: "/previews/zero2sudo.webp",
+    image: "/previews/zero2sudo-resume-template.webp",
     font: "TeX Gyre Termes",
     alsoFonts: [{ family: "EB Garamond", weights: [400, 700], fallback: true, script: "Greek" }],
     added: "2026-10-12",
@@ -205,6 +207,12 @@ export const templateSlug = (template: Template): string =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
+
+/** The template's name as a heading prints it: names in this list are typed with straight apostrophes, and get curly ones. */
+export const printedName = (template: Template): string => template.name.replace(/'/g, "’")
+
+/** What the template's picture shows, as its alt text says it. */
+export const templateImageAlt = (template: Template): string => `${template.name} resume template: a sample one-page resume`
 
 /** The template's own page, e.g. /templates/jakes. */
 export const templatePath = (template: Template): string => `/templates/${templateSlug(template)}`

@@ -8,9 +8,18 @@ import SiteHeader from "@/components/site/SiteHeader"
 import { SHEET } from "@/components/site/sheet"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import StructuredData from "@/components/site/StructuredData"
-import { pageMetadata } from "@/lib/site"
+import { pageMetadata, SHARE_IMAGE_SIZE } from "@/lib/site"
 import { breadcrumbs, TEMPLATES_CRUMB } from "@/lib/structuredData"
-import { fontsOf, type Template, TEMPLATES, templateBySlug, templatePath, templateSlug } from "@/lib/templates"
+import {
+  fontsOf,
+  printedName,
+  type Template,
+  TEMPLATES,
+  templateBySlug,
+  templateImageAlt,
+  templatePath,
+  templateSlug,
+} from "@/lib/templates"
 import { checksPassed, READING_CHECKS } from "../how-they-read/checks"
 import { ABOUT } from "./about"
 
@@ -34,11 +43,10 @@ export async function generateMetadata({ params }: TemplatePageProps): Promise<M
     path: templatePath(template),
     title: titleOf(template),
     description: ABOUT[template.id].description,
+    // Drawn by opengraph-image.tsx beside it.
+    image: { url: `${templatePath(template)}/opengraph-image`, ...SHARE_IMAGE_SIZE, alt: templateImageAlt(template) },
   })
 }
-
-// Names in the template list are typed with straight apostrophes; a heading gets the curly one.
-const curly = (text: string) => text.replace(/'/g, "’")
 
 const LEDGER_ROW = "flex justify-between gap-6 border-t border-rule py-3"
 
@@ -60,7 +68,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
               Templates
             </Link>
             <h1 className="text-balance font-serif text-5xl leading-[1.02] tracking-[-0.035em] md:text-[64px] md:leading-[0.98]">
-              {curly(template.name)} resume <em className="text-accent">template</em>
+              {printedName(template)} resume <em className="text-accent">template</em>
             </h1>
             {about.text.map((paragraph) => (
               <p key={paragraph} className="text-pretty text-[17px] leading-relaxed text-ink-2">
@@ -113,7 +121,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
           <div className="relative aspect-[1280/1656] w-full overflow-hidden bg-sheet shadow-[0_1px_2px_rgb(17_19_24/0.08),0_28px_44px_-22px_rgb(30_40_90/0.5)]">
             <Image
               src={template.image}
-              alt={`A sample resume in the ${template.name} template`}
+              alt={templateImageAlt(template)}
               fill
               priority
               sizes="(min-width: 1024px) 55vw, (min-width: 768px) 50vw, 100vw"

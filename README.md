@@ -66,22 +66,22 @@
 
 <table>
   <tr>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/jakes"><img src="frontend/public/previews/jake.webp" width="190" alt="A resume in the Jake's template"></a><br>Jake's</td>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/modern-jakes"><img src="frontend/public/previews/modernjack.webp" width="190" alt="A resume in the Modern Jake's template"></a><br>Modern Jake's</td>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/blueprint"><img src="frontend/public/previews/levelsfyi.webp" width="190" alt="A resume in the Blueprint template"></a><br>Blueprint</td>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/compact"><img src="frontend/public/previews/referme.webp" width="190" alt="A resume in the Compact template"></a><br>Compact</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/jakes"><img src="frontend/public/previews/jakes-resume-template.webp" width="190" alt="Jake's resume template: a sample one-page resume"></a><br>Jake's</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/modern-jakes"><img src="frontend/public/previews/modern-jakes-resume-template.webp" width="190" alt="Modern Jake's resume template: a sample one-page resume"></a><br>Modern Jake's</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/blueprint"><img src="frontend/public/previews/blueprint-resume-template.webp" width="190" alt="Blueprint resume template: a sample one-page resume"></a><br>Blueprint</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/compact"><img src="frontend/public/previews/compact-resume-template.webp" width="190" alt="Compact resume template: a sample one-page resume"></a><br>Compact</td>
   </tr>
   <tr>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/ians"><img src="frontend/public/previews/ian.webp" width="190" alt="A resume in the Ian's template"></a><br>Ian's</td>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/harvard"><img src="frontend/public/previews/resumeworded.webp" width="190" alt="A resume in the Harvard template"></a><br>Harvard</td>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/margin"><img src="frontend/public/previews/margin.webp" width="190" alt="A resume in the Margin template"></a><br>Margin</td>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/swiss"><img src="frontend/public/previews/swiss.webp" width="190" alt="A resume in the Swiss template"></a><br>Swiss</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/ians"><img src="frontend/public/previews/ians-resume-template.webp" width="190" alt="Ian's resume template: a sample one-page resume"></a><br>Ian's</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/harvard"><img src="frontend/public/previews/harvard-resume-template.webp" width="190" alt="Harvard resume template: a sample one-page resume"></a><br>Harvard</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/margin"><img src="frontend/public/previews/margin-resume-template.webp" width="190" alt="Margin resume template: a sample one-page resume"></a><br>Margin</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/swiss"><img src="frontend/public/previews/swiss-resume-template.webp" width="190" alt="Swiss resume template: a sample one-page resume"></a><br>Swiss</td>
   </tr>
   <tr>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/mono"><img src="frontend/public/previews/mono.webp" width="190" alt="A resume in the Mono template"></a><br>Mono</td>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/accent"><img src="frontend/public/previews/accent.webp" width="190" alt="A resume in the Accent template"></a><br>Accent</td>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/deedy"><img src="frontend/public/previews/deedy.webp" width="190" alt="A resume in the Deedy template"></a><br>Deedy</td>
-    <td align="center"><a href="https://www.tryresumezip.com/templates/zero2sudo"><img src="frontend/public/previews/zero2sudo.webp" width="190" alt="A resume in the zero2sudo template"></a><br>zero2sudo</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/mono"><img src="frontend/public/previews/mono-resume-template.webp" width="190" alt="Mono resume template: a sample one-page resume"></a><br>Mono</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/accent"><img src="frontend/public/previews/accent-resume-template.webp" width="190" alt="Accent resume template: a sample one-page resume"></a><br>Accent</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/deedy"><img src="frontend/public/previews/deedy-resume-template.webp" width="190" alt="Deedy resume template: a sample one-page resume"></a><br>Deedy</td>
+    <td align="center"><a href="https://www.tryresumezip.com/templates/zero2sudo"><img src="frontend/public/previews/zero2sudo-resume-template.webp" width="190" alt="zero2sudo resume template: a sample one-page resume"></a><br>zero2sudo</td>
   </tr>
   <tr>
     <td align="center" valign="middle" colspan="4"><a href="https://www.tryresumezip.com/templates"><b>See them all →</b></a></td>

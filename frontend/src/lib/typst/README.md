@@ -72,11 +72,15 @@ server to build a PDF.
    `headingTags.test.ts` checks the tags.
 2. Import it in `typst.worker.ts` and add it to `SOURCES`.
 3. Add it to `TEMPLATES` in `src/lib/templates.ts` with a picture of its first
-   page in `public/previews/<id>.webp` (1280 px wide, from the editor's
-   preview), made from its own sample resume in `preview-samples/<id>.json`,
-   and its `font`: the family its `#set text(font: ...)` names, which is
-   downloaded before its first PDF. A test checks the two match. Name any
-   other family it sets words in as `alsoFonts`, and, when it uses only some
+   page (1280 px wide, from the editor's preview), made from its own sample
+   resume in `preview-samples/<id>.json`. Name the picture after the
+   template's page, not its id: `public/previews/<slug>-resume-template.webp`,
+   where `templateSlug` makes the slug from its name (`jakes` for Jake's). A
+   test checks it, and its page's share card (`opengraph-image.tsx` in
+   `src/app/templates/[template]/`) is drawn from it when the site is built.
+   Then give it its `font`: the family its `#set text(font: ...)` names,
+   which is downloaded before its first PDF. A test checks the two match. Name
+   any other family it sets words in as `alsoFonts`, and, when it uses only some
    of its family's weights, those as `weights`, so it downloads no more than
    it prints with. If its fonts lack letters a resume may have, like Cyrillic
    or Greek, name a fallback for them (see [Fonts](#fonts)). A template with a

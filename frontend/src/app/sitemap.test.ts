@@ -38,7 +38,14 @@ describe("the sitemap", () => {
   })
 
   test("gives addresses on the live site", () => {
-    for (const { url } of sitemap()) expect(new URL(url).origin).toBe(SITE_URL)
+    for (const { url, images = [] } of sitemap()) for (const address of [url, ...images]) expect(new URL(address).origin).toBe(SITE_URL)
+  })
+
+  test("lists each template's picture with its page, for image search", () => {
+    const pictures = Object.fromEntries(
+      sitemap().map(({ url, images = [] }) => [new URL(url).pathname, images.map((image) => new URL(image).pathname)]),
+    )
+    for (const template of TEMPLATES) expect(pictures[templatePath(template)], template.name).toEqual([template.image])
   })
 
   test("leaves out only pages that are there", () => {

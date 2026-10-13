@@ -23,11 +23,11 @@ test("/ goes to the search, which finds templates by name, font or style", async
 
   await page.keyboard.type("garamond")
   await expect(cards(page)).toHaveCount(1)
-  await expect(cards(page)).toHaveAccessibleName(/^Harvard template/)
+  await expect(cards(page)).toHaveAccessibleName(/^Harvard resume template/)
 
   await search.fill("serif")
   await expect(cards(page)).toHaveCount(4)
-  await expect(cards(page).first()).toHaveAccessibleName(/^Jake's template/)
+  await expect(cards(page).first()).toHaveAccessibleName(/^Jake's resume template/)
 
   // Escape clears it.
   await search.press("Escape")
@@ -119,7 +119,7 @@ test("at most one template is marked new", async ({ page }) => {
 
 test("pointed at, a card's Use plate whitens gradually, and its Use stays lit with the pointer on it", async ({ page }) => {
   await page.goto("/templates")
-  await page.getByRole("link", { name: /^Jake's template/ }).hover()
+  await page.getByRole("link", { name: /^Jake's resume template/ }).hover()
   const plate = page.getByRole("link", { name: "Use Jake's", exact: true })
   const use = plate.getByText("Use", { exact: true })
 
@@ -162,10 +162,10 @@ test("pointed at, a card's Use plate whitens gradually, and its Use stays lit wi
 test("a card's picture leads to its template's page, whose Use this template starts a resume with it", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/templates")
-  await page.getByRole("link", { name: /^Harvard template/ }).click()
+  await page.getByRole("link", { name: /^Harvard resume template/ }).click()
   await expect(page).toHaveURL(/\/templates\/harvard$/)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Harvard resume template")
-  await expect(page.getByRole("img", { name: "A sample resume in the Harvard template" })).toBeVisible()
+  await expect(page.getByRole("img", { name: "Harvard resume template: a sample one-page resume" })).toBeVisible()
 
   await page.getByRole("link", { name: "Use this template" }).click()
   await expect(page).toHaveURL(/\/create\/new\//)
