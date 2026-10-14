@@ -19,7 +19,7 @@ const COPIED_MS = 2000
  * blue Email bubble in place of the pointer, saying what a click does; a
  * finger, with no pointer to follow, just opens the email app.
  */
-export default function EmailContact() {
+export default function EmailContact({ compact = false }: { compact?: boolean }) {
   const bubble = useRef<HTMLSpanElement>(null)
   const [over, setOver] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -56,7 +56,7 @@ export default function EmailContact() {
         onPointerLeave={() => setOver(false)}
         // Raised above Copy email: each glass pill is a layer of its own, so
         // without it the later one would cover the bubble wherever they meet.
-        className={`glass glass-float relative z-10 inline-flex h-12 items-center rounded-full px-6 text-[17px] text-ink ${
+        className={`glass glass-float relative z-10 inline-flex items-center rounded-full text-ink ${compact ? "h-10 px-5 text-[15px]" : "h-12 px-6 text-[17px]"} ${
           over ? "cursor-none" : ""
         }`}
       >
