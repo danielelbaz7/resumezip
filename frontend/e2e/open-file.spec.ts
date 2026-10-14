@@ -200,7 +200,7 @@ test("leaving the page stops reading the file", async ({ page }) => {
   await page.locator('input[type="file"]').setInputFiles(pdf([RESUME]))
   await expect.poll(() => pdfjs.held).toBe(true)
   await page.goBack()
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/our resume/)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("resumezip")
 
   pdfjs.release()
   await page.waitForTimeout(1000)
