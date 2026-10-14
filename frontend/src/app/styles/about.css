@@ -15,6 +15,11 @@
     }
   }
 
+  /* The page after the story slides up over its last screen (HOLD in AboutStory.tsx). */
+  .story-moving {
+    margin-bottom: -30svh;
+  }
+
   /* The first screen: the name, what it is, and Microsoft for Startups. */
   .story-hero {
     position: relative;

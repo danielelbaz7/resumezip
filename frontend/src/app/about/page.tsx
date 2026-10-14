@@ -95,7 +95,8 @@ export default function AboutPage() {
       {/* A column, so the story's pull up behind the header doesn't move the main part with it. */}
       <main className={`flex flex-1 flex-col ${pen.variable} ${marker.variable}`}>
         <AboutStory hero={<Hero />} />
-        <div className={SHEET}>
+        {/* Over the story's last screen as it slides up, so it's drawn after the stage. */}
+        <div className={`${SHEET} relative z-[3]`}>
           {/* What resumezip is, in plain facts that search engines and AI answers can quote. Each has to stay true of the app. */}
           <section className={SECTION} aria-labelledby="does">
             <h2 id="does" className={HEADING}>

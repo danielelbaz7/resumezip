@@ -34,6 +34,9 @@ const GRASS_RATIO = 941 / 1672
 const EDITOR_RATIO = 1278 / 2088
 // The header's strip, which the stage's things keep under.
 const HEADER = 78
+// Once the story has ended, the page after it slides up over its last screen this far (a share of
+// the screen) before the stage lets go, so the story ends under frosted glass rather than at an edge.
+const HOLD = 0.3
 
 // Visitors who ask for less motion get the story as still sections.
 const lessMotion = (onChange: () => void) => {
@@ -291,7 +294,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     let frame = 0
     const read = () => {
       const box = el.story.getBoundingClientRect()
-      target = storyAt(box.top, box.height, window.innerHeight)
+      target = storyAt(box.top, box.height - HOLD * window.innerHeight, window.innerHeight)
     }
     const step = (now: number) => {
       frame = 0
@@ -318,7 +321,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     toEnd.current = () => {
       if (shown >= BEATS.cta[1]) return
       const box = el.story.getBoundingClientRect()
-      window.scrollTo({ top: window.scrollY + box.top + box.height - window.innerHeight, behavior: "smooth" })
+      window.scrollTo({ top: window.scrollY + box.top + box.height - (1 + HOLD) * window.innerHeight, behavior: "smooth" })
     }
 
     measure()
@@ -339,7 +342,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   useEffect(() => redraw.current(), [folder])
 
   return (
-    <div ref={story} className="story" style={{ height: `calc(${STORY_LENGTH}vh + 100svh)` }}>
+    <div ref={story} className="story story-moving" style={{ height: `calc(${STORY_LENGTH}vh + ${100 + HOLD * 100}svh)` }}>
       <div className="story-hero">{hero}</div>
       <Promises />
       <div className="story-stage">
