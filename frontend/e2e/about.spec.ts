@@ -10,6 +10,20 @@ const PHONE = { width: 390, height: 844 }
 /** Our resume's folder, by what's written on it. */
 const folderHeadline = (page: Page) => page.getByText("Here’s our resume.", { exact: true })
 
+/**
+ * Scrolls the story to `v`, in screens of scrolling times 100 (STORY_LENGTH, 960, is its end): the
+ * story starts at the top of the page, a screen of it to each screen scrolled.
+ */
+async function playStoryTo(page: Page, v: number) {
+  await expect
+    .poll(async () => {
+      if (await page.evaluate((v) => window.scrollY >= (v / 100) * window.innerHeight, v)) return true
+      await page.mouse.wheel(0, 400)
+      return false
+    })
+    .toBe(true)
+}
+
 /** Scrolls down a screen at a time until `target` shows. */
 async function scrollUntilVisible(page: Page, target: Locator) {
   await expect
@@ -31,7 +45,9 @@ test("the About page says what resumezip is, then its story leads down to Start 
   await page.mouse.move(400, 400)
   await scrollUntilVisible(page, folderHeadline(page))
   const start = page.getByRole("link", { name: "Start writing" })
-  await scrollUntilVisible(page, start)
+  await playStoryTo(page, 940)
+  // It only takes a click once it has arrived.
+  await start.click({ trial: true })
   await expect(start).toHaveAttribute("href", "/create/dashboard")
   expect(errors).toEqual([])
 })
@@ -87,4 +103,20 @@ test("with less motion, the story is told in still pictures, every promise alrea
   expect(await seriousAccessibilityProblems(page)).toEqual([])
   expect(errors).toEqual([])
   await context.close()
+})
+
+// The way in is kept wholly on screen by its height. Its text can reflow after it's first placed,
+// as when its fonts arrive late; it used to keep the height it had at first, and run off a short
+// window's foot.
+test("Start writing stays on screen when the box's words reflow taller", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 620 })
+  await page.goto("/about")
+  await page.mouse.move(400, 300)
+  const start = page.getByRole("link", { name: "Start writing" })
+  await playStoryTo(page, 940)
+  await start.click({ trial: true })
+  await expect.poll(async () => (await start.boundingBox())!.y + (await start.boundingBox())!.height).toBeLessThanOrEqual(620)
+
+  await page.getByRole("heading", { name: "Your resume, on your own computer." }).evaluate((heading) => (heading.style.fontSize = "96px"))
+  await expect.poll(async () => (await start.boundingBox())!.y + (await start.boundingBox())!.height).toBeLessThanOrEqual(620)
 })

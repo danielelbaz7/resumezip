@@ -326,11 +326,20 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
 
     measure()
     snap()
+    // The way in is kept on screen by its height, which changes when its text reflows: once its
+    // fonts arrive after it was first measured, as well as with its width.
+    const wayInHeight = new ResizeObserver(() => {
+      if (el.wayInCopy.offsetHeight === wayInSize.height) return
+      wayInSize = { ...wayInSize, height: el.wayInCopy.offsetHeight }
+      render(shown)
+    })
+    wayInHeight.observe(el.wayInCopy)
     el.sky.addEventListener("load", onResize)
     window.addEventListener("scroll", onScroll, { passive: true })
     window.addEventListener("resize", onResize)
     return () => {
       cancelAnimationFrame(frame)
+      wayInHeight.disconnect()
       el.sky.removeEventListener("load", onResize)
       window.removeEventListener("scroll", onScroll)
       window.removeEventListener("resize", onResize)
