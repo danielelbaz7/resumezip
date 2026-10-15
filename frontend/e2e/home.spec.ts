@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test"
+import { expect, test, type Page } from "./test"
 
 // The home page's parts that move with the scroll, and its questions.
 

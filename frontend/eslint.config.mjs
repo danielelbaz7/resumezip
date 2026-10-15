@@ -32,6 +32,17 @@ const eslintConfig = [
     files: ["e2e/**", "src/lib/import/corpus/make.mts"],
     rules: { "@typescript-eslint/no-explicit-any": "off" },
   },
+  {
+    files: ["e2e/**/*.spec.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [{ name: "@playwright/test", message: "Import from ./test, which draws WebKit's glass without its blur (e2e/test.ts)." }],
+        },
+      ],
+    },
+  },
 ]
 
 export default eslintConfig
