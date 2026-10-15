@@ -72,7 +72,7 @@ export default function AboutPage() {
       <main className={`flex flex-1 flex-col ${pen.variable} ${marker.variable}`}>
         <AboutStory hero={<Hero />} />
       </main>
-      <SiteFooter />
+      <SiteFooter ground />
     </div>
   )
 }

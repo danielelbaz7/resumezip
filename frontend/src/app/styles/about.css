@@ -256,6 +256,14 @@
     }
   }
 
+  /* The footer after the story's meadow (SiteFooter's `ground`): the grass carries on below the
+     story's last screen, fading into the footer's charcoal. */
+  .footer-ground {
+    background:
+      linear-gradient(180deg, rgb(43 44 49 / 0.15), #2b2c31 92%),
+      #63920f url("/about/grass.webp") center bottom / cover no-repeat;
+  }
+
   /* With less motion: the story as still sections, on the sky and then the meadow. */
   .story-still-sky {
     background: #7fbff7 url("/backgrounds/sky-wide.webp") center bottom / cover no-repeat;

@@ -9,15 +9,21 @@ const LINKS = [
 /**
  * The page's end: the sky above fading into charcoal, then the logo's key at
  * full width, as on the social card. It sits shut and doesn't move. The fade
- * is the sky itself (desk), so it's the same on every page, whatever's above.
+ * is the sky itself (desk), so it's the same on every page, whatever's above;
+ * a page that ends on the ground, as the About page's story does in its
+ * meadow, fades its grass instead (`ground`), rather than sky under grass.
  * data-tone is for the home page's header tint (HomeChrome.tsx).
  */
-export default function SiteFooter() {
+export default function SiteFooter({ ground = false }: { ground?: boolean }) {
   return (
     <>
-      <div aria-hidden="true" data-tone="light" className="desk relative h-40 md:h-56">
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent,rgb(200_190_220/0.45)_40%,#2b2c31)]" />
-      </div>
+      {ground ? (
+        <div aria-hidden="true" data-tone="light" className="footer-ground relative h-40 md:h-56" />
+      ) : (
+        <div aria-hidden="true" data-tone="light" className="desk relative h-40 md:h-56">
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent,rgb(200_190_220/0.45)_40%,#2b2c31)]" />
+        </div>
+      )}
       <footer data-tone="dark" className="zip-footer text-white">
         <div className="mx-auto max-w-[1440px] px-5 pt-16 md:px-10">
           {/* Its left edge is the ring's width and a little more in from the margin, as the wordmark sits on the social card. */}
