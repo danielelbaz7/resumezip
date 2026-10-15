@@ -100,6 +100,8 @@ test("with less motion, the story is told in still pictures, every promise alrea
   await expect(page.getByText("every template, free")).toBeVisible()
   await expect(page.getByText("MIT, all on GitHub")).toBeVisible()
   await expect(page.getByRole("link", { name: "Start writing" })).toBeVisible()
+  // Its box was only rounded on the moving story's stage, and had square corners here.
+  await expect(page.getByRole("region", { name: "Your resume, on your own computer." })).toHaveCSS("border-radius", "28px")
   expect(await seriousAccessibilityProblems(page)).toEqual([])
   expect(errors).toEqual([])
   await context.close()

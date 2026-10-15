@@ -225,13 +225,15 @@
 
   /* The way in, over the editor: glass that fades in by its own layers (--glass-in), as fading
      the whole box would stop its frost seeing what's behind it until it's done. */
+  .story-cta {
+    border-radius: 28px;
+  }
   .story-stage .story-cta {
     position: absolute;
     visibility: visible;
     width: var(--cta-width, 560px);
     --glass-in: 0;
     box-shadow: none;
-    border-radius: 28px;
   }
   .story-cta::before,
   .story-cta::after,
