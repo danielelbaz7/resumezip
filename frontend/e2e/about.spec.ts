@@ -24,11 +24,20 @@ async function playStoryTo(page: Page, v: number) {
     .toBe(true)
 }
 
-/** Scrolls down a screen at a time until `target` shows. */
-async function scrollUntilVisible(page: Page, target: Locator) {
+/**
+ * Scrolls down a screen at a time until `target` shows. The story fades its parts rather than
+ * hiding them, so it's shown once it, and everything it's in, has faded all the way in.
+ */
+async function scrollUntilShown(page: Page, target: Locator) {
+  const shown = () =>
+    target.evaluate((element) => {
+      let opacity = 1
+      for (let part: Element | null = element; part; part = part.parentElement) opacity *= Number(getComputedStyle(part).opacity)
+      return opacity > 0.99
+    })
   await expect
     .poll(async () => {
-      if (await target.isVisible()) return true
+      if ((await target.isVisible()) && (await shown())) return true
       await page.mouse.wheel(0, 400)
       return false
     })
@@ -43,7 +52,7 @@ test("the About page says what resumezip is, then its story leads down to Start 
   await expect(page.getByRole("link", { name: /Microsoft for Startups/ })).toBeVisible()
 
   await page.mouse.move(400, 400)
-  await scrollUntilVisible(page, folderHeadline(page))
+  await scrollUntilShown(page, folderHeadline(page))
   const start = page.getByRole("link", { name: "Start writing" })
   await playStoryTo(page, 940)
   // It only takes a click once it has arrived.
@@ -70,7 +79,7 @@ test("on a phone, the folder hides the page under its written part, and its word
   await page.goto("/about")
   await page.mouse.move(200, 400)
   const headline = folderHeadline(page)
-  await scrollUntilVisible(page, headline)
+  await scrollUntilShown(page, headline)
   // Once it has risen, what's behind the middle of its words is the folder. The story's pictures
   // let clicks through; made to take them for a moment, the browser says which is under the words.
   await expect
@@ -302,4 +311,48 @@ test("the story's pictures are decoded before the story reaches them", async ({ 
         "/about/own-resume.webp",
       ]),
     )
+})
+
+// Chrome drew single frames with the story's pictures missing, a flicker, whenever one of them was
+// hidden or shown: it rebuilt the stage's layers and drew before they were painted again. They're
+// faded instead, each on a layer of its own from the start.
+test("the story's pictures are faded in and out on layers of their own, never hidden", async ({ page }) => {
+  await page.goto("/about")
+  await page.mouse.move(400, 400)
+  const parts = () =>
+    page.evaluate(() => {
+      const stage = [...document.images].find((image) => new URL(image.src).pathname === "/backgrounds/sky-wide.webp")!.parentElement!
+      return [...stage.children].map((part) => {
+        const style = getComputedStyle(part)
+        return {
+          part: part.className || part.tagName,
+          hidden: style.visibility === "hidden",
+          layer: style.willChange.includes("transform"),
+        }
+      })
+    })
+  for (const v of [0, 300, 600, 960]) {
+    await playStoryTo(page, v)
+    for (const part of await parts()) expect(part).toMatchObject({ hidden: false, layer: true })
+  }
+})
+
+// As images, Chrome drew a cloud again at each new size as it grew, and drew frames without it
+// while it did, so the clouds flickered out. Each is drawn once, onto a canvas, and only scaled.
+test("the clouds are drawn once, onto canvases of their own", async ({ page }) => {
+  await page.goto("/about")
+  const clouds = () =>
+    page.evaluate(() => {
+      const stage = [...document.images].find((image) => new URL(image.src).pathname === "/backgrounds/sky-wide.webp")!.parentElement!
+      return [...stage.querySelectorAll<HTMLElement>(".story-cloud")].map((cloud) => {
+        if (!(cloud instanceof HTMLCanvasElement)) return { canvas: false, drawn: false }
+        const { data } = cloud.getContext("2d")!.getImageData(0, 0, cloud.width, cloud.height)
+        return { canvas: true, drawn: data.some((value, i) => i % 4 === 3 && value > 0) }
+      })
+    })
+  await expect.poll(clouds).toEqual([
+    { canvas: true, drawn: true },
+    { canvas: true, drawn: true },
+    { canvas: true, drawn: true },
+  ])
 })

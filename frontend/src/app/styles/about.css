@@ -96,19 +96,23 @@
     pointer-events: none;
     background: #7fbff7;
   }
+  /* Each part is a layer of its own from the start, and is faded, never hidden (AboutStory.tsx):
+     Chrome rebuilt the stage's layers whenever a part was hidden or shown, and drew a frame
+     before they were painted again, so pictures flickered out as the story played. The glass
+     box is on a layer only for moving (.story-cta). */
   .story-stage > * {
     position: absolute;
     left: 0;
     top: 0;
-    visibility: hidden;
+    opacity: 0;
+    will-change: transform, opacity;
   }
-  /* The scenes and clouds are their own layers, drawn once, then only moved, scaled and faded:
-     redrawing a cloud three screens wide every frame is what made them stutter. */
+  /* The scenes and clouds are drawn once, then only moved, scaled and faded: redrawing a cloud
+     three screens wide every frame is what made them stutter. */
   .story-scene,
   .story-cloud {
     display: block;
     max-width: none;
-    will-change: transform, opacity;
   }
   .story-scene {
     transform-origin: 0 0;
@@ -116,8 +120,6 @@
   /* Late-afternoon warmth over the sky as the camera sinks into the clouds. */
   .story-stage .story-golden {
     inset: 0;
-    opacity: 0;
-    visibility: visible;
     background: linear-gradient(180deg, rgb(255 178 120 / 0) 25%, rgb(255 190 140 / 0.3) 100%);
   }
 
@@ -231,9 +233,12 @@
   .story-cta {
     border-radius: 28px;
   }
+  /* Not faded, nor marked as to be: an ancestor that fades, or may, stops the frost seeing
+     what's behind it. */
   .story-stage .story-cta {
     position: absolute;
-    visibility: visible;
+    opacity: 1;
+    will-change: transform;
     width: var(--cta-width, 560px);
     --glass-in: 0;
     box-shadow: none;
