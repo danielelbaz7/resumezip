@@ -166,8 +166,6 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     let fileShot = { x: 0, y: 0, scale: 1 }
     let folderKey = ""
 
-    const show = (element: HTMLElement, visible: boolean) => (element.style.visibility = visible ? "visible" : "hidden")
-
     function measure() {
       // A page opened in a hidden tab can be told the window has no size yet.
       screen = { width: Math.max(window.innerWidth, 320), height: Math.max(window.innerHeight, 480) }
@@ -225,19 +223,19 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     function render(v: number) {
       const { width: vw, height: vh } = screen
 
+      // A part that's out of the story is faded to nothing, never hidden: see .story-stage in about.css.
+
       // The sky: the camera sinks toward its cloud deck, warming, until the meadow takes over.
       const skyNow = skyAt(v)
       const skyShot = camera(skyCover, screen, skyNow.scale)
       el.sky.style.transform = `translate3d(${skyShot.x}px, ${skyShot.y}px, 0) scale(${skyShot.scale})`
       el.sky.style.opacity = String(skyNow.opacity)
-      show(el.sky, skyNow.opacity > 0.001)
       el.golden.style.opacity = String(smooth(span(v, BEATS.golden)) * skyNow.opacity)
 
       for (const [image, cloud] of clouds) {
         const { at, opacity } = cloudAt(cloud, v)
-        show(image, opacity > 0.001)
-        if (opacity <= 0.001) continue
         image.style.opacity = String(opacity)
+        if (opacity <= 0.001) continue
         image.style.transform = `translate3d(${at[0] * vw - base / 2}px, ${at[1] * vh - (base * CLOUD_RATIO) / 2}px, 0) scale(${at[2]})`
       }
 
@@ -245,10 +243,9 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
       // with them, its promises marked on it one at a time in between.
       const rising = span(v, BEATS.pageIn)
       const away = in2(span(v, BEATS.away))
-      show(el.fileBox, rising > 0 && away < 1)
+      el.fileBox.style.opacity = String(smooth(span(rising, [0, 0.55])) * (1 - smooth(span(away, [0.6, 1]))))
       if (rising > 0 && away < 1) {
         const risen = out3(rising)
-        el.fileBox.style.opacity = String(smooth(span(rising, [0, 0.55])) * (1 - smooth(span(away, [0.6, 1]))))
         el.fileBox.style.transform = `translate3d(${fileShot.x}px, ${fileShot.y + (1 - risen) * vh * 0.28 - away * vh * 1.05}px, 0) scale(${fileShot.scale * (1 - 0.04 * away)})`
         const blur = (1 - risen) * 7
         el.fileBox.style.filter = blur > 0.1 ? `blur(${blur}px)` : "none"
@@ -257,19 +254,17 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
 
       // Out of the cloud base, down to the meadow, with the grass rising in front of it.
       const meadowNow = meadowAt(v, meadowCover, screen, grassHeight)
-      show(el.meadow, meadowNow.opacity > 0.001)
       el.meadow.style.opacity = String(meadowNow.opacity)
       el.meadow.style.transform = `translate3d(${meadowNow.x}px, ${meadowNow.y}px, 0) scale(${meadowNow.scale})`
-      show(el.grass, span(v, BEATS.grass) > 0)
+      el.grass.style.opacity = span(v, BEATS.grass) > 0 ? "1" : "0"
       el.grass.style.transform = `translate3d(0, ${grassDropAt(v, grassHeight)}px, 0)`
 
       // The editor rises out of the grass, coming into focus, then softens a little as the way in
       // arrives, so that's what's sharp.
       const rose = span(v, BEATS.editor)
-      show(el.editor, rose > 0)
+      el.editor.style.opacity = String(smooth(span(rose, [0, 0.25])))
       if (rose > 0) {
         const up = out3(rose)
-        el.editor.style.opacity = String(smooth(span(rose, [0, 0.25])))
         el.editor.style.transform = `translate3d(0, ${(1 - up) * (vh - editorTop + 40)}px, 0) scale(${lerp(0.92, 1, up)})`
         const blur = 10 * (1 - smooth(span(rose, [0.35, 1]))) + 2.2 * smooth(span(v, BEATS.cta))
         el.editor.style.filter = blur > 0.1 ? `blur(${blur}px)` : "none"
