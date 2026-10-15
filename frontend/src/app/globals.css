@@ -37,16 +37,40 @@
 @layer components {
   /* --u is the logo's unit: its key is 56 across and its ring 26. From the ring
      at the page's margin to the right edge, it's the logo. */
-  /* The footer: soft charcoal deepening to black, which the sky above fades
-     into. The zipper's ring is filled with the charcoal it sits on. */
+  /* The footer: charcoal, waiting under the page, which lifts off it. It starts
+     --lift above the page's foot, see-through there. Its ::before is that last
+     stretch of the page, with rounded bottom corners: its shadow falls on the
+     footer, and a spread as big as the screen paints the charcoal round it, into
+     the corners, without covering the page. Clipped to the footer, so none of it
+     reaches up the page. The ring is filled with the charcoal it sits on. */
   .zip-footer {
     --u: 1px;
-    --zipper-bg: #25262b;
-    background: linear-gradient(180deg, #2b2c31, #0c0c0e 70%);
+    --lift: 24px;
+    --zipper-bg: #17181c;
+    position: relative;
+    margin-top: calc(-1 * var(--lift));
+    padding-top: var(--lift);
+    overflow: clip;
+  }
+  .zip-footer::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: var(--lift);
+    border-radius: 0 0 var(--lift) var(--lift);
+    box-shadow:
+      0 30px 60px -20px rgb(0 0 0 / 0.65),
+      0 10px 20px -10px rgb(0 0 0 / 0.4),
+      0 0 0 100vmax var(--zipper-bg);
+  }
+  /* Positioned, so they're drawn over the ::before. */
+  .zip-footer > * {
+    position: relative;
   }
   @media (min-width: 48rem) {
     .zip-footer {
       --u: 1.5px;
+      --lift: 40px;
     }
   }
   .zipper {
