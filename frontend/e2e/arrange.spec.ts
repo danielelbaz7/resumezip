@@ -514,6 +514,7 @@ test("asked whether to delete an entry, it shows its name and its fields fade, a
 
 test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in its place and open", async ({ page }) => {
   const errors = pageErrors(page)
+  await page.clock.install()
   await openSection(page, "Experience")
   const before = (await saved(page)).workExperienceSection
   // The open entry's Role box, its name, typed in where it's shown.
@@ -539,7 +540,11 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
   await expect.poll(async () => (await saved(page)).workExperienceSection).toEqual(before)
 
   // In a field, the shortcut takes back typing and leaves the entry deleted.
+  // Time stands still from the delete to the last shortcut, so Undo is still
+  // on offer then: on a busy CI runner the steps between can take longer than
+  // its 6 seconds (UNDO_MS).
   await deleteEntry2()
+  await page.clock.pauseAt(Date.now() + 1_000)
   await page.getByRole("button", { name: "Edit entry 1" }).click()
   await role.focus()
   await page.keyboard.press("ControlOrMeta+z")
@@ -551,7 +556,11 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
     .getByRole("navigation", { name: "Sections" })
     .getByRole("button", { name: /^Skills$/ })
     .click()
+  await expect(editorTitle(page)).toHaveText(/Skills/)
+  await expect(undo).toBeVisible()
   await page.keyboard.press("ControlOrMeta+z")
+  // The entry slides open and is saved on the page's clock.
+  await page.clock.resume()
   await expect(editorTitle(page)).toHaveText(/Experience/)
   await expect(page.getByRole("button", { name: "Done editing entry 2" })).toBeVisible()
   await expect(undo).toHaveCount(0)
