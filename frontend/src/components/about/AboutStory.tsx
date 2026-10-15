@@ -30,7 +30,11 @@ const SKY = {
   tall: { src: "/backgrounds/sky-tall.webp", width: 841, height: 1870 },
 }
 const MEADOW = { width: 1672, height: 941 }
-const CLOUD_RATIO = 941 / 1672
+// The clouds' pictures, all one size. Each is drawn once onto a canvas of that size, which is
+// then only moved, scaled and faded: as an image, Chrome drew a cloud again at each new size as
+// it grew, and drew frames without it while it did, so the clouds flickered out.
+const CLOUD = { width: 1672, height: 941 }
+const CLOUD_RATIO = CLOUD.height / CLOUD.width
 const GRASS_RATIO = 941 / 1672
 const EDITOR_RATIO = 1278 / 2088
 // The header's strip, which the stage's things keep under.
@@ -127,9 +131,9 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   const sky = useRef<HTMLImageElement>(null)
   const golden = useRef<HTMLDivElement>(null)
   const meadow = useRef<HTMLImageElement>(null)
-  const bank = useRef<HTMLImageElement>(null)
-  const tower = useRef<HTMLImageElement>(null)
-  const puff = useRef<HTMLImageElement>(null)
+  const bank = useRef<HTMLCanvasElement>(null)
+  const tower = useRef<HTMLCanvasElement>(null)
+  const puff = useRef<HTMLCanvasElement>(null)
   const fileBox = useRef<HTMLDivElement>(null)
   const file = useRef<StoryFileHandle>(null)
   const editor = useRef<HTMLElement>(null)
@@ -186,7 +190,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
       }
       // Each cloud is laid out one base wide and only scaled from there, so it's drawn once.
       base = Math.max(vw, vh * 1.45)
-      for (const [image] of clouds) image.style.width = `${base}px`
+      for (const [canvas] of clouds) canvas.style.width = `${base}px`
 
       const next = folderFor(vw, vh)
       const key = `${next.phone}:${next.layout.width}:${next.layout.height}`
@@ -232,11 +236,11 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
       el.sky.style.opacity = String(skyNow.opacity)
       el.golden.style.opacity = String(smooth(span(v, BEATS.golden)) * skyNow.opacity)
 
-      for (const [image, cloud] of clouds) {
+      for (const [canvas, cloud] of clouds) {
         const { at, opacity } = cloudAt(cloud, v)
-        image.style.opacity = String(opacity)
+        canvas.style.opacity = String(opacity)
         if (opacity <= 0.001) continue
-        image.style.transform = `translate3d(${at[0] * vw - base / 2}px, ${at[1] * vh - (base * CLOUD_RATIO) / 2}px, 0) scale(${at[2]})`
+        canvas.style.transform = `translate3d(${at[0] * vw - base / 2}px, ${at[1] * vh - (base * CLOUD_RATIO) / 2}px, 0) scale(${at[2]})`
       }
 
       // Our resume rises out of the clouds in its folder once they've gathered, and floats away
@@ -357,11 +361,26 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   useEffect(() => redraw.current(), [folder])
 
   // The pictures are decoded while the first screen is up: Safari otherwise decodes each one when
-  // it's first drawn, and the scroll stalls for that frame, as when the clouds rise in. The folder's
-  // come with its layout.
+  // it's first drawn, and the scroll stalls for that frame. The folder's come with its layout.
   useEffect(() => {
     for (const image of story.current?.querySelectorAll("img") ?? []) image.decode().catch(() => {})
   }, [folder])
+
+  // The clouds are drawn onto their canvases (CLOUD) as their pictures arrive.
+  useEffect(() => {
+    for (const [canvas, src] of [
+      [bank.current, "/about/cloud-bank.webp"],
+      [tower.current, "/about/cloud-tower.webp"],
+      [puff.current, "/about/cloud-puff.webp"],
+    ] as const) {
+      const picture = new Image()
+      picture.src = src
+      picture.decode().then(
+        () => canvas?.getContext("2d")?.drawImage(picture, 0, 0, CLOUD.width, CLOUD.height),
+        () => {},
+      )
+    }
+  }, [])
 
   return (
     <div ref={story} className="story" style={{ height: `calc(${STORY_LENGTH}vh + 100svh)` }}>
@@ -375,12 +394,9 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
         <div ref={golden} aria-hidden="true" className="story-golden" />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img ref={meadow} src="/about/meadow.webp" alt="" className="story-scene" loading="lazy" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img ref={bank} src="/about/cloud-bank.webp" alt="" className="story-cloud" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img ref={tower} src="/about/cloud-tower.webp" alt="" className="story-cloud" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img ref={puff} src="/about/cloud-puff.webp" alt="" className="story-cloud" />
+        <canvas ref={bank} width={CLOUD.width} height={CLOUD.height} aria-hidden="true" className="story-cloud" />
+        <canvas ref={tower} width={CLOUD.width} height={CLOUD.height} aria-hidden="true" className="story-cloud" />
+        <canvas ref={puff} width={CLOUD.width} height={CLOUD.height} aria-hidden="true" className="story-cloud" />
         <div ref={fileBox} style={{ transformOrigin: "0 0" }}>
           {folder && <StoryFile ref={file} layout={folder.layout} phone={folder.phone} />}
         </div>

@@ -336,3 +336,23 @@ test("the story's pictures are faded in and out on layers of their own, never hi
     for (const part of await parts()) expect(part).toMatchObject({ hidden: false, layer: true })
   }
 })
+
+// As images, Chrome drew a cloud again at each new size as it grew, and drew frames without it
+// while it did, so the clouds flickered out. Each is drawn once, onto a canvas, and only scaled.
+test("the clouds are drawn once, onto canvases of their own", async ({ page }) => {
+  await page.goto("/about")
+  const clouds = () =>
+    page.evaluate(() => {
+      const stage = [...document.images].find((image) => new URL(image.src).pathname === "/backgrounds/sky-wide.webp")!.parentElement!
+      return [...stage.querySelectorAll<HTMLElement>(".story-cloud")].map((cloud) => {
+        if (!(cloud instanceof HTMLCanvasElement)) return { canvas: false, drawn: false }
+        const { data } = cloud.getContext("2d")!.getImageData(0, 0, cloud.width, cloud.height)
+        return { canvas: true, drawn: data.some((value, i) => i % 4 === 3 && value > 0) }
+      })
+    })
+  await expect.poll(clouds).toEqual([
+    { canvas: true, drawn: true },
+    { canvas: true, drawn: true },
+    { canvas: true, drawn: true },
+  ])
+})
