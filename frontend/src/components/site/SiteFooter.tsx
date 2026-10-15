@@ -7,39 +7,25 @@ const LINKS = [
 ]
 
 /**
- * The page's end: the sky above fading into charcoal, then the logo's key at
- * full width, as on the social card. It sits shut and doesn't move. The fade
- * is the sky itself (desk), so it's the same on every page, whatever's above;
- * a page that ends on the ground, as the About page's story does in its
- * meadow, fades its grass instead (`ground`), rather than sky under grass.
- * data-tone is for the home page's header tint (HomeChrome.tsx).
+ * The page's end: a strip of the sky, then the page lifts off the footer, its
+ * bottom corners rounded over a shadow (`zip-footer` in globals.css). Under
+ * it, the links, the wordmark as wide as the page, and the logo's key at full
+ * width, as on the social card. It sits shut and doesn't move. The strip is the
+ * sky itself (desk), so it's the same on every page, whatever's above; a page
+ * that ends on the ground, as the About page's story does in its meadow, ends
+ * on its grass instead (`ground`), rather than sky under grass. data-tone is
+ * for the home page's header tint (HomeChrome.tsx).
  */
 export default function SiteFooter({ ground = false }: { ground?: boolean }) {
   return (
     <>
       {ground ? (
-        <div aria-hidden="true" data-tone="light" className="footer-ground relative h-40 md:h-56" />
+        <div aria-hidden="true" data-tone="light" className="footer-ground relative" />
       ) : (
-        <div aria-hidden="true" data-tone="light" className="desk relative h-40 md:h-56">
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent,rgb(200_190_220/0.45)_40%,#2b2c31)]" />
-        </div>
+        <div aria-hidden="true" data-tone="light" className="desk relative h-16 md:h-20" />
       )}
       <footer data-tone="dark" className="zip-footer text-white">
-        <div className="mx-auto max-w-[1440px] px-5 pt-16 md:px-10">
-          {/* Its left edge is the ring's width and a little more in from the margin, as the wordmark sits on the social card. */}
-          <Link
-            href="/"
-            className="ml-[calc(37*var(--u))] block w-fit font-logo text-[56px] font-medium leading-none tracking-[-0.03em] transition-opacity hover:opacity-80 md:text-[80px]"
-          >
-            resumezip
-          </Link>
-        </div>
-        <div aria-hidden="true" className="zipper mt-6">
-          <div className="zipper-bar" />
-          <div className="zipper-teeth" />
-          <div className="zipper-pull" />
-        </div>
-        <div className="mx-auto flex max-w-[1440px] flex-wrap justify-between gap-6 px-5 pb-10 pt-12 md:px-10">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-8 gap-y-3 px-5 pt-10 md:px-10 md:pt-11">
           <nav aria-label="Footer" className="flex flex-wrap gap-x-8 gap-y-3">
             {LINKS.map((link) => (
               <Link
@@ -51,7 +37,26 @@ export default function SiteFooter({ ground = false }: { ground?: boolean }) {
               </Link>
             ))}
           </nav>
-          <span className="label-mono self-center normal-case text-white/70">© 2026 resumezip</span>
+          <span className="text-[15px] tracking-[-0.01em] text-white/60">Free, private and open source.</span>
+        </div>
+        <div className="mx-auto max-w-[1440px] px-5 md:px-10">
+          {/* As wide as the page, up to 300px at 1440px. Pulled left by the r's side bearing, so its stem lines up with the
+              links; the room under it is in em, as the p's tail hangs below its tight line height. */}
+          <Link
+            href="/"
+            className="-ml-[0.06em] mt-8 block w-fit whitespace-nowrap pb-[0.32em] font-logo text-[min(20.8vw,300px)] font-medium leading-[0.74] tracking-[-0.055em] transition-opacity hover:opacity-80 md:mt-10"
+          >
+            resumezip
+          </Link>
+        </div>
+        <div aria-hidden="true" className="zipper">
+          <div className="zipper-bar" />
+          <div className="zipper-teeth" />
+          <div className="zipper-pull" />
+        </div>
+        <div className="mx-auto flex max-w-[1440px] flex-wrap justify-between gap-6 px-5 pb-9 pt-10 md:px-10">
+          <span className="label-mono normal-case text-white/70">tryresumezip.com</span>
+          <span className="label-mono normal-case text-white/70">© 2026 resumezip</span>
         </div>
       </footer>
     </>

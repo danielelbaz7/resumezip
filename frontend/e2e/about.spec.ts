@@ -356,3 +356,22 @@ test("the clouds are drawn once, onto canvases of their own", async ({ page }) =
     { canvas: true, drawn: true },
   ])
 })
+
+// The strip over the footer was as tall as the sky's on other pages, but its grass ends after a
+// few dozen pixels: the rest was flat charcoal, an empty band before the footer.
+test("the strip over the About page's footer ends a little after its grass", async ({ page }) => {
+  for (const size of [{ width: 1440, height: 900 }, PHONE]) {
+    await page.setViewportSize(size)
+    await page.goto("/about")
+    const pastGrass = await page.getByRole("contentinfo").evaluate((footer) => {
+      const strip = footer.previousElementSibling!
+      const style = getComputedStyle(strip)
+      // The grass picture's top, and its height from its width.
+      const [, top] = style.backgroundPosition.split(",")[0].trim().split(" ").map(parseFloat)
+      const width = parseFloat(style.backgroundSize.split(",")[0])
+      return strip.getBoundingClientRect().height - (top + (width * 941) / 1672)
+    })
+    expect(pastGrass).toBeGreaterThan(0)
+    expect(pastGrass).toBeLessThanOrEqual(48)
+  }
+})
