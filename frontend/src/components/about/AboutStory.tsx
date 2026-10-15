@@ -5,6 +5,7 @@ import { type RefObject, useEffect, useRef, useState, useSyncExternalStore } fro
 import { ArrowUpRight } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
 import { INK_PILL } from "@/components/pills"
+import EmailContact from "@/components/site/EmailContact"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import { BEATS, STORY_LENGTH, glide, in2, lerp, out3, smooth, span, storyAt } from "./motion"
 import { CLOUDS, GRASS_SINK, cloudAt, camera, cover, grassDropAt, meadowAt, skyAt } from "./scene"
@@ -34,9 +35,6 @@ const GRASS_RATIO = 941 / 1672
 const EDITOR_RATIO = 1278 / 2088
 // The header's strip, which the stage's things keep under.
 const HEADER = 78
-// Once the story has ended, the page after it slides up over its last screen this far (a share of
-// the screen) before the stage lets go, so the story ends under frosted glass rather than at an edge.
-const HOLD = 0.3
 
 // Visitors who ask for less motion get the story as still sections.
 const lessMotion = (onChange: () => void) => {
@@ -82,10 +80,12 @@ interface WayInProps {
   ref?: RefObject<HTMLElement | null>
   copyRef?: RefObject<HTMLDivElement | null>
   onFocus?: () => void
+  /** Where /about#contact lands, when it's here rather than at the story's end. */
+  contactId?: string
 }
 
-/** The way in, at the end: over the editor, in the site's frosted glass. */
-function WayIn({ ref, copyRef, onFocus }: WayInProps) {
+/** The way in, at the end: over the editor, in the site's frosted glass, with the address to write to. */
+function WayIn({ ref, copyRef, onFocus, contactId }: WayInProps) {
   return (
     <section ref={ref} aria-labelledby="way-in" className="story-cta glass glass-float" onFocus={onFocus}>
       <span aria-hidden="true" className="story-cta-shadow" />
@@ -101,6 +101,11 @@ function WayIn({ ref, copyRef, onFocus }: WayInProps) {
         <StartWritingLink className={`${INK_PILL} mt-6`} preloadOnHover>
           Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </StartWritingLink>
+        <div id={contactId} className="mt-6 border-t border-ink/10 pt-5">
+          <h3 className="sr-only">Get in touch</h3>
+          <p className="mb-3 text-sm text-ink-2">Found a bug or have an idea? I read every message.</p>
+          <EmailContact compact />
+        </div>
       </div>
     </section>
   )
@@ -294,7 +299,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     let frame = 0
     const read = () => {
       const box = el.story.getBoundingClientRect()
-      target = storyAt(box.top, box.height - HOLD * window.innerHeight, window.innerHeight)
+      target = storyAt(box.top, box.height, window.innerHeight)
     }
     const step = (now: number) => {
       frame = 0
@@ -321,10 +326,16 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     toEnd.current = () => {
       if (shown >= BEATS.cta[1]) return
       const box = el.story.getBoundingClientRect()
-      window.scrollTo({ top: window.scrollY + box.top + box.height - (1 + HOLD) * window.innerHeight, behavior: "smooth" })
+      window.scrollTo({ top: window.scrollY + box.top + box.height - window.innerHeight, behavior: "smooth" })
     }
 
     measure()
+    // /about#contact (the footer's Contact, and the old /contact) lands on the story's end at once,
+    // where the address is, rather than flying through the whole story to get there.
+    if (window.location.hash === "#contact") {
+      const box = el.story.getBoundingClientRect()
+      window.scrollTo({ top: window.scrollY + box.top + box.height - window.innerHeight, behavior: "instant" })
+    }
     snap()
     // The way in is kept on screen by its height, which changes when its text reflows: once its
     // fonts arrive after it was first measured, as well as with its width.
@@ -351,9 +362,11 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   useEffect(() => redraw.current(), [folder])
 
   return (
-    <div ref={story} className="story story-moving" style={{ height: `calc(${STORY_LENGTH}vh + ${100 + HOLD * 100}svh)` }}>
+    <div ref={story} className="story" style={{ height: `calc(${STORY_LENGTH}vh + 100svh)` }}>
       <div className="story-hero">{hero}</div>
       <Promises />
+      {/* Where /about#contact lands: the story's last screen, where the way in shows the address. */}
+      <div id="contact" aria-hidden="true" className="story-end" />
       <div className="story-stage">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img ref={sky} src={SKY.wide.src} alt="" className="story-scene" />
@@ -423,7 +436,7 @@ function StillStory({ hero }: { hero: React.ReactNode }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/about/editor.webp" alt="" loading="lazy" />
         </figure>
-        <WayIn />
+        <WayIn contactId="contact" />
         <div aria-hidden="true" className="story-grass">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/about/grass.webp" alt="" loading="lazy" />

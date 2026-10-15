@@ -120,3 +120,33 @@ test("Start writing stays on screen when the box's words reflow taller", async (
   await page.getByRole("heading", { name: "Your resume, on your own computer." }).evaluate((heading) => (heading.style.fontSize = "96px"))
   await expect.poll(async () => (await start.boundingBox())!.y + (await start.boundingBox())!.height).toBeLessThanOrEqual(620)
 })
+
+// The footer's Contact and the old /contact land here: the story's last screen, where the way in has
+// the address to write to.
+test("Contact lands on the story's last screen, with the address and Start writing", async ({ page }) => {
+  await page.goto("/about#contact")
+  await page.getByRole("link", { name: "Start writing" }).click({ trial: true })
+  await expect(page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toBeInViewport()
+})
+
+// The page ends with the story, then the footer. A pane of sections used to slide up over its last
+// screen, covering Start writing as the page scrolled on, where a short window has it low.
+test("nothing covers Start writing as the page scrolls on past the story", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 620 })
+  await page.goto("/about")
+  await page.mouse.move(400, 400)
+  await playStoryTo(page, 960)
+  await page.mouse.wheel(0, 150)
+  await expect.poll(() => page.evaluate(() => window.scrollY >= 9.6 * window.innerHeight + 130)).toBe(true)
+  // What's under the middle of the button is the button: asked of the browser where the page is,
+  // as a click there would land, without scrolling to find a spot that's clear.
+  const start = page.getByRole("link", { name: "Start writing" })
+  await expect
+    .poll(() =>
+      start.evaluate((link) => {
+        const box = link.getBoundingClientRect()
+        return link.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2))
+      }),
+    )
+    .toBe(true)
+})
