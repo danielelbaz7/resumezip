@@ -257,3 +257,19 @@ test("each marker stroke on our resume is drawn in through a mask the size of th
     expect(mask.share).toBeLessThan(0.1)
   }
 })
+
+// Safari draws the folder's shadow, a blur, again on every frame the folder moves unless the
+// picture has a layer of its own; the folder rose and floated away at half speed.
+test("the folder's shadowed picture has a layer of its own", async ({ page }) => {
+  await page.goto("/about")
+  const back = await folderHeadline(page).evaluate((words) => {
+    const picture = words.parentElement!.querySelector("img")!
+    return {
+      src: new URL(picture.src).pathname,
+      willChange: getComputedStyle(picture).willChange,
+      shadow: getComputedStyle(picture).filter,
+    }
+  })
+  expect(back).toMatchObject({ src: "/about/manila-folder.webp", willChange: "transform" })
+  expect(back.shadow).toContain("drop-shadow")
+})

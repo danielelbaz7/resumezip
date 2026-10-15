@@ -145,8 +145,11 @@
   .story-page img {
     width: 100%;
   }
+  /* Its shadow is on a layer of its own: Safari otherwise draws the shadow's blur again on every
+     frame the folder moves, and the folder rose and floated away at half speed. */
   .story-folder-back {
     filter: drop-shadow(0 28px 36px rgb(30 40 90 / 0.3));
+    will-change: transform;
   }
   /* The front flap's shadow on the page, just above its edge. */
   .story-flap-shade {
