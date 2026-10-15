@@ -202,3 +202,104 @@ for (const [screen, size] of [
     await expect.poll(apart).toEqual([0, 0, 0])
   })
 }
+
+// The story asks every mark to draw itself each frame. Drawing a mark repaints our page and its
+// folder, which made the scroll stutter while they were on screen, so a mark that isn't moving on,
+// finished or not yet started, is left as it is.
+test("scrolling on past our marked resume doesn't draw its finished marks again", async ({ page }) => {
+  await page.goto("/about")
+  await page.mouse.move(400, 400)
+  await playStoryTo(page, 500)
+  const redrawn = await folderHeadline(page).evaluateHandle((words) => {
+    const count = { marks: 0 }
+    const ink = words.parentElement!.querySelector("svg")!
+    new MutationObserver((changes) => (count.marks += changes.length)).observe(ink, { attributes: true, subtree: true })
+    return count
+  })
+  const from = await page.evaluate(() => window.scrollY)
+  await page.mouse.wheel(0, 300)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(from + 250)
+  // Proving nothing happens: a moment for the story to catch up with the scroll.
+  await page.waitForTimeout(500)
+  expect(await redrawn.evaluate((count) => count.marks)).toBe(0)
+})
+
+// Each stroke of the marker is drawn in through a mask. A mask is drawn whole each time its stroke
+// moves on, and they were each the size of the whole frame: the scroll stuttered in Chrome while
+// the page was being marked. They're the size of their own stroke now.
+test("each marker stroke on our resume is drawn in through a mask the size of that stroke", async ({ page }) => {
+  await page.goto("/about")
+  const masks = await folderHeadline(page).evaluate((words) => {
+    const ink = words.parentElement!.querySelector("svg")!
+    const frame = ink.getBoundingClientRect()
+    return [...ink.querySelectorAll<SVGPathElement>("path[mask]")].map((mark) => {
+      const mask = ink.querySelector<SVGMaskElement>(mark.getAttribute("mask")!.slice(4, -1))!
+      const box = mark.getBBox()
+      // The mask's region, in the frame's own units. Measured on the stroke, a percentage is of its box.
+      const onStroke = mask.maskUnits.baseVal === SVGUnitTypes.SVG_UNIT_TYPE_OBJECTBOUNDINGBOX
+      const [width, height] = [mask.width.baseVal, mask.height.baseVal].map((length) =>
+        !onStroke
+          ? length.value
+          : length.unitType === SVGLength.SVG_LENGTHTYPE_PERCENTAGE
+            ? length.valueInSpecifiedUnits / 100
+            : length.value,
+      )
+      const region = onStroke ? { width: width * box.width, height: height * box.height } : { width, height }
+      return {
+        share: (region.width * region.height) / (frame.width * frame.height),
+        covers: region.width >= box.width && region.height >= box.height,
+      }
+    })
+  })
+  expect(masks.length).toBeGreaterThan(0)
+  for (const mask of masks) {
+    expect(mask.covers).toBe(true)
+    expect(mask.share).toBeLessThan(0.1)
+  }
+})
+
+// Safari draws the folder's shadow, a blur, again on every frame the folder moves unless the
+// picture has a layer of its own; the folder rose and floated away at half speed.
+test("the folder's shadowed picture has a layer of its own", async ({ page }) => {
+  await page.goto("/about")
+  const back = await folderHeadline(page).evaluate((words) => {
+    const picture = words.parentElement!.querySelector("img")!
+    return {
+      src: new URL(picture.src).pathname,
+      willChange: getComputedStyle(picture).willChange,
+      shadow: getComputedStyle(picture).filter,
+    }
+  })
+  expect(back).toMatchObject({ src: "/about/manila-folder.webp", willChange: "transform" })
+  expect(back.shadow).toContain("drop-shadow")
+})
+
+// Safari decoded each picture the first time it was drawn, and the scroll stalled for that frame,
+// as when the clouds rose in. They're decoded while the first screen is up.
+test("the story's pictures are decoded before the story reaches them", async ({ page }) => {
+  await page.addInitScript(() => {
+    const decoded = new Set<string>()
+    Object.assign(window, { decoded })
+    const decode = HTMLImageElement.prototype.decode
+    HTMLImageElement.prototype.decode = function () {
+      decoded.add(new URL(this.src, location.href).pathname)
+      return decode.call(this)
+    }
+  })
+  await page.goto("/about")
+  await expect(folderHeadline(page)).toBeAttached()
+  await expect
+    .poll(() => page.evaluate(() => [...(window as unknown as { decoded: Set<string> }).decoded].sort()))
+    .toEqual(
+      expect.arrayContaining([
+        "/about/cloud-bank.webp",
+        "/about/cloud-puff.webp",
+        "/about/cloud-tower.webp",
+        "/about/editor.webp",
+        "/about/grass.webp",
+        "/about/manila-folder.webp",
+        "/about/meadow.webp",
+        "/about/own-resume.webp",
+      ]),
+    )
+})

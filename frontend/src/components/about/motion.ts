@@ -67,8 +67,11 @@ export function storyAt(top: number, height: number, screen: number): number {
  * The next frame's position, eased toward where the scroll is, so a mouse
  * wheel's steps glide rather than jump. `dt` is the time since the last frame,
  * in milliseconds; it's close enough to call it there once it's under 0.05.
+ * The easing is short: the first screen's words move with the scroll itself,
+ * and pictures that trail them (at 70ms, by a tenth of a screen at an easy
+ * pace) feel slow to answer.
  */
 export function glide(shown: number, target: number, dt: number): number {
-  const next = shown + (target - shown) * (1 - Math.exp(-dt / 70))
+  const next = shown + (target - shown) * (1 - Math.exp(-dt / 30))
   return Math.abs(target - next) < 0.05 ? target : next
 }

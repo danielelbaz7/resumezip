@@ -1,6 +1,6 @@
 "use client"
 
-import { type Ref, useId, useImperativeHandle, useRef } from "react"
+import { type Ref, useEffect, useId, useImperativeHandle, useRef } from "react"
 import { clamp } from "./motion"
 import { FLAP_SHARE, type FolderLayout, strokeTimes } from "./folder"
 
@@ -30,11 +30,21 @@ export default function StoryFile({ layout, phone, drawn = false, ref }: StoryFi
   const id = useId().replace(/[^a-z0-9]/gi, "")
   const masks = useRef<(SVGPathElement | null)[][]>([])
   const notes = useRef<(HTMLParagraphElement | null)[]>([])
+  // How far each mark is drawn. A new layout has new strokes, not drawn yet; the story redraws
+  // after it (AboutStory.tsx), so this is cleared first.
+  const drawnTo = useRef<number[]>([])
+  useEffect(() => {
+    drawnTo.current = []
+  }, [layout])
 
   useImperativeHandle(
     ref,
     () => ({
       draw(i, t) {
+        // The story asks every frame. Drawing a mask again repaints the folder, so a mark that
+        // hasn't moved on is left as it is.
+        if (drawnTo.current[i] === t) return
+        drawnTo.current[i] = t
         // The pen over the first three quarters, the note writing in from the left over the last half.
         const pen = clamp(t / 0.75)
         const strokes = masks.current[i] ?? []
@@ -67,15 +77,7 @@ export default function StoryFile({ layout, phone, drawn = false, ref }: StoryFi
         <defs>
           {layout.strokes.map((strokes, i) =>
             strokes.map((stroke, j) => (
-              <mask
-                key={`${i}-${j}`}
-                id={`${id}-${i}-${j}`}
-                maskUnits="userSpaceOnUse"
-                x={-40}
-                y={-40}
-                width={layout.width + 80}
-                height={layout.height + 80}
-              >
+              <mask key={`${i}-${j}`} id={`${id}-${i}-${j}`}>
                 <path
                   ref={(path) => {
                     masks.current[i] ??= []
