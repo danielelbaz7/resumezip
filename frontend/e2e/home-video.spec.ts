@@ -3,8 +3,8 @@ import { pageErrors } from "./helpers"
 
 // The home page's background video (components/home/HeroVideo.tsx). Chromium
 // here can't play H.264, so the test that needs it playing is given a VP9
-// stand-in, the clip's first 2 seconds at 64×36:
-//   ffmpeg -i printer.mp4 -t 2 -an -vf scale=64:36 -r 12 -c:v libvpx-vp9 -b:v 0 -crf 50 e2e/files/printer-vp9.mp4
+// stand-in, 2 seconds of an earlier clip at 64×36:
+//   ffmpeg -i clip.mp4 -t 2 -an -vf scale=64:36 -r 12 -c:v libvpx-vp9 -b:v 0 -crf 50 e2e/files/clip-vp9.mp4
 
 const CLIP = /\/video\/[\w-]+\.mp4$/
 
@@ -19,7 +19,7 @@ function clipsRequested(page: Page): string[] {
 
 // Decorative, so neither has a role or a name.
 const video = (page: Page) => page.locator("video")
-const poster = (page: Page) => page.locator("img[src*='printer-poster']")
+const poster = (page: Page) => page.locator("img[src*='interview-poster']")
 
 const opacity = (page: Page) => video(page).evaluate((element) => getComputedStyle(element).opacity)
 const paused = (page: Page) => video(page).evaluate((element: HTMLVideoElement) => element.paused)
@@ -29,7 +29,7 @@ test("the video downloads once the rest of the page has loaded", async ({ page }
   // The poster holds up the page's load event while it's held back.
   let releasePoster = () => {}
   const posterHeld = new Promise<void>((resolve) => (releasePoster = resolve))
-  await page.route(/printer-poster/, async (route) => {
+  await page.route(/interview-poster/, async (route) => {
     await posterHeld
     await route.continue()
   })
@@ -39,7 +39,7 @@ test("the video downloads once the rest of the page has loaded", async ({ page }
   expect(clips).toEqual([])
 
   releasePoster()
-  await expect.poll(() => clips[0]).toBe("printer.mp4")
+  await expect.poll(() => clips[0]).toBe("interview.mp4")
 })
 
 test("the poster shows while the video loads", async ({ page }) => {
@@ -51,33 +51,31 @@ test("the poster shows while the video loads", async ({ page }) => {
   expect(await opacity(page)).toBe("0")
 })
 
-test("the video fades in over the poster, dips to it around the loop, and stops while scrolled away", async ({ page, browserName }) => {
+test("the video fades in over the poster, plays once, stays on its last frame, and stops while scrolled away", async ({
+  page,
+  browserName,
+}) => {
   test.skip(browserName !== "chromium", "The stand-in clip is VP9, which Chromium plays")
   const errors = pageErrors(page)
-  await page.route(CLIP, (route) => route.fulfill({ path: "e2e/files/printer-vp9.mp4" }))
+  await page.route(CLIP, (route) => route.fulfill({ path: "e2e/files/clip-vp9.mp4" }))
   await page.goto("/")
-  // Looked at often: the stand-in is only shown for about a second of each loop.
-  const often = { intervals: [50] }
-  await expect.poll(() => opacity(page), often).toBe("1")
-  await expect.poll(() => opacity(page), often).toBe("0")
-  await expect.poll(() => opacity(page), often).toBe("1")
+  await expect.poll(() => opacity(page)).toBe("1")
+  // Slowed down, so the 2-second stand-in is still playing while the page scrolls.
+  await video(page).evaluate((element: HTMLVideoElement) => (element.playbackRate = 0.25))
 
   await page.getByRole("contentinfo").scrollIntoViewIfNeeded()
   await expect.poll(() => paused(page)).toBe(true)
   await page.getByRole("heading", { level: 1 }).scrollIntoViewIfNeeded()
   await expect.poll(() => paused(page)).toBe(false)
+
+  await expect.poll(() => video(page).evaluate((element: HTMLVideoElement) => element.ended), { timeout: 15_000 }).toBe(true)
+  // Scrolled away and back, it stays on the last frame instead of playing again.
+  await page.getByRole("contentinfo").scrollIntoViewIfNeeded()
+  await page.getByRole("heading", { level: 1 }).scrollIntoViewIfNeeded()
+  await page.waitForTimeout(500)
+  expect(await paused(page)).toBe(true)
+  expect(await opacity(page)).toBe("1")
   expect(errors).toEqual([])
-})
-
-test.describe("on a phone", () => {
-  test.use({ viewport: { width: 390, height: 844 } })
-
-  test("the video is the copy cut to the part a phone shows", async ({ page }) => {
-    const clips = clipsRequested(page)
-    await page.goto("/")
-    await expect.poll(() => clips[0]).toBe("printer-portrait.mp4")
-    expect(clips).not.toContain("printer.mp4")
-  })
 })
 
 test.describe("with less motion", () => {
