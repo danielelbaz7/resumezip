@@ -51,4 +51,12 @@ describe("where the story is", () => {
     expect(next).toBeLessThan(100)
     expect(glide(99.99, 100, 16)).toBe(100)
   })
+
+  // The first screen's words move with the scroll; the pictures used to take a fifth of a second
+  // to catch up, and the story felt slow to answer.
+  it("catches up with the scroll within a tenth of a second", () => {
+    let shown = 0
+    for (let frame = 0; frame < 6; frame++) shown = glide(shown, 100, 1000 / 60)
+    expect(shown).toBeGreaterThan(95)
+  })
 })
