@@ -4,25 +4,15 @@ import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { savingData } from "@/lib/typst/compile"
 
-// How long to show the poster, the clip's first frame, at each end of the
-// clip. It doesn't loop seamlessly, so the video fades out to the poster and
-// back in around the loop point instead of jumping.
-const FADE_OUT_BEFORE_END = 0.45
-const FADE_IN_AFTER_START = 0.12
-// timeupdate comes up to 250 ms apart, so the fade out starts up to that much
-// early, to be over before the loop.
-const TIMEUPDATE_GAP = 0.25
-
 /**
- * The home page's background clip: muted, looping, decorative. The poster
+ * The home page's background clip: muted, played once, decorative. The poster
  * shows until the video plays, and instead of it for visitors who prefer
  * less motion or are saving data.
  *
- * The clips are H.264 without sound, with the index at the start so playing
- * can begin before the whole file is in. From the original:
- *   ffmpeg -i original.mp4 -an -c:v libx264 -preset veryslow -crf 25 -x264-params aq-mode=3 \
- *     -profile:v high -level 3.1 -pix_fmt yuv420p -movflags +faststart -map_metadata -1 printer.mp4
- * and the same with `-vf crop=540:720` for printer-portrait.mp4.
+ * The clip is H.264 without sound, with the index at the start so playing
+ * can begin before the whole file is in. From a compressed export:
+ *   ffmpeg -i export.mp4 -map 0:v -c copy -movflags +faststart -map_metadata -1 interview.mp4
+ * The poster is its first frame.
  */
 export default function HeroVideo() {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -43,43 +33,33 @@ export default function HeroVideo() {
     if (!sources || !video) return
     // React doesn't reliably set the muted attribute, which autoplay requires.
     video.muted = true
-    const fade = () => {
-      const t = video.currentTime
-      setVisible(t > FADE_IN_AFTER_START && t < video.duration - FADE_OUT_BEFORE_END - TIMEUPDATE_GAP)
-    }
-    // Plays only while on screen. If autoplay is blocked, the poster stays.
+    // The poster is the clip's first frame, so the video can show as soon as it plays.
+    const show = () => setVisible(true)
+    // Plays once, only while on screen, and stays on its last frame. If autoplay is blocked, the poster stays.
     const observer = new IntersectionObserver((entries) => {
+      if (video.ended) return
       if (entries[entries.length - 1].isIntersecting) video.play().catch(() => {})
       else video.pause()
     })
-    video.addEventListener("timeupdate", fade)
+    video.addEventListener("playing", show)
     observer.observe(video)
     return () => {
       observer.disconnect()
-      video.removeEventListener("timeupdate", fade)
+      video.removeEventListener("playing", show)
     }
   }, [sources])
 
   return (
     <div aria-hidden="true" className="absolute inset-0">
-      <Image src="/video/printer-poster.jpg" alt="" fill priority sizes="100vw" className="object-cover" />
+      <Image src="/video/interview-poster.jpg" alt="" fill priority sizes="100vw" className="object-cover" />
       <video
         ref={videoRef}
         muted
-        loop
         playsInline
         preload="none"
         className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
       >
-        {sources && (
-          <>
-            {/* The hero is at least as tall as the screen, so a screen no wider than 3:4 only shows the middle 3:4 of the
-                clip, at its full height: printer-portrait.mp4 is just that. Browsers that ignore media on a source (Chrome
-                and Firefox before 120) take the first one. */}
-            <source src="/video/printer.mp4" type="video/mp4" media="(min-aspect-ratio: 3/4)" />
-            <source src="/video/printer-portrait.mp4" type="video/mp4" />
-          </>
-        )}
+        {sources && <source src="/video/interview.mp4" type="video/mp4" />}
       </video>
     </div>
   )
