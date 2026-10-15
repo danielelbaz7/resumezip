@@ -127,6 +127,12 @@ test("Start writing stays on screen when the box's words reflow taller", async (
 // the address to write to.
 test("Contact lands on the story's last screen, with the address and Start writing", async ({ page }) => {
   await page.goto("/about#contact")
+  // The story is all the main part holds, so on its last screen their foot is the window's. Checked
+  // before the click, which would scroll to Start writing itself if it had to; the box is on the
+  // story's stage, in view, wherever the story is.
+  await expect
+    .poll(() => page.getByRole("main").evaluate((main) => Math.abs(main.getBoundingClientRect().bottom - window.innerHeight)))
+    .toBeLessThan(1.5)
   await page.getByRole("link", { name: "Start writing" }).click({ trial: true })
   await expect(page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toBeInViewport()
 })
