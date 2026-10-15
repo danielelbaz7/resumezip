@@ -80,9 +80,11 @@ jobs:
         include:
           - { browser: chromium, shard: 1, shards: 2 }
           - { browser: chromium, shard: 2, shards: 2 }
-          - { browser: webkit, shard: 1, shards: 3 }
-          - { browser: webkit, shard: 2, shards: 3 }
-          - { browser: webkit, shard: 3, shards: 3 }
+          - { browser: webkit, shard: 1, shards: 5 }
+          - { browser: webkit, shard: 2, shards: 5 }
+          - { browser: webkit, shard: 3, shards: 5 }
+          - { browser: webkit, shard: 4, shards: 5 }
+          - { browser: webkit, shard: 5, shards: 5 }
     env:
       BROWSER: ${{ matrix.browser }}
       SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
