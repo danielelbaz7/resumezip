@@ -58,10 +58,16 @@ test("the video fades in over the poster, plays once, stays on its last frame, a
   test.skip(browserName !== "chromium", "The stand-in clip is VP9, which Chromium plays")
   const errors = pageErrors(page)
   await page.route(CLIP, (route) => route.fulfill({ path: "e2e/files/clip-vp9.mp4" }))
+  // Slowed down before it starts, so the 2-second stand-in is still playing while the page scrolls.
+  await page.addInitScript(() => {
+    const play = HTMLMediaElement.prototype.play
+    HTMLMediaElement.prototype.play = function () {
+      this.playbackRate = 0.25
+      return play.call(this)
+    }
+  })
   await page.goto("/")
   await expect.poll(() => opacity(page)).toBe("1")
-  // Slowed down, so the 2-second stand-in is still playing while the page scrolls.
-  await video(page).evaluate((element: HTMLVideoElement) => (element.playbackRate = 0.25))
 
   await page.getByRole("contentinfo").scrollIntoViewIfNeeded()
   await expect.poll(() => paused(page)).toBe(true)
