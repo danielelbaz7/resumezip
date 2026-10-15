@@ -18,7 +18,7 @@ export default function SiteFooter({ ground = false }: { ground?: boolean }) {
   return (
     <>
       {ground ? (
-        <div aria-hidden="true" data-tone="light" className="footer-ground relative h-40 md:h-56" />
+        <div aria-hidden="true" data-tone="light" className="footer-ground relative" />
       ) : (
         <div aria-hidden="true" data-tone="light" className="desk relative h-40 md:h-56">
           <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent,rgb(200_190_220/0.45)_40%,#2b2c31)]" />

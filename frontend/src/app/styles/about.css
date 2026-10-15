@@ -284,9 +284,12 @@
       --grass-width: 760px;
     }
   }
-  /* It darkens fast, so the picture's foot, where its blades give way to flat colour, is in shade. */
+  /* It darkens fast, so the picture's foot, where its blades give way to flat colour, is in shade,
+     and ends a little after: as tall as the sky's strip on other pages, it was mostly flat charcoal,
+     an empty band over the footer. */
   .footer-ground {
     --grass-foot: calc(var(--grass-width) * 0.085 * 941 / 1672);
+    height: calc(var(--grass-foot) + 40px);
     background:
       linear-gradient(
         180deg,
