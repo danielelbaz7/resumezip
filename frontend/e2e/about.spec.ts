@@ -366,9 +366,9 @@ test("the strip over the About page's footer ends a little after its grass", asy
     const pastGrass = await page.getByRole("contentinfo").evaluate((footer) => {
       const strip = footer.previousElementSibling!
       const style = getComputedStyle(strip)
-      // The grass picture is its second layer, under the shading: its top, and its height from its width.
-      const [, top] = style.backgroundPosition.split(",")[1].trim().split(" ").map(parseFloat)
-      const width = parseFloat(style.backgroundSize.split(",")[1])
+      // The grass picture's top, and its height from its width.
+      const [, top] = style.backgroundPosition.split(",")[0].trim().split(" ").map(parseFloat)
+      const width = parseFloat(style.backgroundSize.split(",")[0])
       return strip.getBoundingClientRect().height - (top + (width * 941) / 1672)
     })
     expect(pastGrass).toBeGreaterThan(0)

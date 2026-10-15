@@ -269,7 +269,7 @@
   }
 
   /* The footer after the story (SiteFooter's `ground`): the story's grass carries on past its last
-     screen, then darkens into the footer's charcoal. It's the same picture, as wide and as far left
+     screen, and the page lifts off the footer from it. It's the same picture, as wide and as far left
      as on the stage (AboutStory.tsx: the window's width, or 760px on a phone), and starts where the
      stage cuts it off, its foot sunk 8.5% of its height below the screen (GRASS_SINK), so the two
      meet without a seam. Under its foot, the colour of its last row. The still story's meadow lays
@@ -284,22 +284,12 @@
       --grass-width: 760px;
     }
   }
-  /* It darkens fast, so the picture's foot, where its blades give way to flat colour, is in shade,
-     and ends a little after: as tall as the sky's strip on other pages, it was mostly flat charcoal,
-     an empty band over the footer. */
+  /* It ends a little after the picture's foot, where its blades give way to flat colour: the page's
+     rounded corners, as it lifts off the footer, are cut from the grass. */
   .footer-ground {
     --grass-foot: calc(var(--grass-width) * 0.085 * 941 / 1672);
-    height: calc(var(--grass-foot) + 40px);
+    height: calc(var(--grass-foot) + 8px);
     background:
-      linear-gradient(
-        180deg,
-        rgb(43 44 49 / 0) 0,
-        rgb(43 44 49 / 0.3) calc(var(--grass-foot) * 0.35),
-        rgb(43 44 49 / 0.68) calc(var(--grass-foot) * 0.7),
-        rgb(43 44 49 / 0.92) var(--grass-foot),
-        rgb(43 44 49 / 0.98) calc(var(--grass-foot) + 32px),
-        #2b2c31
-      ),
       url("/about/grass.webp") calc((100vw - var(--grass-width)) / 2) calc(var(--grass-width) * -0.915 * 941 / 1672) / var(--grass-width)
         auto no-repeat,
       #3c6f07;
