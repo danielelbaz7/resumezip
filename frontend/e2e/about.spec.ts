@@ -203,6 +203,27 @@ for (const [screen, size] of [
   })
 }
 
+// The story asks every mark to draw itself each frame. Drawing a mark repaints our page and its
+// folder, which made the scroll stutter while they were on screen, so a mark that isn't moving on,
+// finished or not yet started, is left as it is.
+test("scrolling on past our marked resume doesn't draw its finished marks again", async ({ page }) => {
+  await page.goto("/about")
+  await page.mouse.move(400, 400)
+  await playStoryTo(page, 500)
+  const redrawn = await folderHeadline(page).evaluateHandle((words) => {
+    const count = { marks: 0 }
+    const ink = words.parentElement!.querySelector("svg")!
+    new MutationObserver((changes) => (count.marks += changes.length)).observe(ink, { attributes: true, subtree: true })
+    return count
+  })
+  const from = await page.evaluate(() => window.scrollY)
+  await page.mouse.wheel(0, 300)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(from + 250)
+  // Proving nothing happens: a moment for the story to catch up with the scroll.
+  await page.waitForTimeout(500)
+  expect(await redrawn.evaluate((count) => count.marks)).toBe(0)
+})
+
 // Each stroke of the marker is drawn in through a mask. A mask is drawn whole each time its stroke
 // moves on, and they were each the size of the whole frame: the scroll stuttered in Chrome while
 // the page was being marked. They're the size of their own stroke now.
