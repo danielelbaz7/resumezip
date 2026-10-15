@@ -213,11 +213,13 @@
     height: 100%;
     max-width: none;
   }
+  /* It sways about the line where the stage cuts it off (GRASS_SINK above its foot), so that line
+     stays still and meets the footer's grass after the story. */
   .story-grass img {
     display: block;
     width: 100%;
     max-width: none;
-    transform-origin: 50% 100%;
+    transform-origin: 50% 91.5%;
     animation: story-sway 7s ease-in-out infinite alternate;
   }
 
@@ -256,12 +258,38 @@
     }
   }
 
-  /* The footer after the story's meadow (SiteFooter's `ground`): the grass carries on below the
-     story's last screen, fading into the footer's charcoal. */
+  /* The footer after the story (SiteFooter's `ground`): the story's grass carries on past its last
+     screen, then darkens into the footer's charcoal. It's the same picture, as wide and as far left
+     as on the stage (AboutStory.tsx: the window's width, or 760px on a phone), and starts where the
+     stage cuts it off, its foot sunk 8.5% of its height below the screen (GRASS_SINK), so the two
+     meet without a seam. Under its foot, the colour of its last row. The still story's meadow lays
+     its grass out the same way. */
+  .footer-ground,
+  .story-still-meadow {
+    --grass-width: 100vw;
+  }
+  @media (width < 43.75rem) {
+    .footer-ground,
+    .story-still-meadow {
+      --grass-width: 760px;
+    }
+  }
+  /* It darkens fast, so the picture's foot, where its blades give way to flat colour, is in shade. */
   .footer-ground {
+    --grass-foot: calc(var(--grass-width) * 0.085 * 941 / 1672);
     background:
-      linear-gradient(180deg, rgb(43 44 49 / 0.15), #2b2c31 92%),
-      #63920f url("/about/grass.webp") center bottom / cover no-repeat;
+      linear-gradient(
+        180deg,
+        rgb(43 44 49 / 0) 0,
+        rgb(43 44 49 / 0.3) calc(var(--grass-foot) * 0.35),
+        rgb(43 44 49 / 0.68) calc(var(--grass-foot) * 0.7),
+        rgb(43 44 49 / 0.92) var(--grass-foot),
+        rgb(43 44 49 / 0.98) calc(var(--grass-foot) + 32px),
+        #2b2c31
+      ),
+      url("/about/grass.webp") calc((100vw - var(--grass-width)) / 2) calc(var(--grass-width) * -0.915 * 941 / 1672) / var(--grass-width)
+        auto no-repeat,
+      #3c6f07;
   }
 
   /* With less motion: the story as still sections, on the sky and then the meadow. */
@@ -304,9 +332,9 @@
   }
   .story-still-meadow .story-grass {
     position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: calc((100vw - var(--grass-width)) / 2);
+    bottom: calc(var(--grass-width) * -0.085 * 941 / 1672);
+    width: var(--grass-width);
     z-index: -1;
   }
   .story-still-meadow .story-grass img {
@@ -329,6 +357,6 @@
     transform: skewX(-0.7deg);
   }
   to {
-    transform: skewX(0.9deg) translateX(-3px);
+    transform: skewX(0.9deg);
   }
 }

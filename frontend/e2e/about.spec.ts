@@ -150,3 +150,47 @@ test("nothing covers Start writing as the page scrolls on past the story", async
     )
     .toBe(true)
 })
+
+// The story ends on grass, and the strip over the footer carries that grass on, then darkens. It
+// used to draw the picture again at another size and place, with a line where the two met.
+for (const [screen, size] of [
+  ["a wide screen", { width: 1440, height: 900 }],
+  ["a phone", PHONE],
+] as const) {
+  test(`the story's grass runs on into the footer without a line, on ${screen}`, async ({ page }) => {
+    await page.setViewportSize(size)
+    await page.goto("/about")
+    await page.mouse.move(size.width / 2, 300)
+    await playStoryTo(page, 960)
+    await page.mouse.wheel(0, 150)
+    // How far the footer's picture of the grass is from the stage's, in pixels: across, down, and in width.
+    const apart = () =>
+      page.getByRole("contentinfo").evaluate((footer) => {
+        const layers = (list: string) => {
+          const out = [""]
+          let depth = 0
+          for (const c of list) {
+            if (c === "(") depth++
+            if (c === ")") depth--
+            if (c === "," && depth === 0) out.push("")
+            else out[out.length - 1] += c
+          }
+          return out.map((layer) => layer.trim())
+        }
+        const strip = footer.previousElementSibling!
+        const style = getComputedStyle(strip)
+        const at = layers(style.backgroundImage).findIndex((image) => image.includes("/about/grass.webp"))
+        const box = strip.getBoundingClientRect()
+        const drawn = {
+          left: box.left + parseFloat(layers(style.backgroundPositionX)[at]),
+          top: box.top + parseFloat(layers(style.backgroundPositionY)[at]),
+          width: parseFloat(layers(style.backgroundSize)[at]),
+        }
+        // The stage's grass sways by skewing its picture, so it's measured by the box it stands in.
+        const picture = [...document.images].find((image) => new URL(image.src).pathname === "/about/grass.webp")!
+        const grass = picture.parentElement!.getBoundingClientRect()
+        return [drawn.left - grass.left, drawn.top - grass.top, drawn.width - grass.width].map((gap) => Math.round(Math.abs(gap)))
+      })
+    await expect.poll(apart).toEqual([0, 0, 0])
+  })
+}
