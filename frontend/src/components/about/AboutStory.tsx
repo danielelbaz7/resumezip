@@ -361,6 +361,13 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   // A new folder layout has new strokes: draw them to where the story is.
   useEffect(() => redraw.current(), [folder])
 
+  // The pictures are decoded while the first screen is up: Safari otherwise decodes each one when
+  // it's first drawn, and the scroll stalls for that frame, as when the clouds rise in. The folder's
+  // come with its layout.
+  useEffect(() => {
+    for (const image of story.current?.querySelectorAll("img") ?? []) image.decode().catch(() => {})
+  }, [folder])
+
   return (
     <div ref={story} className="story" style={{ height: `calc(${STORY_LENGTH}vh + 100svh)` }}>
       <div className="story-hero">{hero}</div>

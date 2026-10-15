@@ -273,3 +273,33 @@ test("the folder's shadowed picture has a layer of its own", async ({ page }) =>
   expect(back).toMatchObject({ src: "/about/manila-folder.webp", willChange: "transform" })
   expect(back.shadow).toContain("drop-shadow")
 })
+
+// Safari decoded each picture the first time it was drawn, and the scroll stalled for that frame,
+// as when the clouds rose in. They're decoded while the first screen is up.
+test("the story's pictures are decoded before the story reaches them", async ({ page }) => {
+  await page.addInitScript(() => {
+    const decoded = new Set<string>()
+    Object.assign(window, { decoded })
+    const decode = HTMLImageElement.prototype.decode
+    HTMLImageElement.prototype.decode = function () {
+      decoded.add(new URL(this.src, location.href).pathname)
+      return decode.call(this)
+    }
+  })
+  await page.goto("/about")
+  await expect(folderHeadline(page)).toBeAttached()
+  await expect
+    .poll(() => page.evaluate(() => [...(window as unknown as { decoded: Set<string> }).decoded].sort()))
+    .toEqual(
+      expect.arrayContaining([
+        "/about/cloud-bank.webp",
+        "/about/cloud-puff.webp",
+        "/about/cloud-tower.webp",
+        "/about/editor.webp",
+        "/about/grass.webp",
+        "/about/manila-folder.webp",
+        "/about/meadow.webp",
+        "/about/own-resume.webp",
+      ]),
+    )
+})
