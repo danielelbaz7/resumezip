@@ -100,6 +100,8 @@ test("with less motion, the story is told in still pictures, every promise alrea
   await expect(page.getByText("every template, free")).toBeVisible()
   await expect(page.getByText("MIT, all on GitHub")).toBeVisible()
   await expect(page.getByRole("link", { name: "Start writing" })).toBeVisible()
+  // Its box was only rounded on the moving story's stage, and had square corners here.
+  await expect(page.getByRole("region", { name: "Your resume, on your own computer." })).toHaveCSS("border-radius", "28px")
   expect(await seriousAccessibilityProblems(page)).toEqual([])
   expect(errors).toEqual([])
   await context.close()
@@ -120,3 +122,83 @@ test("Start writing stays on screen when the box's words reflow taller", async (
   await page.getByRole("heading", { name: "Your resume, on your own computer." }).evaluate((heading) => (heading.style.fontSize = "96px"))
   await expect.poll(async () => (await start.boundingBox())!.y + (await start.boundingBox())!.height).toBeLessThanOrEqual(620)
 })
+
+// The footer's Contact and the old /contact land here: the story's last screen, where the way in has
+// the address to write to.
+test("Contact lands on the story's last screen, with the address and Start writing", async ({ page }) => {
+  await page.goto("/about#contact")
+  // The story is all the main part holds, so on its last screen their foot is the window's. Checked
+  // before the click, which would scroll to Start writing itself if it had to; the box is on the
+  // story's stage, in view, wherever the story is.
+  await expect
+    .poll(() => page.getByRole("main").evaluate((main) => Math.abs(main.getBoundingClientRect().bottom - window.innerHeight)))
+    .toBeLessThan(1.5)
+  await page.getByRole("link", { name: "Start writing" }).click({ trial: true })
+  await expect(page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toBeInViewport()
+})
+
+// The page ends with the story, then the footer. A pane of sections used to slide up over its last
+// screen, covering Start writing as the page scrolled on, where a short window has it low.
+test("nothing covers Start writing as the page scrolls on past the story", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 620 })
+  await page.goto("/about")
+  await page.mouse.move(400, 400)
+  await playStoryTo(page, 960)
+  await page.mouse.wheel(0, 150)
+  await expect.poll(() => page.evaluate(() => window.scrollY >= 9.6 * window.innerHeight + 130)).toBe(true)
+  // What's under the middle of the button is the button: asked of the browser where the page is,
+  // as a click there would land, without scrolling to find a spot that's clear.
+  const start = page.getByRole("link", { name: "Start writing" })
+  await expect
+    .poll(() =>
+      start.evaluate((link) => {
+        const box = link.getBoundingClientRect()
+        return link.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2))
+      }),
+    )
+    .toBe(true)
+})
+
+// The story ends on grass, and the strip over the footer carries that grass on, then darkens. It
+// used to draw the picture again at another size and place, with a line where the two met.
+for (const [screen, size] of [
+  ["a wide screen", { width: 1440, height: 900 }],
+  ["a phone", PHONE],
+] as const) {
+  test(`the story's grass runs on into the footer without a line, on ${screen}`, async ({ page }) => {
+    await page.setViewportSize(size)
+    await page.goto("/about")
+    await page.mouse.move(size.width / 2, 300)
+    await playStoryTo(page, 960)
+    await page.mouse.wheel(0, 150)
+    // How far the footer's picture of the grass is from the stage's, in pixels: across, down, and in width.
+    const apart = () =>
+      page.getByRole("contentinfo").evaluate((footer) => {
+        const layers = (list: string) => {
+          const out = [""]
+          let depth = 0
+          for (const c of list) {
+            if (c === "(") depth++
+            if (c === ")") depth--
+            if (c === "," && depth === 0) out.push("")
+            else out[out.length - 1] += c
+          }
+          return out.map((layer) => layer.trim())
+        }
+        const strip = footer.previousElementSibling!
+        const style = getComputedStyle(strip)
+        const at = layers(style.backgroundImage).findIndex((image) => image.includes("/about/grass.webp"))
+        const box = strip.getBoundingClientRect()
+        const drawn = {
+          left: box.left + parseFloat(layers(style.backgroundPositionX)[at]),
+          top: box.top + parseFloat(layers(style.backgroundPositionY)[at]),
+          width: parseFloat(layers(style.backgroundSize)[at]),
+        }
+        // The stage's grass sways by skewing its picture, so it's measured by the box it stands in.
+        const picture = [...document.images].find((image) => new URL(image.src).pathname === "/about/grass.webp")!
+        const grass = picture.parentElement!.getBoundingClientRect()
+        return [drawn.left - grass.left, drawn.top - grass.top, drawn.width - grass.width].map((gap) => Math.round(Math.abs(gap)))
+      })
+    await expect.poll(apart).toEqual([0, 0, 0])
+  })
+}
