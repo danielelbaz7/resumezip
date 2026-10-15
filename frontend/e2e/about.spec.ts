@@ -202,3 +202,37 @@ for (const [screen, size] of [
     await expect.poll(apart).toEqual([0, 0, 0])
   })
 }
+
+// Each stroke of the marker is drawn in through a mask. A mask is drawn whole each time its stroke
+// moves on, and they were each the size of the whole frame: the scroll stuttered in Chrome while
+// the page was being marked. They're the size of their own stroke now.
+test("each marker stroke on our resume is drawn in through a mask the size of that stroke", async ({ page }) => {
+  await page.goto("/about")
+  const masks = await folderHeadline(page).evaluate((words) => {
+    const ink = words.parentElement!.querySelector("svg")!
+    const frame = ink.getBoundingClientRect()
+    return [...ink.querySelectorAll<SVGPathElement>("path[mask]")].map((mark) => {
+      const mask = ink.querySelector<SVGMaskElement>(mark.getAttribute("mask")!.slice(4, -1))!
+      const box = mark.getBBox()
+      // The mask's region, in the frame's own units. Measured on the stroke, a percentage is of its box.
+      const onStroke = mask.maskUnits.baseVal === SVGUnitTypes.SVG_UNIT_TYPE_OBJECTBOUNDINGBOX
+      const [width, height] = [mask.width.baseVal, mask.height.baseVal].map((length) =>
+        !onStroke
+          ? length.value
+          : length.unitType === SVGLength.SVG_LENGTHTYPE_PERCENTAGE
+            ? length.valueInSpecifiedUnits / 100
+            : length.value,
+      )
+      const region = onStroke ? { width: width * box.width, height: height * box.height } : { width, height }
+      return {
+        share: (region.width * region.height) / (frame.width * frame.height),
+        covers: region.width >= box.width && region.height >= box.height,
+      }
+    })
+  })
+  expect(masks.length).toBeGreaterThan(0)
+  for (const mask of masks) {
+    expect(mask.covers).toBe(true)
+    expect(mask.share).toBeLessThan(0.1)
+  }
+})

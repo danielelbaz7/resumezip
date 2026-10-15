@@ -67,15 +67,7 @@ export default function StoryFile({ layout, phone, drawn = false, ref }: StoryFi
         <defs>
           {layout.strokes.map((strokes, i) =>
             strokes.map((stroke, j) => (
-              <mask
-                key={`${i}-${j}`}
-                id={`${id}-${i}-${j}`}
-                maskUnits="userSpaceOnUse"
-                x={-40}
-                y={-40}
-                width={layout.width + 80}
-                height={layout.height + 80}
-              >
+              <mask key={`${i}-${j}`} id={`${id}-${i}-${j}`}>
                 <path
                   ref={(path) => {
                     masks.current[i] ??= []
