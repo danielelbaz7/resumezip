@@ -1,6 +1,6 @@
 // Editing a bullets field's text, where each bullet is a line starting with
-// "•", or "○" when it's left out (see lib/leftOut.ts): moving bullets, leaving
-// them out, and what Enter, typing and pasting do. Blank lines stay where they
+// "•", or "○" when it's left out (see lib/leftOut.ts): moving lines, and what
+// Enter, typing and pasting do. Blank lines stay where they
 // are. The bullets box (styledText.ts) does the same with bold and italic words.
 
 import { BULLET_CHARS } from "@/lib/import/lines"
@@ -106,31 +106,12 @@ export function bulletLines(text: string): BulletLine[] {
   })
 }
 
-/** Swaps a bullet with the one above (-1) or below (1), passing over blank lines. Returns the text unchanged at either end. */
-export function moveBullet(text: string, line: number, by: -1 | 1): string {
-  const lines = text.split("\n")
-  let other = line + by
-  while (other >= 0 && other < lines.length && !wordsOf(lines[other])) other += by
-  if (other < 0 || other >= lines.length || !wordsOf(lines[line] ?? "")) return text
-  ;[lines[line], lines[other]] = [lines[other], lines[line]]
-  return lines.join("\n")
-}
-
 /** Swaps a line with the one above (-1) or below (1), blank or not, as Alt+↑ and Alt+↓ do in the text box. */
 export function moveLine(text: string, line: number, by: -1 | 1): string {
   const lines = text.split("\n")
   const other = line + by
   if (line < 0 || line >= lines.length || other < 0 || other >= lines.length) return text
   ;[lines[line], lines[other]] = [lines[other], lines[line]]
-  return lines.join("\n")
-}
-
-/** Leaves a bullet out of the PDF ("○"), or puts it back ("•"). */
-export function setLeftOutLine(text: string, line: number, leftOut: boolean): string {
-  const lines = text.split("\n")
-  const words = wordsOf(lines[line] ?? "")
-  if (!words) return text
-  lines[line] = `${leftOut ? LEFT_OUT_BULLET : "•"} ${words}`
   return lines.join("\n")
 }
 
@@ -162,11 +143,3 @@ export function newBullet(text: string, start: number, end = start): Edited {
   const cursor = start + 3
   return { text: `${text.slice(0, from)}${kept}\n${bullet} ${rest}`, start: cursor, end: cursor }
 }
-
-/**
- * What a screen reader's status line says next, to say `text` after `last`.
- * The same words twice in a row change nothing on the page, so they'd only be
- * read once, as after moving one entry to second place and then another one:
- * a repeat ends with a no-break space, which isn't read out.
- */
-export const nextAnnouncement = (last: string, text: string) => (last === text ? `${text}\u00a0` : text)

@@ -5,7 +5,7 @@ import { useOpenResume, useResumeActions, useResumeField } from "@/context/Resum
 import { extraHeading, type ExtraSection } from "@/lib/resumeSections"
 import { useCheckActions, useCheckTarget } from "./CheckContext"
 import DeleteSection from "./DeleteSection"
-import { BulletsField, FlagNote, FormatHint, SectionHeading, selectLine } from "./fields"
+import { BulletsField, FlagNote, FocusGlow, FocusLine, FormatHint, SectionHeading, selectLine, underlined } from "./fields"
 import { reducedMotion } from "./layout"
 import { StyledBox } from "./StyledBox"
 
@@ -61,7 +61,7 @@ export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: s
       </div>
       {section.leftOut && <p className="text-[13px] text-ink-3">This section stays saved here and is left out of the PDF and checks.</p>}
       {section.kind === "text" && (
-        <div data-field="text" className="group/field flex flex-col gap-2">
+        <div data-field="text" className="group/field flex flex-col gap-1.5">
           {/* Its label turns blue while typing in the box, as a field's does. A label can't be
               for the box, a div, so a click on it puts the cursor in the box itself. */}
           <span
@@ -71,19 +71,21 @@ export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: s
           >
             Text
           </span>
-          <StyledBox
-            kind="prose"
-            id={`extra-text-${sectionId}`}
-            value={section.text}
-            onChange={(text) => editSection(id, sectionId, { text })}
-            labelId={`extra-text-label-${sectionId}`}
-            describedBy={flagAt("text") ? `extra-text-hint-${sectionId} extra-text-note-${sectionId}` : `extra-text-hint-${sectionId}`}
-            invalid={flagAt("text")?.level === "fix"}
-            // As tall as eight lines, as the text box it replaced was.
-            className={`min-h-[238px] w-full rounded-[6px] border bg-sheet px-4 py-3.5 text-base leading-relaxed outline-none transition-colors duration-200 motion-reduce:transition-none ${
-              flagAt("text") ? "border-accent ring-1 ring-accent" : "border-rule focus:border-ink/30"
-            }`}
-          />
+          <div className="relative">
+            <FocusGlow />
+            <StyledBox
+              kind="prose"
+              id={`extra-text-${sectionId}`}
+              value={section.text}
+              onChange={(text) => editSection(id, sectionId, { text })}
+              labelId={`extra-text-label-${sectionId}`}
+              describedBy={flagAt("text") ? `extra-text-hint-${sectionId} extra-text-note-${sectionId}` : `extra-text-hint-${sectionId}`}
+              invalid={flagAt("text")?.level === "fix"}
+              // As tall as eight lines, as the text box it replaced was.
+              className={`${underlined(!!flagAt("text"))} min-h-[238px] leading-relaxed`}
+            />
+            <FocusLine />
+          </div>
           {flagAt("text") && <FlagNote id={`extra-text-note-${sectionId}`} finding={flagAt("text")!} />}
           <p id={`extra-text-hint-${sectionId}`} className="text-[13px] text-ink-2">
             Paragraph breaks are kept. <FormatHint />

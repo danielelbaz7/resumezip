@@ -95,9 +95,9 @@ test("an entry is a card, folded to its name and what's in it, opened with a cli
   await expect(done).toBeVisible()
   // The entries have no dates to put in order by, so the note under the title says how to.
   await expect(page.getByText("3 entries · drag to reorder", { exact: true })).toBeVisible()
-  // Open, its name is typed in where it's shown, before its company.
-  await expect(page.getByRole("textbox", { name: "Role" })).toHaveValue("Engineer")
-  await expect(page.getByText("· Google", { exact: true })).toBeVisible()
+  // Open, its name, the company alone, is typed in where it's shown.
+  await expect(page.getByRole("textbox", { name: "Company" }).first()).toHaveValue("Google")
+  await expect(page.getByText("· Engineer", { exact: true })).toHaveCount(0)
 
   // Its bullets show two at a time until the box is used, which then shows them all. (The folded
   // cards' boxes are on the page too, out of reach, ready to slide open.)
@@ -112,13 +112,35 @@ test("an entry is a card, folded to its name and what's in it, opened with a cli
   await expect(done).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Edit entry 1" })).toBeVisible()
 
-  // Folded, it shows its name, its company and how many bullets it has, and a click on it opens it again,
+  // Folded, it shows its name and how many bullets it has, and a click on it opens it again,
   // with its bullets two at a time again.
   await expect(page.getByText("3 bullets", { exact: true })).toBeVisible()
-  await page.getByText("Engineer · Google", { exact: true }).click()
+  const card = page.locator("[data-card]").first()
+  await expect(card.getByText("Google", { exact: true })).toBeVisible()
+  await expect(card).not.toContainText("Engineer")
+  await card.getByText("Google", { exact: true }).click()
   await expect(done).toBeVisible()
   await expect(more).toBeVisible()
 
+  expect(errors).toEqual([])
+})
+
+test("a project's card is named by the project alone, without its tech stack", async ({ page }) => {
+  const errors = pageErrors(page)
+  await openSection(page, "Projects", {
+    ...RESUME,
+    id: "projects",
+    projectsSection: [
+      { id: 1, projectName: "Gitlytics", techStack: "Next.js, TypeScript" },
+      { id: 2, projectName: "Loom", techStack: "Rust, WebAssembly" },
+    ],
+  })
+  // Open, the tech stack is a field under the name, not part of it.
+  await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Gitlytics")
+  await expect(page.getByLabel("Tech stack").first()).toHaveValue("Next.js, TypeScript")
+  const folded = page.locator("[data-card]").nth(1)
+  await expect(folded.getByText("Loom", { exact: true })).toBeVisible()
+  await expect(folded).not.toContainText("Rust")
   expect(errors).toEqual([])
 })
 
@@ -169,7 +191,7 @@ test("an entry left out isn't printed, or in the PDF's copy of the resume, and c
   await openSection(page, "Experience")
 
   await page.getByRole("checkbox", { name: "Include entry 2 in the PDF" }).uncheck()
-  await expect(page.getByText("Intern · Initech · Left out", { exact: true })).toBeVisible()
+  await expect(page.getByText("Initech · Left out", { exact: true })).toBeVisible()
   await expect.poll(() => printedOrder(page, ["Google", "Initech", "Hooli"])).toEqual(["Google", "Hooli"])
 
   // Whoever gets the PDF can't read it: opened again, the PDF brings back only what was printed.
@@ -218,31 +240,21 @@ test("an entry left out isn't printed, or in the PDF's copy of the resume, and c
   expect(otherErrors).toEqual([])
 })
 
-test("bullets are moved and left out from the Arrange list, or moved with Alt and the arrow keys", async ({ page }) => {
+test("a bullet starting with ○ is left out, and Alt and the arrow keys move a line", async ({ page }) => {
   const errors = pageErrors(page)
   await openSection(page, "Experience")
   // The first entry is open; its bullets are in its first bullets field.
   const field = page.locator('[data-field="workDescription"]').first()
+  const box = field.getByLabel(BULLETS)
 
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  const list = field.getByRole("list", { name: BULLETS })
-  await expect(list.getByRole("listitem")).toHaveText([/Built the search index/, /Cut serving costs/, /Mentored four interns/])
-  await list.getByRole("button", { name: "Move bullet 1 down" }).focus()
-  await page.keyboard.press("Enter")
-  await expect(list.getByRole("button", { name: "Move bullet 2 down" })).toBeFocused()
-  await expect(list.getByRole("listitem")).toHaveText([/Cut serving costs/, /Built the search index/, /Mentored four interns/])
-
-  await list.getByRole("checkbox", { name: "Include bullet 3 in the PDF" }).uncheck()
-  await expect(list.getByRole("listitem").nth(2)).toContainText("Left out")
+  await box.fill("• Cut serving costs by 30%\n• Built the search index\n○ Mentored four interns")
+  await expect(field.getByText("Lines starting with ○ are left out of the PDF.")).toBeVisible()
   await expect
     .poll(() => printedOrder(page, ["Cut serving costs", "Built the search index", "Mentored four interns", "Initech"]))
     .toEqual(["Cut serving costs", "Built the search index", "Initech"])
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
 
-  // Back in the text box, the left-out bullet starts with ○, and Alt+↓ moves the line the cursor is on.
-  await field.getByRole("button", { name: "Done arranging bullets" }).click()
-  const box = field.getByLabel(BULLETS)
-  await expect.poll(() => boxText(box)).toBe("• Cut serving costs by 30%\n• Built the search index\n○ Mentored four interns")
+  // Alt+↓ moves the line the cursor is on.
   await box.focus()
   await selectInBox(box, 0)
   await page.keyboard.press("Alt+ArrowDown")
@@ -257,24 +269,6 @@ test("bullets are moved and left out from the Arrange list, or moved with Alt an
   await page.keyboard.press("Enter")
   await expect.poll(() => boxText(box)).toBe("• Built the search index\n• Cut serving costs by 30%\n○ Mentored four\n○ interns")
   expect(await cursorInBox(box)).toBe(split + 3)
-
-  expect(errors).toEqual([])
-})
-
-test("the Arrange list shows bold and italic words as they print, without their marks", async ({ page }) => {
-  const errors = pageErrors(page)
-  const [job, ...rest] = RESUME.workExperienceSection
-  await openSection(page, "Experience", {
-    ...RESUME,
-    id: "tailored-marks",
-    workExperienceSection: [{ ...job, workDescription: "• Built the **search** index\n• Cut costs by *30%*" }, ...rest],
-  })
-  const field = page.locator('[data-field="workDescription"]').first()
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  const list = field.getByRole("list", { name: BULLETS })
-  await expect(list.getByRole("listitem")).toHaveText(["Built the search index", "Cut costs by 30%"])
-  await expect(list.getByRole("strong")).toHaveText("search")
-  await expect(list.getByRole("emphasis")).toHaveText("30%")
 
   expect(errors).toEqual([])
 })
@@ -391,28 +385,6 @@ test("an open entry is dragged with the mouse, under the pointer all the way, an
   expect(errors).toEqual([])
 })
 
-test("a bullet keeps the focus as it moves, even past one with the same words", async ({ page }) => {
-  const errors = pageErrors(page)
-  await openSection(page, "Experience")
-  const field = page.locator('[data-field="workDescription"]').first()
-  await field.getByLabel(BULLETS).fill("• Led the team\n○ Led the team\n• Wrote the docs")
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  const rows = field.getByRole("list", { name: BULLETS }).getByRole("listitem")
-
-  // The printed one moves down past the left-out copy, and the focus goes with it, so it can be moved again.
-  await rows.nth(0).getByRole("button", { name: "Move bullet 1 down" }).focus()
-  await page.keyboard.press("Enter")
-  await expect(rows.nth(1).getByRole("button", { name: "Move bullet 2 down" })).toBeFocused()
-  await expect(rows.nth(1).getByRole("checkbox")).toBeChecked()
-  await page.keyboard.press("Enter")
-  await expect(rows.nth(2).getByRole("button", { name: "Move bullet 3 down" })).toBeFocused()
-  await expect
-    .poll(async () => (await saved(page)).workExperienceSection[0].workDescription)
-    .toBe("○ Led the team\n• Wrote the docs\n• Led the team")
-
-  expect(errors).toEqual([])
-})
-
 test("the checker skips what's left out, and opens the right entry after it", async ({ page }) => {
   const errors = pageErrors(page)
   const weak = (company: string) => new RegExp(`${company} · bullet 1 .*weak start`)
@@ -447,45 +419,16 @@ test("the checker skips what's left out, and opens the right entry after it", as
   await expect(box).toBeFocused()
   await expect.poll(selected).toBe("Responsible for the search index")
 
-  // Arranging the bullets while the finding shows: the list stays open as the checker looks again.
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  await field.getByRole("checkbox", { name: "Include bullet 2 in the PDF" }).uncheck()
-  await expect.poll(() => printedOrder(page, ["search index", "serving costs"])).toEqual(["search index"])
-  await expect(field.getByRole("list", { name: BULLETS })).toBeVisible()
-  // And as Write mode hides the finding, and Check shows it again.
+  // Write mode hides the finding, and Check shows it again.
   const modes = page.getByRole("tablist", { name: "Write, check or style" })
   await modes.getByRole("tab", { name: "Write" }).click()
   await modes.getByRole("tab", { name: /^Check/ }).click()
   await expect(panel.getByRole("button", { name: weak("Google") })).toBeVisible()
-  await expect(field.getByRole("list", { name: BULLETS })).toBeVisible()
 
   // Choosing the finding again goes back to the text, at its bullet.
   await panel.getByRole("button", { name: weak("Google") }).click()
   await expect(box).toBeFocused()
   await expect.poll(selected).toBe("Responsible for the search index")
-
-  expect(errors).toEqual([])
-})
-
-test("the text box shows every bullet after arranging, and a deleted entry's mode isn't passed on", async ({ page }) => {
-  const errors = pageErrors(page)
-  await openSection(page, "Experience")
-  const field = page.locator('[data-field="workDescription"]').first()
-  const box = field.getByLabel(BULLETS)
-  await box.fill(Array.from({ length: 7 }, (_, index) => `• Shipped feature ${index + 1}`).join("\n"))
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  await field.getByRole("button", { name: "Done arranging bullets" }).click()
-  await expect.poll(() => box.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true)
-
-  // The entry is deleted while its bullets are being arranged; the next one still opens with its text box.
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  await page.getByRole("button", { name: "Delete entry 1" }).click()
-  await page.getByRole("button", { name: "Delete", exact: true }).click()
-  await expect(page.getByRole("button", { name: "Edit entry 3" })).toHaveCount(0)
-  await page.getByRole("button", { name: "Edit entry 1" }).click()
-  await expect(page.locator('[data-field="workDescription"]').first().getByRole("textbox", { name: BULLETS })).toHaveText(
-    "• Filed the reports",
-  )
 
   expect(errors).toEqual([])
 })
@@ -497,12 +440,11 @@ test("asked whether to delete an entry, it shows its name and its fields fade, a
   await page.getByRole("button", { name: "Delete entry 2" }).click()
   await expect(page.getByRole("status").filter({ hasText: "Delete it?" })).toBeVisible()
   // Its name stays, so it's clear which would go.
-  const role = page.getByRole("textbox", { name: "Role" })
-  await expect(role).toHaveValue("Intern")
-  await expect(page.getByText("· Initech", { exact: true })).toBeVisible()
+  const company = page.getByRole("textbox", { name: "Company" })
+  await expect(company).toHaveValue("Initech")
   await expect(page.getByRole("button", { name: "Keep" })).toBeFocused()
   // Its fields can't be typed in meanwhile, its name included (inert, which Playwright doesn't count as hidden).
-  const company = page.getByRole("textbox", { name: "Company" }).nth(1)
+  const role = page.getByRole("textbox", { name: "Role" }).nth(1)
   for (const box of [role, company]) expect(await box.evaluate((box) => box.closest("[inert]") !== null)).toBe(true)
 
   await page.getByRole("button", { name: "Keep" }).click()
@@ -517,8 +459,8 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
   await page.clock.install()
   await openSection(page, "Experience")
   const before = (await saved(page)).workExperienceSection
-  // The open entry's Role box, its name, typed in where it's shown.
-  const role = page.getByRole("textbox", { name: "Role" })
+  // The open entry's Company box, its name, typed in where it's shown.
+  const company = page.getByRole("textbox", { name: "Company" })
   const deleteEntry2 = async () => {
     await page.getByRole("button", { name: "Delete entry 2" }).click()
     await page.getByRole("button", { name: "Delete", exact: true }).click()
@@ -529,14 +471,14 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
   // was, in its place, open with the cursor in it.
   await page.getByRole("button", { name: "Edit entry 2" }).click()
   await deleteEntry2()
-  await expect(page.getByRole("status").filter({ hasText: "deleted" })).toHaveText("“Intern, Initech” deleted")
+  await expect(page.getByRole("status").filter({ hasText: "deleted" })).toHaveText("“Initech” deleted")
   const undo = page.getByRole("button", { name: "Undo" })
   await expect(undo).toBeFocused()
   await expect(undo).toHaveAttribute("aria-keyshortcuts", /^(Meta|Control)\+Z$/)
   await undo.click()
-  await expect(page.getByRole("status").filter({ hasText: "back" })).toHaveText("“Intern, Initech” is back")
-  await expect(role).toBeFocused()
-  await expect(role).toHaveValue("Intern")
+  await expect(page.getByRole("status").filter({ hasText: "back" })).toHaveText("“Initech” is back")
+  await expect(company).toBeFocused()
+  await expect(company).toHaveValue("Initech")
   await expect.poll(async () => (await saved(page)).workExperienceSection).toEqual(before)
 
   // In a field, the shortcut takes back typing and leaves the entry deleted.
@@ -546,7 +488,7 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
   await deleteEntry2()
   await page.clock.pauseAt(Date.now() + 1_000)
   await page.getByRole("button", { name: "Edit entry 1" }).click()
-  await role.focus()
+  await company.focus()
   await page.keyboard.press("ControlOrMeta+z")
   await expect(undo).toBeVisible()
   await expect(page.getByRole("button", { name: "Edit entry 3" })).toHaveCount(0)

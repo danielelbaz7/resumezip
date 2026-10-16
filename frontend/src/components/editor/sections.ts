@@ -46,6 +46,12 @@ interface Definition<Field extends string, Data extends string, Heading extends 
    * Engineering Intern · Google".
    */
   summary: readonly Field[]
+  /**
+   * The fields that name an entry's card in the form, in place of `summary`'s,
+   * as the company alone. The checker still reads an entry by `summary`, so
+   * findings dismissed on a saved resume stay dismissed.
+   */
+  card?: readonly Field[]
   choice?: ChoiceDef<Choice>
   /** Entries can also be added from a paper's DOI or link. */
   fromPaperLink?: boolean
@@ -134,8 +140,9 @@ const DEFINITIONS = {
     headingKey: "work",
     addLabel: "Add experience",
     summary: ["workRole", "companyName"],
+    card: ["companyName"],
     fields: [
-      { key: "workRole", label: "Role", placeholder: "Software Engineer", size: "full" },
+      { key: "workRole", label: "Role", placeholder: "Software Engineer", size: "half" },
       { key: "companyName", label: "Company", placeholder: "Google", size: "half" },
       { key: "workLocation", label: "Location", placeholder: "Mountain View, CA", size: "half" },
       ...dates("work"),
@@ -167,6 +174,7 @@ const DEFINITIONS = {
     headingKey: "projects",
     addLabel: "Add project",
     summary: ["projectName", "techStack"],
+    card: ["projectName"],
     choice: {
       key: "projectLinks",
       label: "Links",

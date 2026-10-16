@@ -310,16 +310,16 @@ test("an entry being typed in when the drag and drop arrives keeps the cursor, a
 
   // It arrives while the cursor is in the open entry, which stays as it is, cursor and all.
   // The cursor goes at the end of the entry's name, whose box is only as wide as it.
-  const role = page.getByLabel("Role", { exact: true })
-  const { width, height } = (await role.boundingBox())!
-  await role.click({ position: { x: width - 2, y: height / 2 } })
+  const company = page.getByLabel("Company", { exact: true })
+  const { width, height } = (await company.boundingBox())!
+  await company.click({ position: { x: width - 2, y: height / 2 } })
   await page.keyboard.press("End")
   await page.keyboard.type(" II")
   release()
   await expect(sections.getByRole("button", { name: "Reorder Experience" })).toBeVisible()
   await page.keyboard.type("I")
-  await expect(role).toBeFocused()
-  await expect(role).toHaveValue("Engineer III")
+  await expect(company).toBeFocused()
+  await expect(company).toHaveValue("Google III")
   await expect(page.getByRole("button", { name: "Reorder entry 1" })).toHaveCount(0)
 
   // Once the cursor has left the entries, they can be dragged.
