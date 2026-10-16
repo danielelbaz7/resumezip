@@ -5,7 +5,7 @@
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { TextContent } from "pdfjs-dist/types/src/display/api"
 import { unzip, zip } from "@/lib/zip"
-import { MAX_CHARACTERS, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
+import { MAX_CHARACTERS, MAX_LINES, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
 
 /** A stretch of text in one style; `start` and `end` index into its part's text. */
 export interface Run {
@@ -39,6 +39,8 @@ export interface Line {
   links: string[]
   /** A Word heading. */
   heading?: boolean
+  /** In a Word file's page footer: on every page, apart from the section above it. */
+  footer?: boolean
   /** Set across a PDF page's two columns, above them, like a name or a centered contact line: in neither column. */
   spans?: boolean
   /** 1-based page, for highlighting. Word files have no pages. */
@@ -54,6 +56,9 @@ export interface PageSize {
 
 /** Ends a line where a word was broken in two; parse.ts joins the word back up. */
 export const SOFT_HYPHEN = "\u00AD"
+
+/** "2", "Page 2", "2 of 3", "- 2 -". */
+export const PAGE_NUMBER = /^[\s\-\u2013\u2014]*(?:page\s+)?(\d{1,3})(?:\s*(?:of|\/)\s*\d{1,3})?[\s\-\u2013\u2014]*$/i
 
 /** Characters that start a bullet: the usual ones, symbols, and those Word puts in its own fonts. */
 export const BULLET_CHARS =
@@ -675,6 +680,218 @@ export function linesFromHtml(html: string): Line[] {
   return lines
 }
 
+// ---------------------------------------------------------------- Word headers and footers
+
+/**
+ * A tag in a Word file's XML, or the text between tags. An attribute's value
+ * can hold ">" but not "<", so a tag ends at the first ">" outside quotes.
+ */
+const XML_TOKEN = /<(\/?)([\w.:-]+)((?:[^<>"']|"[^"<]*"|'[^'<]*')*)>|([^<]+)/g
+
+/** An attribute's value, from a tag's attributes. */
+function attribute(attributes: string, name: string): string | undefined {
+  const match = attributes.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`))
+  return match ? decode(match[1] ?? match[2]) : undefined
+}
+
+/** Whether a property like w:b is on: written alone, it is. */
+const isOn = (attributes: string) => !/^(?:0|false|off)$/i.test(attribute(attributes, "w:val") ?? "")
+
+/** A file in the zip as text, or "" when there's no such file. */
+const xmlOf = (files: Record<string, Uint8Array>, path: string) => (Object.hasOwn(files, path) ? new TextDecoder().decode(files[path]) : "")
+
+interface Relationship {
+  type: string
+  /** A file's path in the zip, or an address outside it. */
+  target: string
+  external: boolean
+}
+
+/** What a part of a Word file points to, by relationship ID. The package's own relationships are part ""'s. */
+function relationshipsOf(files: Record<string, Uint8Array>, part: string): Map<string, Relationship> {
+  const folder = part.slice(0, part.lastIndexOf("/") + 1)
+  const found = new Map<string, Relationship>()
+  for (const [, closing, tag, attributes] of xmlOf(files, `${folder}_rels/${part.slice(folder.length)}.rels`).matchAll(XML_TOKEN)) {
+    const id = tag === "Relationship" && !closing ? attribute(attributes, "Id") : undefined
+    const target = id && attribute(attributes, "Target")
+    if (!id || !target) continue
+    const external = attribute(attributes, "TargetMode") === "External"
+    // A path starts from the part's folder, or from the top of the zip with a "/".
+    const path = target.startsWith("/") ? target.slice(1) : folder + target
+    found.set(id, { type: attribute(attributes, "Type") ?? "", target: external ? target : path, external })
+  }
+  return found
+}
+
+interface Section {
+  /** Its first page has a header and footer of its own (w:titlePg). */
+  titlePage: boolean
+  references: { kind: "header" | "footer"; type: string; id: string }[]
+}
+
+/** The document's sections, with the headers and footers each one names. */
+function sectionsOf(document: string): Section[] {
+  const sections: Section[] = []
+  // A section's properties can hold their own earlier version, as a tracked change.
+  let depth = 0
+  for (const [, closing, tag, attributes] of document.matchAll(XML_TOKEN)) {
+    if (tag === "w:sectPr") {
+      if (closing) depth = Math.max(0, depth - 1)
+      else if (!attributes.endsWith("/") && depth++ === 0) sections.push({ titlePage: false, references: [] })
+    } else if (depth === 1 && !closing) {
+      const section = sections[sections.length - 1]
+      const kind = tag === "w:headerReference" ? "header" : tag === "w:footerReference" ? "footer" : null
+      const id = kind && attribute(attributes, "r:id")
+      if (kind && id) section.references.push({ kind, type: attribute(attributes, "w:type") ?? "default", id })
+      else if (tag === "w:titlePg") section.titlePage = isOn(attributes)
+    }
+  }
+  return sections
+}
+
+// Elements whose text isn't shown: a paragraph's properties (which hold its
+// tab stops), formatting from before a tracked change, and deleted text.
+const UNSHOWN = new Set(["w:pPr", "w:rPrChange", "w:del", "w:moveFrom"])
+
+/**
+ * Reads a header or footer a paragraph at a time, in tables and text boxes
+ * too, with bold, italics and links read from each run as mammoth reads the
+ * body's. A line's parts that are only a page number are left out.
+ */
+function readHeaderOrFooter(xml: string, relationships: Map<string, Relationship>, add: (line: Line) => void) {
+  // The paragraphs open around the text, innermost last: a text box's sit in a run of the paragraph it's anchored to.
+  const paragraphs: { pieces: Piece[]; links: string[] }[] = []
+  const runs: { bold: boolean; italic: boolean }[] = []
+  // Whether a choice of each mc:AlternateContent open was read: its other
+  // choices, and its fallback, are the same text drawn another way.
+  const alternatives: boolean[] = []
+  let unshown = 0
+  let inText = false
+  let inRunProperties = false
+
+  const write = (text: string) => {
+    const style = runs[runs.length - 1] ?? { bold: false, italic: false }
+    paragraphs[paragraphs.length - 1]?.pieces.push({ text, ...style })
+  }
+  const endLine = () => {
+    const paragraph = paragraphs[paragraphs.length - 1]
+    if (!paragraph) return
+    const line = toLine(
+      toParts(paragraph.pieces, 0).filter((part) => !PAGE_NUMBER.test(part.text)),
+      BODY_SIZE,
+      paragraph.links,
+    )
+    if (line) add(line)
+    paragraph.pieces = []
+    paragraph.links = []
+  }
+
+  for (const [, closing, tag, attributes, text] of xml.matchAll(XML_TOKEN)) {
+    if (text !== undefined) {
+      if (inText && !unshown) write(decode(text).replace(/[\r\n]+/g, " "))
+      continue
+    }
+    const empty = attributes.endsWith("/")
+    if (unshown) {
+      if (!empty) unshown += closing ? -1 : 1
+      continue
+    }
+    const opens = !closing && !empty
+    switch (tag) {
+      case "w:p":
+        if (opens) paragraphs.push({ pieces: [], links: [] })
+        else if (closing) {
+          endLine()
+          paragraphs.pop()
+        }
+        break
+      case "w:r":
+        if (opens) runs.push({ bold: false, italic: false })
+        else if (closing) runs.pop()
+        break
+      case "w:rPr":
+        inRunProperties = opens
+        break
+      case "w:b":
+      case "w:i":
+        if (inRunProperties && !closing && runs.length > 0) runs[runs.length - 1][tag === "w:b" ? "bold" : "italic"] = isOn(attributes)
+        break
+      case "w:t":
+        inText = opens
+        break
+      // w:ptab is the tab Word's own header layouts use, to set text in the middle or on the right.
+      case "w:tab":
+      case "w:ptab":
+        if (!closing) write("\t")
+        break
+      case "w:br":
+        if (!closing) endLine()
+        break
+      // A plain hyphen, not the U+2011 mammoth makes of it, so a phone number typed with them reads as one.
+      case "w:noBreakHyphen":
+        if (!closing) write("-")
+        break
+      // A character in a symbol font's own code, like a bullet or a phone between contact details: a gap between them.
+      case "w:sym":
+        if (!closing) write(" ")
+        break
+      case "w:hyperlink": {
+        const link = opens ? relationships.get(attribute(attributes, "r:id") ?? "") : undefined
+        if (link?.external) paragraphs[paragraphs.length - 1]?.links.push(link.target)
+        break
+      }
+      case "mc:AlternateContent":
+        if (opens) alternatives.push(false)
+        else if (closing) alternatives.pop()
+        break
+      case "mc:Choice":
+      case "mc:Fallback":
+        if (!opens || alternatives.length === 0) break
+        if (alternatives[alternatives.length - 1]) unshown = 1
+        else if (tag === "mc:Choice") alternatives[alternatives.length - 1] = true
+        break
+      default:
+        if (opens && UNSHOWN.has(tag)) unshown = 1
+    }
+  }
+}
+
+/**
+ * The lines of the page headers and footers a Word file's sections use, each
+ * kind with the first page's before the rest's, and each line once. mammoth
+ * only reads the body, and templates often put the name and contact details
+ * in the header.
+ */
+function headersAndFooters(files: Record<string, Uint8Array>): Record<"header" | "footer", Line[]> {
+  const main =
+    [...relationshipsOf(files, "").values()].find(
+      (relationship) =>
+        relationship.type.endsWith("/officeDocument") && !relationship.external && Object.hasOwn(files, relationship.target),
+    )?.target ?? "word/document.xml"
+  const relationships = relationshipsOf(files, main)
+  const found: Record<"header" | "footer", Line[]> = { header: [], footer: [] }
+  const read = new Set<string>()
+  const seen = new Set<string>()
+  for (const section of sectionsOf(xmlOf(files, main))) {
+    // Only a section that says so shows its "first" header and footer, on its first page.
+    for (const type of section.titlePage ? ["first", "default"] : ["default"]) {
+      for (const { kind, id } of section.references.filter((reference) => reference.type === type)) {
+        const part = relationships.get(id)
+        if (!part || part.external || !part.type.endsWith(`/${kind}`) || read.has(part.target)) continue
+        read.add(part.target)
+        readHeaderOrFooter(xmlOf(files, part.target), relationshipsOf(files, part.target), (line) => {
+          // The header on the pages after the first often repeats the name in the first's.
+          if (seen.has(line.text)) return
+          seen.add(line.text)
+          found[kind].push(kind === "footer" ? { ...line, footer: true } : line)
+          if (found.header.length + found.footer.length > MAX_LINES) throw new TooMuchTextError()
+        })
+      }
+    }
+  }
+  return found
+}
+
 interface Mammoth {
   convertToHtml: (
     input: { arrayBuffer: ArrayBuffer; buffer: ArrayBuffer },
@@ -696,6 +913,7 @@ export async function linesFromDocx(data: ArrayBuffer): Promise<Line[]> {
   const files = await unzip(data, MAX_UNZIPPED_BYTES)
   if (files === "too big") throw new TooMuchTextError()
   if (!files) throw new UnreadableWordFileError("not a zip resumezip can read")
+  const { header, footer } = headersAndFooters(files)
   const unzipped = zip(files).buffer
   const loaded = (await import("mammoth")) as unknown as Partial<Mammoth> & { default?: Mammoth }
   const mammoth = loaded.convertToHtml ? (loaded as Mammoth) : loaded.default!
@@ -710,5 +928,5 @@ export async function linesFromDocx(data: ArrayBuffer): Promise<Line[]> {
   } catch (error) {
     throw new UnreadableWordFileError("mammoth couldn't read the file", { cause: error })
   }
-  return linesFromHtml(html)
+  return [...header, ...linesFromHtml(html), ...footer]
 }

@@ -16,7 +16,7 @@ import {
 import type { CompleteContent, ResumeContent } from "@/lib/resume"
 import { extraKey, resolveSections, type ExtraSections, type SectionRef } from "@/lib/resumeSections"
 import { plainText } from "@/lib/typst/resumeData"
-import { SOFT_HYPHEN, toLine, type Line, type Part, type Run } from "./lines"
+import { PAGE_NUMBER, SOFT_HYPHEN, toLine, type Line, type Part, type Run } from "./lines"
 
 /** An entry's values, keyed by its section's field names. */
 type Fields = Partial<Record<FieldKey, string>>
@@ -256,10 +256,11 @@ const SUMMARY_HEADINGS = new Set([
 const words = (text: string) => text.split(/\s+/).filter(Boolean)
 const isAllCaps = (text: string) => /[A-Z]/.test(text) && !/[a-z]/.test(text) && text.replace(/[^A-Z]/g, "").length >= 3
 
-/** Could this line be a heading at all? Short, alone on its line, not a sentence. */
+/** Could this line be a heading at all? Short, alone on its line, not a sentence, and not in a Word file's footer. */
 function headingShaped(line: Line): boolean {
   const text = line.text.replace(/:$/, "").trim()
   return (
+    !line.footer &&
     !line.bullet &&
     line.parts.length === 1 &&
     text.length > 1 &&
@@ -1747,6 +1748,9 @@ const lineIndexes = (line: ParseLine) => [line.index, ...(line.merged ?? [])]
 
 // ---------------------------------------------------------------- profile
 
+/** Words a resume is called by: "Curriculum Vitae", "Résumé", "CV". */
+const RESUME_WORDS = /^(?:curriculum|vitae|r[eé]sum[eé]|cv)$/i
+
 function looksLikeName(text: string): boolean {
   const parts = words(text)
   return (
@@ -2012,9 +2016,6 @@ function splitSideHeadings(lines: SourceLine[]): SourceLine[] {
   return split
 }
 
-/** "2", "Page 2", "2 of 3", "- 2 -". */
-const PAGE_NUMBER = /^[\s\-\u2013\u2014]*(?:page\s+)?(\d{1,3})(?:\s*(?:of|\/)\s*\d{1,3})?[\s\-\u2013\u2014]*$/i
-
 /** Lines that are only a page's number, at its top or bottom: not part of the resume. */
 function withoutPageNumbers<T extends Line>(lines: T[]): T[] {
   const ends = new Set<Line>()
@@ -2152,7 +2153,7 @@ export function parseResume(file: Line[]): ParsedResume {
   })
 
   const firstHeading = lines.find((line) => headings.has(line.index))?.index ?? Math.min(lines.length, 4)
-  // Contact details sit at the top, or in a section of their own.
+  // Contact details sit at the top, in a section of their own, or in a Word file's footer.
   const contactSections = new Set<number>()
   let inContactSection = false
   for (const line of lines) {
@@ -2160,21 +2161,24 @@ export function parseResume(file: Line[]): ParsedResume {
     if (heading) inContactSection = heading.meaning.section === null && heading.meaning.contact === true
     else if (inContactSection) contactSections.add(line.index)
   }
-  const contacts = readContacts(lines, (line) => line.index < firstHeading || contactSections.has(line.index))
+  const contacts = readContacts(lines, (line) => line.index < firstHeading || contactSections.has(line.index) || line.footer === true)
   const profile: Record<string, string> = Object.fromEntries(PROFILE_FIELDS.map((field) => [field.key, contacts.fields[field.key] ?? ""]))
   const profileLines = [...contacts.lines]
 
-  // The name: the biggest text near the top, or failing that, something shaped like a name.
+  // The name: the biggest text near the top, or failing that, something shaped
+  // like a name. Not what the file calls itself, though, like "Curriculum
+  // Vitae" in a Word file's page header, above a name set the same size.
   const top = lines.slice(0, Math.max(firstHeading, 1)).filter((line) => !contacts.used.has(line.index))
   const candidates = top.slice(0, 4).filter((line) => !headings.has(line.index))
   const biggest = [...candidates].sort((a, b) => b.size - a.size)[0]
+  const nameShaped = (text: string) => looksLikeName(text) && !words(text).some((word) => RESUME_WORDS.test(word))
   let nameLine =
     biggest && biggest.size >= body * 1.2 && words(biggest.parts[0].text).length <= 6
       ? biggest
-      : candidates.find((line) => looksLikeName(line.parts[0].text))
+      : candidates.find((line) => nameShaped(line.parts[0].text))
   if (!nameLine) {
     nameLine = [...lines]
-      .filter((line) => !headings.has(line.index) && line.size >= body * 1.4 && looksLikeName(line.text))
+      .filter((line) => !headings.has(line.index) && line.size >= body * 1.4 && nameShaped(line.text))
       .sort((a, b) => b.size - a.size)[0]
   }
   if (nameLine) {
@@ -2199,7 +2203,7 @@ export function parseResume(file: Line[]): ParsedResume {
     })
   }
   const textOf = (line: Line & { index: number }) => contacts.remainders.get(line.index) ?? line.text
-  const content = (line: Line & { index: number }) => !contacts.used.has(line.index) && line !== nameLine
+  const content = (line: Line & { index: number }) => !contacts.used.has(line.index) && line !== nameLine && !line.footer
 
   // Anything at the top that isn't the name or contact details, like a tagline or address.
   const topRest = lines.filter((line) => line.index < firstHeading && content(line))
@@ -2303,6 +2307,14 @@ export function parseResume(file: Line[]): ParsedResume {
     )
   }
 
+  // What a Word file's footer holds besides contact details, like "References available upon request".
+  const footer = lines.filter((line) => line.footer && !contacts.used.has(line.index) && line !== nameLine)
+  addUnplaced(
+    "Page footer",
+    footer.map((line) => line.index),
+    footer.map(textOf),
+  )
+
   return { lines: input, profile, profileLines, sections, unplaced, occurrences, extraGroups }
 }
 
@@ -2311,6 +2323,9 @@ export interface ImportChoices {
   /** Deliberate promotions, initially absent from the review. */
   keepAs?: Record<string, "text" | "list">
 }
+
+/** Groups of "Couldn't place" named for where they are in the file, which has no heading for them. */
+const NAMED_FOR_PLACE = new Set(["Top of the resume", "Everything else", "Page footer"])
 
 export const extraGroupKey = (id: string) => `extra-group:${id}`
 export const unplacedKey = (group: ParsedResume["unplaced"][number], index: number) => group.id ?? `unplaced:${index}`
@@ -2339,10 +2354,7 @@ export function toResumeContent(parsed: ParsedResume, skip: Set<string> = new Se
     const kind = choices.keepAs?.[unplacedKey(group, index)]
     if (!kind) return
     const key = crypto.randomUUID()
-    const common = {
-      kind,
-      heading: group.heading === "Top of the resume" || group.heading === "Everything else" ? "New section" : group.heading,
-    }
+    const common = { kind, heading: NAMED_FOR_PLACE.has(group.heading) ? "New section" : group.heading }
     extras[key] =
       kind === "text"
         ? { ...common, kind, text: group.text.join("\n") }

@@ -237,6 +237,23 @@ test("a Word file is read in a worker, which then ends", async ({ page }) => {
   expect(errors).toEqual([])
 })
 
+test("a Word file's page header gives its name and contact details, and its footer is set apart", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.goto("/create/dashboard")
+  const file = wordFile(["EXPERIENCE", "Acme Corp | Software Engineer | Jan 2020 - Present"], {
+    header: { default: ["Jordan Lee", "jordan@example.com | (555) 010-2299 | Austin, TX"] },
+    footer: { default: ["References available upon request"] },
+  })
+  await page.locator('input[type="file"]').setInputFiles(docx(file))
+  const review = page.getByRole("dialog", { name: "Here's what we found" })
+  await expect(review).toContainText("Jordan Lee")
+  await expect(review).toContainText("Austin, TX · jordan@example.com · (555) 010-2299")
+  const unplaced = review.getByRole("region", { name: /^Couldn't place/ })
+  await expect(unplaced.getByRole("combobox", { name: "Keep Page footer, group 1" })).toBeVisible()
+  await expect(unplaced).toContainText("References available upon request")
+  expect(errors).toEqual([])
+})
+
 test("a Word file that unzips to too much text says so", async ({ page }) => {
   await page.goto("/create/dashboard")
   await page.locator('input[type="file"]').setInputFiles(docx(wordFile(RESUME, { padding: MAX_UNZIPPED_BYTES })))
