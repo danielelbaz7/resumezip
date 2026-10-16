@@ -90,7 +90,8 @@ It handles single and two-column layouts (a narrow column too, when the file
 holds it whole before or after the other, and a name and contact lines
 centered above both), headings in a margin column (set
 against either side of it, and wrapped onto the lines below), dates in a column
-of their own, and Word files with or without heading styles and tables.
+of their own, and Word files with or without heading styles and tables, layout
+tables and tables in tables included.
 Scanned PDFs have no text and can't be read.
 
 ## Testing changes

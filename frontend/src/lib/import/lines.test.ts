@@ -4,8 +4,9 @@ import { convertToHtml } from "mammoth"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import { MAX_CHARACTERS, MAX_PAGES, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
-import { cleanLink, linesFromDocx, linesFromPages, readPdf, UnreadableWordFileError } from "./lines"
-import { pdfOf, textPdf, wordFile } from "./testFiles"
+import { cleanLink, linesFromDocx, linesFromPages, readPdf, UnreadableWordFileError, type Line } from "./lines"
+import { parseResume, toResumeContent } from "./parse"
+import { pdfOf, textPdf, wordFile, type WordParagraph, type WordTable } from "./testFiles"
 
 // mammoth as it is, with its converter watched.
 vi.mock("mammoth", async (importOriginal) => {
@@ -186,6 +187,88 @@ describe("reading a Word file", () => {
       { text: "mara@example.com" },
     ])
     expect(convertToHtml).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("tables in a Word file", () => {
+  const read = (content: (WordParagraph | WordTable)[]) => linesFromDocx(bytes(wordFile(content)))
+  const parts = (lines: Line[]) => lines.map((line) => line.parts.map(({ text, x }) => [text, x]))
+
+  const skills: WordTable = [
+    [["Python"], ["SQL"]],
+    [["React"], ["AWS"]],
+  ]
+  const experience: WordParagraph[] = [
+    { heading: "Experience" },
+    "Software Engineer, Acme Corp",
+    "Jun 2021 – Present",
+    "• Built the billing service",
+    { heading: "Education" },
+    "State University",
+    "B.S. in Computer Science, 2017 – 2021",
+  ]
+  // A resume template's two columns: the name and a table of skills on the
+  // left, everything else on the right.
+  const left = ["Jordan Lee", skills]
+  const right = ["jordan@example.com", "EXPERIENCE", "Software Engineer, Acme Corp", "Jun 2021 – Present", "EDUCATION", "State University"]
+
+  test("with a paragraph a cell are read across, a line a row, as before", async () => {
+    const titled: WordTable = [[["Software Engineer, Acme Corp"], ["Jun 2021 – Present"]]]
+    // prettier-ignore
+    expect(parts(await read([titled, skills]))).toEqual([
+      [["Software Engineer, Acme Corp", 0], ["Jun 2021 – Present", 200]],
+      [["Python", 0], ["SQL", 200]],
+      [["React", 0], ["AWS", 200]],
+    ])
+  })
+
+  test("with a heading beside several paragraphs read it with the first, as before", async () => {
+    const margin: WordTable = [[["Experience"], ["Software Engineer, Acme Corp", "Jun 2021 – Present", "• Built the billing service"]]]
+    // prettier-ignore
+    expect(parts(await read([margin]))).toEqual([
+      [["Experience", 0], ["Software Engineer, Acme Corp", 200]],
+      [["Jun 2021 – Present", 200]],
+      [["Built the billing service", 200]],
+    ])
+  })
+
+  test("laid out in columns are read a column at a time", async () => {
+    const sidebar = ["Jordan Lee", "jordan@example.com", { heading: "Skills" }, "Python, SQL", "React, AWS"]
+    expect(await read([[[sidebar, experience]]])).toEqual(await read([...sidebar, ...experience]))
+  })
+
+  test("in another table's cell are read there, losing nothing after them", async () => {
+    const lines = await read([[[left, right]]])
+    expect(lines.map((line) => line.text)).toEqual(["Jordan Lee", "Python SQL", "React AWS", ...right])
+    expect(lines).toEqual(await read([...left, ...right]))
+  })
+
+  test("with text in one cell are read like that text, keeping its headings", async () => {
+    expect(await read([[[experience]]])).toEqual(await read(experience))
+    // Beside an empty cell, like one holding a photo, which isn't read.
+    expect(await read([[[[], experience]]])).toEqual(await read(experience))
+  })
+
+  test("laid out in columns, with a table in one, keep everything in the resume or Couldn't place", async () => {
+    const parsed = parseResume(await read([[[left, right]]]))
+    const resume = toResumeContent(parsed)
+    expect(resume.profileSection).toMatchObject({ fullName: "Jordan Lee", email: "jordan@example.com" })
+    expect(resume.workExperienceSection).toMatchObject([
+      { workRole: "Software Engineer", companyName: "Acme Corp", workStartDate: "Jun 2021", workEndDate: "Present" },
+    ])
+    expect(resume.educationSection).toMatchObject([{ schoolName: "State University" }])
+    // The skills have no heading to go under.
+    expect(parsed.unplaced.flatMap((group) => group.text)).toEqual(["Python SQL", "React AWS"])
+  })
+
+  test("laid out in columns have their sections found", async () => {
+    const parsed = parseResume(await read([[[["Jordan Lee", "SKILLS", skills], right]]]))
+    expect(parsed.sections.map((section) => section.name)).toEqual(["Skills", "Work", "Education"])
+    expect(toResumeContent(parsed).skillsSection).toMatchObject([
+      { skillName: "Python", skillDetails: "SQL" },
+      { skillName: "React", skillDetails: "AWS" },
+    ])
+    expect(parsed.unplaced).toEqual([])
   })
 })
 
