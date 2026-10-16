@@ -269,6 +269,12 @@ describe("tables in a Word file", () => {
     expect(await read([[[sidebar, experience]]])).toEqual(await read([...sidebar, ...experience]))
   })
 
+  test("with a section in each of two cells read one after the other, however short", async () => {
+    const technical = [{ heading: "Skills" }, "Python, SQL", "React, AWS"]
+    const spoken = [{ heading: "Languages" }, "English", "Spanish"]
+    expect(await read([[[technical, spoken]]])).toEqual(await read([...technical, ...spoken]))
+  })
+
   test("in another table's cell are read there, losing nothing after them", async () => {
     const lines = await read([[[left, right]]])
     expect(lines.map((line) => line.text)).toEqual(["Jordan Lee", "Python SQL", "React AWS", ...right])

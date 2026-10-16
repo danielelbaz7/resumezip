@@ -613,17 +613,19 @@ const moved = (parts: Part[], by: number): Part[] => (by === 0 ? parts : parts.m
  * section, or an entry's dates and place beside its title. A paragraph
  * alone on its line keeps its style. Cells that are columns of their own,
  * as in a layout table, would interleave that way, so they're read one
- * after another: when two or more hold four paragraphs or more, more than
- * an entry's details take, or two or more hold several and one of them
- * holds a table.
+ * after another: when two or more hold several paragraphs and two of those
+ * hold four or more, more than an entry's details take, or start with a
+ * heading, or one of them holds a table.
  */
 function readRow(cells: Paragraph[][]): Paragraph[] {
   // Paragraphs of only spaces would push the text beside them down a line, so
   // they're left out, as mammoth leaves out empty ones. One with a link stays.
   const filled = cells.map((cell) => cell.filter((paragraph) => paragraph.parts.length > 0 || paragraph.links.length > 0))
   const several = filled.filter((cell) => cell.length > 1)
+  const long = several.filter((cell) => cell.length >= 4).length
+  const headed = several.filter((cell) => cell[0].heading).length
   const holdsTable = several.some((cell) => cell.some((paragraph) => paragraph.table))
-  if (several.filter((cell) => cell.length >= 4).length > 1 || (several.length > 1 && holdsTable)) return filled.flat()
+  if (long > 1 || headed > 1 || (several.length > 1 && holdsTable)) return filled.flat()
   const height = filled.reduce((most, cell) => Math.max(most, cell.length), 0)
   return Array.from({ length: height }, (_, i) => {
     const line = filled.flatMap((cell, column) => (cell[i] ? [{ ...cell[i], parts: moved(cell[i].parts, column * 200) }] : []))
