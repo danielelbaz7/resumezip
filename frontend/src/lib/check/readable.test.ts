@@ -440,6 +440,19 @@ describe("R8 text no font has", () => {
     expect(check("R8", resume).status).toBe("passed")
     expect(check("R5", resume).messages).toEqual(["“🚀” may not come through"])
   })
+
+  test("leaves out a project's links behind its name, which aren't printed as text", () => {
+    const withLinks = (projectLinks: string) => ({
+      ...jake,
+      projectLinks,
+      projectsSection: [{ id: 2, projectName: "Ledger", additionalLink: "zh.wikipedia.org/wiki/项目" }],
+    })
+    expect(check("R8", withLinks("title")).status).toBe("passed")
+    expect(check("R4", withLinks("title")).partial).toBe(false)
+    // Printed as text, the link has letters no font has, as any field can.
+    expect(check("R8", withLinks("show")).messages).toEqual(["“项目” doesn't print"])
+    expect(check("R4", withLinks("show")).partial).toBe(true)
+  })
 })
 
 describe("R7 project links printed as text", () => {

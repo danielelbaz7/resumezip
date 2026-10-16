@@ -10,7 +10,7 @@ import type { PdfReading, Problem, Rule } from "./engine"
 import type { Place } from "./places"
 import { comparable, wordsOf } from "./pdf"
 import { readDate, readDateRange } from "./readDate"
-import { textsOf } from "./resume"
+import { entryAt, textsOf } from "./resume"
 import { FINE_SYMBOLS, ODD_SYMBOLS } from "./settings"
 import { layoutBulletsIn } from "./text"
 import type { ResumeView } from "./resume"
@@ -28,6 +28,22 @@ const unprintable = (char: string) => noFontHas(char) && !oddSymbol(char)
 const printedPart = (text: string) => [...text.normalize("NFC")].filter((char) => !noFontHas(char)).join("")
 
 /**
+ * The typed text the PDF prints as text: all of it but a project's links with
+ * “Link the title” chosen, which go behind its name instead (R7).
+ */
+const printedTextsOf = (resume: ResumeView) =>
+  textsOf(resume).filter(
+    ({ place }) =>
+      !(
+        resume.projectLinks === "title" &&
+        place.kind === "entry" &&
+        place.section === "Projects" &&
+        (place.field === "projectGithub" || place.field === "additionalLink") &&
+        entryAt(resume, "Projects", place.entry)?.values.projectName
+      ),
+  )
+
+/**
  * Whether the text printed in sections prints: headings, entries, bullets,
  * the summary and sections the person added. What doesn't (R8's) reads as
  * nothing, which can throw out how the reader splits the sections and entries
@@ -35,7 +51,7 @@ const printedPart = (text: string) => [...text.normalize("NFC")].filter((char) =
  * text's, and wait until it prints.
  */
 const sectionsPrint = (resume: ResumeView) =>
-  textsOf(resume).every(
+  printedTextsOf(resume).every(
     ({ place, text }) => (place.kind === "profile" && place.field !== "summary") || ![...text.normalize("NFC")].some(unprintable),
   )
 
@@ -461,7 +477,7 @@ const printable: Rule = {
   title: "Every character prints",
   why: "The templates' fonts don't have these characters, so the PDF leaves them out or prints boxes, and hiring software can't read them.",
   check: ({ resume }) => {
-    const texts = textsOf(resume)
+    const texts = printedTextsOf(resume)
     if (texts.length === 0) return null
     return {
       checked: texts.length,

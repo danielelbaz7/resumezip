@@ -61,6 +61,8 @@ sent anywhere.
   Japanese, Korean, Arabic or Thai: every template prints it as nothing or as
   boxes, and the PDF's text has U+0000 in its place. It names what doesn't
   print, and says it's the fonts, not the typing; symbols and emoji are R5's.
+  A project's links behind its name ("Link the title") aren't printed as
+  text, so they're left out.
   The PDF rules can't find what didn't print, so R1 looks only for the part of
   a contact detail that prints. Text that didn't print can also throw out how
   the reader splits sections and entries around it, so while some of the
