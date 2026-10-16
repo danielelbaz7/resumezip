@@ -36,6 +36,23 @@ test("one answer is open at a time, and each question says whether it's open", a
   await expect(questions.getByText("No ads, no trial, no watermark.")).toBeHidden()
 })
 
+test("the questions' numbers stay out of what screen readers hear", async ({ page }) => {
+  await page.goto("/")
+  const questions = page.getByRole("region", { name: "Questions" })
+  await expect(questions.getByRole("button", { name: "Is it really free?", exact: true })).toBeVisible()
+})
+
+test("each step of How it works leads on: Pick to the templates, Write and Send to writing", async ({ page }) => {
+  await page.goto("/")
+  const steps = page.getByRole("region", { name: "How it works" }).getByRole("listitem")
+  await expect(steps).toHaveCount(3)
+  await expect(steps.nth(1).getByRole("link")).toHaveAttribute("href", "/create/dashboard")
+  await expect(steps.nth(2).getByRole("link")).toHaveAttribute("href", "/create/dashboard")
+
+  await steps.nth(0).getByRole("link").click()
+  await expect(page).toHaveURL(/\/templates$/)
+})
+
 test("the small Start writing shows past the hero and keeps out of the footer's way", async ({ page }) => {
   await page.goto("/")
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()

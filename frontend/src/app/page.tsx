@@ -1,4 +1,5 @@
 import Link from "next/link"
+import ArrowUpRight from "@/components/home/ArrowUpRight"
 import FloatingStart from "@/components/home/FloatingStart"
 import FocusWords from "@/components/home/FocusWords"
 import HeroVideo from "@/components/home/HeroVideo"
@@ -14,14 +15,6 @@ import { pageMetadata, SITE_DESCRIPTION } from "@/lib/site"
 import { HOME_DATA } from "@/lib/structuredData"
 
 export const metadata = pageMetadata({ path: "/", description: SITE_DESCRIPTION })
-
-function ArrowUpRight() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <path d="M3 9l6-6M4 3h5v5" />
-    </svg>
-  )
-}
 
 // An outline pill on the video and the blue, which fills with white from the bottom as it's pointed at (home.css).
 const OUTLINE_PILL =
