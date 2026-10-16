@@ -1,17 +1,59 @@
-// Readable by hiring software (R1–R6 in issue #58, and R7): the preview PDF
+// Readable by hiring software (R1–R6 in issue #58, R7 and R8): the preview PDF
 // read back the way hiring software reads a resume and compared with what was
-// typed, characters that may not come through, and links that don't print.
+// typed, characters that may not come through or don't print at all, and
+// links that don't print.
 
 import { SECTIONS, type FieldKey, type FieldKeyOf, type ProfileKey, type SectionName } from "@/components/editor/sections"
 import { BULLET_CHARS } from "@/lib/import/lines"
+import { noFontHas } from "@/lib/typst/fontFiles"
 import type { PdfReading, Problem, Rule } from "./engine"
 import type { Place } from "./places"
 import { comparable, wordsOf } from "./pdf"
 import { readDate, readDateRange } from "./readDate"
-import { textsOf } from "./resume"
+import { entryAt, textsOf } from "./resume"
 import { FINE_SYMBOLS, ODD_SYMBOLS } from "./settings"
 import { layoutBulletsIn } from "./text"
 import type { ResumeView } from "./resume"
+
+// What the resume reader reads in place of each character no font had, as pdf.js reads it.
+const NOT_PRINTED = "\0"
+
+/** A symbol or emoji that may not come through (R5's). */
+const oddSymbol = (char: string) => ODD_SYMBOLS.test(char) && !FINE_SYMBOLS.includes(char)
+
+/** A character no template prints, as no font has it, other than a symbol or emoji (R8's). */
+const unprintable = (char: string) => noFontHas(char) && !oddSymbol(char)
+
+/** A typed value as far as the PDF can hold it: without the characters no font has. */
+const printedPart = (text: string) => [...text.normalize("NFC")].filter((char) => !noFontHas(char)).join("")
+
+/**
+ * The typed text the PDF prints as text: all of it but a project's links with
+ * “Link the title” chosen, which go behind its name instead (R7).
+ */
+const printedTextsOf = (resume: ResumeView) =>
+  textsOf(resume).filter(
+    ({ place }) =>
+      !(
+        resume.projectLinks === "title" &&
+        place.kind === "entry" &&
+        place.section === "Projects" &&
+        (place.field === "projectGithub" || place.field === "additionalLink") &&
+        entryAt(resume, "Projects", place.entry)?.values.projectName
+      ),
+  )
+
+/**
+ * Whether the text printed in sections prints: headings, entries, bullets,
+ * the summary and sections the person added. What doesn't (R8's) reads as
+ * nothing, which can throw out how the reader splits the sections and entries
+ * around it, so R2–R4 can't tell the resume's problems from the missing
+ * text's, and wait until it prints.
+ */
+const sectionsPrint = (resume: ResumeView) =>
+  printedTextsOf(resume).every(
+    ({ place, text }) => (place.kind === "profile" && place.field !== "summary") || ![...text.normalize("NFC")].some(unprintable),
+  )
 
 // An unresolved custom occurrence sharing a builtin heading can contaminate
 // the heuristic semantic parse. Do not turn that uncertainty into invented
@@ -64,15 +106,18 @@ const contactRead: Rule = {
   title: "Hiring software finds your name, email and phone",
   why: "If it can't find them, a recruiter may not see how to reach you.",
   check: ({ resume, pdf }) => {
-    const typed = CONTACT.filter(({ field }) => resume.profile[field])
+    // Only what prints can be found in the PDF; R8 says what doesn't.
+    const typed = CONTACT.flatMap((contact) => {
+      const value = printedPart(resume.profile[contact.field]).trim()
+      return value ? [{ ...contact, value }] : []
+    })
     if (typed.length === 0) return null
     return {
       checked: typed.length,
       problems: typed
-        .filter(({ field }) => {
-          const value = resume.profile[field]
-          return field === "phoneNumber" ? !phoneFound(pdf, value) : comparable(pdf.parsed.profile[field] ?? "") !== comparable(value)
-        })
+        .filter(({ field, value }) =>
+          field === "phoneNumber" ? !phoneFound(pdf, value) : comparable(pdf.parsed.profile[field] ?? "") !== comparable(value),
+        )
         .map(({ field, label }) => ({
           place: { kind: "profile", field },
           message: `Hiring software can't find your ${label} in the PDF`,
@@ -92,6 +137,7 @@ const headings: Rule = {
   check: ({ resume, pdf }) => {
     const printed = resume.order.filter((section) => resume.sections[section].some((entry) => !entry.blank))
     if (printed.length === 0) return null
+    if (!sectionsPrint(resume)) return { checked: 0, problems: [], partial: true }
     const uncertain = uncertainBuiltinSections(resume, pdf)
     const reliable = printed.filter((section) => !uncertain.has(section))
     const found = new Set(pdf.parsed.sections.map(({ name }) => name))
@@ -157,6 +203,7 @@ const entriesRead: Rule = {
   title: "Hiring software reads each entry as typed",
   why: "If a role, company, date or skill lands in another entry, or nowhere, your resume reads wrong.",
   check: ({ resume, pdf }) => {
+    if (!sectionsPrint(resume)) return { checked: 0, problems: [], partial: true }
     let checked = 0
     let partial = false
     const problems: Problem[] = []
@@ -221,7 +268,11 @@ const entriesRead: Rule = {
   },
 }
 
-const short = (text: string) => (text.length > 40 ? `${text.slice(0, 40).trimEnd()}…` : text)
+// Cut at a character, not a code unit, so half of an emoji or a rarer Chinese character isn't left.
+const short = (text: string) => {
+  const chars = [...text]
+  return chars.length > 40 ? `${chars.slice(0, 40).join("").trimEnd()}…` : text
+}
 
 // The shortest typed text that's worth matching inside a line, so a short
 // one, like "MI", isn't found in every line.
@@ -257,6 +308,7 @@ const unplaced: Rule = {
   title: "Hiring software can place all your text",
   why: "Text it can't place under a section may be left out of what it reads.",
   check: ({ resume, pdf }) => {
+    if (!sectionsPrint(resume)) return { checked: 0, problems: [], partial: true }
     const uncertain = unresolvedExtraHeadings(resume, pdf)
     const texts = textsOf(resume)
       .filter(({ place }) => !("sectionId" in place))
@@ -267,11 +319,15 @@ const unplaced: Rule = {
       }))
     // The section each printed heading stands for, to know which section a line was found under.
     const headed = new Map(resume.order.map((section) => [comparable(resume.printedHeadings[section]), section]))
+    // Text read with characters that didn't print, as a contact detail of
+    // R8's or an emoji of R5's, can't be told apart from what's around it.
+    const misread = (group: PdfReading["parsed"]["unplaced"][number]) =>
+      [group.heading, ...group.text].some((text) => text.includes(NOT_PRINTED))
     return {
       checked: 1,
-      ...(uncertain.size > 0 && { partial: true }),
+      ...((uncertain.size > 0 || pdf.parsed.unplaced.some(misread)) && { partial: true }),
       problems: pdf.parsed.unplaced
-        .filter((group) => !uncertain.has(comparable(group.heading)))
+        .filter((group) => !uncertain.has(comparable(group.heading)) && !misread(group))
         .map((group): Problem => {
           // Pointing at the field it came from, when it can be found; text with
           // no letters or digits can't be, so it points at its page.
@@ -309,7 +365,7 @@ const symbols: Rule = {
         // A bullet character typed at the start of a bullet is R6's.
         const body =
           (place.kind === "entry" || place.kind === "extra-text") && place.line !== undefined ? text.replace(TYPED_BULLET, "") : text
-        const found = [...body].find((char) => ODD_SYMBOLS.test(char) && !FINE_SYMBOLS.includes(char))
+        const found = [...body].find(oddSymbol)
         return found ? [{ place, message: `“${found}” may not come through`, suggestion: "Leave it out, or say it in words." }] : []
       }),
     }
@@ -367,4 +423,91 @@ const projectLinks: Rule = {
   },
 }
 
-export const READABLE_RULES: readonly Rule[] = [contactRead, headings, entriesRead, unplaced, symbols, typedBullets, projectLinks]
+// Between two characters that don't print, what keeps them one stretch of
+// text: spaces, as between a name's words, and invisible joiners.
+const JOINS = /[\s\p{Default_Ignorable_Code_Point}]/u
+
+/**
+ * The stretches of a text no font has, as typed, once each: the characters
+ * none has, run together with the spaces between them, so a name in two words
+ * is one. Symbols and emoji are R5's.
+ */
+function unprinted(text: string): string[] {
+  const runs = new Set<string>()
+  let run = ""
+  let gap = ""
+  for (const char of text.normalize("NFC")) {
+    if (unprintable(char)) {
+      run += gap + char
+      gap = ""
+    } else if (run && JOINS.test(char)) {
+      gap += char
+    } else {
+      if (run) runs.add(run)
+      run = gap = ""
+    }
+  }
+  if (run) runs.add(run)
+  return [...runs]
+}
+
+/**
+ * Whether a stretch that doesn't print is letters in a style of their own, as
+ * 𝐁𝐨𝐥𝐝 from a fancy text generator or Ｆｕｌｌ from a Chinese keyboard, whose
+ * plain letters (NFKC) do print.
+ */
+function lookAlike(run: string): boolean {
+  const plain = run.normalize("NFKC")
+  return plain !== run && ![...plain].some(noFontHas)
+}
+
+/** A few texts, quoted, as “a”, “a” and “b”, “a”, “b” and “c”, or “a”, “b” and 3 more. */
+function quoted(texts: string[]): string {
+  const each = texts.map((text) => `“${short(text)}”`)
+  if (each.length === 1) return each[0]
+  if (each.length <= 3) return `${each.slice(0, -1).join(", ")} and ${each.at(-1)}`
+  return `${each.slice(0, 2).join(", ")} and ${each.length - 2} more`
+}
+
+const printable: Rule = {
+  id: "R8",
+  category: "readable",
+  level: "fix",
+  reads: "form",
+  title: "Every character prints",
+  why: "The templates' fonts don't have these characters, so the PDF leaves them out or prints boxes, and hiring software can't read them.",
+  check: ({ resume }) => {
+    const texts = printedTextsOf(resume)
+    if (texts.length === 0) return null
+    return {
+      checked: texts.length,
+      problems: texts.flatMap(({ place, text }) => {
+        const runs = unprinted(text)
+        if (runs.length === 0) return []
+        // Which characters, and that it's the fonts, not the typing: else it
+        // reads as if the person got their own name wrong. Unless they're
+        // letters in a style pasted in, whose plain letters print.
+        return [
+          {
+            place,
+            message: `${quoted(runs)} ${runs.length === 1 ? "doesn't" : "don't"} print`,
+            suggestion: runs.every(lookAlike)
+              ? "These look like letters but aren't, so no font has them. Type them as plain letters."
+              : "Your typing is fine. For now, write it in Latin letters.",
+          },
+        ]
+      }),
+    }
+  },
+}
+
+export const READABLE_RULES: readonly Rule[] = [
+  contactRead,
+  headings,
+  entriesRead,
+  unplaced,
+  symbols,
+  typedBullets,
+  projectLinks,
+  printable,
+]
