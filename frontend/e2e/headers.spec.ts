@@ -1,0 +1,76 @@
+import { type APIResponse, expect, test } from "./test"
+import nextConfig from "../next.config.js"
+
+// The security headers (next.config.js) come with everything the site sends:
+// pages, files, and the scripts its workers start from, which take their
+// policy from their own response rather than from the page's.
+
+const NAMES = ["content-security-policy-report-only", "x-frame-options", "x-content-type-options", "referrer-policy", "permissions-policy"]
+
+// The home page and the dashboard, a page built for each template, the editor
+// at a resume's address, the page Google's sign-in comes back to, and one
+// that isn't there.
+const PAGES = ["/", "/templates/jakes", "/create/dashboard", "/create/new/a-resume", "/google-drive", "/does-not-exist"]
+
+/** What next.config.js sends with every response, by header name in lower case. */
+async function securityHeaders(): Promise<Record<string, string>> {
+  const everywhere = (await nextConfig.headers()).find(({ source }) => source === "/:path*")
+  return Object.fromEntries((everywhere?.headers ?? []).map(({ key, value }) => [key.toLowerCase(), value]))
+}
+
+async function expectSecurityHeaders(response: APIResponse, what: string) {
+  const expected = await securityHeaders()
+  expect(Object.keys(expected).sort(), "the headers next.config.js sends with everything").toEqual([...NAMES].sort())
+  for (const name of NAMES) expect(response.headers()[name], `${name} on ${what}`).toBe(expected[name])
+}
+
+test.describe("security headers", () => {
+  test.skip(({ browserName }) => browserName !== "chromium", "The server sends the same headers to every browser")
+
+  test("are on every page, including the editor's and one that isn't found", async ({ request }) => {
+    for (const path of PAGES) await expectSecurityHeaders(await request.get(path), path)
+  })
+
+  test("are on files, alongside the time browsers keep them for", async ({ request }) => {
+    await expectSecurityHeaders(await request.get("/logo.svg"), "/logo.svg")
+    const poster = await request.get("/video/printer-poster.jpg")
+    await expectSecurityHeaders(poster, "the video's poster")
+    expect(poster.headers()["cache-control"]).toBe("public, max-age=86400")
+  })
+
+  test("are on the scripts the PDF engine's, pdf.js's, the grammar checker's and the resume reader's workers start from", async ({
+    page,
+    request,
+  }) => {
+    const workers = new Set<string>()
+    page.on("worker", (worker) => workers.add(worker.url()))
+    await page.goto("/")
+    await page.getByRole("link", { name: "Start writing" }).first().click()
+    await expect(page).toHaveURL(/\/create\/new\//)
+    await page.getByLabel("Full name").fill("Ada Lovelace")
+    await page
+      .getByRole("navigation", { name: "Sections" })
+      .getByRole("button", { name: /^Experience$/ })
+      .click()
+    await page.getByRole("button", { name: "Add experience" }).click()
+    await page.getByLabel("Company").fill("Analytical Engines")
+    await page.getByLabel(/^What you did/).fill("Wrote the first program")
+    await expect(
+      page
+        .getByRole("region", { name: "Live preview" })
+        .getByText(/Analytical Engines/i)
+        .first(),
+    ).toBeVisible()
+
+    // Check starts the grammar checker, and the resume reader reads the preview for it.
+    await page
+      .getByRole("tablist", { name: "Write, check or style" })
+      .getByRole("tab", { name: /^Check/ })
+      .click()
+    await expect.poll(() => workers.size).toBe(4)
+    for (const url of workers) {
+      expect(new URL(url).pathname).toMatch(/^\/_next\/static\//)
+      await expectSecurityHeaders(await request.get(url), url)
+    }
+  })
+})
