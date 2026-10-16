@@ -5,7 +5,7 @@
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { TextContent } from "pdfjs-dist/types/src/display/api"
 import { unzip, zip } from "@/lib/zip"
-import { MAX_CHARACTERS, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
+import { MAX_CELL_PARAGRAPHS, MAX_CHARACTERS, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
 
 /** A stretch of text in one style; `start` and `end` index into its part's text. */
 export interface Run {
@@ -650,11 +650,13 @@ export function linesFromHtml(html: string): Line[] {
   let bold = 0
   let italic = 0
   let listDepth = 0
+  let inCells = 0
 
   // Into the innermost open cell, or out as a line.
   const place = (paragraph: Paragraph) => {
     const cell = tables.findLast((table) => table.cell)?.cell
     if (cell) {
+      if (++inCells > MAX_CELL_PARAGRAPHS) throw new TooMuchTextError()
       cell.push(paragraph)
       return
     }

@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from "vitest"
 import { convertToHtml } from "mammoth"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"
-import { MAX_CHARACTERS, MAX_PAGES, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
+import { MAX_CELL_PARAGRAPHS, MAX_CHARACTERS, MAX_PAGES, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
 import { cleanLink, linesFromDocx, linesFromPages, readPdf, UnreadableWordFileError, type Line } from "./lines"
 import { parseResume, toResumeContent } from "./parse"
 import { pdfOf, textPdf, wordFile, type WordParagraph, type WordTable } from "./testFiles"
@@ -267,6 +267,19 @@ describe("tables in a Word file", () => {
   test("laid out in columns are read a column at a time", async () => {
     const sidebar = ["Jordan Lee", "jordan@example.com", { heading: "Skills" }, "Python, SQL", "React, AWS"]
     expect(await read([[[sidebar, experience]]])).toEqual(await read([...sidebar, ...experience]))
+  })
+
+  test("nested deep around more paragraphs than any resume has are too much text, not minutes of reading", async () => {
+    const nested = (content: (WordParagraph | WordTable)[], depth: number): WordTable => [
+      [depth > 1 ? [nested(content, depth - 1)] : content],
+    ]
+    // Twenty tables deep, a few paragraphs read as any would.
+    await expect(read([nested(["Mara Lin", "mara@example.com"], 20)])).resolves.toMatchObject([
+      { text: "Mara Lin" },
+      { text: "mara@example.com" },
+    ])
+    const paragraphs = Array.from({ length: MAX_CELL_PARAGRAPHS / 20 + 1 }, (_, i) => `Line ${i}`)
+    await expect(read([nested(paragraphs, 20)])).rejects.toThrow(TooMuchTextError)
   })
 
   test("with a section in each of two cells read one after the other, however short", async () => {

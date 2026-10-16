@@ -50,6 +50,7 @@ far beyond a real resume, which is a page or two and under 10,000 characters.
 | PDF pages | 20 | as soon as the PDF opens, before any page is read |
 | Text | 200,000 characters or 5,000 lines | as a PDF's text arrives, even partway through a page; a Word file's once converted |
 | A Word file's XML, unzipped | 10 MB | before converting it, since a small file can unzip to a lot |
+| Paragraphs in a Word file's table cells | 50,000, one in tables in tables counted once for each | as its tables are read, since tables nested deep take long to read |
 | Time | 1 minute | from start to finish, downloads included |
 
 pdf.js leaves out text that runs off the page, so only tiny print can fit enough
