@@ -232,6 +232,20 @@ describe("tables in a Word file", () => {
     ])
   })
 
+  test("leave out paragraphs of only spaces, which would push the text beside them down a line", async () => {
+    const margin: WordTable = [
+      [
+        [" ", "Experience"],
+        ["Software Engineer, Acme Corp", "Jun 2021 – Present"],
+      ],
+    ]
+    // prettier-ignore
+    expect(parts(await read([margin]))).toEqual([
+      [["Experience", 0], ["Software Engineer, Acme Corp", 200]],
+      [["Jun 2021 – Present", 200]],
+    ])
+  })
+
   test("laid out in columns are read a column at a time", async () => {
     const sidebar = ["Jordan Lee", "jordan@example.com", { heading: "Skills" }, "Python, SQL", "React, AWS"]
     expect(await read([[[sidebar, experience]]])).toEqual(await read([...sidebar, ...experience]))

@@ -613,18 +613,20 @@ const moved = (parts: Part[], by: number): Part[] => (by === 0 ? parts : parts.m
  * with only empty ones beside it keeps its headings and bullets.
  */
 function readRow(cells: Paragraph[][]): Paragraph[] {
-  // Paragraphs of only spaces, which Word files space things out with, don't count.
-  const counts = cells.map((cell) => cell.filter((paragraph) => paragraph.parts.length > 0).length)
+  // Paragraphs of only spaces would push the text beside them down a line, so
+  // they're left out, as mammoth leaves out empty ones. One with a link stays.
+  const filled = cells.map((cell) => cell.filter((paragraph) => paragraph.parts.length > 0 || paragraph.links.length > 0))
+  const counts = filled.map((cell) => cell.length)
   const several = counts.filter((count) => count > 1).length
   const across = several === 0 || (several === 1 && counts.includes(1))
-  if (!across) return cells.flat()
-  const height = cells.reduce((most, cell) => Math.max(most, cell.length), 0)
+  if (!across) return filled.flat()
+  const height = filled.reduce((most, cell) => Math.max(most, cell.length), 0)
   return Array.from({ length: height }, (_, i) => ({
-    parts: cells.flatMap((cell, column) => (cell[i] ? moved(cell[i].parts, column * 200) : [])),
+    parts: filled.flatMap((cell, column) => (cell[i] ? moved(cell[i].parts, column * 200) : [])),
     size: BODY_SIZE,
     bullet: false,
     indent: 0,
-    links: cells.flatMap((cell) => cell[i]?.links ?? []),
+    links: filled.flatMap((cell) => cell[i]?.links ?? []),
   }))
 }
 
