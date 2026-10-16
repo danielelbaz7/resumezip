@@ -207,20 +207,26 @@ describe("a Word file's page header and footer", () => {
     ])
   })
 
-  test("leave out a page number, alone or beside other text", async () => {
+  test("leave out the page number Word fills in, with its words, however it's set beside other text", async () => {
     // Word writes a page number as a field, with the number it showed last.
     const field = (code: string, shown: string) =>
       `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ${code} </w:instrText></w:r>` +
       `<w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>${shown}</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`
+    const run = (text: string) => `<w:r><w:t xml:space="preserve">${text}</w:t></w:r>`
     // Word's own header layouts set text on the right with a tab of their own (w:ptab).
     const right = '<w:r><w:ptab w:relativeTo="margin" w:alignment="right" w:leader="none"/></w:r>'
-    const file = wordFile(["EXPERIENCE"], {
-      header: { default: `<w:p><w:r><w:t>Jordan Lee</w:t></w:r>${right}${field("PAGE", "1")}</w:p>` },
-      footer: {
-        default: `<w:p><w:r><w:t xml:space="preserve">Page </w:t></w:r>${field("PAGE", "1")}<w:r><w:t xml:space="preserve"> of </w:t></w:r><w:fldSimple w:instr=" NUMPAGES "><w:r><w:t>2</w:t></w:r></w:fldSimple></w:p>`,
-      },
-    })
-    expect(await texts(file)).toEqual(["Jordan Lee", "EXPERIENCE"])
+    const header = [
+      `<w:p>${run("Jordan Lee ")}${field("PAGE", "1")}</w:p>`,
+      `<w:p>${run("Software Engineer | Page ")}${field("PAGE", "1")}</w:p>`,
+      `<w:p>${run("Austin, TX")}${right}${field("PAGE", "1")}</w:p>`,
+    ].join("")
+    const footer = [
+      `<w:p>${run("Page ")}${field("PAGE", "1")}${run(" of ")}<w:fldSimple w:instr=" NUMPAGES "><w:r><w:t>2</w:t></w:r></w:fldSimple></w:p>`,
+      // Another field's text is read as Word shows it.
+      `<w:p>${run("Updated ")}${field('DATE \\@ "MMMM yyyy"', "October 2026")}</w:p>`,
+    ].join("")
+    const file = wordFile(["EXPERIENCE"], { header: { default: header }, footer: { default: footer } })
+    expect(await texts(file)).toEqual(["Jordan Lee", "Software Engineer", "Austin, TX", "EXPERIENCE", "Updated October 2026"])
   })
 
   test("are the first page's own before the rest's, only when the first page has its own, and each line once", async () => {

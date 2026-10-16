@@ -753,6 +753,37 @@ function sectionsOf(document: string): Section[] {
 // tab stops), formatting from before a tracked change, and deleted text.
 const UNSHOWN = new Set(["w:pPr", "w:rPrChange", "w:del", "w:moveFrom"])
 
+/** The code of a field Word fills in with a page number. */
+const PAGE_NUMBER_CODE = /^\s*(?:PAGE|NUMPAGES|SECTIONPAGES)\b/i
+/** Stands in for a page number Word fills in until its line is done. */
+const PAGE_FIELD = "\uE000"
+/** A page number Word fills in, with the words and marks around it: "Page 2 of 3", "| 2", "- 2 -". */
+const NUMBERED = /[\s|,\u2022\u00B7\-\u2013\u2014]*(?:\bpage\s*)?\uE000(?:\s*(?:of|\/)\s*\uE000)?[\s|,\u2022\u00B7\-\u2013\u2014]*/gi
+
+/** `pieces` with what `pattern` finds in their text, read across them, replaced by `by` in the style of the text it starts in. */
+function replaced(pieces: Piece[], pattern: RegExp, by: string): Piece[] {
+  const matches = [
+    ...pieces
+      .map((piece) => piece.text)
+      .join("")
+      .matchAll(pattern),
+  ].map((match) => {
+    const start = match.index ?? 0
+    return { start, end: start + match[0].length }
+  })
+  if (matches.length === 0) return pieces
+  let at = 0
+  return pieces.map((piece) => {
+    let text = ""
+    for (let i = 0; i < piece.text.length; i++, at++) {
+      const match = matches.find(({ start, end }) => at >= start && at < end)
+      if (!match) text += piece.text[i]
+      else if (at === match.start) text += by
+    }
+    return { ...piece, text }
+  })
+}
+
 /**
  * Reads a header or footer a paragraph at a time, in tables and text boxes
  * too, with bold, italics and links read from each run as mammoth reads the
@@ -765,8 +796,12 @@ function readHeaderOrFooter(xml: string, relationships: Map<string, Relationship
   // Whether a choice of each mc:AlternateContent open was read: its other
   // choices, and its fallback, are the same text drawn another way.
   const alternatives: boolean[] = []
+  // The fields open around the text, innermost last: Word's code for what it
+  // fills in, then what it filled in last, which for a page number isn't read.
+  const fields: { code: string; pageNumber: boolean }[] = []
   let unshown = 0
   let inText = false
+  let inCode = false
   let inRunProperties = false
 
   const write = (text: string) => {
@@ -776,8 +811,10 @@ function readHeaderOrFooter(xml: string, relationships: Map<string, Relationship
   const endLine = () => {
     const paragraph = paragraphs[paragraphs.length - 1]
     if (!paragraph) return
+    // A page number Word fills in, with its words, is a gap between what's on either side of it.
+    const pieces = replaced(paragraph.pieces, NUMBERED, "\t")
     const line = toLine(
-      toParts(paragraph.pieces, 0).filter((part) => !PAGE_NUMBER.test(part.text)),
+      toParts(pieces, 0).filter((part) => !PAGE_NUMBER.test(part.text)),
       BODY_SIZE,
       paragraph.links,
     )
@@ -788,7 +825,10 @@ function readHeaderOrFooter(xml: string, relationships: Map<string, Relationship
 
   for (const [, closing, tag, attributes, text] of xml.matchAll(XML_TOKEN)) {
     if (text !== undefined) {
-      if (inText && !unshown) write(decode(text).replace(/[\r\n]+/g, " "))
+      const field = fields[fields.length - 1]
+      if (unshown) continue
+      if (inCode && field) field.code += decode(text)
+      else if (inText && !fields.some((open) => open.pageNumber)) write(decode(text).replace(/[\r\n]+/g, " "))
       continue
     }
     const empty = attributes.endsWith("/")
@@ -838,6 +878,32 @@ function readHeaderOrFooter(xml: string, relationships: Map<string, Relationship
       case "w:hyperlink": {
         const link = opens ? relationships.get(attribute(attributes, "r:id") ?? "") : undefined
         if (link?.external) paragraphs[paragraphs.length - 1]?.links.push(link.target)
+        break
+      }
+      // A field written out in runs: its start, its code, then what Word filled in, and its end.
+      case "w:fldChar": {
+        const type = closing ? undefined : attribute(attributes, "w:fldCharType")
+        const field = fields[fields.length - 1]
+        if (type === "begin") fields.push({ code: "", pageNumber: false })
+        else if (type === "end") fields.pop()
+        else if (type === "separate" && field) {
+          field.pageNumber = PAGE_NUMBER_CODE.test(field.code)
+          if (field.pageNumber) write(PAGE_FIELD)
+        }
+        break
+      }
+      case "w:instrText":
+        inCode = opens
+        break
+      // A field with its code in an attribute, around what Word filled in.
+      case "w:fldSimple": {
+        if (closing) {
+          fields.pop()
+          break
+        }
+        const pageNumber = PAGE_NUMBER_CODE.test(attribute(attributes, "w:instr") ?? "")
+        if (pageNumber) write(PAGE_FIELD)
+        if (!empty) fields.push({ code: "", pageNumber })
         break
       }
       case "mc:AlternateContent":
