@@ -44,7 +44,7 @@ export function pdfOf(contents: string[]): Buffer {
   return Buffer.from(pdf, "latin1")
 }
 
-const escapeXml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+const escapeXml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 
 const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
 const RELATIONSHIPS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"

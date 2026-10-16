@@ -272,14 +272,12 @@ describe("a Word file's page header and footer", () => {
     ])
   })
 
-  test("keep where their links go", async () => {
+  test("keep where their links go, as written", async () => {
     const header =
       '<w:p><w:r><w:t xml:space="preserve">Jordan Lee | </w:t></w:r><w:hyperlink r:id="profile"><w:r><w:t>LinkedIn</w:t></w:r></w:hyperlink></w:p>'
-    const file = wordFile(["EXPERIENCE"], { header: { default: header }, links: { profile: "https://www.linkedin.com/in/jordanlee" } })
-    expect((await linesFromDocx(bytes(file)))[0]).toMatchObject({
-      text: "Jordan Lee | LinkedIn",
-      links: ["https://www.linkedin.com/in/jordanlee"],
-    })
+    const profile = 'https://www.linkedin.com/in/jordanlee/?from="header"&lang=en'
+    const file = wordFile(["EXPERIENCE"], { header: { default: header }, links: { profile } })
+    expect((await linesFromDocx(bytes(file)))[0]).toMatchObject({ text: "Jordan Lee | LinkedIn", links: [profile] })
   })
 
   test("are found wherever the file says its parts are", async () => {
