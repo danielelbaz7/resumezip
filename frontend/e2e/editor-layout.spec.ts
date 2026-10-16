@@ -31,7 +31,7 @@ async function writeExperience(page: Page, width: number, height: number) {
   await page.getByRole("button", { name: "Add experience" }).click()
   // A new entry puts the cursor in its first field once it has slid open.
   // Typing before then could land in the wrong field.
-  await expect(page.getByLabel("Role", { exact: true })).toBeFocused()
+  await expect(page.getByLabel("Company", { exact: true })).toBeFocused()
   for (const [label, value] of Object.entries(ENTRY)) await page.getByLabel(label, { exact: true }).fill(value)
   await page.getByLabel(BULLETS).fill(LONG_BULLETS)
 }
@@ -200,15 +200,15 @@ test("a field chosen while a new entry slides open keeps the cursor", async ({ p
   await expect(page).toHaveURL(/\/create\/new\//)
   await experience(page).click()
   await page.getByRole("button", { name: "Add experience" }).click()
-  // Into Company straight away, before the entry has finished sliding open.
-  const company = page.getByLabel("Company", { exact: true })
-  await company.focus()
+  // Into Role straight away, before the entry has finished sliding open.
+  const role = page.getByLabel("Role", { exact: true })
+  await role.focus()
   // Past the slide, when a new entry puts the cursor in its first field.
   await page.waitForTimeout(600)
-  await expect(company).toBeFocused()
-  await page.keyboard.type("Analytical Engines")
-  await expect(company).toHaveValue("Analytical Engines")
-  await expect(page.getByLabel("Role", { exact: true })).toHaveValue("")
+  await expect(role).toBeFocused()
+  await page.keyboard.type("Analyst")
+  await expect(role).toHaveValue("Analyst")
+  await expect(page.getByLabel("Company", { exact: true })).toHaveValue("")
   expect(errors).toEqual([])
 })
 

@@ -111,10 +111,13 @@ function slide(entries: Map<number, HTMLElement>, list: HTMLElement | null, move
   }
 }
 
-/** An entry's one-line summary: its summary fields, or its first filled field when they're empty, like a paper's link added by hand. */
+/** The fields that name an entry's card: the company alone, or a degree and its school. */
+const cardFields = (section: SectionDef) => section.card ?? section.summary
+
+/** An entry's one-line summary: its card's fields, or its first filled field when they're empty, like a paper's link added by hand. */
 function summaryOf(section: SectionDef, entry: Entry): string {
   return (
-    section.summary
+    cardFields(section)
       .map((key) => entry[key]?.trim())
       .filter(Boolean)
       .join(", ") ||
@@ -126,8 +129,8 @@ function summaryOf(section: SectionDef, entry: Entry): string {
 /**
  * The form for one list section (education, experience, ...): its title and
  * its entries, each a card. One card is open at a time, with its fields; the
- * rest are folded to a line naming them, as "Software Engineering Intern ·
- * Google", and their dates and bullets under it. An open card's name is its
+ * rest are folded to a line naming them, as "B.S. in Computer Science ·
+ * Stanford University", and their dates and bullets under it. An open card's name is its
  * first field, typed in where it's shown.
  */
 function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }: SectionFormProps) {
@@ -161,9 +164,9 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
 
   // The first field is the card's name: an open card's name is where it's
   // typed, and the rest of its fields are under it. The name's second part
-  // ("Google") is the next field that sums the entry up.
-  const titleField = section.fields.find((field) => field.key === section.summary[0])!
-  const suffixKey = section.summary[1]
+  // ("Stanford University") is the next field that sums the entry up, if any.
+  const titleField = section.fields.find((field) => field.key === cardFields(section)[0])!
+  const suffixKey = cardFields(section)[1]
   const fields = section.fields.filter((field) => field !== titleField)
 
   // Drag and drop puts the entries on the page anew as it arrives, so it
