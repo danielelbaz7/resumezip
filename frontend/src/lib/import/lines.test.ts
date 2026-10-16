@@ -257,10 +257,14 @@ describe("tables in a Word file", () => {
     expect(lines).toEqual(await read([...left, ...right]))
   })
 
-  test("with text in one cell are read like that text, keeping its headings", async () => {
+  test("keep the style of a paragraph alone on its line, like a heading's", async () => {
+    // A heading in a cell of its own, like a bar across the page.
+    const bar: WordTable = [[[{ heading: "Things I Built" }]]]
+    expect(await read([bar, "Resume Parser"])).toEqual(await read([{ heading: "Things I Built" }, "Resume Parser"]))
     expect(await read([[[experience]]])).toEqual(await read(experience))
-    // Beside an empty cell, like one holding a photo, which isn't read.
-    expect(await read([[[[], experience]]])).toEqual(await read(experience))
+    // Beside an empty cell, like one holding a photo, which isn't read, the text sits a cell over.
+    const styles = (lines: Line[]) => lines.map(({ text, size, heading, bullet }) => ({ text, size, heading, bullet }))
+    expect(styles(await read([[[[], experience]]]))).toEqual(styles(await read(experience)))
   })
 
   test("laid out in columns, with a table in one, keep everything in the resume or Couldn't place", async () => {

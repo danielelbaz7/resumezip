@@ -605,29 +605,25 @@ interface Paragraph {
 const moved = (parts: Part[], by: number): Part[] => (by === 0 ? parts : parts.map((part) => ({ ...part, x: part.x + by })))
 
 /**
- * A table row's cells as paragraphs. When no cell holds several, or one
- * does with a paragraph beside its first (a heading or dates beside an
- * entry), the row is read across: each paragraph down it becomes one, with
- * a part per cell, like a PDF's columns. Otherwise the cells are read one
- * after another, so a layout table's columns don't interleave, and a cell
- * with only empty ones beside it keeps its headings and bullets.
+ * A table row's cells as paragraphs. When at most one cell holds several,
+ * the row is read across: each paragraph down it becomes one, with a part
+ * per cell, like a PDF's columns, as a heading or dates sit beside an entry.
+ * A paragraph alone on its line keeps its style. When two or more cells
+ * hold several, like a layout table's columns, reading across would
+ * interleave them, so the cells are read one after another.
  */
 function readRow(cells: Paragraph[][]): Paragraph[] {
   // Paragraphs of only spaces would push the text beside them down a line, so
   // they're left out, as mammoth leaves out empty ones. One with a link stays.
   const filled = cells.map((cell) => cell.filter((paragraph) => paragraph.parts.length > 0 || paragraph.links.length > 0))
-  const counts = filled.map((cell) => cell.length)
-  const several = counts.filter((count) => count > 1).length
-  const across = several === 0 || (several === 1 && counts.includes(1))
-  if (!across) return filled.flat()
+  if (filled.filter((cell) => cell.length > 1).length > 1) return filled.flat()
   const height = filled.reduce((most, cell) => Math.max(most, cell.length), 0)
-  return Array.from({ length: height }, (_, i) => ({
-    parts: filled.flatMap((cell, column) => (cell[i] ? moved(cell[i].parts, column * 200) : [])),
-    size: BODY_SIZE,
-    bullet: false,
-    indent: 0,
-    links: filled.flatMap((cell) => cell[i]?.links ?? []),
-  }))
+  return Array.from({ length: height }, (_, i) => {
+    const line = filled.flatMap((cell, column) => (cell[i] ? [{ ...cell[i], parts: moved(cell[i].parts, column * 200) }] : []))
+    if (line.length === 1) return line[0]
+    const links = line.flatMap((paragraph) => paragraph.links)
+    return { parts: line.flatMap((paragraph) => paragraph.parts), size: BODY_SIZE, bullet: false, indent: 0, links }
+  })
 }
 
 /**
