@@ -18,10 +18,11 @@ const TIMEUPDATE_GAP = 0.25
  * shows until the video plays, and instead of it for visitors who prefer
  * less motion or are saving data.
  *
- * The clip is H.264 without sound, with the index at the start so playing
- * can begin before the whole file is in. From a compressed export:
- *   ffmpeg -i export.mp4 -map 0:v -c copy -movflags +faststart -map_metadata -1 interview.mp4
- * The poster is its first frame.
+ * The clips are H.264 without sound, with the index at the start so playing
+ * can begin before the whole file is in. From the original:
+ *   ffmpeg -i original.mp4 -an -c:v libx264 -preset veryslow -crf 25 -x264-params aq-mode=3 \
+ *     -profile:v high -level 3.1 -pix_fmt yuv420p -movflags +faststart -map_metadata -1 printer.mp4
+ * and the same with `-vf crop=540:720` for printer-portrait.mp4.
  */
 export default function HeroVideo() {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -61,7 +62,7 @@ export default function HeroVideo() {
 
   return (
     <div aria-hidden="true" className="absolute inset-0">
-      <Image src="/video/interview-poster.jpg" alt="" fill priority sizes="100vw" className="object-cover" />
+      <Image src="/video/printer-poster.jpg" alt="" fill priority sizes="100vw" className="object-cover" />
       <video
         ref={videoRef}
         muted
@@ -70,7 +71,15 @@ export default function HeroVideo() {
         preload="none"
         className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
       >
-        {sources && <source src="/video/interview.mp4" type="video/mp4" />}
+        {sources && (
+          <>
+            {/* The hero is at least as tall as the screen, so a screen no wider than 3:4 only shows the middle 3:4 of the
+                clip, at its full height: printer-portrait.mp4 is just that. Browsers that ignore media on a source (Chrome
+                and Firefox before 120) take the first one. */}
+            <source src="/video/printer.mp4" type="video/mp4" media="(min-aspect-ratio: 3/4)" />
+            <source src="/video/printer-portrait.mp4" type="video/mp4" />
+          </>
+        )}
       </video>
     </div>
   )

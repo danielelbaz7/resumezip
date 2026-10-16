@@ -43,20 +43,13 @@ export default function Home() {
       >
         <HeroVideo />
         <div aria-hidden="true" className="absolute inset-0 bg-black/25" />
-        {/* Shade on the left, where the text sits, so the clip's face on the right stays clear. Narrower screens show only
-            the middle of the clip, with the face behind the text, so they're shaded more evenly instead. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/65 to-black/45 lg:from-black/90 lg:via-black/50 lg:via-30% lg:to-transparent lg:to-[58%]"
-        />
         {/* The video darkens to black at its foot, where the blue section after it fades in from black. */}
         <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-b from-transparent to-black" />
 
         <div className="relative mx-auto w-full max-w-[1440px] px-5 md:px-10">
-          <h1 className="font-serif text-[56px] leading-[0.92] tracking-[-0.045em] sm:text-[80px] lg:text-[96px] lg:leading-[0.88]">
-            Your resume,
-            <br />
-            done <em className="pr-[0.04em] text-accent">right.</em>
+          <h1 className="max-w-[1000px] text-balance font-serif text-[56px] leading-[0.92] tracking-[-0.045em] max-[359px]:text-[52px] sm:text-[80px] lg:text-[116px] lg:leading-[0.88]">
+            {/* A line for each sentence. At 56px each is a few pixels wider than a 320px screen leaves, so it's a little smaller there. */}
+            Your resume. Not our <em className="pr-[0.04em] text-accent-soft">data.</em>
           </h1>
         </div>
 
