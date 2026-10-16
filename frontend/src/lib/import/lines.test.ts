@@ -3,7 +3,8 @@ import { describe, expect, test, vi } from "vitest"
 import { convertToHtml } from "mammoth"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"
-import { MAX_CELL_PARAGRAPHS, MAX_CHARACTERS, MAX_PAGES, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
+import { unzip, zip } from "@/lib/zip"
+import { MAX_CELL_PARAGRAPHS, MAX_CHARACTERS, MAX_LINES, MAX_PAGES, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
 import { cleanLink, linesFromDocx, linesFromPages, readPdf, UnreadableWordFileError, type Line } from "./lines"
 import { parseResume, toResumeContent } from "./parse"
 import { pdfOf, textPdf, wordFile, type WordParagraph, type WordTable } from "./testFiles"
@@ -324,6 +325,139 @@ describe("tables in a Word file", () => {
       { skillName: "React", skillDetails: "AWS" },
     ])
     expect(parsed.unplaced).toEqual([])
+  })
+})
+
+describe("a Word file's page header and footer", () => {
+  const texts = async (file: Buffer) => (await linesFromDocx(bytes(file))).map((line) => line.text)
+
+  test("come first and last, with the footer's lines marked", async () => {
+    const file = wordFile(["EXPERIENCE", "Acme Corp | Engineer"], {
+      header: { default: ["Jordan Lee", "jordan@example.com | (555) 010-2299 | Austin, TX"] },
+      footer: { default: ["References available upon request"] },
+    })
+    expect((await linesFromDocx(bytes(file))).map(({ text, footer }) => ({ text, footer }))).toEqual([
+      { text: "Jordan Lee" },
+      { text: "jordan@example.com | (555) 010-2299 | Austin, TX" },
+      { text: "EXPERIENCE" },
+      { text: "Acme Corp | Engineer" },
+      { text: "References available upon request", footer: true },
+    ])
+  })
+
+  test("leave out the page number Word fills in, with its words, however it's set beside other text", async () => {
+    // Word writes a page number as a field, with the number it showed last.
+    const field = (code: string, shown: string) =>
+      `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ${code} </w:instrText></w:r>` +
+      `<w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>${shown}</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`
+    const run = (text: string) => `<w:r><w:t xml:space="preserve">${text}</w:t></w:r>`
+    // Word's own header layouts set text on the right with a tab of their own (w:ptab).
+    const right = '<w:r><w:ptab w:relativeTo="margin" w:alignment="right" w:leader="none"/></w:r>'
+    const header = [
+      `<w:p>${run("Jordan Lee ")}${field("PAGE", "1")}</w:p>`,
+      `<w:p>${run("Software Engineer | Page ")}${field("PAGE", "1")}</w:p>`,
+      `<w:p>${run("Austin, TX")}${right}${field("PAGE", "1")}</w:p>`,
+    ].join("")
+    const footer = [
+      `<w:p>${run("Page ")}${field("PAGE", "1")}${run(" of ")}<w:fldSimple w:instr=" NUMPAGES "><w:r><w:t>2</w:t></w:r></w:fldSimple></w:p>`,
+      // Another field's text is read as Word shows it.
+      `<w:p>${run("Updated ")}${field('DATE \\@ "MMMM yyyy"', "October 2026")}</w:p>`,
+    ].join("")
+    const file = wordFile(["EXPERIENCE"], { header: { default: header }, footer: { default: footer } })
+    expect(await texts(file)).toEqual(["Jordan Lee", "Software Engineer", "Austin, TX", "EXPERIENCE", "Updated October 2026"])
+  })
+
+  test("are the first page's own before the rest's, only when the first page has its own, and each line once", async () => {
+    // Word shows the even pages' own only when the file's settings say so, and these don't.
+    const header = { first: ["Jordan Lee", "jordan@example.com"], default: ["Jordan Lee\tPage 2"], even: ["On even pages"] }
+    expect(await texts(wordFile(["EXPERIENCE"], { header, titlePage: true }))).toEqual(["Jordan Lee", "jordan@example.com", "EXPERIENCE"])
+    // Word keeps the first page's header once it's turned off, without showing it.
+    expect(await texts(wordFile(["EXPERIENCE"], { header }))).toEqual(["Jordan Lee", "EXPERIENCE"])
+  })
+
+  test("are read as Word shows them", async () => {
+    const header = [
+      // A paragraph's tab stops aren't tabs: its text starts at its left edge.
+      '<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs></w:pPr>',
+      // Made bold from italic, with changes tracked.
+      '<w:r><w:rPr><w:b/><w:rPrChange w:id="4" w:author="Jordan"><w:rPr><w:i/></w:rPr></w:rPrChange></w:rPr><w:t>Jordan Lee</w:t></w:r><w:r><w:tab/></w:r>',
+      '<w:r><w:t xml:space="preserve">(555) 010</w:t><w:noBreakHyphen/><w:t>2299</w:t></w:r></w:p>',
+      // A symbol sets words apart. Deleted text isn't shown, nor is the line
+      // break deleted with it, and text moved elsewhere is shown where it went.
+      '<w:p><w:r><w:t>jordan@example.com</w:t></w:r><w:del w:id="1" w:author="Jordan"><w:r><w:br/><w:delText>Dallas, TX</w:delText></w:r></w:del>',
+      '<w:r><w:sym w:font="Wingdings" w:char="F0A7"/></w:r><w:moveTo w:id="2" w:author="Jordan"><w:r><w:t>Austin, TX</w:t></w:r></w:moveTo>',
+      "<w:r><w:br/><w:t>linkedin.com/in/jordanlee</w:t></w:r>",
+      '<w:moveFrom w:id="3" w:author="Jordan"><w:r><w:t>Austin, TX</w:t></w:r></w:moveFrom></w:p>',
+    ].join("")
+    expect(await linesFromDocx(bytes(wordFile(["EXPERIENCE"], { header: { default: header } })))).toMatchObject([
+      {
+        text: "Jordan Lee (555) 010-2299",
+        x: 0,
+        parts: [{ text: "Jordan Lee", runs: [{ bold: true, italic: false }] }, { text: "(555) 010-2299" }],
+      },
+      { text: "jordan@example.com Austin, TX" },
+      { text: "linkedin.com/in/jordanlee" },
+      { text: "EXPERIENCE" },
+    ])
+  })
+
+  test("read a text box once, though Word draws it for its newer versions and again for its older ones", async () => {
+    const box = (text: string) => `<w:txbxContent><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:txbxContent>`
+    const header =
+      "<w:p><w:r><mc:AlternateContent>" +
+      `<mc:Choice Requires="wps"><w:drawing><wp:anchor><a:graphic><a:graphicData><wps:wsp><wps:txbx>${box("Jordan Lee")}</wps:txbx></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></mc:Choice>` +
+      // The older drawing's words differ here, to tell them apart.
+      `<mc:Fallback><w:pict><v:shape><v:textbox>${box("Jordan Lee, drawn for Word 2007")}</v:textbox></v:shape></w:pict></mc:Fallback>` +
+      "</mc:AlternateContent></w:r><w:r><w:t>jordan@example.com</w:t></w:r></w:p>"
+    expect(await texts(wordFile(["EXPERIENCE"], { header: { default: header } }))).toEqual([
+      "Jordan Lee",
+      "jordan@example.com",
+      "EXPERIENCE",
+    ])
+  })
+
+  test("keep where their links go, as written", async () => {
+    const header =
+      '<w:p><w:r><w:t xml:space="preserve">Jordan Lee | </w:t></w:r><w:hyperlink r:id="profile"><w:r><w:t>LinkedIn</w:t></w:r></w:hyperlink></w:p>'
+    const profile = 'https://www.linkedin.com/in/jordanlee/?from="header"&lang=en'
+    const file = wordFile(["EXPERIENCE"], { header: { default: header }, links: { profile } })
+    expect((await linesFromDocx(bytes(file)))[0]).toMatchObject({ text: "Jordan Lee | LinkedIn", links: [profile] })
+  })
+
+  test("are found wherever the file says its parts are", async () => {
+    const files = await unzip(bytes(wordFile(["EXPERIENCE"], { header: { default: ["Jordan Lee"] } })), 100_000)
+    if (!files || files === "too big") throw new Error("Not unzipped")
+    const text = (name: string) => new TextDecoder().decode(files[name])
+    // The document somewhere other than where Word puts it, named from the top of the zip, and its header a folder up from it.
+    const moved: Record<string, string | Uint8Array> = {
+      ...files,
+      "_rels/.rels": text("_rels/.rels").replace('Target="word/document.xml"', 'Target="/word/main.xml"'),
+      "word/main.xml": files["word/document.xml"],
+      "word/_rels/main.xml.rels": text("word/_rels/document.xml.rels").replace('Target="header1.xml"', 'Target="../header1.xml"'),
+      "header1.xml": files["word/header1.xml"],
+    }
+    delete moved["word/document.xml"]
+    delete moved["word/_rels/document.xml.rels"]
+    delete moved["word/header1.xml"]
+    expect((await linesFromDocx(zip(moved).buffer)).map((line) => line.text)).toEqual(["Jordan Lee", "EXPERIENCE"])
+  })
+
+  test("named by the document but missing from the file leave its body as it is", async () => {
+    const files = await unzip(
+      bytes(wordFile(["Mara Lin", "EXPERIENCE"], { header: { default: ["Gone"] }, footer: { default: ["Gone too"] } })),
+      100_000,
+    )
+    if (!files || files === "too big") throw new Error("Not unzipped")
+    delete files["word/header1.xml"]
+    delete files["word/footer1.xml"]
+    expect((await linesFromDocx(zip(files).buffer)).map((line) => line.text)).toEqual(["Mara Lin", "EXPERIENCE"])
+  })
+
+  test("with too many lines stop the file being converted", async () => {
+    vi.mocked(convertToHtml).mockClear()
+    const footer = Array.from({ length: MAX_LINES + 1 }, (_, i) => `Line ${i + 1}`)
+    await expect(linesFromDocx(bytes(wordFile(["Mara Lin"], { footer: { default: footer } })))).rejects.toThrow(TooMuchTextError)
+    expect(convertToHtml).not.toHaveBeenCalled()
   })
 })
 

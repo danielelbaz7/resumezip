@@ -3,6 +3,7 @@ import { ATTACHMENT_NAME, cleanResume, MAX_LENGTH, toAttachment, toJson, toJsonO
 import { toWordFile } from "@/lib/word"
 import { crc32, storedFile, zip, zipDirectory, type ZipEntry } from "@/lib/zip"
 import { MAX_CHARACTERS, MAX_PAGES, MAX_UNZIPPED_BYTES, TIME_LIMIT_MS } from "./limits"
+import { toResumeContent, unplacedKey } from "./parse"
 import { readFile, type ReadRequest } from "./read"
 import { wordFile } from "./testFiles"
 
@@ -380,6 +381,76 @@ describe("a Word file", () => {
     expect(file.kind === "parsed" && file.parsed.profile).toMatchObject({ fullName: "Mara Lin", email: "mara@example.com" })
     expect(workers.map((worker) => worker.ended)).toEqual([true])
     expect(downloads).toBe(0)
+  })
+
+  test("with the name and contact details in its page header finds them", async () => {
+    const header =
+      "<w:p><w:r><w:t>Jordan Lee</w:t></w:r></w:p>" +
+      '<w:p><w:r><w:t xml:space="preserve">jordan@example.com | (555) 010-2299 | Austin, TX | </w:t></w:r>' +
+      '<w:hyperlink r:id="profile"><w:r><w:t>LinkedIn</w:t></w:r></w:hyperlink></w:p>'
+    const file = wordFile(["EXPERIENCE", "Acme Corp | Software Engineer | Jan 2020 - Present", "• Ran the storefront cache"], {
+      header: { default: header },
+      links: { profile: "https://www.linkedin.com/in/jordanlee" },
+    })
+    const opened = await openResumeFile(docx(file))
+    expect(opened.kind === "parsed" && opened.parsed.profile).toMatchObject({
+      fullName: "Jordan Lee",
+      email: "jordan@example.com",
+      phoneNumber: "(555) 010-2299",
+      location: "Austin, TX",
+      linkedin: "linkedin.com/in/jordanlee",
+    })
+    expect(opened.kind === "parsed" && opened.parsed.unplaced).toEqual([])
+  })
+
+  test("with what it's called in its page header, set like the name, still finds the name", async () => {
+    const body = ["Jordan Lee", "jordan@example.com", "EXPERIENCE", "Acme Corp | Software Engineer | Jan 2020 - Present"]
+    for (const title of ["Curriculum Vitae", "Jordan Lee Résumé"]) {
+      const opened = await openResumeFile(docx(wordFile(body, { header: { default: [title] } })))
+      expect(opened.kind === "parsed" && opened.parsed.profile.fullName, title).toBe("Jordan Lee")
+    }
+  })
+
+  test("with text in its page footer reads its contact details, and lists the rest apart from the sections", async () => {
+    const body = ["Jordan Lee", "EXPERIENCE", "Acme Corp | Software Engineer | Jan 2020 - Present", "• Ran the storefront cache"]
+    // A heading it doesn't know, found by looking like the others, as the footer's lines also do.
+    const talks = ["WRITING & TALKS", "Spoke at RustConf on caching"]
+    const file = wordFile([...body, ...talks, "SKILLS", "Languages: Go, Rust, Python"], {
+      footer: { default: ["jordan@example.com | (555) 010-2299", "CONFIDENTIAL", "REFERENCES ON REQUEST"] },
+    })
+    const opened = await openResumeFile(docx(file))
+    if (opened.kind !== "parsed") throw new Error(`Opened as ${opened.kind}`)
+    const { parsed } = opened
+    expect(parsed.profile).toMatchObject({ fullName: "Jordan Lee", email: "jordan@example.com", phoneNumber: "(555) 010-2299" })
+    expect(parsed.sections.map(({ name, entries }) => ({ name, entries: entries.map((entry) => entry.fields) }))).toMatchObject([
+      { name: "Work", entries: [{ companyName: "Acme Corp", workDescription: "• Ran the storefront cache" }] },
+      { name: "Skills", entries: [{ skillName: "Languages", skillDetails: "Go, Rust, Python" }] },
+    ])
+    expect(parsed.unplaced).toMatchObject([
+      { heading: "Writing & Talks", text: ["Spoke at RustConf on caching"] },
+      { heading: "Page footer", text: ["CONFIDENTIAL", "REFERENCES ON REQUEST"] },
+    ])
+    // Kept, the footer's is a section of its own, named as a new one is.
+    const kept = toResumeContent(parsed, new Set(), { keepAs: { [unplacedKey(parsed.unplaced[1], 1)]: "text" } })
+    expect(Object.values(kept.extraSections ?? {})).toEqual([
+      { kind: "text", heading: "New section", text: "CONFIDENTIAL\nREFERENCES ON REQUEST" },
+    ])
+  })
+
+  test("with its footer shaped like a name doesn't take it for the name, even in a file too short for headings", async () => {
+    const file = wordFile(["Builds tools for small teams"], { footer: { default: ["Confidential Draft Copy"] } })
+    const opened = await openResumeFile(docx(file))
+    expect(opened.kind === "parsed" && opened.parsed.profile.fullName).toBe("")
+    expect(opened.kind === "parsed" && opened.parsed.unplaced).toMatchObject([
+      { heading: "Top of the resume", text: ["Builds tools for small teams"] },
+      { heading: "Page footer", text: ["Confidential Draft Copy"] },
+    ])
+  })
+
+  test("with only page numbers in its page header and footer reads as one without them", async () => {
+    const body = ["Jordan Lee", "jordan@example.com", "EXPERIENCE", "Acme Corp | Software Engineer | Jan 2020 - Present"]
+    const numbered = wordFile(body, { header: { default: ["", "1"] }, footer: { default: ["Page 1 of 2"] } })
+    expect(await openResumeFile(docx(numbered))).toEqual(await openResumeFile(docx(wordFile(body))))
   })
 
   test("that unzips to too much text says so", async () => {

@@ -44,7 +44,41 @@ export function pdfOf(contents: string[]): Buffer {
   return Buffer.from(pdf, "latin1")
 }
 
-const escapeXml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+const escapeXml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+
+const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+const RELATIONSHIPS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+// The namespaces Word declares for what a header can hold, text boxes included.
+const NAMESPACES = [
+  'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"',
+  `xmlns:r="${RELATIONSHIPS}"`,
+  'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"',
+  'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"',
+  'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"',
+  'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"',
+  'xmlns:v="urn:schemas-microsoft-com:vml"',
+].join(" ")
+
+/** A paragraph of plain text, with Word's tab where the text has one. */
+const paragraph = (text: string) =>
+  `<w:p><w:r>${text
+    .split("\t")
+    .map((piece) => `<w:t xml:space="preserve">${escapeXml(piece)}</w:t>`)
+    .join("<w:tab/>")}</w:r></w:p>`
+
+const relationships = (list: { id: string; type: string; target: string; external?: boolean }[]) =>
+  `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${list
+    .map(
+      ({ id, type, target, external }) =>
+        `<Relationship Id="${id}" Type="${RELATIONSHIPS}/${type}" Target="${escapeXml(target)}"${external ? ' TargetMode="External"' : ""}/>`,
+    )
+    .join("")}</Relationships>`
+
+/** A page header or footer: a paragraph per entry, or the XML inside it as it is. */
+type HeaderOrFooter = string[] | string
+
+/** Headers or footers by the pages they're on. Only a file with `titlePage` sets "first" on its first page. */
+type ByPage = Partial<Record<"default" | "first" | "even", HeaderOrFooter>>
 
 /** A Word paragraph: its text, or a heading in Word's Heading 1 style. */
 export type WordParagraph = string | { heading: string }
@@ -69,16 +103,48 @@ function wordXml(content: (WordParagraph | WordTable)[]): string {
 /**
  * A Word (.docx) file with a paragraph or table per entry. `padding` adds
  * that many spaces to its XML, which zip squeezes down to almost nothing: a
- * small file that unzips to a lot.
+ * small file that unzips to a lot. `header` and `footer` are set at the top
+ * and bottom of its pages, and their links go to `links`, by relationship ID.
  */
-export function wordFile(content: (WordParagraph | WordTable)[], { padding = 0 } = {}): Buffer {
-  const body = wordXml(content)
-  const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-  return zip({
-    "[Content_Types].xml": `${xml}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
-    "_rels/.rels": `${xml}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`,
-    "word/document.xml": `${xml}<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body>${" ".repeat(padding)}</w:document>`,
-  })
+export function wordFile(
+  content: (WordParagraph | WordTable)[],
+  {
+    padding = 0,
+    header = {},
+    footer = {},
+    titlePage = false,
+    links = {},
+  }: { padding?: number; header?: ByPage; footer?: ByPage; titlePage?: boolean; links?: Record<string, string> } = {},
+): Buffer {
+  // Each header and footer is a part of its own, which the document's section names.
+  const parts = (["header", "footer"] as const).flatMap((kind) =>
+    Object.entries(kind === "header" ? header : footer).map(([type, content], index) => {
+      const root = kind === "header" ? "w:hdr" : "w:ftr"
+      const inside = typeof content === "string" ? content : content.map(paragraph).join("")
+      return { kind, type, id: `${kind}-${type}`, name: `${kind}${index + 1}.xml`, xml: `${XML}<${root} ${NAMESPACES}>${inside}</${root}>` }
+    }),
+  )
+  const references = parts.map(({ kind, type, id }) => `<w:${kind}Reference w:type="${type}" r:id="${id}"/>`).join("")
+  const section = parts.length || titlePage ? `<w:sectPr>${references}${titlePage ? "<w:titlePg/>" : ""}</w:sectPr>` : ""
+  const types = parts
+    .map(
+      ({ kind, name }) =>
+        `<Override PartName="/word/${name}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.${kind}+xml"/>`,
+    )
+    .join("")
+  const files: Record<string, string> = {
+    "[Content_Types].xml": `${XML}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>${types}</Types>`,
+    "_rels/.rels": relationships([{ id: "rId1", type: "officeDocument", target: "word/document.xml" }]),
+    "word/document.xml": `${XML}<w:document ${NAMESPACES}><w:body>${wordXml(content)}${section}</w:body>${" ".repeat(padding)}</w:document>`,
+  }
+  if (parts.length)
+    files["word/_rels/document.xml.rels"] = relationships(parts.map(({ kind, id, name }) => ({ id, type: kind, target: name })))
+  const hyperlinks = Object.entries(links).map(([id, target]) => ({ id, type: "hyperlink", target, external: true }))
+  for (const { name, xml } of parts) {
+    files[`word/${name}`] = xml
+    if (hyperlinks.length) files[`word/_rels/${name}.rels`] = relationships(hyperlinks)
+  }
+  return zip(files)
 }
 
 /** A zip file holding `files`, compressed. */

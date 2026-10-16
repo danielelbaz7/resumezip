@@ -23,7 +23,10 @@ PDF or Word file. It all happens in the browser; nothing is uploaded.
 - **Any other file** is read by `lines.ts` into lines of text with their position,
   size, style and links, then sorted into the editor's fields by `parse.ts`. The
   review dialog (`components/dashboard/ImportReview.tsx`) shows the result next to
-  the file before anything is saved.
+  the file before anything is saved. mammoth converts only a Word file's body,
+  so `lines.ts` reads the page headers and footers itself, as templates often
+  put the name and contact details in the header. The header's lines go first
+  and the footer's last, without page numbers.
 
 ## Off the main thread
 
@@ -48,7 +51,7 @@ far beyond a real resume, which is a page or two and under 10,000 characters.
 | --- | --- | --- |
 | File size | 20 MB | before reading it |
 | PDF pages | 20 | as soon as the PDF opens, before any page is read |
-| Text | 200,000 characters or 5,000 lines | as a PDF's text arrives, even partway through a page; a Word file's once converted |
+| Text | 200,000 characters or 5,000 lines | as a PDF's text arrives, even partway through a page; a Word file's once converted, and its headers' and footers' lines as they're read |
 | A Word file's XML, unzipped | 10 MB | before converting it, since a small file can unzip to a lot |
 | Paragraphs in a Word file's table cells | 50,000, one in tables in tables counted once for each | as its tables are read, since tables nested deep take long to read |
 | Time | 1 minute | from start to finish, downloads included |
@@ -62,11 +65,14 @@ as too much text.
 
 1. Headings: known names ("Work Experience", "Honors & Awards") first, then lines
    styled the same way.
-2. Contact details anywhere near the top, from text and from links.
+2. Contact details anywhere near the top or in a Word file's footer, from text
+   and from links.
 3. Each section is split into entries: title lines (role, organization, dates,
    place) followed by bullets. Bullets may be glyphs, or only indentation; a line
    that ran to the right edge wraps onto the next.
-4. Leftovers go in "Couldn't place", so nothing is silently dropped.
+4. Leftovers go in "Couldn't place", so nothing is silently dropped. A Word
+   file's footer is never part of the section above it: what isn't contact
+   details goes there, as "Page footer".
 
 Heading occurrences have deterministic review IDs and source-line provenance.
 Repeated headings stay independent, even when their visible words are identical.
@@ -92,7 +98,8 @@ holds it whole before or after the other, and a name and contact lines
 centered above both), headings in a margin column (set
 against either side of it, and wrapped onto the lines below), dates in a column
 of their own, and Word files with or without heading styles and tables, layout
-tables and tables in tables included.
+tables and tables in tables included, and with or without page headers and
+footers.
 Scanned PDFs have no text and can't be read.
 
 ## Testing changes
