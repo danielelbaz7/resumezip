@@ -88,6 +88,28 @@ export function covers(coverage: number[], codePoint: number): boolean {
 
 const has = (file: string, codePoint: number) => FONT_INFO[file].info.some((face) => covers(face.coverage, codePoint))
 
+// Characters that are never drawn, so need no font: spaces, controls, and
+// ones shaping hides, like a zero-width joiner or a variation selector.
+const NEVER_DRAWN = /^[\p{White_Space}\p{Cc}\p{Cs}\p{Default_Ignorable_Code_Point}]$/u
+
+// noFontHas's answers by code point, as each goes through every font's coverage.
+const withoutFont = new Map<number, boolean>()
+
+/**
+ * Whether no font has a character, so every template prints it as nothing or
+ * as a box: Typst looks through every font it knows for one the template's
+ * fonts lack. pdf.js reads U+0000 in its place in the PDF's text.
+ */
+export function noFontHas(char: string): boolean {
+  const codePoint = char.codePointAt(0)!
+  let missing = withoutFont.get(codePoint)
+  if (missing === undefined) {
+    missing = !NEVER_DRAWN.test(char) && !FONT_FILES.some((file) => has(file, codePoint))
+    withoutFont.set(codePoint, missing)
+  }
+  return missing
+}
+
 /**
  * The font files a resume printed in `fonts` needs, given its `text`: the
  * families' own, and for each character not in all of them, or in the script

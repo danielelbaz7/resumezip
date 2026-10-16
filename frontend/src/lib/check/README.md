@@ -56,6 +56,16 @@ sent anywhere.
   and the import worker from one reading to the next, and remembers the last
   few readings, so a preview it has read before, as after an undo, isn't read
   again.
+- `readable.ts` has the rules about what hiring software reads. R8 flags text
+  no font has (`noFontHas` in `lib/typst/fontFiles.ts`), like Chinese,
+  Japanese, Korean, Arabic or Thai: every template prints it as nothing or as
+  boxes, and the PDF's text has U+0000 in its place. It names what doesn't
+  print, and says it's the fonts, not the typing; symbols and emoji are R5's.
+  The PDF rules can't find what didn't print, so R1 looks only for the part of
+  a contact detail that prints. Text that didn't print can also throw out how
+  the reader splits sections and entries around it, so while some of the
+  sections' text doesn't print, R2–R4 find nothing (`partial`), and R4 always
+  leaves out text read with characters that didn't print.
 - `grammar.ts` checks spelling and grammar with [Harper](https://github.com/Automattic/harper),
   an open-source grammar checker that runs in the browser, in a worker
   (`grammar.worker.ts`). It loads once Check has been opened: about 6.7 MB,

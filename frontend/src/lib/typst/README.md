@@ -123,6 +123,9 @@ font that has it: Typst picks one of those for that character, as it would with
 every font loaded. Either way, resumes print exactly as they would with all of
 them. `fontFiles.test.ts` prints each template's sample, and text in many
 scripts, both ways, and checks Typst read no font `fontsFor` didn't download.
+A character no font has, as in Chinese, Japanese, Korean, Arabic or Thai,
+prints as nothing or as a box in every template, and the PDF's text has U+0000
+in its place; the resume checker says which (R8, with `noFontHas`).
 After adding or changing a font, write `info.json` again:
 
 ```bash

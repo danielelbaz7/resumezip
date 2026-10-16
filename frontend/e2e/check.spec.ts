@@ -494,6 +494,32 @@ test("with Check open, the PDF is read too: a bullet that runs three lines is fl
   expect(errors).toEqual([])
 })
 
+test("a name in a script no font has is a must-fix that says it doesn't print, not that hiring software can't find it", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  await openSample(page, "unprinted-name", { fullName: "王小明" })
+  await page
+    .getByRole("tablist", { name: "Write, check or style" })
+    .getByRole("tab", { name: /^Check/ })
+    .click()
+  const panel = page.getByRole("tabpanel", { name: /^Check/ })
+
+  const finding = panel.getByRole("button", { name: /“王小明” doesn't print$/ })
+  await expect(finding).toBeVisible()
+  // Once the PDF's been read, it's the only thing to fix: the rest of the sample reads as typed.
+  await expect(panel.getByText("Checking the PDF…")).toBeHidden()
+  await expect(panel.getByRole("heading", { level: 3, name: /^Must fix/ })).toHaveText(["Must fix · 1"])
+  await expect(panel.getByText(/Hiring software can't find your name/)).toHaveCount(0)
+
+  // Choosing it opens the name, and says it's the fonts, not the typing.
+  await finding.click()
+  await expect(page.getByLabel("Full name")).toBeFocused()
+  await expect(page.getByText("Your typing is fine. For now, write it in Latin letters.")).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
 test("when the preview can't be built, the checker says its PDF checks are left out", async ({ page }) => {
   const errors = pageErrors(page)
   // The compiler's worker fails each resume it's given, as in download.spec.ts.
