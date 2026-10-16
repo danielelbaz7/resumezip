@@ -5,7 +5,7 @@
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { TextContent } from "pdfjs-dist/types/src/display/api"
 import { unzip, zip } from "@/lib/zip"
-import { MAX_CHARACTERS, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
+import { MAX_CELL_PARAGRAPHS, MAX_CHARACTERS, MAX_UNZIPPED_BYTES, TooMuchTextError } from "./limits"
 
 /** A stretch of text in one style; `start` and `end` index into its part's text. */
 export interface Run {
@@ -590,18 +590,80 @@ interface Block {
   links: string[]
 }
 
+/** A paragraph, or a table row read across, before it's a line: one in a cell waits there until its row ends. */
+interface Paragraph {
+  /** Set from x = 0, with any bullet still on, since how its row is read decides where it goes and whether it starts a line. */
+  parts: Part[]
+  size: number
+  heading?: boolean
+  bullet: boolean
+  /** How far its list indents it. */
+  indent: number
+  links: string[]
+  /** It came out of a table's row, so a cell holding it holds a table. */
+  table?: boolean
+}
+
+const moved = (parts: Part[], by: number): Part[] => (by === 0 ? parts : parts.map((part) => ({ ...part, x: part.x + by })))
+
+/**
+ * A table row's cells as paragraphs. Read across, each paragraph down the
+ * row becomes one, with a part per cell, like a PDF's columns, as a cell's
+ * paragraphs sit beside the first lines of the others: a heading beside its
+ * section, or an entry's dates and place beside its title. A paragraph
+ * alone on its line keeps its style. Cells that are columns of their own,
+ * as in a layout table, would interleave that way, so they're read one
+ * after another: when two or more hold several paragraphs and two of those
+ * hold four or more, more than an entry's details take, or start with a
+ * heading, or one of them holds a table.
+ */
+function readRow(cells: Paragraph[][]): Paragraph[] {
+  // Paragraphs of only spaces would push the text beside them down a line, so
+  // they're left out, as mammoth leaves out empty ones. One with a link stays.
+  const filled = cells.map((cell) => cell.filter((paragraph) => paragraph.parts.length > 0 || paragraph.links.length > 0))
+  const several = filled.filter((cell) => cell.length > 1)
+  const long = several.filter((cell) => cell.length >= 4).length
+  const headed = several.filter((cell) => cell[0].heading).length
+  const holdsTable = several.some((cell) => cell.some((paragraph) => paragraph.table))
+  if (long > 1 || headed > 1 || (several.length > 1 && holdsTable)) return filled.flat()
+  const height = filled.reduce((most, cell) => Math.max(most, cell.length), 0)
+  return Array.from({ length: height }, (_, i) => {
+    const line = filled.flatMap((cell, column) => (cell[i] ? [{ ...cell[i], parts: moved(cell[i].parts, column * 200) }] : []))
+    if (line.length === 1) return line[0]
+    const links = line.flatMap((paragraph) => paragraph.links)
+    return { parts: line.flatMap((paragraph) => paragraph.parts), size: BODY_SIZE, bullet: false, indent: 0, links }
+  })
+}
+
 /**
  * Reads the HTML mammoth makes from a Word file. It only uses a few tags (p,
  * h1-h6, ul/ol/li, table, strong, em, a, br), so a small scanner is enough.
- * Each table row becomes a line with a part per cell, like a PDF's columns.
+ * A table's paragraphs wait in their cells until their row ends, to be read
+ * across it or a cell at a time (`readRow`). A table in a cell reads its rows
+ * into that cell, as paragraphs.
  */
 export function linesFromHtml(html: string): Line[] {
   const lines: Line[] = []
-  const state: { block: Block | null; row: Block[][] | null; cell: Block[] | null } = { block: null, row: null, cell: null }
+  const state: { block: Block | null } = { block: null }
+  // The tables around the text being read, innermost last.
+  const tables: { row: Paragraph[][] | null; cell: Paragraph[] | null }[] = []
   let bold = 0
   let italic = 0
   let listDepth = 0
+  let inCells = 0
 
+  // Into the innermost open cell, or out as a line.
+  const place = (paragraph: Paragraph) => {
+    const cell = tables.findLast((table) => table.cell)?.cell
+    if (cell) {
+      if (++inCells > MAX_CELL_PARAGRAPHS) throw new TooMuchTextError()
+      cell.push(paragraph)
+      return
+    }
+    const { parts, size, links, heading, bullet, indent } = paragraph
+    const line = toLine(moved(parts, indent), size, links, { heading, bullet })
+    if (line) lines.push(line)
+  }
   const start = (tag: string): Block => {
     state.block = { pieces: [], size: HEADING_SIZES[tag] ?? BODY_SIZE, heading: tag in HEADING_SIZES, bullet: tag === "li", links: [] }
     return state.block
@@ -610,15 +672,29 @@ export function linesFromHtml(html: string): Line[] {
     const done = state.block
     state.block = null
     if (!done) return
-    if (state.cell) {
-      state.cell.push(done)
-      return
-    }
-    const line = toLine(toParts(done.pieces, done.bullet ? 20 * listDepth : 0), done.size, done.links, {
-      heading: done.heading,
-      bullet: done.bullet,
-    })
-    if (line) lines.push(line)
+    const { pieces, size, heading, bullet, links } = done
+    place({ parts: toParts(pieces, 0), size, heading, bullet, indent: bullet ? 20 * listDepth : 0, links })
+  }
+  const endCell = () => {
+    end()
+    const table = tables[tables.length - 1]
+    if (!table?.cell) return
+    const cell = table.cell
+    table.cell = null
+    if (table.row) table.row.push(cell)
+    else cell.forEach(place)
+  }
+  const endRow = () => {
+    endCell()
+    const table = tables[tables.length - 1]
+    if (!table?.row) return
+    const cells = table.row
+    table.row = null
+    for (const paragraph of readRow(cells)) place({ ...paragraph, table: true })
+  }
+  const endTable = () => {
+    endRow()
+    tables.pop()
   }
 
   for (const match of html.matchAll(/<(\/?)([a-z0-9]+)([^>]*)>|([^<]+)/gi)) {
@@ -644,33 +720,21 @@ export function linesFromHtml(html: string): Line[] {
     } else if (tag === "p" || tag === "li" || tag in HEADING_SIZES) {
       end()
       if (!closing) start(tag)
+    } else if (tag === "table") {
+      if (closing) endTable()
+      else {
+        end()
+        tables.push({ row: null, cell: null })
+      }
     } else if (tag === "tr") {
-      end()
-      if (!closing) state.row = []
-      else if (state.row) {
-        // A cell with several paragraphs adds lines below the row's first.
-        const cells = state.row
-        const height = Math.max(0, ...cells.map((c) => c.length))
-        for (let i = 0; i < height; i++) {
-          const parts = cells.flatMap((c, column) => (c[i] ? toParts(c[i].pieces, column * 200) : []))
-          const line = toLine(
-            parts,
-            BODY_SIZE,
-            cells.flatMap((c) => c[i]?.links ?? []),
-          )
-          if (line) lines.push(line)
-        }
-        state.row = null
-      }
+      endRow()
+      if (!closing && tables.length > 0) tables[tables.length - 1].row = []
     } else if (tag === "td" || tag === "th") {
-      end()
-      if (!closing) state.cell = []
-      else if (state.cell) {
-        state.row?.push(state.cell)
-        state.cell = null
-      }
+      endCell()
+      if (!closing && tables.length > 0) tables[tables.length - 1].cell = []
     }
   }
+  while (tables.length > 0) endTable()
   end()
   return lines
 }

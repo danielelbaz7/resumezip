@@ -46,13 +46,33 @@ export function pdfOf(contents: string[]): Buffer {
 
 const escapeXml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
+/** A Word paragraph: its text, or a heading in Word's Heading 1 style. */
+export type WordParagraph = string | { heading: string }
+
+/** A Word table: its rows, each a list of cells, each cell's paragraphs and tables. */
+export type WordTable = (WordParagraph | WordTable)[][][]
+
+function wordXml(content: (WordParagraph | WordTable)[]): string {
+  return content
+    .map((item) => {
+      if (Array.isArray(item)) {
+        // Word gives every cell a paragraph, if only an empty one.
+        const rows = item.map((row) => `<w:tr>${row.map((cell) => `<w:tc>${wordXml(cell) || "<w:p/>"}</w:tc>`).join("")}</w:tr>`)
+        return `<w:tbl>${rows.join("")}</w:tbl>`
+      }
+      const [style, text] = typeof item === "string" ? ["", item] : ['<w:pPr><w:pStyle w:val="Heading1"/></w:pPr>', item.heading]
+      return `<w:p>${style}<w:r><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p>`
+    })
+    .join("")
+}
+
 /**
- * A Word (.docx) file with a paragraph per entry. `padding` adds that many
- * spaces to its XML, which zip squeezes down to almost nothing: a small file
- * that unzips to a lot.
+ * A Word (.docx) file with a paragraph or table per entry. `padding` adds
+ * that many spaces to its XML, which zip squeezes down to almost nothing: a
+ * small file that unzips to a lot.
  */
-export function wordFile(paragraphs: string[], { padding = 0 } = {}): Buffer {
-  const body = paragraphs.map((text) => `<w:p><w:r><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p>`).join("")
+export function wordFile(content: (WordParagraph | WordTable)[], { padding = 0 } = {}): Buffer {
+  const body = wordXml(content)
   const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
   return zip({
     "[Content_Types].xml": `${xml}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
