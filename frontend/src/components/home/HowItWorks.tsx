@@ -60,13 +60,10 @@ export default function HowItWorks() {
   return (
     <section aria-labelledby="how" data-tone="light" data-tick className="desk px-3 pb-16 pt-8 md:px-10 md:pb-24 md:pt-10">
       <div className="bg-sheet px-5 pt-6 md:px-11 md:pt-10">
-        <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-3 border-b-[1.5px] border-ink pb-5 md:pb-6">
-          <div className="flex flex-col gap-3">
-            <h2 id="how" className="label-section text-accent">
-              How it works
-            </h2>
-            <p className="font-serif text-5xl leading-[0.95] tracking-[-0.04em] md:text-[72px] md:leading-[0.92]">Pick. Write. Send.</p>
-          </div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-10 gap-y-3 border-b-[1.5px] border-ink pb-5 md:pb-6">
+          <h2 id="how" className="label-section text-accent">
+            How it works
+          </h2>
           <p className="label-mono text-ink-2">From a blank page to a finished PDF</p>
         </div>
 
