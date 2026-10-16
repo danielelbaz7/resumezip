@@ -24,6 +24,15 @@ const CUT_SHORT = [
 // Safari can report a load cut short just before the request for the next page.
 const BEFORE_LEAVING_MS = 500
 
+// What Safari logs, as an error, for every page and worker while the
+// Content-Security-Policy is report-only (next.config.js): it names nowhere
+// to send reports to, as nothing should be sent anywhere. Safari stops once
+// the policy is enforced, and this can go then.
+const NOWHERE_TO_REPORT = /^The Content Security Policy '.*' was delivered in report-only mode, but does not specify a 'report-(to|uri)'/
+
+// What a policy logs for what it refuses, or would refuse while report-only.
+const REFUSED = /^(\[Report Only\] )?Refused to /
+
 // Safari sometimes reports a load cut short as an error thrown by the page
 // rather than logging it. Playwright splits a thrown error's text at its first
 // colon, here the one in "http://", into a name ("Cannot load http") and a
@@ -36,8 +45,10 @@ const thrownText = (error: Error) => {
 }
 
 /**
- * Collects the errors a page throws or logs, for a test to check at the end.
- * Logged errors end with where they came from, e.g. "… (at http://…/page)".
+ * Collects the errors a page throws or logs, and what its report-only
+ * Content-Security-Policy (next.config.js) would have blocked, its workers'
+ * included, for a test to check at the end. Logged errors end with where they
+ * came from, e.g. "… (at http://…/page)".
  */
 export function pageErrors(page: Page): string[] {
   const errors: string[] = []
@@ -71,8 +82,27 @@ export function pageErrors(page: Page): string[] {
   }
   page.on("pageerror", (error) => add(error.message, thrownText(error)))
   page.on("console", (message) => {
-    if (message.type() === "error") add(`${message.text()} (at ${message.location().url})`, message.text())
+    const text = message.text()
+    if (NOWHERE_TO_REPORT.test(text)) return
+    // A report-only policy blocks nothing and only logs, which Chromium does as info.
+    if (message.type() === "error" || text.startsWith("[Report Only]")) add(`${text} (at ${message.location().url})`, text)
   })
+  // Playwright passes on what a worker's code logs, but not what Chromium
+  // itself logs for a worker, as its policy's reports. Chromium sends those to
+  // a session of the page's own, along with what it logged before that opened.
+  if (page.context().browser()?.browserType().name() === "chromium") {
+    void page
+      .context()
+      .newCDPSession(page)
+      .then(async (session) => {
+        session.on("Log.entryAdded", ({ entry }) => {
+          if (entry.source === "worker" && REFUSED.test(entry.text)) add(`${entry.text} (at ${entry.url})`, entry.text)
+        })
+        await session.send("Log.enable")
+      })
+      // The page closed first.
+      .catch(() => {})
+  }
   return errors
 }
 

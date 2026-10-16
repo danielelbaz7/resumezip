@@ -82,6 +82,10 @@ npm run test:browser   # after a build; see below
   fields. Its README explains how.
 - `src/lib/check/` is the resume checker: fixed rules that say what to fix on
   a resume, and where. Its README covers writing a rule.
+- `next.config.js` sends security headers with everything the site serves.
+  Its Content-Security-Policy, report-only for now, names every site the app
+  sends anything to (`connect-src`). A new one goes there too, or the browser
+  tests that use it fail.
 
 ## Tests
 
