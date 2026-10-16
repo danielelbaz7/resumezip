@@ -600,23 +600,30 @@ interface Paragraph {
   /** How far its list indents it. */
   indent: number
   links: string[]
+  /** It came out of a table's row, so a cell holding it holds a table. */
+  table?: boolean
 }
 
 const moved = (parts: Part[], by: number): Part[] => (by === 0 ? parts : parts.map((part) => ({ ...part, x: part.x + by })))
 
 /**
- * A table row's cells as paragraphs. When at most one cell holds several,
- * the row is read across: each paragraph down it becomes one, with a part
- * per cell, like a PDF's columns, as a heading or dates sit beside an entry.
- * A paragraph alone on its line keeps its style. When two or more cells
- * hold several, like a layout table's columns, reading across would
- * interleave them, so the cells are read one after another.
+ * A table row's cells as paragraphs. Read across, each paragraph down the
+ * row becomes one, with a part per cell, like a PDF's columns, as a cell's
+ * paragraphs sit beside the first lines of the others: a heading beside its
+ * section, or an entry's dates and place beside its title. A paragraph
+ * alone on its line keeps its style. Cells that are columns of their own,
+ * as in a layout table, would interleave that way, so they're read one
+ * after another: when two or more hold four paragraphs or more, more than
+ * an entry's details take, or two or more hold several and one of them
+ * holds a table.
  */
 function readRow(cells: Paragraph[][]): Paragraph[] {
   // Paragraphs of only spaces would push the text beside them down a line, so
   // they're left out, as mammoth leaves out empty ones. One with a link stays.
   const filled = cells.map((cell) => cell.filter((paragraph) => paragraph.parts.length > 0 || paragraph.links.length > 0))
-  if (filled.filter((cell) => cell.length > 1).length > 1) return filled.flat()
+  const several = filled.filter((cell) => cell.length > 1)
+  const holdsTable = several.some((cell) => cell.some((paragraph) => paragraph.table))
+  if (several.filter((cell) => cell.length >= 4).length > 1 || (several.length > 1 && holdsTable)) return filled.flat()
   const height = filled.reduce((most, cell) => Math.max(most, cell.length), 0)
   return Array.from({ length: height }, (_, i) => {
     const line = filled.flatMap((cell, column) => (cell[i] ? [{ ...cell[i], parts: moved(cell[i].parts, column * 200) }] : []))
@@ -679,7 +686,7 @@ export function linesFromHtml(html: string): Line[] {
     if (!table?.row) return
     const cells = table.row
     table.row = null
-    readRow(cells).forEach(place)
+    for (const paragraph of readRow(cells)) place({ ...paragraph, table: true })
   }
   const endTable = () => {
     endRow()

@@ -232,6 +232,24 @@ describe("tables in a Word file", () => {
     ])
   })
 
+  test("with an entry's dates and place beside it read them beside its lines, as before", async () => {
+    const entry: WordTable = [
+      [
+        ["Software Engineer, Acme Corp", "• Built the billing service"],
+        ["Jun 2021 – Present", "Boston, MA"],
+      ],
+    ]
+    // prettier-ignore
+    expect(parts(await read([entry]))).toEqual([
+      [["Software Engineer, Acme Corp", 0], ["Jun 2021 – Present", 200]],
+      [["Built the billing service", 0], ["Boston, MA", 200]],
+    ])
+    const resume = toResumeContent(parseResume(await read(["Jordan Lee", "EXPERIENCE", entry])))
+    expect(resume.workExperienceSection).toMatchObject([
+      { workRole: "Software Engineer", companyName: "Acme Corp", workStartDate: "Jun 2021", workEndDate: "Present" },
+    ])
+  })
+
   test("leave out paragraphs of only spaces, which would push the text beside them down a line", async () => {
     const margin: WordTable = [
       [
