@@ -1,163 +1,114 @@
-"use client"
-
 import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
+import type React from "react"
+import { StartWritingLink } from "@/components/site/StartWriting"
+import ArrowUpRight from "./ArrowUpRight"
 
 // Each step's picture: the real screen it's about, cropped from the editor at
 // 2x and saved at most 960px wide. Retake them when that part of the editor changes.
-const STEPS = [
+const STEPS: {
+  word: string
+  text: string
+  art: { src: string; width: number; height: number; position: string }
+  to: "templates" | "writing"
+}[] = [
   {
     word: "Pick",
     // No count: it changes as templates are added.
     text: "Choose a template. Switch any time; your words stay put.",
-    art: { src: "/how-it-works/pick-screen.webp", width: 960, height: 960 },
+    art: { src: "/how-it-works/pick-screen.webp", width: 960, height: 960, position: "object-top" },
+    to: "templates",
   },
   {
     word: "Write",
     text: "Type beside a live page. Start from scratch, or open the PDF or Word resume you already have.",
-    art: { src: "/how-it-works/write-screen.webp", width: 960, height: 601 },
+    // Narrower than the picture on phones: the form, where you type, stays in sight.
+    art: { src: "/how-it-works/write-screen.webp", width: 960, height: 601, position: "object-left-top" },
+    to: "writing",
   },
   {
     word: "Send",
     text: "Download an ATS-friendly PDF so hiring software can read every word.",
-    art: { src: "/how-it-works/send-screen.webp", width: 760, height: 920 },
+    art: { src: "/how-it-works/send-screen.webp", width: 760, height: 920, position: "object-top" },
+    to: "writing",
   },
 ]
 
-// Pinning needs room to scroll, and is skipped for people who prefer less motion.
-const STATIC_QUERY = "(prefers-reduced-motion: reduce), (max-height: 600px)"
+// What turns white as blue fills the row (.step-row in home.css).
+const ON_FILL = "transition-colors duration-300 group-hover:text-white group-focus-visible:text-white motion-reduce:transition-none"
 
-const clamp = (value: number) => Math.min(1, Math.max(0, value))
-const easeOut = (value: number) => 1 - (1 - value) ** 3
-
-// Where each part is follows the scroll (--k, 0 to 1), and a short transition
-// smooths the steps between scroll events, as a mouse wheel's.
-const SCRUB =
-  "will-change-[opacity,translate] [opacity:var(--k,0)] [translate:0_calc((1-var(--k,0))*var(--rise))] transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none"
-
-/** Pins to the screen while you scroll past: the intro fades out, then the steps come in one at a time. */
-export default function HowItWorks() {
-  const sectionRef = useRef<HTMLElement>(null)
-  const introRef = useRef<HTMLDivElement>(null)
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
-  const [pinned, setPinned] = useState(true)
-  const [shown, setShown] = useState(0)
-
-  useEffect(() => {
-    const query = window.matchMedia(STATIC_QUERY)
-    const sync = () => setPinned(!query.matches)
-    sync()
-    query.addEventListener("change", sync)
-    return () => query.removeEventListener("change", sync)
-  }, [])
-
-  useEffect(() => {
-    const section = sectionRef.current
-    if (!pinned || !section) return
-    let frame = 0
-    const update = () => {
-      frame = 0
-      const scrollable = section.offsetHeight - window.innerHeight
-      const progress = Math.min(1, Math.max(0, -section.getBoundingClientRect().top / scrollable))
-      // The intro gets the first slice of the scroll, then each step gets one.
-      const at = progress * (STEPS.length + 1)
-      // Set on the elements, not through state, so each frame doesn't re-render the section.
-      introRef.current?.style.setProperty("--k", String(easeOut(clamp((at - 0.45) / 0.5))))
-      let count = 0
-      cardRefs.current.forEach((card, index) => {
-        const k = easeOut(clamp((at - index - 0.55) / 0.6))
-        card?.style.setProperty("--k", String(k))
-        if (k >= 0.5) count++
-      })
-      setShown(count)
-    }
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(update)
-    }
-    update()
-    window.addEventListener("scroll", schedule, { passive: true })
-    window.addEventListener("resize", schedule)
-    return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener("scroll", schedule)
-      window.removeEventListener("resize", schedule)
-    }
-  }, [pinned])
-
-  const visible = pinned ? shown : STEPS.length
-
+function StepLink({ to, className, children }: { to: (typeof STEPS)[number]["to"]; className: string; children: React.ReactNode }) {
+  if (to === "templates")
+    return (
+      <Link href="/templates" className={className}>
+        {children}
+      </Link>
+    )
   return (
-    <section ref={sectionRef} aria-labelledby="how" data-tone="light" data-tick className={`desk ${pinned ? "h-[300svh]" : ""}`}>
-      <div className={pinned ? "sticky top-0 flex h-svh flex-col overflow-hidden" : undefined}>
-        <div className="flex items-center justify-between px-5 py-7 md:px-10">
-          <h2 id="how" className="label-section text-accent">
-            How it works
-          </h2>
-          <span aria-hidden="true" className="label-section tabular-nums text-ink-2">
-            {visible} / {STEPS.length}
-          </span>
+    <StartWritingLink className={className} preloadOnHover>
+      {children}
+    </StartWritingLink>
+  )
+}
+
+/**
+ * The steps as a contents page: one white sheet, a row for each step, each a
+ * link to where that step starts. On phones the picture sits beside the words;
+ * from lg, each row is one line.
+ */
+export default function HowItWorks() {
+  return (
+    <section aria-labelledby="how" data-tone="light" data-tick className="desk px-3 pb-16 pt-8 md:px-10 md:pb-24 md:pt-10">
+      <div className="bg-sheet px-5 pt-6 md:px-11 md:pt-10">
+        <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-3 border-b-[1.5px] border-ink pb-5 md:pb-6">
+          <div className="flex flex-col gap-3">
+            <h2 id="how" className="label-section text-accent">
+              How it works
+            </h2>
+            <p className="font-serif text-5xl leading-[0.95] tracking-[-0.04em] md:text-[72px] md:leading-[0.92]">Pick. Write. Send.</p>
+          </div>
+          <p className="label-mono text-ink-2">From a blank page to a finished PDF</p>
         </div>
 
-        <div className={pinned ? "relative min-h-0 flex-1" : undefined}>
-          <div
-            ref={introRef}
-            className={
-              pinned
-                ? // The intro goes as the steps come: up and out, the other way to them.
-                  `absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 px-5 text-center will-change-[opacity,translate] [opacity:calc(1-var(--k,0))] [translate:0_calc(var(--k,0)*-2rem)] transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none ${
-                    visible === 0 ? "" : "pointer-events-none"
-                  }`
-                : "flex flex-col items-center gap-5 px-5 pb-16 pt-8 text-center"
-            }
-          >
-            <p className="font-serif text-5xl leading-[0.95] tracking-[-0.04em] md:text-[80px] md:leading-[0.92]">Pick. Write. Send.</p>
-            <p className="text-xl leading-[1.35] tracking-[-0.015em] text-ink-2">From a blank page to a finished PDF.</p>
-          </div>
-
-          <div
-            className={`grid gap-3 px-3 md:grid-cols-3 md:gap-5 md:px-10 ${pinned ? "h-full grid-rows-3 pb-3 md:grid-rows-1 md:pb-10" : "pb-16"}`}
-          >
-            {STEPS.map((step, index) => (
-              <div
-                key={step.word}
-                ref={(card) => {
-                  cardRefs.current[index] = card
-                }}
-                className={`pane-etched flex min-h-0 gap-4 overflow-hidden px-5 py-5 md:flex-col md:gap-3 md:px-8 md:pb-8 md:pt-7 ${pinned ? `${SCRUB} [--rise:3rem]` : ""}`}
+        {/* role="list": WebKit drops the list from screen readers once its numbers are styled away. */}
+        <ol role="list">
+          {STEPS.map((step, index) => (
+            <li key={step.word} className="border-b border-rule last:border-b-0">
+              <StepLink
+                to={step.to}
+                className="step-row group -mx-5 grid grid-cols-[minmax(0,1fr)_minmax(0,44%)] gap-x-4 gap-y-3 px-5 py-6 md:-mx-11 md:gap-x-8 md:px-11 md:py-8 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)_minmax(0,300px)_28px] lg:items-center"
               >
-                <div className="flex min-w-0 flex-1 flex-col gap-1 md:flex-none md:gap-3">
-                  {/* On phones the number sits beside the word, leaving the step's text room to fit. */}
-                  <div className="flex items-baseline gap-3 md:flex-col md:items-start">
-                    <span className="font-serif text-[36px] leading-none text-accent md:text-[64px]">{index + 1}</span>
-                    <span className="font-serif text-[44px] leading-[0.95] tracking-[-0.03em] md:text-[80px]">{step.word}</span>
-                  </div>
-                  <p className="mt-1 max-w-[300px] text-base leading-[1.35] tracking-[-0.015em] text-ink-2 md:mt-2 md:text-xl">
-                    {step.text}
-                  </p>
-                </div>
-                <div className="flex w-[46%] shrink-0 items-center justify-center md:w-full md:flex-1 md:items-end">
-                  {/* In a small browser window, to say it's the site itself: no install. */}
-                  <div className="w-full overflow-hidden rounded-[8px] bg-white shadow-[0_30px_60px_-28px_rgb(10_20_70/0.55),0_0_0_1px_rgb(17_19_24/0.08)]">
-                    <div aria-hidden="true" className="flex h-[22px] items-center gap-1.5 border-b border-[#dfe2e8] bg-[#eef0f4] px-2.5">
-                      <i className="size-[9px] rounded-full bg-[#ff5f57]" />
-                      <i className="size-[9px] rounded-full bg-[#febc2e]" />
-                      <i className="size-[9px] rounded-full bg-[#28c840]" />
-                      <span className="ml-2.5 truncate font-mono text-[10px] text-[#6b6e75]">tryresumezip.com</span>
-                    </div>
-                    <Image
-                      src={step.art.src}
-                      alt=""
-                      width={step.art.width}
-                      height={step.art.height}
-                      sizes="(min-width: 768px) 400px, 45vw"
-                      className="block max-h-[clamp(110px,22svh,190px)] w-full object-cover object-top md:max-h-[clamp(160px,34svh,330px)]"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+                <span className="col-start-1 row-start-1 flex items-baseline gap-4 lg:col-auto lg:row-auto lg:gap-7">
+                  {/* The list numbers the steps for screen readers. */}
+                  <span aria-hidden="true" className={`font-mono text-[13px] tracking-[0.08em] text-accent ${ON_FILL}`}>
+                    0{index + 1}
+                  </span>
+                  <span className="font-serif text-[44px] leading-[0.92] tracking-[-0.04em] md:text-[72px] lg:text-[96px]">
+                    {step.word}
+                  </span>
+                </span>
+                <span
+                  className={`col-start-1 row-start-2 max-w-[440px] text-base leading-[1.35] tracking-[-0.015em] text-ink-2 md:text-xl lg:col-auto lg:row-auto ${ON_FILL}`}
+                >
+                  {step.text}
+                </span>
+                <span className="col-start-2 row-span-3 row-start-1 h-[120px] overflow-hidden bg-white shadow-[0_0_0_1px_rgb(17_19_24/0.1)] md:h-[170px] lg:col-auto lg:row-auto lg:h-[180px]">
+                  <Image
+                    src={step.art.src}
+                    alt=""
+                    width={step.art.width}
+                    height={step.art.height}
+                    sizes="(min-width: 1024px) 300px, 44vw"
+                    className={`h-full w-full object-cover ${step.art.position}`}
+                  />
+                </span>
+                <span className="col-start-1 row-start-3 inline-flex h-7 w-7 items-center justify-center self-end bg-accent text-white transition-colors duration-300 group-hover:bg-white group-hover:text-accent group-focus-visible:bg-white group-focus-visible:text-accent motion-reduce:transition-none lg:col-auto lg:row-auto lg:self-center">
+                  <ArrowUpRight />
+                </span>
+              </StepLink>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   )

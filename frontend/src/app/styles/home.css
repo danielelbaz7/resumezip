@@ -77,6 +77,51 @@
     mix-blend-mode: difference;
   }
 
+  /* How it works' rows (HowItWorks.tsx): pointed at, blue rises from the
+     bottom as the outline buttons' white does, and the row's words turn white. */
+  .step-row {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    transition: color 300ms;
+  }
+  .step-row::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -15%;
+    right: -15%;
+    height: 150%;
+    z-index: -1;
+    background: var(--color-accent);
+    border-radius: 50% 50% 0 0 / 40% 40% 0 0;
+    transform: translateY(70%);
+    opacity: 0;
+    transition:
+      transform 420ms var(--ease-glide),
+      border-radius 420ms var(--ease-glide),
+      opacity 200ms;
+  }
+  .step-row:focus-visible,
+  .step-row:hover {
+    color: #fff;
+  }
+  .step-row:focus-visible::before,
+  .step-row:hover::before {
+    transform: translateY(-15%);
+    border-radius: 0;
+    opacity: 1;
+  }
+  /* A touch doesn't hover: no blue left behind on the row tapped. */
+  @media (hover: none) {
+    .step-row:hover:not(:focus-visible) {
+      color: inherit;
+    }
+    .step-row:hover:not(:focus-visible)::before {
+      opacity: 0;
+    }
+  }
+
   /* Words that sharpen from a blur as the page scrolls (FocusWords.tsx). --focus
      is how far the scroll has got, from 0 to 1. Each line takes its share of
      that, from --from to --to, as --t, and each of its --n words in turn
@@ -379,6 +424,7 @@
     .site-pill,
     .ink-fill::before,
     .question-sign::before,
+    .step-row::before,
     .question-sign::after {
       transition: none;
     }
