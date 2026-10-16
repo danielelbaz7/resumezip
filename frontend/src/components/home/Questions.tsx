@@ -53,35 +53,29 @@ const QUESTIONS: { question: string; answer: React.ReactNode }[] = [
 /** Opens on the one people ask most. */
 const FIRST_OPEN = 1
 
-/** The home page's questions: one answer open at a time. */
+/** The home page's questions, one answer open at a time, on one sharp white sheet like the hero's box. */
 export default function Questions() {
   const [open, setOpen] = useState<number | null>(FIRST_OPEN)
   const id = useId()
 
   return (
     <section aria-labelledby="questions" data-tone="light" data-tick className="desk">
-      <div className="grid gap-10 px-5 pb-24 pt-8 md:grid-cols-[minmax(0,5fr)_minmax(0,9fr)] md:gap-10 md:px-10 md:pb-[120px] md:pt-[72px]">
+      <div className="grid gap-10 px-5 pb-24 pt-8 md:grid-cols-[minmax(0,5fr)_minmax(0,9fr)] md:px-10 md:pb-[120px] md:pt-[72px]">
         <div className="flex flex-col gap-4">
-          <h2 id="questions" className="label-section text-accent">
+          {/* In ink: the accent blue on the sky is about 2:1. */}
+          <h2 id="questions" className="label-section">
             Questions
           </h2>
           <p className="max-w-[420px] font-serif text-5xl leading-[0.95] tracking-[-0.04em] md:text-[64px]">Asked before you start.</p>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="self-start bg-sheet">
           {QUESTIONS.map((item, index) => {
             const expanded = open === index
             const button = `${id}-q${index}`
             const panel = `${id}-a${index}`
             return (
-              <div
-                key={item.question}
-                className={`rounded-panel ring-1 ring-inset transition-[background-color,box-shadow] duration-300 ease-glide motion-reduce:transition-none ${
-                  expanded
-                    ? "bg-sheet shadow-[0_24px_48px_-28px_rgb(30_40_90/0.45)] ring-ink/10"
-                    : "bg-sheet/55 ring-ink/[0.06] hover:bg-sheet/85"
-                }`}
-              >
+              <div key={item.question} className="border-b border-rule last:border-b-0">
                 <h3>
                   <button
                     id={button}
@@ -89,9 +83,20 @@ export default function Questions() {
                     aria-expanded={expanded}
                     aria-controls={panel}
                     onClick={() => setOpen(expanded ? null : index)}
-                    className="flex w-full items-center justify-between gap-6 rounded-panel px-5 py-5 text-left text-lg leading-[1.3] tracking-[-0.015em] md:px-7 md:py-6 md:text-xl"
+                    className={`grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 px-5 py-5 text-left text-lg leading-[1.3] tracking-[-0.015em] transition-colors duration-200 md:grid-cols-[56px_minmax(0,1fr)_auto] md:px-7 md:py-6 md:text-xl ${
+                      expanded ? "" : "hover:bg-fill"
+                    }`}
                   >
-                    {item.question}
+                    {/* The number turns solid blue while its answer is open. */}
+                    <span
+                      aria-hidden="true"
+                      className={`justify-self-start px-1.5 py-1 font-mono text-xs tracking-[0.08em] transition-colors duration-300 ease-glide motion-reduce:transition-none ${
+                        expanded ? "bg-accent text-white" : "text-accent"
+                      }`}
+                    >
+                      Q.0{index + 1}
+                    </span>
+                    <span>{item.question}</span>
                     <span aria-hidden="true" className="question-sign relative h-3.5 w-3.5 shrink-0" data-open={expanded || undefined} />
                   </button>
                 </h3>
@@ -104,7 +109,8 @@ export default function Questions() {
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <p className="max-w-[620px] px-5 pb-6 text-base leading-[1.5] tracking-[-0.01em] text-ink-2 md:px-7 md:text-[17px]">
+                    {/* In line with the question: the padding, the number's column and the gap. */}
+                    <p className="max-w-[720px] pb-6 pl-[80px] pr-5 text-base leading-[1.5] tracking-[-0.01em] text-ink-2 md:pl-[100px] md:pr-7 md:text-[17px]">
                       {item.answer}
                     </p>
                   </div>
