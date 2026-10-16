@@ -55,8 +55,8 @@ const LIT: Keyframe = { boxShadow: "0 18px 36px -16px rgb(17 19 24 / 0.4)" }
 // The fields in an open card: closer together than the profile's, as there are several cards.
 const CARD_GRID = "grid grid-cols-1 gap-x-7 gap-y-5 @sm:grid-cols-2"
 
-// Where a field is typed in: not the Include boxes in an entry's heading, or
-// in a bullets field being arranged. A bullets box is an editable div.
+// Where a field is typed in: not the Include boxes in an entry's heading.
+// A bullets box is an editable div.
 const TYPED = ':is(input:not([type="checkbox"]), [contenteditable="true"])'
 const FIRST_FIELD = `[data-field] ${TYPED}`
 

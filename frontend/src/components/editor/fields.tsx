@@ -1,14 +1,13 @@
 "use client"
 
 import type React from "react"
-import { Fragment, useEffect, useId, useRef, useState } from "react"
-import { ArrowDown, ArrowUp, ArrowUpDown, Pencil } from "lucide-react"
+import { useEffect, useId, useRef, useState } from "react"
+import { Pencil } from "lucide-react"
 import type { Finding } from "@/lib/check/engine"
 import { onMac, shortcut } from "@/lib/keys"
 import { markedPieces } from "@/lib/typst/resumeData"
-import { bulletLines, moveBullet, nextAnnouncement, setLeftOutLine, withBullets } from "./arrange"
+import { bulletLines, withBullets } from "./arrange"
 import { selectLineIn } from "./boxDom"
-import { reducedMotion, reveal, scrollerOf } from "./layout"
 import { StyledBox } from "./StyledBox"
 
 interface FieldProps {
@@ -77,6 +76,40 @@ export function FlagNote({ id, finding }: { id?: string; finding: Finding }) {
 }
 
 /**
+ * How a field looks, a one-line input or a text box alike: no box, just a
+ * line under it, blue where the checker points. Its parent is `relative`, in
+ * a `group/field`, with FocusGlow before it and FocusLine after it.
+ */
+export const underlined = (flagged: boolean) =>
+  `relative w-full min-w-0 border-0 bg-transparent py-2 text-base text-ink outline-none transition-colors focus-visible:outline-none ${
+    !flagged ? "border-b border-rule-strong hover:border-ink/40" : "border-b-2 border-accent"
+  }`
+
+/**
+ * A soft blue light that rises from a field's line while it has focus. It's
+ * under the field (which is `relative`, and later), so the text stays crisp,
+ * and nothing moves.
+ */
+export function FocusGlow() {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-t-[6px] bg-linear-to-t from-accent/[0.09] to-accent/0 opacity-0 transition-opacity duration-200 ease-out group-focus-within/field:opacity-100 motion-reduce:transition-none"
+    />
+  )
+}
+
+/** The line under the field being typed in, in blue, drawn out from the left, with a glow. */
+export function FocusLine() {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-accent shadow-[0_0_10px_rgb(46_91_230/0.55)] transition-transform duration-300 ease-glide group-focus-within/field:scale-x-100 motion-reduce:transition-none"
+    />
+  )
+}
+
+/**
  * A labelled, underlined text input, or a box for a few lines of prose with
  * bold and italic words. A label can't be for that box, a div, so it's a div
  * too, and a click on its name puts the cursor in the box.
@@ -99,9 +132,7 @@ export function Field({
   const boxId = useId()
   const hintId = useId()
   const describedBy = [hint && hintId, flag && noteId].filter(Boolean).join(" ") || undefined
-  const look = `relative w-full min-w-0 border-0 bg-transparent py-2 text-base text-ink outline-none transition-colors focus-visible:outline-none ${
-    !flag ? "border-b border-rule-strong hover:border-ink/40" : "border-b-2 border-accent"
-  }`
+  const look = underlined(!!flag)
   const Labelled = multiline ? "div" : "label"
   return (
     <div data-field={name} className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
@@ -113,12 +144,7 @@ export function Field({
         >
           {label}
         </span>
-        {/* A soft blue light rises from the line while the field has focus. It's under the box (which
-            is `relative`, and later), so the text stays crisp, and nothing moves. */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-t-[6px] bg-linear-to-t from-accent/[0.09] to-accent/0 opacity-0 transition-opacity duration-200 ease-out group-focus-within/field:opacity-100 motion-reduce:transition-none"
-        />
+        <FocusGlow />
         {multiline ? (
           <StyledBox
             kind="prose"
@@ -147,11 +173,7 @@ export function Field({
             className={`${look} placeholder:text-ink-2/50`}
           />
         )}
-        {/* The field being typed in is underlined in blue, drawn out from the left, with a glow. */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-accent shadow-[0_0_10px_rgb(46_91_230/0.55)] transition-transform duration-300 ease-glide group-focus-within/field:scale-x-100 motion-reduce:transition-none"
-        />
+        <FocusLine />
       </Labelled>
       {multiline ? (
         <span id={hintId} className="text-[13px] leading-normal text-ink-2">
@@ -172,42 +194,6 @@ export function Field({
 /** Selects a line's words in a bullets box, after its "• ", to point at one bullet. */
 export function selectLine(field: HTMLElement, line: number) {
   if (field.isContentEditable) selectLineIn(field, line)
-}
-
-/**
- * Buttons that move something up or down one place in its list. At either
- * end, the button that can't move it stays where it is (and focusable, so
- * the focus isn't lost when something reaches the end), but does nothing.
- * What moved can go past the edge of the screen, or under the bars pinned
- * there, so the screen follows the button.
- */
-export function MoveButtons({ name, first, last, onMove }: { name: string; first: boolean; last: boolean; onMove: (by: -1 | 1) => void }) {
-  return (
-    <span className="flex shrink-0 items-center">
-      {([-1, 1] as const).map((by) => {
-        const end = by < 0 ? first : last
-        const Icon = by < 0 ? ArrowUp : ArrowDown
-        return (
-          <button
-            key={by}
-            type="button"
-            data-move={by}
-            onClick={(event) => {
-              if (end) return
-              const button = event.currentTarget
-              onMove(by)
-              requestAnimationFrame(() => reveal(button, scrollerOf(button), reducedMotion()))
-            }}
-            aria-label={`Move ${name} ${by < 0 ? "up" : "down"}`}
-            aria-disabled={end || undefined}
-            className="rounded-full p-1.5 text-ink-2 transition-colors hover:text-ink aria-disabled:cursor-default aria-disabled:opacity-30 aria-disabled:hover:text-ink-2"
-          >
-            <Icon className="h-4 w-4" aria-hidden="true" />
-          </button>
-        )
-      })}
-    </span>
-  )
 }
 
 // With Option on a Mac, Alt elsewhere: ⌥↑, Alt+↑.
@@ -257,8 +243,7 @@ function previewOf(words: string): string {
  * A box for bullet points: one per line, and Enter starts a new bullet. Bold
  * and italic words show as they print, and are saved as **bold**, *italic*
  * and ***both***; ⌘B and ⌘I add or remove them. Alt+↑ and Alt+↓ move the line
- * the cursor is on. "Arrange" shows the bullets as a list instead, to move
- * them and leave them out of the PDF.
+ * the cursor is on. A line starting with "○" is left out of the PDF.
  *
  * With `compact`, as in an entry's card, it shows its first bullets cut short
  * and how many more there are until it's used: the box itself is over them,
@@ -280,7 +265,6 @@ export function BulletsField({
   const hintId = useId()
   const noteId = useId()
   const bullets = bulletLines(text)
-  const [arranging, setArranging] = useState(false)
   // Once the box has been used, it shows in full until its card is folded.
   const [used, setUsed] = useState(false)
   // Choosing a finding here shows the text, where the cursor goes to it. Only a
@@ -289,158 +273,56 @@ export function BulletsField({
   const [shownRequest, setShownRequest] = useState(request)
   if (request !== undefined && request !== shownRequest) {
     setShownRequest(request)
-    setArranging(false)
     setUsed(true)
   }
-  const previewing = compact && !used && !arranging && bullets.length > 0
-  // A white box with a thin edge, which darkens while it's typed in; the cut-short bullets are drawn in the same box.
-  const box = `w-full rounded-[6px] border bg-sheet px-4 py-3.5 text-[16px] leading-[1.7] text-ink outline-none transition-colors duration-200 focus-visible:outline-none motion-reduce:transition-none md:text-[15px] ${
-    !flag ? "border-rule focus:border-ink/30" : "border-accent ring-1 ring-accent"
-  }`
+  const previewing = compact && !used && bullets.length > 0
+  // Underlined, as the other fields are; the cut-short bullets are drawn the same way.
+  const box = `${underlined(!!flag)} leading-relaxed`
 
   return (
-    <div data-field={name} className={`group/field flex min-w-0 flex-col gap-2 ${className}`}>
-      <div className="flex items-center justify-between gap-3">
-        {/* Blue while typing in the box, as a field's label is; not while on Arrange. A
-            label can't be for a div, so a click on it puts the cursor in the box itself. */}
-        <label
-          id={`${boxId}-label`}
-          onClick={() => document.getElementById(boxId)?.focus()}
-          className="label-mono text-ink-2 transition-colors group-has-[[contenteditable]:focus]/field:text-accent"
-        >
-          {label}
-        </label>
-        {(arranging || bullets.length > 0) && (
-          <button
-            type="button"
-            onClick={() => {
-              setArranging(!arranging)
-              setUsed(true)
-            }}
-            aria-label={arranging ? "Done arranging bullets" : "Arrange bullets"}
-            className="-my-1.5 -mr-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-ink-2 transition-colors hover:bg-ink/[0.05] hover:text-ink"
-          >
-            {arranging ? (
-              "Done"
-            ) : (
-              <>
-                <ArrowUpDown className="h-3.5 w-3.5" aria-hidden="true" />
-                Arrange
-              </>
-            )}
-          </button>
-        )}
-      </div>
-      {arranging ? (
-        <ArrangedBullets labelId={`${boxId}-label`} text={text} onChange={onChange} />
-      ) : (
-        <div className="relative" onFocus={() => setUsed(true)}>
-          {previewing && (
-            <div aria-hidden="true" className={`${box} flex flex-col`}>
-              {bullets.slice(0, PREVIEW_BULLETS).map((bullet) => (
-                <p key={bullet.line} className={bullet.leftOut ? "text-ink-2" : undefined}>
-                  {bullet.leftOut ? "○" : "•"} {previewOf(bullet.words)}
-                </p>
-              ))}
-              {bullets.length > PREVIEW_BULLETS && (
-                <p className="mt-0.5 text-[13px] text-ink-2">+ {bullets.length - PREVIEW_BULLETS} more</p>
-              )}
-            </div>
-          )}
-          {/* While the bullets show cut short, the box is over them, unseen, and no taller. */}
-          <div className={previewing ? "absolute inset-0 overflow-hidden opacity-0" : undefined}>
-            <StyledBox
-              kind="bullets"
-              id={boxId}
-              value={value}
-              onChange={onChange}
-              labelId={`${boxId}-label`}
-              describedBy={flag ? `${hintId} ${noteId}` : hintId}
-              invalid={flag?.level === "fix"}
-              placeholder={placeholder}
-              className={`${box} ${compact ? "min-h-[110px]" : "min-h-[132px]"}`}
-            />
+    <div data-field={name} className={`group/field flex min-w-0 flex-col gap-1.5 ${className}`}>
+      {/* Blue while typing in the box, as a field's label is. A label can't be for a div,
+          so a click on it puts the cursor in the box itself. */}
+      <label
+        id={`${boxId}-label`}
+        onClick={() => document.getElementById(boxId)?.focus()}
+        className="label-mono text-ink-2 transition-colors group-focus-within/field:text-accent"
+      >
+        {label}
+      </label>
+      <div className="relative" onFocus={() => setUsed(true)}>
+        <FocusGlow />
+        {previewing && (
+          <div aria-hidden="true" className={`${box} flex flex-col`}>
+            {bullets.slice(0, PREVIEW_BULLETS).map((bullet) => (
+              <p key={bullet.line} className={bullet.leftOut ? "text-ink-2" : undefined}>
+                {bullet.leftOut ? "○" : "•"} {previewOf(bullet.words)}
+              </p>
+            ))}
+            {bullets.length > PREVIEW_BULLETS && <p className="mt-0.5 text-[13px] text-ink-2">+ {bullets.length - PREVIEW_BULLETS} more</p>}
           </div>
+        )}
+        {/* While the bullets show cut short, the box is over them, unseen, and no taller. */}
+        <div className={previewing ? "absolute inset-0 overflow-hidden opacity-0" : undefined}>
+          <StyledBox
+            kind="bullets"
+            id={boxId}
+            value={value}
+            onChange={onChange}
+            labelId={`${boxId}-label`}
+            describedBy={flag ? `${hintId} ${noteId}` : hintId}
+            invalid={flag?.level === "fix"}
+            placeholder={placeholder}
+            className={`${box} ${compact ? "min-h-[110px]" : "min-h-[132px]"}`}
+          />
         </div>
-      )}
+        <FocusLine />
+      </div>
       {flag && <FlagNote id={noteId} finding={flag} />}
-      {!arranging && (
-        <span id={hintId} className={`text-[13px] leading-normal text-ink-2 ${previewing ? "sr-only" : ""}`}>
-          One bullet per line · <FormatHint moveLines />
-          {bullets.some((bullet) => bullet.leftOut) && " · Lines starting with ○ are left out of the PDF."}
-        </span>
-      )}
-    </div>
-  )
-}
-
-/** A bullet's words, bold and italic where they're marked, as they print. */
-function MarkedWords({ words }: { words: string }) {
-  return markedPieces(words).map(({ text, bold, italic }, index) => {
-    const shown = italic ? <em>{text}</em> : text
-    return bold ? (
-      <strong key={index} className="font-semibold">
-        {shown}
-      </strong>
-    ) : (
-      <Fragment key={index}>{shown}</Fragment>
-    )
-  })
-}
-
-/**
- * The bullets as a list, each with a box to leave it out of the PDF and
- * buttons to move it. A bullet keeps the focus as it moves, so it can be
- * moved again and again from the keyboard.
- */
-function ArrangedBullets({ labelId, text, onChange }: { labelId: string; text: string; onChange: (value: string) => void }) {
-  const bullets = bulletLines(text)
-  // Bullets have no ids, so each gets a key here that moves with it, even
-  // past a bullet with the same words. So React moves a bullet's row with it,
-  // and the focus goes along. If the bullets change some other way (another
-  // tab), they're keyed afresh.
-  const [order, setOrder] = useState(() => bullets.map((_, index) => index))
-  const keys = order.length === bullets.length ? order : bullets.map((_, index) => index)
-  const keyed = bullets.map((bullet, index) => ({ ...bullet, key: keys[index] }))
-  const [announcement, setAnnouncement] = useState("")
-
-  return (
-    <div className="flex flex-col gap-2">
-      <ul aria-labelledby={labelId} className="flex flex-col overflow-hidden rounded-[6px] border border-rule bg-sheet">
-        {keyed.map((bullet, index) => (
-          <li key={bullet.key} className="flex items-start gap-3 border-b border-rule px-4 py-2 last:border-b-0">
-            <input
-              type="checkbox"
-              checked={!bullet.leftOut}
-              onChange={(event) => onChange(setLeftOutLine(text, bullet.line, !event.target.checked))}
-              aria-label={`Include bullet ${index + 1} in the PDF`}
-              className="mt-1.5 h-4 w-4 shrink-0 accent-accent"
-            />
-            <span className={`min-w-0 flex-1 py-0.5 text-[15px] leading-[1.6] ${bullet.leftOut ? "text-ink-2" : "text-ink"}`}>
-              <MarkedWords words={bullet.words} />
-              {bullet.leftOut && <span className="label-mono ml-2 whitespace-nowrap text-ink-2">Left out</span>}
-            </span>
-            <MoveButtons
-              name={`bullet ${index + 1}`}
-              first={index === 0}
-              last={index === keyed.length - 1}
-              onMove={(by) => {
-                const next = [...keys]
-                ;[next[index], next[index + by]] = [next[index + by], next[index]]
-                setOrder(next)
-                onChange(moveBullet(text, bullet.line, by))
-                setAnnouncement((last) => nextAnnouncement(last, `Moved to ${index + by + 1} of ${keyed.length}`))
-              }}
-            />
-          </li>
-        ))}
-      </ul>
-      <p className="text-[13px] leading-normal text-ink-2">
-        Untick a bullet to leave it out of the PDF. It stays here, so you can put it back.
-      </p>
-      <p role="status" className="sr-only">
-        {announcement}
-      </p>
+      <span id={hintId} className={`text-[13px] leading-normal text-ink-2 ${previewing ? "sr-only" : ""}`}>
+        One bullet per line · <FormatHint moveLines />
+        {bullets.some((bullet) => bullet.leftOut) && " · Lines starting with ○ are left out of the PDF."}
+      </span>
     </div>
   )
 }

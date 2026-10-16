@@ -519,7 +519,7 @@ function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPre
 
 /** The zoom's − 100% + buttons: in the bar over the preview, or in the pill under the page on wide screens. */
 function ZoomControls({ zoom, onOut, onReset, onIn }: { zoom: number; onOut: () => void; onReset: () => void; onIn: () => void }) {
-  // At the smallest or largest zoom, its button stays focusable but does nothing, as MoveButtons do.
+  // At the smallest or largest zoom, its button stays focusable but does nothing, so the focus isn't lost.
   const iconButton =
     "inline-flex h-8 w-8 items-center justify-center rounded-full text-[18px] text-ink-2 transition-colors hover:bg-fill hover:text-ink aria-disabled:cursor-default aria-disabled:opacity-30 aria-disabled:hover:bg-transparent aria-disabled:hover:text-ink-2"
   return (

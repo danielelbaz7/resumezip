@@ -240,31 +240,21 @@ test("an entry left out isn't printed, or in the PDF's copy of the resume, and c
   expect(otherErrors).toEqual([])
 })
 
-test("bullets are moved and left out from the Arrange list, or moved with Alt and the arrow keys", async ({ page }) => {
+test("a bullet starting with ○ is left out, and Alt and the arrow keys move a line", async ({ page }) => {
   const errors = pageErrors(page)
   await openSection(page, "Experience")
   // The first entry is open; its bullets are in its first bullets field.
   const field = page.locator('[data-field="workDescription"]').first()
+  const box = field.getByLabel(BULLETS)
 
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  const list = field.getByRole("list", { name: BULLETS })
-  await expect(list.getByRole("listitem")).toHaveText([/Built the search index/, /Cut serving costs/, /Mentored four interns/])
-  await list.getByRole("button", { name: "Move bullet 1 down" }).focus()
-  await page.keyboard.press("Enter")
-  await expect(list.getByRole("button", { name: "Move bullet 2 down" })).toBeFocused()
-  await expect(list.getByRole("listitem")).toHaveText([/Cut serving costs/, /Built the search index/, /Mentored four interns/])
-
-  await list.getByRole("checkbox", { name: "Include bullet 3 in the PDF" }).uncheck()
-  await expect(list.getByRole("listitem").nth(2)).toContainText("Left out")
+  await box.fill("• Cut serving costs by 30%\n• Built the search index\n○ Mentored four interns")
+  await expect(field.getByText("Lines starting with ○ are left out of the PDF.")).toBeVisible()
   await expect
     .poll(() => printedOrder(page, ["Cut serving costs", "Built the search index", "Mentored four interns", "Initech"]))
     .toEqual(["Cut serving costs", "Built the search index", "Initech"])
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
 
-  // Back in the text box, the left-out bullet starts with ○, and Alt+↓ moves the line the cursor is on.
-  await field.getByRole("button", { name: "Done arranging bullets" }).click()
-  const box = field.getByLabel(BULLETS)
-  await expect.poll(() => boxText(box)).toBe("• Cut serving costs by 30%\n• Built the search index\n○ Mentored four interns")
+  // Alt+↓ moves the line the cursor is on.
   await box.focus()
   await selectInBox(box, 0)
   await page.keyboard.press("Alt+ArrowDown")
@@ -279,24 +269,6 @@ test("bullets are moved and left out from the Arrange list, or moved with Alt an
   await page.keyboard.press("Enter")
   await expect.poll(() => boxText(box)).toBe("• Built the search index\n• Cut serving costs by 30%\n○ Mentored four\n○ interns")
   expect(await cursorInBox(box)).toBe(split + 3)
-
-  expect(errors).toEqual([])
-})
-
-test("the Arrange list shows bold and italic words as they print, without their marks", async ({ page }) => {
-  const errors = pageErrors(page)
-  const [job, ...rest] = RESUME.workExperienceSection
-  await openSection(page, "Experience", {
-    ...RESUME,
-    id: "tailored-marks",
-    workExperienceSection: [{ ...job, workDescription: "• Built the **search** index\n• Cut costs by *30%*" }, ...rest],
-  })
-  const field = page.locator('[data-field="workDescription"]').first()
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  const list = field.getByRole("list", { name: BULLETS })
-  await expect(list.getByRole("listitem")).toHaveText(["Built the search index", "Cut costs by 30%"])
-  await expect(list.getByRole("strong")).toHaveText("search")
-  await expect(list.getByRole("emphasis")).toHaveText("30%")
 
   expect(errors).toEqual([])
 })
@@ -413,28 +385,6 @@ test("an open entry is dragged with the mouse, under the pointer all the way, an
   expect(errors).toEqual([])
 })
 
-test("a bullet keeps the focus as it moves, even past one with the same words", async ({ page }) => {
-  const errors = pageErrors(page)
-  await openSection(page, "Experience")
-  const field = page.locator('[data-field="workDescription"]').first()
-  await field.getByLabel(BULLETS).fill("• Led the team\n○ Led the team\n• Wrote the docs")
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  const rows = field.getByRole("list", { name: BULLETS }).getByRole("listitem")
-
-  // The printed one moves down past the left-out copy, and the focus goes with it, so it can be moved again.
-  await rows.nth(0).getByRole("button", { name: "Move bullet 1 down" }).focus()
-  await page.keyboard.press("Enter")
-  await expect(rows.nth(1).getByRole("button", { name: "Move bullet 2 down" })).toBeFocused()
-  await expect(rows.nth(1).getByRole("checkbox")).toBeChecked()
-  await page.keyboard.press("Enter")
-  await expect(rows.nth(2).getByRole("button", { name: "Move bullet 3 down" })).toBeFocused()
-  await expect
-    .poll(async () => (await saved(page)).workExperienceSection[0].workDescription)
-    .toBe("○ Led the team\n• Wrote the docs\n• Led the team")
-
-  expect(errors).toEqual([])
-})
-
 test("the checker skips what's left out, and opens the right entry after it", async ({ page }) => {
   const errors = pageErrors(page)
   const weak = (company: string) => new RegExp(`${company} · bullet 1 .*weak start`)
@@ -469,45 +419,16 @@ test("the checker skips what's left out, and opens the right entry after it", as
   await expect(box).toBeFocused()
   await expect.poll(selected).toBe("Responsible for the search index")
 
-  // Arranging the bullets while the finding shows: the list stays open as the checker looks again.
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  await field.getByRole("checkbox", { name: "Include bullet 2 in the PDF" }).uncheck()
-  await expect.poll(() => printedOrder(page, ["search index", "serving costs"])).toEqual(["search index"])
-  await expect(field.getByRole("list", { name: BULLETS })).toBeVisible()
-  // And as Write mode hides the finding, and Check shows it again.
+  // Write mode hides the finding, and Check shows it again.
   const modes = page.getByRole("tablist", { name: "Write, check or style" })
   await modes.getByRole("tab", { name: "Write" }).click()
   await modes.getByRole("tab", { name: /^Check/ }).click()
   await expect(panel.getByRole("button", { name: weak("Google") })).toBeVisible()
-  await expect(field.getByRole("list", { name: BULLETS })).toBeVisible()
 
   // Choosing the finding again goes back to the text, at its bullet.
   await panel.getByRole("button", { name: weak("Google") }).click()
   await expect(box).toBeFocused()
   await expect.poll(selected).toBe("Responsible for the search index")
-
-  expect(errors).toEqual([])
-})
-
-test("the text box shows every bullet after arranging, and a deleted entry's mode isn't passed on", async ({ page }) => {
-  const errors = pageErrors(page)
-  await openSection(page, "Experience")
-  const field = page.locator('[data-field="workDescription"]').first()
-  const box = field.getByLabel(BULLETS)
-  await box.fill(Array.from({ length: 7 }, (_, index) => `• Shipped feature ${index + 1}`).join("\n"))
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  await field.getByRole("button", { name: "Done arranging bullets" }).click()
-  await expect.poll(() => box.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true)
-
-  // The entry is deleted while its bullets are being arranged; the next one still opens with its text box.
-  await field.getByRole("button", { name: "Arrange bullets" }).click()
-  await page.getByRole("button", { name: "Delete entry 1" }).click()
-  await page.getByRole("button", { name: "Delete", exact: true }).click()
-  await expect(page.getByRole("button", { name: "Edit entry 3" })).toHaveCount(0)
-  await page.getByRole("button", { name: "Edit entry 1" }).click()
-  await expect(page.locator('[data-field="workDescription"]').first().getByRole("textbox", { name: BULLETS })).toHaveText(
-    "• Filed the reports",
-  )
 
   expect(errors).toEqual([])
 })
