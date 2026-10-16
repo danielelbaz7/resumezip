@@ -290,15 +290,17 @@ describe("a Word file's page header and footer", () => {
     const files = await unzip(bytes(wordFile(["EXPERIENCE"], { header: { default: ["Jordan Lee"] } })), 100_000)
     if (!files || files === "too big") throw new Error("Not unzipped")
     const text = (name: string) => new TextDecoder().decode(files[name])
-    // The document somewhere other than where Word puts it, and its parts named from the top of the zip.
+    // The document somewhere other than where Word puts it, named from the top of the zip, and its header a folder up from it.
     const moved: Record<string, string | Uint8Array> = {
       ...files,
       "_rels/.rels": text("_rels/.rels").replace('Target="word/document.xml"', 'Target="/word/main.xml"'),
       "word/main.xml": files["word/document.xml"],
-      "word/_rels/main.xml.rels": text("word/_rels/document.xml.rels").replace('Target="header1.xml"', 'Target="/word/header1.xml"'),
+      "word/_rels/main.xml.rels": text("word/_rels/document.xml.rels").replace('Target="header1.xml"', 'Target="../header1.xml"'),
+      "header1.xml": files["word/header1.xml"],
     }
     delete moved["word/document.xml"]
     delete moved["word/_rels/document.xml.rels"]
+    delete moved["word/header1.xml"]
     expect((await linesFromDocx(zip(moved).buffer)).map((line) => line.text)).toEqual(["Jordan Lee", "EXPERIENCE"])
   })
 

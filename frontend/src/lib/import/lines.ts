@@ -716,8 +716,11 @@ function relationshipsOf(files: Record<string, Uint8Array>, part: string): Map<s
     const target = id && attribute(attributes, "Target")
     if (!id || !target) continue
     const external = attribute(attributes, "TargetMode") === "External"
-    // A path starts from the part's folder, or from the top of the zip with a "/".
-    const path = target.startsWith("/") ? target.slice(1) : folder + target
+    // A path starts from the part's folder, or from the top of the zip with a "/", and ".." is the folder above.
+    const path = (target.startsWith("/") ? target.slice(1) : folder + target)
+      .split("/")
+      .reduce<string[]>((up, segment) => (segment === ".." ? up.slice(0, -1) : segment === "." ? up : [...up, segment]), [])
+      .join("/")
     found.set(id, { type: attribute(attributes, "Type") ?? "", target: external ? target : path, external })
   }
   return found
