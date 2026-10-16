@@ -10,6 +10,13 @@ export const MAX_PAGES = 20
 export const MAX_CHARACTERS = 200_000
 export const MAX_LINES = 5_000
 /**
+ * Paragraphs put in a Word file's table cells, checked as its tables are read.
+ * One in a table in a table is put in each cell around it in turn, so a few
+ * thousand nested hundreds of tables deep would take minutes; this is room for
+ * `MAX_LINES` of them ten tables deep, where a resume's tables nest two or three.
+ */
+export const MAX_CELL_PARAGRAPHS = MAX_LINES * 10
+/**
  * A Word file once unzipped, pictures and all, checked as it's unzipped, since
  * a small file can unzip to a lot. Pictures barely shrink in a zip, so this is
  * room for a file of `MAX_BYTES` of them and 10 MB of text.

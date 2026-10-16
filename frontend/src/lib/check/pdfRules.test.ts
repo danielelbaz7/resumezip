@@ -3,7 +3,8 @@
 
 import { describe, expect, test } from "vitest"
 import { readBack, render, samples } from "@/lib/import/testRender"
-import { runChecks, type PdfReading } from "./engine"
+import { TEMPLATES } from "@/lib/templates"
+import { runChecks, type PdfReading, type Report } from "./engine"
 import { printedBullets } from "./pdf"
 import { viewOf } from "./resume"
 import { RULES } from "./rules"
@@ -17,6 +18,7 @@ async function readingOf(resume: Record<string, unknown>): Promise<PdfReading> {
 }
 
 const PDF_RULES = RULES.filter((rule) => /^[RL]\d$/.test(rule.id))
+const READABLE = PDF_RULES.filter((rule) => rule.category === "readable").map((rule) => rule.id)
 
 function check(resume: Record<string, unknown>, pdf: PdfReading, ids?: string[]) {
   return runChecks(resume, { rules: ids ? PDF_RULES.filter((rule) => ids.includes(rule.id)) : PDF_RULES, pdf, today: new Date(2026, 9, 7) })
@@ -74,6 +76,43 @@ test.each(["jake", "resumeworded"])(
     }
   },
 )
+
+// Characters no font has print as nothing, or as boxes, in every template.
+// The checker used to say hiring software couldn't find the name or read the
+// role, as if they were typed wrong.
+describe.each(TEMPLATES.map((template) => [template.name, template.id]))("%s, with text no font has", (_name, template) => {
+  const what = (report: Report) => report.findings.map(({ rule, place, message }) => ({ rule, place, message }))
+
+  test("says only that it doesn't print", async () => {
+    const resume = {
+      selectedTemplate: template,
+      profileSection: { fullName: "王小明", email: "wang@example.com", phoneNumber: "(512) 555-0142", location: "دبي, UAE" },
+      workExperienceSection: [
+        {
+          id: 1,
+          workRole: "软件工程师",
+          companyName: "Stripe",
+          workStartDate: "Jan 2024",
+          workEndDate: "Present",
+          workDescription: "• Built the ledger used by 300 teams",
+        },
+      ],
+    }
+    expect(what(check(resume, await readingOf(resume), READABLE))).toEqual([
+      { rule: "R8", place: { kind: "profile", field: "fullName" }, message: "“王小明” doesn't print" },
+      { rule: "R8", place: { kind: "profile", field: "location" }, message: "“دبي” doesn't print" },
+      { rule: "R8", place: { kind: "entry", section: "Work", entry: 0, field: "workRole" }, message: "“软件工程师” doesn't print" },
+    ])
+  })
+
+  test("in a name, leaves the rest of the resume read as before", async () => {
+    const sample = samples.find((resume) => resume.selectedTemplate === template)
+    const resume = { ...sample, profileSection: { ...sample.profileSection, fullName: `${sample.profileSection.fullName} 王小明` } }
+    const report = check(resume, await readingOf(resume))
+    expect(what(report)).toEqual([{ rule: "R8", place: { kind: "profile", field: "fullName" }, message: "“王小明” doesn't print" }])
+    expect(report.results.filter(({ partial }) => partial).map(({ rule }) => rule.id)).toEqual([])
+  })
+})
 
 test("a renamed heading the reader doesn't know is a fix", async () => {
   const sample = samples.find((resume) => resume.selectedTemplate === "jake")

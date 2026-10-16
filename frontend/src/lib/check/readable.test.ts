@@ -39,11 +39,18 @@ const found = {
 function check(id: string, resume: Resume, pdf: PdfReading = reading([], found)) {
   const rule = RULES.find((rule) => rule.id === id)!
   const report = runChecks(resume, { rules: [rule], pdf })
-  return { status: report.results[0].status, messages: report.findings.map((finding) => finding.message), findings: report.findings }
+  const [result] = report.results
+  return {
+    status: result.status,
+    checked: result.checked,
+    partial: result.partial ?? false,
+    messages: report.findings.map((finding) => finding.message),
+    findings: report.findings,
+  }
 }
 
 test("a PDF that reads back as typed passes every readability rule", () => {
-  for (const id of ["R1", "R2", "R3", "R4", "R5", "R6"]) expect(check(id, jake).status, id).toBe("passed")
+  for (const id of ["R1", "R2", "R3", "R4", "R5", "R6", "R8"]) expect(check(id, jake).status, id).toBe("passed")
 })
 
 describe("R1 contact details", () => {
@@ -79,6 +86,17 @@ describe("R1 contact details", () => {
         message: "Hiring software can't find your phone number in the PDF",
       }),
     ])
+  })
+
+  // pdf.js reads U+0000 for each character no font has.
+  test("looks only for the part of a contact detail that prints, and leaves one with none of it to R8", () => {
+    const resume = { ...jake, profileSection: { ...jake.profileSection, fullName: "Jake Ryan 杰克" } }
+    const pdf = reading([], { ...found, profile: { ...found.profile, fullName: "JAKE RYAN \0\0" } })
+    expect(check("R1", resume, pdf)).toMatchObject({ status: "passed", checked: 3 })
+
+    const chinese = { ...jake, profileSection: { ...jake.profileSection, fullName: "杰克" } }
+    const unprinted = reading([], { ...found, profile: { ...found.profile, fullName: "\0\0" } })
+    expect(check("R1", chinese, unprinted)).toMatchObject({ status: "passed", checked: 2 })
   })
 
   test("finds a name a template prints in capitals, ß and all", () => {
@@ -294,6 +312,36 @@ describe("R4 text the reader can't place", () => {
     const pdf = reading([line("— · —", { page: 1 })], { ...found, unplaced: [{ heading: "", lines: [0], text: ["— · —"] }] })
     expect(check("R4", jake, pdf).findings.map(({ place }) => place)).toEqual([{ kind: "page", page: 1 }])
   })
+
+  test("leaves out text read with characters that didn't print, as a place in a script no font has", () => {
+    const resume = { ...jake, profileSection: { ...jake.profileSection, location: "دبي, UAE" } }
+    const pdf = reading([line("\0\0\0, UAE")], {
+      ...found,
+      unplaced: [{ heading: "Top of the resume", lines: [0], text: ["\0\0\0, UAE"] }],
+    })
+    expect(check("R4", resume, pdf)).toMatchObject({ status: "passed", partial: true, messages: [] })
+  })
+})
+
+describe("R2–R4 while a section's text doesn't print", () => {
+  // The role reads as nothing, so the reader doesn't find the job where it is.
+  const resume = { ...jake, workExperienceSection: [{ ...jake.workExperienceSection[0], workRole: "软件工程师" }] }
+  const pdf = reading([line("\0\0\0\0\0 Jan 2024 - Present"), line("Stripe")], {
+    ...found,
+    sections: [],
+    unplaced: [{ heading: "", lines: [0, 1], text: ["\0\0\0\0\0 Jan 2024 - Present", "Stripe"] }],
+  })
+
+  test("find nothing until it does, as it may be what threw the reading out, and R8 says what to change", () => {
+    for (const id of ["R2", "R3", "R4"]) expect(check(id, resume, pdf), id).toMatchObject({ status: "passed", partial: true, messages: [] })
+    expect(check("R8", resume, pdf).messages).toEqual(["“软件工程师” doesn't print"])
+  })
+
+  test("still check a resume whose name is all that doesn't print", () => {
+    const named = { ...jake, profileSection: { ...jake.profileSection, fullName: "杰克" } }
+    const noWork = reading([], { ...found, profile: { ...found.profile, fullName: "\0\0" }, sections: [] })
+    expect(check("R2", named, noWork).messages).toEqual(["Hiring software may not know “Experience” as a heading"])
+  })
 })
 
 describe("R5 symbols and emoji", () => {
@@ -315,6 +363,95 @@ describe("R5 symbols and emoji", () => {
       ],
     }
     expect(check("R5", resume).status).toBe("passed")
+  })
+})
+
+describe("R8 text no font has", () => {
+  test("is a fix naming what doesn't print, wherever it's typed, and says it's the fonts, not the typing", () => {
+    const resume = {
+      ...jake,
+      profileSection: { ...jake.profileSection, fullName: "王小明" },
+      headings: { work: "工作经历" },
+      workExperienceSection: [
+        { ...jake.workExperienceSection[0], workRole: "软件工程师", workDescription: "• Built the ledger\n• 优化了数据库" },
+      ],
+    }
+    const { findings } = check("R8", resume)
+    expect(findings.map(({ level, place, message }) => ({ level, place, message }))).toEqual([
+      { level: "fix", place: { kind: "profile", field: "fullName" }, message: "“王小明” doesn't print" },
+      { level: "fix", place: { kind: "heading", section: "Work" }, message: "“工作经历” doesn't print" },
+      { level: "fix", place: { kind: "entry", section: "Work", entry: 0, field: "workRole" }, message: "“软件工程师” doesn't print" },
+      {
+        level: "fix",
+        place: { kind: "entry", section: "Work", entry: 0, field: "workDescription", line: 1 },
+        message: "“优化了数据库” doesn't print",
+      },
+    ])
+    expect(findings[0]).toMatchObject({
+      why: "The templates' fonts don't have these characters, so the PDF leaves them out or prints boxes, and hiring software can't read them.",
+      suggestion: "Your typing is fine. For now, write it in Latin letters.",
+    })
+  })
+
+  test("names words that don't print together, and lists the stretches of a line that mixes them with ones that do", () => {
+    const resume = {
+      ...jake,
+      profileSection: { ...jake.profileSection, fullName: "محمد علي", location: "Bangkok กรุงเทพ, Thailand" },
+      workExperienceSection: [
+        {
+          ...jake.workExperienceSection[0],
+          workDescription: "• 使用React和TypeScript开发\n• 一 a 二 b 三 c 四",
+        },
+      ],
+    }
+    expect(check("R8", resume).messages).toEqual([
+      "“محمد علي” doesn't print",
+      "“กรุงเทพ” doesn't print",
+      "“使用”, “和” and “开发” don't print",
+      "“一”, “二” and 2 more don't print",
+    ])
+  })
+
+  test("leaves letters some font has alone: accents, Vietnamese, Cyrillic, Greek and Hebrew", () => {
+    const resume = {
+      ...jake,
+      profileSection: { ...jake.profileSection, fullName: "Nguyễn Thị Ánh", location: "Łódź · Москва · Αθήνα · תל אביב" },
+    }
+    expect(check("R8", resume).status).toBe("passed")
+  })
+
+  test("says to type letters in a style pasted in as plain ones, which print", () => {
+    const resume = {
+      ...jake,
+      profileSection: { ...jake.profileSection, location: "Ｓｈａｎｇｈａｉ" },
+      workExperienceSection: [{ ...jake.workExperienceSection[0], workRole: "𝐒𝐞𝐧𝐢𝐨𝐫 Engineer" }],
+    }
+    expect(check("R8", resume).findings.map(({ message, suggestion }) => [message, suggestion])).toEqual([
+      ["“Ｓｈａｎｇｈａｉ” doesn't print", "These look like letters but aren't, so no font has them. Type them as plain letters."],
+      ["“𝐒𝐞𝐧𝐢𝐨𝐫” doesn't print", "These look like letters but aren't, so no font has them. Type them as plain letters."],
+    ])
+  })
+
+  test("leaves emoji and symbols to R5, and spaces and invisible characters alone", () => {
+    const resume = {
+      ...jake,
+      workExperienceSection: [{ ...jake.workExperienceSection[0], workDescription: "• Shipped it 🚀\n• Led the\u3000team\u200D of 5" }],
+    }
+    expect(check("R8", resume).status).toBe("passed")
+    expect(check("R5", resume).messages).toEqual(["“🚀” may not come through"])
+  })
+
+  test("leaves out a project's links behind its name, which aren't printed as text", () => {
+    const withLinks = (projectLinks: string) => ({
+      ...jake,
+      projectLinks,
+      projectsSection: [{ id: 2, projectName: "Ledger", additionalLink: "zh.wikipedia.org/wiki/项目" }],
+    })
+    expect(check("R8", withLinks("title")).status).toBe("passed")
+    expect(check("R4", withLinks("title")).partial).toBe(false)
+    // Printed as text, the link has letters no font has, as any field can.
+    expect(check("R8", withLinks("show")).messages).toEqual(["“项目” doesn't print"])
+    expect(check("R4", withLinks("show")).partial).toBe(true)
   })
 })
 

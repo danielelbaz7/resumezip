@@ -3,8 +3,9 @@ import path from "node:path"
 import { beforeAll, describe, expect, test } from "vitest"
 import { CompileFormatEnum, createTypstCompiler, createTypstFontBuilder, type TypstCompiler } from "@myriaddreamin/typst.ts/compiler"
 import { loadFonts } from "@myriaddreamin/typst.ts/options.init"
+import { readBack, render } from "@/lib/import/testRender"
 import { fontsOf, templateById, TEMPLATES } from "@/lib/templates"
-import { covers, FONT_FILES, FONT_INFO, FONT_URLS, filesOf, fontsFor, lazyFonts } from "./fontFiles"
+import { covers, FONT_FILES, FONT_INFO, FONT_URLS, filesOf, fontsFor, lazyFonts, noFontHas } from "./fontFiles"
 import { toTemplateData } from "./resumeData"
 
 const TYPST = path.resolve("src/lib/typst")
@@ -65,6 +66,15 @@ describe("coverage", () => {
 
   test("a character no font has brings nothing more", () => {
     expect(fontsFor([{ family: "EB Garamond" }], "张伟 😀").sort()).toEqual(filesOf("EB Garamond").sort())
+  })
+
+  test("no font has Chinese, Japanese, Korean, Arabic, Thai or Devanagari, or emoji", () => {
+    for (const char of [..."王あア김م١สर😀"]) expect(noFontHas(char), char).toBe(true)
+  })
+
+  test("some font has Latin with Vietnamese, Cyrillic, Greek, Hebrew and common symbols, and spaces and invisible characters need none", () => {
+    for (const char of [..."aễŁЖΩש★→€", " ", "\u00A0", "\u3000", "\u200D", "\uFE0F", "\u00AD"])
+      expect(noFontHas(char), JSON.stringify(char)).toBe(false)
   })
 
   describe("with a fallback", () => {
@@ -154,6 +164,41 @@ describe("the font files", () => {
           template.id,
         ).toContain(fallback.script)
     }
+  })
+})
+
+// What the checker counts on (lib/check/readable.ts): every template prints
+// a character no font has as nothing or a box, which its PDF's text gives as
+// U+0000, and one only some other font has as itself.
+describe("a character no font has", () => {
+  const CHARACTERS = [..."王あ김م١สर😀，Ж★ש"]
+
+  test.each(TEMPLATES)("in $name, reads back from the PDF as U+0000, and one some font has as itself", async ({ id }) => {
+    // One bullet, each character between words of its own, so the line can
+    // wrap anywhere, and a script that runs right to left stays in its place.
+    const WORDS = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet", "kilo", "lima", "mike"]
+    const between = (index: number) => WORDS[index]
+    const resume = {
+      selectedTemplate: id,
+      profileSection: { fullName: "Ada Lovelace" },
+      workExperienceSection: [
+        {
+          id: 1,
+          companyName: "Acme",
+          workRole: "Engineer",
+          workStartDate: "Jan 2024",
+          workDescription: `• ${CHARACTERS.map((char, index) => `${between(index)} ${char}`).join(" ")} ${between(CHARACTERS.length)}`,
+        },
+      ],
+    }
+    const { parsed } = await readBack(await render(resume))
+    const text = parsed.lines
+      .map((line) => line.text)
+      .join(" ")
+      .replace(/\s+/g, " ")
+    CHARACTERS.forEach((char, index) =>
+      expect(text, char).toContain(`${between(index)} ${noFontHas(char) ? "\0" : char} ${between(index + 1)}`),
+    )
   })
 })
 
