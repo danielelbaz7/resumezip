@@ -22,6 +22,10 @@ import zero2sudo from "./templates/zero2sudo.typ"
 import type { CompileRequest, CompileResponse, WorkerMessage, WorkerRequest } from "./compile"
 import { COMPILER_CDN_URL, COMPILER_INTEGRITY, COMPILER_SIZE, compileChecked, downloadChecked } from "./compilerSource"
 import { FONT_URLS, fontsFor, lazyFonts } from "./fontFiles"
+import { functionWithoutEval } from "./withoutEval"
+
+// Before the compiler starts, which would otherwise need eval.
+globalThis.Function = functionWithoutEval(Function)
 
 const SOURCES: Record<string, string> = {
   "/accent.typ": accent,
