@@ -2167,8 +2167,9 @@ export function parseResume(file: Line[]): ParsedResume {
 
   // The name: the biggest text near the top, or failing that, something shaped
   // like a name. Not what the file calls itself, though, like "Curriculum
-  // Vitae" in a Word file's page header, above a name set the same size.
-  const top = lines.slice(0, Math.max(firstHeading, 1)).filter((line) => !contacts.used.has(line.index))
+  // Vitae" in a Word file's page header, above a name set the same size, nor
+  // anything in a Word file's footer, which goes to "Couldn't place".
+  const top = lines.slice(0, Math.max(firstHeading, 1)).filter((line) => !contacts.used.has(line.index) && !line.footer)
   const candidates = top.slice(0, 4).filter((line) => !headings.has(line.index))
   const biggest = [...candidates].sort((a, b) => b.size - a.size)[0]
   const nameShaped = (text: string) => looksLikeName(text) && !words(text).some((word) => RESUME_WORDS.test(word))
@@ -2178,7 +2179,7 @@ export function parseResume(file: Line[]): ParsedResume {
       : candidates.find((line) => nameShaped(line.parts[0].text))
   if (!nameLine) {
     nameLine = [...lines]
-      .filter((line) => !headings.has(line.index) && line.size >= body * 1.4 && nameShaped(line.text))
+      .filter((line) => !line.footer && !headings.has(line.index) && line.size >= body * 1.4 && nameShaped(line.text))
       .sort((a, b) => b.size - a.size)[0]
   }
   if (nameLine) {
@@ -2308,7 +2309,7 @@ export function parseResume(file: Line[]): ParsedResume {
   }
 
   // What a Word file's footer holds besides contact details, like "References available upon request".
-  const footer = lines.filter((line) => line.footer && !contacts.used.has(line.index) && line !== nameLine)
+  const footer = lines.filter((line) => line.footer && !contacts.used.has(line.index))
   addUnplaced(
     "Page footer",
     footer.map((line) => line.index),

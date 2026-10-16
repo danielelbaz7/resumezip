@@ -766,6 +766,18 @@ describe("a title with a dash in it", () => {
   })
 })
 
+describe("a Word file's footer", () => {
+  test("is never the name, however big it's set", () => {
+    const parsed = parseResume([
+      line([["EXPERIENCE", 36]], { size: 12, bold: true }),
+      line([["Acme Corp | Engineer", 36]]),
+      { ...line([["Jordan Lee", 36]], { size: 20 }), footer: true },
+    ])
+    expect(parsed.profile.fullName).toBe("")
+    expect(parsed.unplaced).toMatchObject([{ heading: "Page footer", text: ["Jordan Lee"] }])
+  })
+})
+
 describe("how much of a file couldn't be placed", () => {
   test("is nothing for a resume read right", () => {
     const { parsed } = read("Experience", [

@@ -437,6 +437,16 @@ describe("a Word file", () => {
     ])
   })
 
+  test("with its footer shaped like a name doesn't take it for the name, even in a file too short for headings", async () => {
+    const file = wordFile(["Builds tools for small teams"], { footer: { default: ["Confidential Draft Copy"] } })
+    const opened = await openResumeFile(docx(file))
+    expect(opened.kind === "parsed" && opened.parsed.profile.fullName).toBe("")
+    expect(opened.kind === "parsed" && opened.parsed.unplaced).toMatchObject([
+      { heading: "Top of the resume", text: ["Builds tools for small teams"] },
+      { heading: "Page footer", text: ["Confidential Draft Copy"] },
+    ])
+  })
+
   test("with only page numbers in its page header and footer reads as one without them", async () => {
     const body = ["Jordan Lee", "jordan@example.com", "EXPERIENCE", "Acme Corp | Software Engineer | Jan 2020 - Present"]
     const numbered = wordFile(body, { header: { default: ["", "1"] }, footer: { default: ["Page 1 of 2"] } })
