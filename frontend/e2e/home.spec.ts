@@ -63,6 +63,10 @@ const menusOpen = () =>
  * says at each step which notes are written out whole, and which menus are open.
  */
 async function readThrough(page: Page, step: number): Promise<{ written: number[]; open: string[] }[]> {
+  // Each step waits on two of the story's frames. CI's WebKit draws them without a GPU, at Desktop
+  // Safari's 2×: a wide screen's 134 steps took over the two minutes a test gets, at about 0.9 s a
+  // step (October 2026).
+  test.slow(page.context().browser()?.browserType().name() === "webkit", "WebKit draws the story's frames slowly in CI")
   const steps: { written: number[]; open: string[] }[] = []
   const lines = await noteLines(page)
   const end = await page.evaluate((length) => (window.innerHeight * length) / 100, STORY_LENGTH)
