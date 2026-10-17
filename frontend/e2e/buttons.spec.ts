@@ -53,3 +53,13 @@ test("a main button is ink on the pages about resumezip, and blue glass in the a
   await page.goto("/create/dashboard")
   expect((await background(page.getByRole("button", { name: "New resume" }).first())).image).toMatch(GLASS_BLUE)
 })
+
+// With nothing to point with, a card's Use is a button under its name instead of the plate: blue glass too.
+test.describe("on a touch screen", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
+
+  test("a template card's Use is blue glass", async ({ page }) => {
+    await page.goto("/templates")
+    expect((await background(page.getByRole("link", { name: "Use Jake's", exact: true }))).image).toMatch(GLASS_BLUE)
+  })
+})
