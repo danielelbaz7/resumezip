@@ -182,6 +182,7 @@ function WayIn({ ref, copyRef, onFocus, contactId }: WayInProps) {
 function MovingStory({ hero }: { hero: React.ReactNode }) {
   const id = useId().replace(/[^a-z0-9]/gi, "")
   const story = useRef<HTMLDivElement>(null)
+  const stage = useRef<HTMLDivElement>(null)
   const heroBox = useRef<HTMLDivElement>(null)
   const meadow = useRef<HTMLImageElement>(null)
   const mist = useRef<HTMLDivElement>(null)
@@ -209,7 +210,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   const toEnd = useRef<() => void>(() => {})
 
   useEffect(() => {
-    const parts = { story, heroBox, meadow, mist, editor, lens, inkBox, wayIn, wayInCopy, pointer }
+    const parts = { story, stage, heroBox, meadow, mist, editor, lens, inkBox, wayIn, wayInCopy, pointer }
     const el = Object.fromEntries(Object.entries(parts).map(([name, ref]) => [name, ref.current])) as {
       [K in keyof typeof parts]: NonNullable<(typeof parts)[K]["current"]>
     }
@@ -223,8 +224,11 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     let shownTo: number[] = []
 
     function measure() {
-      // A page opened in a hidden tab can be told the window has no size yet.
-      screen = { width: Math.max(window.innerWidth, 320), height: Math.max(window.innerHeight, 480) }
+      // The stage's height, not the window's: a phone's window grows taller than the stage (100svh)
+      // as its toolbar tucks away, and what's laid out past the stage's foot is cut off. A page
+      // opened in a hidden tab can be told neither has a size yet.
+      const height = el.stage.clientHeight || window.innerHeight
+      screen = { width: Math.max(window.innerWidth, 320), height: Math.max(height, 480) }
       laid = layoutStage(screen)
       setLayout(laid)
       // The new arrows aren't drawn yet.
@@ -435,7 +439,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     <div ref={story} className="home-story" style={{ height: `calc(${STORY_LENGTH}vh + 100svh)` }}>
       {/* Where /#contact lands: the story's last screen, where the way in shows the address. */}
       <div id="contact" aria-hidden="true" className="home-story-end" />
-      <div className="home-stage">
+      <div ref={stage} className="home-stage">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img ref={meadow} src="/home/meadow.webp" alt="" className="home-meadow" />
         <div ref={heroBox} className="home-hero">

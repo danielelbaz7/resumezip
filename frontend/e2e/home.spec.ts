@@ -233,6 +233,35 @@ test("Start writing stays on screen when the way in's words reflow taller", asyn
   await expect.poll(async () => (await start.boundingBox())!.y + (await start.boundingBox())!.height).toBeLessThanOrEqual(620)
 })
 
+// The stage is 100svh, the height a phone shows with its toolbar out. Scrolled down, the toolbar
+// tucks away and the window is taller than the stage, and the way in has to stay on the stage then.
+test("on a phone with its toolbar tucked away, Start writing and the address stay on the stage", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 })
+  // The window as a phone's is then: 120px taller than the stage, which is all that shows.
+  await page.addInitScript(() => {
+    const sheet = new CSSStyleSheet()
+    sheet.replaceSync(".home-stage { height: calc(100svh - 120px) !important }")
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]
+  })
+  await page.goto("/")
+  await page.mouse.move(200, 300)
+  await playStoryTo(page, STORY_LENGTH)
+  // What's under the middle of each is it: the stage clips what's past its foot.
+  for (const link of [
+    wayIn(page).getByRole("link", { name: "Start writing" }),
+    wayIn(page).getByRole("link", { name: "hello@tryresumezip.com", exact: true }),
+  ]) {
+    await expect
+      .poll(() =>
+        link.evaluate((link) => {
+          const box = link.getBoundingClientRect()
+          return link.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2))
+        }),
+      )
+      .toBe(true)
+  }
+})
+
 // The page ends with the story, then the footer: nothing slides over the story's last screen.
 test("nothing covers Start writing as the page scrolls on past the story", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 620 })
