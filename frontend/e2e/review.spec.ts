@@ -17,7 +17,7 @@ const RESUME = [
 ]
 const pdf = (lines: string[]) => ({ name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf([lines]) })
 
-test("reviews a resume in the browser, marks its notes on the page, and opens it in Check with the same score", async ({ page }) => {
+test("reviews a resume in the browser, scribbles its notes on the page, and opens it in Check with the same score", async ({ page }) => {
   const errors = pageErrors(page)
   // Nothing is sent anywhere: the review only downloads what it needs.
   const sent: string[] = []
@@ -33,9 +33,14 @@ test("reviews a resume in the browser, marks its notes on the page, and opens it
   // The first review downloads the PDF engine and the grammar checker.
   const verdict = page.getByRole("heading", { level: 1 })
   await expect(verdict).toHaveText(/^Your resume is (ready to send|almost there|back to drafts)$/, { timeout: 90_000 })
-  const notes = page.getByRole("region", { name: "Notes on your resume" })
-  await expect(notes.getByRole("listitem").filter({ hasText: "“Responsible for” is a weak start" })).toBeVisible()
-  await expect(notes.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
+  await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
+  // Pointing at a scribble shows its note, and Esc puts it away.
+  const scribble = page.getByRole("button", { name: "“Responsible for” is a weak start" })
+  await scribble.hover()
+  await expect(page.getByRole("tooltip")).toContainText("Name your own contribution")
+  await expect(scribble).toHaveAccessibleDescription(/Name your own contribution/)
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("tooltip")).toBeHidden()
   const reviewed = (await page.getByText(/^\d+\/100$/).innerText()).replace("/100", "")
   expect(await seriousAccessibilityProblems(page)).toEqual([])
   expect(sent).toEqual([])

@@ -9,8 +9,7 @@ import { marksOf } from "@/lib/review/marks"
 import type { Review, ReviewStep } from "@/lib/review/review"
 import { countsOf, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import CloudWord from "./CloudWord"
-import MarkedPages, { type NumberedMark } from "./MarkedPages"
-import Notes from "./Notes"
+import MarkedPages, { type Note } from "./MarkedPages"
 import { circle, highlight, underline, type Box } from "./rough"
 
 const ACCEPTED_FILES =
@@ -111,14 +110,10 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
   const { report, score, reading, pdf } = review
   const verdict = verdictOf(score.total)
   const { notes, mustFixes } = countsOf(report)
-  const marks = useMemo(
-    () =>
-      marksOf(report.view, report.findings, reading).flatMap((mark, index): NumberedMark[] => {
-        const finding = report.findings[index]
-        return mark ? [{ number: index + 1, level: finding.advisory ? "look" : finding.level, mark }] : []
-      }),
-    [report, reading],
-  )
+  const marked = useMemo(() => {
+    const marks = marksOf(report.view, report.findings, reading)
+    return report.findings.map((finding, index): Note => ({ finding, mark: marks[index] }))
+  }, [report, reading])
 
   return (
     <>
@@ -168,14 +163,11 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
         </h2>
         <p className="mt-3 max-w-2xl text-pretty text-[16px] text-ink-2">
           {notes > 0
-            ? "Each number is a note, marked where it is on the page. They’re waiting in Check when you fix it in the editor."
+            ? "Each scribble is a note, drawn where it is on the page: point at one, or tab to it, to see what it says. They’re waiting in Check when you fix it in the editor."
             : "Nothing to note. A recruiter has nothing to trip on."}
         </p>
-        <div
-          className={`mt-8 grid gap-8 md:gap-10 ${notes > 0 ? "md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]" : "mx-auto max-w-[680px]"}`}
-        >
-          <MarkedPages pdf={pdf} marks={marks} />
-          {notes > 0 && <Notes view={report.view} findings={report.findings} />}
+        <div className="mx-auto mt-8 max-w-[700px]">
+          <MarkedPages pdf={pdf} view={report.view} notes={marked} />
         </div>
         <div className="mt-14 flex flex-col items-center gap-5 border-t border-hairline pt-12 text-center">
           <p className="font-serif text-[28px] leading-[1.1] tracking-[-0.02em] text-ink md:text-[36px]">

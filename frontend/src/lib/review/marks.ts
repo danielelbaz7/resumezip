@@ -2,7 +2,7 @@
 // a bullet on the lines the PDF prints it on (printedLayoutBullets), a role's
 // bullets as a whole on all of theirs, and anything else on the first line
 // that holds its text. A finding about a whole entry or section, or the PDF
-// itself, has no line of its own, so it isn't marked; the notes still list it.
+// itself, has no line of its own, so it isn't marked; the page lists it below.
 
 import type { Finding, PdfReading } from "@/lib/check/engine"
 import { comparable, printedLayoutBullets } from "@/lib/check/pdf"
