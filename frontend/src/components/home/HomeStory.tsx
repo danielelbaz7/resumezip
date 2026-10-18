@@ -194,6 +194,8 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   const markMasks = useRef<(SVGPathElement | null)[][]>([])
   const arrowMasks = useRef<(SVGPathElement | null)[][]>([])
   const notes = useRef<(HTMLParagraphElement | null)[]>([])
+  // Each mark's loop on the editor.
+  const loops = useRef<(SVGSVGElement | null)[]>([])
   // Each mark's menu, if it has one: all of it, its button pressed, and it open.
   const menus = useRef<(HTMLDivElement | null)[]>([])
   const pressed = useRef<(HTMLImageElement | null)[]>([])
@@ -305,14 +307,17 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
       const camera = cameraAt(v, laid.cameras)
       el.lens.style.transform = `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.scale})`
 
-      // Each thing is marked in turn, left to right, and its arrow and note make way for the next's;
-      // the last's step back for the way in. A mark in one of the editor's menus has it opened first,
-      // by the pointer's click, and closed again, the mark with it, before the next starts.
+      // Each thing is marked in turn, left to right. A mark on a button that opens a menu has it
+      // opened first, by the pointer's click, and closed again before the next starts. Beside the
+      // editor every mark stays, with its arrow and note, until they all step back for the way in;
+      // on a phone, where the camera moves on, each makes way for the next.
       let clicking = -1
       BEATS.notes.forEach((beat, i) => {
         const t = span(v, beat)
         const open = 1 - smooth(span(v, BEATS.closes[i]))
-        show(i, i === BEATS.notes.length - 1 ? 1 : open)
+        const kept = laid.beside || i === BEATS.notes.length - 1 ? 1 : open
+        show(i, kept)
+        loops.current[i]!.style.opacity = String(kept * (1 - wrap))
         const menu = menus.current[i]
         if (!menu) return draw(i, t)
         draw(i, span(t, CLICK.ink))
@@ -444,35 +449,42 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={EDITOR.src} alt="" />
             {MARKS.map(({ menu, said }, i) => {
+              // Over its menu, so it stays round the button once the menu has closed.
               const loop = (
-                <svg viewBox={`0 0 ${EDITOR.width} ${EDITOR.height}`}>
+                <svg
+                  ref={(element) => {
+                    loops.current[i] = element
+                  }}
+                  viewBox={`0 0 ${EDITOR.width} ${EDITOR.height}`}
+                >
                   <Strokes strokes={[[MARKED[i]]]} first={i} masks={markMasks} prefix={`${id}-mark`} />
                 </svg>
               )
               if (!menu) return <Fragment key={said}>{loop}</Fragment>
-              // The menu, its button pressed, and the mark in it, which closes with it.
+              // The menu, with its button pressed.
               return (
-                <div
-                  key={said}
-                  ref={(element) => {
-                    menus.current[i] = element
-                  }}
-                  className="home-menu"
-                >
-                  <OverlayPicture
-                    overlay={menu.button}
+                <Fragment key={said}>
+                  <div
                     ref={(element) => {
-                      pressed.current[i] = element
+                      menus.current[i] = element
                     }}
-                  />
-                  <OverlayPicture
-                    overlay={menu.open}
-                    ref={(element) => {
-                      opened.current[i] = element
-                    }}
-                  />
+                    className="home-menu"
+                  >
+                    <OverlayPicture
+                      overlay={menu.button}
+                      ref={(element) => {
+                        pressed.current[i] = element
+                      }}
+                    />
+                    <OverlayPicture
+                      overlay={menu.open}
+                      ref={(element) => {
+                        opened.current[i] = element
+                      }}
+                    />
+                  </div>
                   {loop}
-                </div>
+                </Fragment>
               )
             })}
             {/* A pointer, its tip at its top left: a picture of a click. */}
