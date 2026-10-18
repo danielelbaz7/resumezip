@@ -7,7 +7,7 @@ import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { marksOf } from "@/lib/review/marks"
 import type { Review, ReviewStep } from "@/lib/review/review"
-import { countsOf, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
+import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import CloudWord from "./CloudWord"
 import MarkedPages, { type Note } from "./MarkedPages"
 import { circle, highlight, underline, type Box } from "./rough"
@@ -30,8 +30,6 @@ const STEPS: { step: ReviewStep; label: string }[] = [
 // How much of each verdict blows away (CloudWord), and how it breaks on a phone.
 const DRIFT: Record<Verdict, number> = { ready: 0, almost: 0.4, drafts: 1 }
 const NARROW_LINES: Record<Verdict, string[]> = { ready: ["Ready", "to send"], almost: ["Almost", "there"], drafts: ["Back to", "drafts"] }
-
-const count = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`
 
 // The sample resume on the first screen (Jake's template's picture), and
 // where its marks go, in the picture's pixels.
@@ -91,7 +89,7 @@ function Backdrop({ scanning }: { scanning: boolean }) {
 function Result({ review, onFix, onAnother }: { review: Review; onFix: () => void; onAnother: () => void }) {
   const { report, score, reading, pdf } = review
   const verdict = verdictOf(score.total)
-  const { notes, mustFixes } = countsOf(report)
+  const counts = countsOf(report)
   const marked = useMemo(() => {
     const marks = marksOf(report.view, report.findings, reading)
     return report.findings.map((finding, index): Note => ({ finding, mark: marks[index] }))
@@ -109,11 +107,9 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
       <div className="relative mx-auto w-full max-w-[700px]">
         <p className="review-bubble">
           {reasonOf(score, report)}{" "}
-          {notes > 0 && (
+          {counts.notes > 0 && (
             <>
-              We found {count(notes, "thing")} a recruiter would trip on
-              {mustFixes > 0 && `, ${mustFixes === 1 ? "one" : mustFixes} of them a must-fix`}.{" "}
-              <span className="pointer-coarse:hidden">Hover over a scribble to see why.</span>
+              {foundSentence(counts)} <span className="pointer-coarse:hidden">Hover over a scribble to see why.</span>
               <span className="hidden pointer-coarse:inline">Tap a scribble to see why.</span>
             </>
           )}
@@ -123,13 +119,10 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
         <div className="review-card">
           <p className="flex flex-wrap items-baseline justify-center gap-x-2 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
             <span className="font-medium">{score.total}/100</span>
-            {notes > 0 && (
+            {counts.notes > 0 && (
               <>
                 <span aria-hidden="true">·</span>
-                <span>
-                  {count(notes, "note")}
-                  {mustFixes > 0 && `, ${count(mustFixes, "must-fix")}`}
-                </span>
+                <span>{countsLabel(counts)}</span>
               </>
             )}
           </p>

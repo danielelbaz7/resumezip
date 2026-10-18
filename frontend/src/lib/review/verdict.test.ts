@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest"
 import type { Finding, Report } from "@/lib/check/engine"
 import { mustFixMax, type CategoryScore, type Score } from "@/lib/check/score"
 import { CATEGORIES, type CategoryId } from "@/lib/check/settings"
-import { countsOf, reasonOf, verdictOf } from "./verdict"
+import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf } from "./verdict"
 
 describe("verdictOf", () => {
   test("follows the editor's bands: Strong and up is ready, Good is almost there, the rest back to drafts", () => {
@@ -57,4 +57,13 @@ describe("reasonOf", () => {
 
 test("countsOf counts every note, and the must-fixes that aren't advice", () => {
   expect(countsOf(reportOf([finding("fix"), finding("look"), finding("look", true), finding("fix")]))).toEqual({ notes: 4, mustFixes: 2 })
+})
+
+test("says how many notes and must-fixes there are, in words", () => {
+  expect(countsLabel({ notes: 1, mustFixes: 0 })).toBe("1 note")
+  expect(countsLabel({ notes: 4, mustFixes: 1 })).toBe("4 notes, 1 must-fix")
+  expect(countsLabel({ notes: 4, mustFixes: 2 })).toBe("4 notes, 2 must-fixes")
+  expect(foundSentence({ notes: 1, mustFixes: 0 })).toBe("We found 1 thing a recruiter would trip on.")
+  expect(foundSentence({ notes: 4, mustFixes: 1 })).toBe("We found 4 things a recruiter would trip on, one of them a must-fix.")
+  expect(foundSentence({ notes: 4, mustFixes: 2 })).toBe("We found 4 things a recruiter would trip on, 2 of them must-fixes.")
 })
