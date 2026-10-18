@@ -26,16 +26,22 @@ type Range = readonly [number, number]
 const NOTE_COUNT = 3
 const FIRST_NOTE = 150
 // Each mark (with its menu opened first, if it's in one) is drawn and its note
-// written over NOTE_IN, then held, and the next starts NOTE_STEP after it: most
-// of a screen of scrolling each, so a flick of the wheel doesn't skip one, and
-// each note shows whole for a while before it makes way for the next.
-const NOTE_IN = 40
-const NOTE_STEP = 80
+// written over NOTE_IN, then held, and the next starts NOTE_STEP after it: a
+// screen of scrolling each, so a flick of the wheel doesn't skip one, and each
+// note shows whole for a while before the next.
+const NOTE_IN = 52
+const NOTE_STEP = 100
 /** Where the last note starts. */
 const LAST_NOTE = FIRST_NOTE + (NOTE_COUNT - 1) * NOTE_STEP
+/**
+ * How long a mark's menu takes to close, and on a phone its note to make way.
+ * A wheel's step is about 10 story vh, so anything much shorter happens all at once.
+ */
+const CLOSING = 16
 
-/** The way in starts as long after the last note is written as the others are held. */
-const WAY_IN = LAST_NOTE + NOTE_IN + 34
+/** The last menu closes a little after its note is written; then every mark shows, closed, before the way in. */
+const LAST_CLOSE = LAST_NOTE + NOTE_IN + 8
+const WAY_IN = LAST_CLOSE + CLOSING + 20
 
 /** The story's length: from the first screen at rest to the way in, at the end. */
 export const STORY_LENGTH = WAY_IN + 60
@@ -43,8 +49,8 @@ export const STORY_LENGTH = WAY_IN + 60
 /**
  * When each part happens, in story vh. The first screen lifts away as the
  * editor rises out of the grass; once it has settled, it's marked one thing at
- * a time, each with its note, which makes way for the next; then the last steps
- * back for the way in.
+ * a time, each with its note, its menu closing before the next; then the marks
+ * step back for the way in.
  */
 export const BEATS = {
   hero: [0, 70] as Range,
@@ -52,6 +58,11 @@ export const BEATS = {
   push: [0, 180] as Range,
   editor: [20, 130] as Range,
   notes: Array.from({ length: NOTE_COUNT }, (_, i): Range => [FIRST_NOTE + i * NOTE_STEP, FIRST_NOTE + i * NOTE_STEP + NOTE_IN]),
+  /** When each mark's menu closes: just before the next mark starts, or the last's after its note is written. */
+  closes: Array.from({ length: NOTE_COUNT }, (_, i): Range => {
+    const end = i < NOTE_COUNT - 1 ? FIRST_NOTE + (i + 1) * NOTE_STEP - 4 : LAST_CLOSE + CLOSING
+    return [end - CLOSING, end]
+  }),
   /** The last note steps back, and the editor softens, for the way in. */
   wrap: [WAY_IN, WAY_IN + 30] as Range,
   cta: [WAY_IN + 10, WAY_IN + 54] as Range,

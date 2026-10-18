@@ -238,15 +238,6 @@
     animation: home-sway 7s ease-in-out infinite alternate;
   }
 
-  /* A soft white mist where the notes are written, over the editor (HomeStory.tsx sets how far
-     down), so the blue ink reads on the sky. */
-  .home-stage > .home-mist {
-    inset: 0;
-  }
-  .home-mist {
-    background: radial-gradient(ellipse min(620px, 72vw) 86px at 50% var(--notes, 20%), rgb(255 255 255 / 0.82), rgb(255 255 255 / 0) 74%);
-  }
-
   /* The marker: loops, lines and arrows, and the notes written by hand, in the one blue. */
   .home-stage > .home-ink-layer {
     inset: 0;
@@ -315,13 +306,13 @@
 
   /* The footer after the story (SiteFooter's `ground`): the story's grass carries on past its last
      screen, and the page lifts off the footer from it. It's the same picture, as wide and as far left
-     as on the stage, and starts where the stage cuts it off, so the two meet without a seam. Under
-     its foot, the colour of its last row. It ends a little after the picture's foot, where its
-     blades give way to flat colour: the page's rounded corners, as it lifts off the footer, are cut
-     from the grass. */
+     as on the stage, and starts where the stage cuts it off, so the two meet without a seam. It ends
+     at the picture's foot, so the page's rounded corners, as it lifts off the footer, are cut from
+     the grass, never from a strip of flat colour. The colour of its last row is only under it in
+     case a rounded pixel shows. */
   .footer-ground {
     --grass-foot: calc(var(--grass-width) * 0.085 * 941 / 1672);
-    height: calc(var(--grass-foot) + 8px);
+    height: var(--grass-foot);
     background:
       url("/home/grass.webp") calc((100vw - var(--grass-width)) / 2) calc(var(--grass-width) * -0.915 * 941 / 1672) / var(--grass-width)
         auto no-repeat,
@@ -348,7 +339,7 @@
     width: min(1040px, 100%);
     aspect-ratio: 2088 / 1278;
   }
-  /* Every note at once, written on a pane of the mist. */
+  /* Every note at once, written on a white pane. */
   .home-still-notes {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
@@ -423,44 +414,6 @@
     }
   }
 
-  /* Under the floating "Start writing": a blur that thickens toward the bottom
-     of the screen, in three bands that each fade in and out. */
-  .floating-blur {
-    position: fixed;
-    inset: auto 0 0;
-    z-index: 20;
-    height: 7.5rem;
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transition:
-      opacity 300ms,
-      visibility 300ms;
-  }
-  .floating-blur[data-shown] {
-    opacity: 1;
-    visibility: visible;
-  }
-  .floating-blur > span {
-    position: absolute;
-    inset: 0;
-  }
-  .floating-blur > span:nth-child(1) {
-    -webkit-backdrop-filter: blur(1px);
-    backdrop-filter: blur(1px);
-    mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 50%, transparent 75%);
-  }
-  .floating-blur > span:nth-child(2) {
-    -webkit-backdrop-filter: blur(3px);
-    backdrop-filter: blur(3px);
-    mask-image: linear-gradient(to bottom, transparent 25%, #000 50%, #000 75%, transparent);
-  }
-  .floating-blur > span:nth-child(3) {
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-    mask-image: linear-gradient(to bottom, transparent 50%, #000 75%);
-  }
-
   /* The templates page's cards (TemplateGallery.tsx), as the dashboard's are
      (.tile in dashboard.css). A hover, or focus on its link or its Use, slides
      a glass plate with Use up over the foot of its page. The plate only moves,
@@ -514,13 +467,6 @@
     }
     .nav-underline {
       transition: color 150ms;
-    }
-  }
-
-  /* Some people ask for less see-through UI. */
-  @media (prefers-reduced-transparency: reduce) {
-    .floating-blur {
-      display: none;
     }
   }
 }

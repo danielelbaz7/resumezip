@@ -27,7 +27,6 @@ const useLessMotion = () =>
 
 // The marks on the editor's picture, the same at every size: the picture scales, and they with it.
 const MARKED = marksOnPicture()
-const LAST_MENU = MARKS.map(({ menu }) => menu).findLast((menu) => menu !== undefined)
 
 // The pointer that clicks the editor's menus open, as a share of the editor's width, and where its
 // tip is on it, as shares of its size.
@@ -185,7 +184,6 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   const stage = useRef<HTMLDivElement>(null)
   const heroBox = useRef<HTMLDivElement>(null)
   const meadow = useRef<HTMLImageElement>(null)
-  const mist = useRef<HTMLDivElement>(null)
   const editor = useRef<HTMLElement>(null)
   const lens = useRef<HTMLDivElement>(null)
   const inkBox = useRef<HTMLDivElement>(null)
@@ -195,6 +193,8 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   const markMasks = useRef<(SVGPathElement | null)[][]>([])
   const arrowMasks = useRef<(SVGPathElement | null)[][]>([])
   const notes = useRef<(HTMLParagraphElement | null)[]>([])
+  // Each mark's loop on the editor.
+  const loops = useRef<(SVGSVGElement | null)[]>([])
   // Each mark's menu, if it has one: all of it, its button pressed, and it open.
   const menus = useRef<(HTMLDivElement | null)[]>([])
   const pressed = useRef<(HTMLImageElement | null)[]>([])
@@ -210,7 +210,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   const toEnd = useRef<() => void>(() => {})
 
   useEffect(() => {
-    const parts = { story, stage, heroBox, meadow, mist, editor, lens, inkBox, wayIn, wayInCopy, pointer }
+    const parts = { story, stage, heroBox, meadow, editor, lens, inkBox, wayIn, wayInCopy, pointer }
     const el = Object.fromEntries(Object.entries(parts).map(([name, ref]) => [name, ref.current])) as {
       [K in keyof typeof parts]: NonNullable<(typeof parts)[K]["current"]>
     }
@@ -241,8 +241,6 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
         left: `${editor.x}px`,
         top: `${editor.y}px`,
       })
-      // Across the notes' middle.
-      el.mist.style.setProperty("--notes", `${laid.notes[0].y + laid.notes[0].size}px`)
       el.wayIn.style.setProperty("--cta-width", `${wayInAt(laid, screen, 0).width}px`)
       wayInHeight = el.wayInCopy.offsetHeight
       el.pointer.style.width = `${editor.width * POINTER}px`
@@ -308,26 +306,25 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
       const camera = cameraAt(v, laid.cameras)
       el.lens.style.transform = `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.scale})`
 
-      // A mist gathers where the notes are written, so the blue ink reads on the sky.
-      el.mist.style.opacity = String(smooth(span(v, [BEATS.notes[0][0] - 10, BEATS.notes[0][0] + 20])) * (1 - wrap))
-
-      // Each thing is marked in turn, left to right, and its arrow and note make way for the next's;
-      // the last's step back for the way in. A mark in one of the editor's menus has it opened first,
-      // by the pointer's click, and closed again, the mark with it, as the next starts.
+      // Each thing is marked in turn, left to right. A mark on a button that opens a menu has it
+      // opened first, by the pointer's click, and closed again before the next starts. Beside the
+      // editor every mark stays, with its arrow and note, until they all step back for the way in;
+      // on a phone, where the camera moves on, each makes way for the next.
       let clicking = -1
       BEATS.notes.forEach((beat, i) => {
         const t = span(v, beat)
-        const next = BEATS.notes[i + 1]
-        const kept = next ? 1 - smooth(span(v, [next[0] - 10, next[0] - 6])) : 1
+        const open = 1 - smooth(span(v, BEATS.closes[i]))
+        const kept = laid.beside || i === BEATS.notes.length - 1 ? 1 : open
         show(i, kept)
+        loops.current[i]!.style.opacity = String(kept * (1 - wrap))
         const menu = menus.current[i]
         if (!menu) return draw(i, t)
         draw(i, span(t, CLICK.ink))
-        menu.style.opacity = String(kept * (1 - wrap))
+        menu.style.opacity = String(open * (1 - wrap))
         pressed.current[i]!.style.opacity = t >= CLICK.press[0] ? "1" : "0"
-        const open = out3(span(t, CLICK.open))
+        const opening = out3(span(t, CLICK.open))
         opened.current[i]!.style.opacity = String(smooth(span(t, CLICK.open)))
-        opened.current[i]!.style.transform = `translate3d(0, ${(1 - open) * -10}px, 0) scale(${lerp(0.97, 1, open)})`
+        opened.current[i]!.style.transform = `translate3d(0, ${(1 - opening) * -10}px, 0) scale(${lerp(0.97, 1, opening)})`
         if (t > 0 && t < CLICK.leave[1]) clicking = i
       })
 
@@ -445,42 +442,48 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
         <div ref={heroBox} className="home-hero">
           {hero}
         </div>
-        <div ref={mist} aria-hidden="true" className="home-mist" />
         {/* The editor, and the marks on it, under the camera (`lens`), which moves in on a phone. */}
         <figure ref={editor} aria-hidden="true" className="home-editor">
           <div ref={lens} className="home-lens">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={EDITOR.src} alt="" />
             {MARKS.map(({ menu, said }, i) => {
+              // Over its menu, so it stays round the button once the menu has closed.
               const loop = (
-                <svg viewBox={`0 0 ${EDITOR.width} ${EDITOR.height}`}>
+                <svg
+                  ref={(element) => {
+                    loops.current[i] = element
+                  }}
+                  viewBox={`0 0 ${EDITOR.width} ${EDITOR.height}`}
+                >
                   <Strokes strokes={[[MARKED[i]]]} first={i} masks={markMasks} prefix={`${id}-mark`} />
                 </svg>
               )
               if (!menu) return <Fragment key={said}>{loop}</Fragment>
-              // The menu, its button pressed, and the mark in it, which closes with it.
+              // The menu, with its button pressed.
               return (
-                <div
-                  key={said}
-                  ref={(element) => {
-                    menus.current[i] = element
-                  }}
-                  className="home-menu"
-                >
-                  <OverlayPicture
-                    overlay={menu.button}
+                <Fragment key={said}>
+                  <div
                     ref={(element) => {
-                      pressed.current[i] = element
+                      menus.current[i] = element
                     }}
-                  />
-                  <OverlayPicture
-                    overlay={menu.open}
-                    ref={(element) => {
-                      opened.current[i] = element
-                    }}
-                  />
+                    className="home-menu"
+                  >
+                    <OverlayPicture
+                      overlay={menu.button}
+                      ref={(element) => {
+                        pressed.current[i] = element
+                      }}
+                    />
+                    <OverlayPicture
+                      overlay={menu.open}
+                      ref={(element) => {
+                        opened.current[i] = element
+                      }}
+                    />
+                  </div>
                   {loop}
-                </div>
+                </Fragment>
               )
             })}
             {/* A pointer, its tip at its top left: a picture of a click. */}
@@ -537,8 +540,6 @@ function StillStory({ hero }: { hero: React.ReactNode }) {
       <figure aria-hidden="true" className="home-editor">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={EDITOR.src} alt="" />
-        {/* The last menu open, as the moving story leaves it. */}
-        {LAST_MENU && [LAST_MENU.button, LAST_MENU.open].map((overlay) => <OverlayPicture key={overlay.src} overlay={overlay} />)}
         <svg viewBox={`0 0 ${EDITOR.width} ${EDITOR.height}`} className="home-still-marks">
           {MARKED.map((stroke) => (
             <path key={stroke.outline} className="home-mark" d={stroke.outline} />
