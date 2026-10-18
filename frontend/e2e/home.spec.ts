@@ -104,7 +104,7 @@ async function playStoryTo(page: Page, v: number) {
 test("the first screen says what resumezip is, with Start writing and the templates", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/")
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("resumezip")
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Make the resume that gets you the interview.")
   await expect(page.getByText("A free, open-source resume builder that runs in your browser")).toBeVisible()
   await expect(page.getByRole("link", { name: "Start writing" }).first()).toHaveAttribute("href", "/create/dashboard")
   await expect(page.getByRole("link", { name: "See templates" })).toHaveAttribute("href", "/templates")
@@ -333,7 +333,7 @@ test("with less motion, the story is told still: every note and the way in, alre
   const page = await context.newPage()
   const errors = pageErrors(page)
   await page.goto("/")
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("resumezip")
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Make the resume that gets you the interview.")
   for (const note of notes(page)) {
     await note.scrollIntoViewIfNeeded()
     await expect(note).toBeVisible()

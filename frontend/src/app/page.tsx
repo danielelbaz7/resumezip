@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Caveat } from "next/font/google"
+import { Caveat, Instrument_Serif } from "next/font/google"
 import { ArrowUpRight } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
 import HomeStory from "@/components/home/HomeStory"
@@ -17,6 +17,8 @@ export const metadata = pageMetadata({ path: "/", description: SITE_DESCRIPTION 
 // The handwriting of the notes on the editor. Only this page uses it, and it's first seen a
 // screen and more down, so it isn't preloaded.
 const marker = Caveat({ weight: "600", subsets: ["latin"], variable: "--font-caveat", preload: false })
+// The headline's face. It's the first thing on the first screen, so it is preloaded.
+const headline = Instrument_Serif({ weight: "400", subsets: ["latin"], variable: "--font-instrument-serif" })
 
 const MICROSOFT_STARTUPS_URL = "https://www.microsoft.com/en-us/startups"
 
@@ -32,14 +34,14 @@ function MicrosoftLogo() {
   )
 }
 
-/** The first screen: the name as the logo writes it, what it is in a line, the way in, and Microsoft for Startups. */
+/** The first screen: what it gets you, what it is in a line, the way in, and Microsoft for Startups. */
 function Hero() {
   return (
     <>
-      <h1 className="home-wordmark">resumezip</h1>
+      <h1 className="home-headline">Make the resume that gets you the interview.</h1>
       <p className="home-definition">
-        A free, open-source resume builder that runs in your browser, and keeps your resume on{" "}
-        <em className="text-accent">your own computer.</em>
+        A free, open-source resume builder that runs in your browser. Make your resume ATS-friendly and catch what you missed before a
+        recruiter does.
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <StartWritingLink className={`${INK_PILL} h-11`} preloadOnHover>
@@ -74,7 +76,7 @@ export default function Home() {
       <StructuredData data={HOME_DATA} />
       <SiteHeader />
       {/* A column, so the story's pull up behind the header doesn't move the main part with it. */}
-      <main className={`flex flex-1 flex-col ${marker.variable}`}>
+      <main className={`flex flex-1 flex-col ${marker.variable} ${headline.variable}`}>
         <HomeStory hero={<Hero />} />
       </main>
       <SiteFooter ground />
