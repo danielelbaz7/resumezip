@@ -126,7 +126,7 @@ const migrated = (resume: Resume): [Partial<Resume>, string[]] =>
     : [{ sectionOrder: resolveSections(resume), sectionsChosen: true }, ["sectionOrder", "sectionsChosen"]]
 
 /** A resume from a file, as it's added: a blank one with the file's content in it. */
-const imported = (content: ResumeContent, tag: string): Resume => ({
+export const imported = (content: ResumeContent, tag: string): Resume => ({
   ...blankResume(content.selectedTemplate ?? DEFAULT_TEMPLATE),
   ...content,
   resumeTag: tag,

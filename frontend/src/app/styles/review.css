@@ -1,0 +1,186 @@
+/* The review page (/review): a resume floating on the sky, going soft into a
+   fog the words stand on, as if seen for seven seconds. */
+@layer components {
+  /* The sky behind it all, a little blurred and washed, brightest in the middle. */
+  .review-haze {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(3px) saturate(0.9);
+    backdrop-filter: blur(3px) saturate(0.9);
+    background:
+      radial-gradient(70% 55% at 50% 40%, rgb(255 255 255 / 0.36), transparent 70%),
+      linear-gradient(rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.12));
+  }
+
+  /* A page with a frosted rim, which goes soft and fades into the fog below. */
+  .review-sheet {
+    padding: 8px;
+    border-radius: 38px;
+    background: rgb(255 255 255 / 0.26);
+    -webkit-backdrop-filter: blur(10px) saturate(1.3);
+    backdrop-filter: blur(10px) saturate(1.3);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.65);
+  }
+  .review-sheet > * {
+    border-radius: 30px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.9),
+      0 10px 30px -12px rgb(30 80 170 / 0.25);
+  }
+  .review-fading {
+    -webkit-mask-image: linear-gradient(180deg, #000 30%, transparent 64%);
+    mask-image: linear-gradient(180deg, #000 30%, transparent 64%);
+  }
+
+  /* Fog: each band blurs what's behind it twice as much as the one above, so
+     the page and the sky go soft gradually rather than at a line; then white
+     rises over them. */
+  .review-fog {
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgb(250 251 253 / 0.4) 26%, rgb(248 250 252 / 0.82) 52%, #f6f7f9 80%);
+  }
+  .review-fog > span {
+    position: absolute;
+    inset: 0;
+    -webkit-backdrop-filter: blur(var(--blur));
+    backdrop-filter: blur(var(--blur));
+    -webkit-mask-image: linear-gradient(180deg, transparent var(--from), #000 var(--to));
+    mask-image: linear-gradient(180deg, transparent var(--from), #000 var(--to));
+  }
+
+  /* crackedresume's call to action, in resumezip's colors: a white key in a
+     wide, soft ring of white. */
+  .halo-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 54px;
+    padding: 0 26px 0 22px;
+    border-radius: 18px;
+    background: #fff;
+    color: #2a2e35;
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    box-shadow:
+      0 0 0 8px rgb(255 255 255 / 0.5),
+      0 18px 36px -14px rgb(40 80 160 / 0.35);
+    transition:
+      box-shadow 200ms var(--ease-glide),
+      translate 200ms var(--ease-glide);
+  }
+  .halo-button:hover {
+    translate: 0 -1px;
+    box-shadow:
+      0 0 0 10px rgb(255 255 255 / 0.62),
+      0 22px 40px -14px rgb(40 80 160 / 0.4);
+  }
+  .halo-button svg {
+    width: 18px;
+    height: 18px;
+    color: #6a6f78;
+  }
+
+  /* The same key opened up while a file is dragged over the page. */
+  .review-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: min(460px, 100%);
+    height: 180px;
+    border-radius: 30px;
+    background: rgb(255 255 255 / 0.86);
+    outline: 1.5px dashed rgb(46 91 230 / 0.45);
+    outline-offset: -12px;
+    box-shadow:
+      0 0 0 10px rgb(255 255 255 / 0.5),
+      0 30px 60px -24px rgb(40 80 160 / 0.4);
+  }
+
+  /* While a resume is reviewed, a band of light reads down the sample page. */
+  .review-scan {
+    position: absolute;
+    left: -6%;
+    right: -6%;
+    top: 0;
+    height: 14%;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgb(140 180 255 / 0.18) 70%, rgb(120 165 255 / 0.34) 96%, transparent);
+    animation: review-scan 2.6s var(--ease-glide) infinite;
+  }
+  .review-scan::after {
+    content: "";
+    position: absolute;
+    left: 5%;
+    right: 5%;
+    bottom: 4%;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, #7fb0ff 15%, #fff 50%, #7fb0ff 85%, transparent);
+    box-shadow: 0 0 12px 3px rgb(127 176 255 / 0.8);
+  }
+  @keyframes review-scan {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(330%);
+    }
+  }
+
+  /* The frosted pill with the score in it. */
+  .review-score {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 16px 6px 6px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.72);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.9),
+      0 10px 24px -14px rgb(30 60 130 / 0.4);
+  }
+
+  /* The white sheet the notes are on, rising out of the fog. */
+  .review-notes {
+    border-radius: 32px;
+    background: #fff;
+    box-shadow: 0 -20px 60px -30px rgb(30 70 150 / 0.35);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .review-haze,
+    .review-sheet,
+    .review-score,
+    .review-fog > span {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    .review-score {
+      background: #fff;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .halo-button {
+      transition: none;
+    }
+    /* The band stays put, partway down, still saying it's reading. */
+    .review-scan {
+      animation: none;
+      transform: translateY(160%);
+    }
+  }
+}

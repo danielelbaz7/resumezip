@@ -5,6 +5,7 @@
 @import "./styles/home.css";
 @import "./styles/dashboard.css";
 @import "./styles/editor.css";
+@import "./styles/review.css";
 
 /* resumezip design tokens: use them as bg-paper, text-ink, border-rule, ... */
 @theme {

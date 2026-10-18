@@ -31,7 +31,8 @@ function savedMode(): Mode {
   }
 }
 
-function saveMode(mode: Mode) {
+/** Remembers the mode for this visit, so the editor opens in it: the review page opens it in Check. */
+export function saveMode(mode: Mode) {
   try {
     window.sessionStorage.setItem(MODE_KEY, mode)
   } catch {
