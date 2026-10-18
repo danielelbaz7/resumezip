@@ -82,6 +82,14 @@ npm run test:browser   # after a build; see below
   fields. Its README explains how.
 - `src/lib/check/` is the resume checker: fixed rules that say what to fix on
   a resume, and where. Its README covers writing a rule.
+- `/review` reviews a resume file without adding it: it's opened as "Open a
+  file" opens it, printed with its template and read back, and its text
+  checked by the grammar checker, so every rule runs and the score is the one
+  the editor's Check gives it (`src/lib/review/review.ts`). The verdict
+  ("Almost there") comes from the editor's score bands (`verdict.ts`), and
+  each note is marked on the printed page where `marks.ts` finds it. "Fix it
+  in the editor" adds the resume and opens the editor in Check. All of it
+  happens in the browser.
 - `next.config.js` sends security headers with everything the site serves.
   Its Content-Security-Policy, report-only for now, names every site the app
   sends anything to (`connect-src`). A new one goes there too, or the browser

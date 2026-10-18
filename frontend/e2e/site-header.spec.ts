@@ -57,7 +57,7 @@ for (const path of ["/", "/terms"]) {
   test(`at 768px the header's links on ${path} are on one line`, async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 800 })
     await page.goto(path)
-    await expect(headerLinks(page)).toHaveCount(2)
+    await expect(headerLinks(page)).toHaveCount(3)
     expect(new Set((await boxes(page)).map((box) => box!.height)).size).toBe(1)
   })
 }
@@ -67,7 +67,7 @@ for (const width of [1024, 1440]) {
   test(`at ${width}px the home page's header is in the middle of the page`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 })
     await page.goto("/")
-    await expect(headerLinks(page)).toHaveCount(2)
+    await expect(headerLinks(page)).toHaveCount(3)
     const pill = (await page.getByRole("banner").boundingBox())!
     expect(Math.abs(pill.x + pill.width / 2 - width / 2)).toBeLessThanOrEqual(1)
     expect(new Set((await boxes(page)).map((box) => box!.y)).size).toBe(1)

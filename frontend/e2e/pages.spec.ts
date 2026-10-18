@@ -2,7 +2,16 @@ import { type APIRequestContext, expect, test } from "./test"
 import { TEMPLATES, templateImageAlt, templatePath } from "../src/lib/templates"
 import { pageErrors, seriousAccessibilityProblems } from "./helpers"
 
-const PAGES = ["/", "/templates", "/templates/jakes", "/templates/how-they-read", "/terms", "/create/dashboard", "/does-not-exist"]
+const PAGES = [
+  "/",
+  "/templates",
+  "/templates/jakes",
+  "/templates/how-they-read",
+  "/review",
+  "/terms",
+  "/create/dashboard",
+  "/does-not-exist",
+]
 
 test("contact, at the end of the home page, gives the support address to write to or copy", async ({ page, context, browserName }) => {
   // Contact is part of the home page now; its old address still leads to it.

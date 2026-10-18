@@ -9,7 +9,7 @@ const url = (path: string) => new URL(path, SITE_URL).href
 // sign-in page say noindex instead.
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
-    ...["/", "/templates"].map((path) => ({ url: url(path) })),
+    ...["/", "/templates", "/review"].map((path) => ({ url: url(path) })),
     ...TEMPLATES.map((template) => ({ url: url(templatePath(template)), images: [url(template.image)] })),
     ...["/templates/how-they-read", "/terms"].map((path) => ({ url: url(path) })),
   ]
