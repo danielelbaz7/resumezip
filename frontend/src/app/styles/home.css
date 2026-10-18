@@ -314,7 +314,8 @@
     --grass-foot: calc(var(--grass-width) * 0.085 * 941 / 1672);
     height: var(--grass-foot);
     background:
-      url("/home/grass.webp") calc((100vw - var(--grass-width)) / 2) bottom / var(--grass-width) auto no-repeat,
+      url("/home/grass.webp") calc((100vw - var(--grass-width)) / 2) calc(var(--grass-width) * -0.915 * 941 / 1672) / var(--grass-width)
+        auto no-repeat,
       #3c6f07;
   }
 
