@@ -35,6 +35,13 @@ From CONTRIBUTING.md, in short:
 - New packages are discussed in an issue first: visitors download what the
   app uses.
 
+"Discussed in an issue first" is how an outside contributor agrees a change
+with the owner before building it. When the owner, Ian Hoang (`ian-hoang`;
+`git var GIT_AUTHOR_IDENT` shows his noreply address), runs the session, his
+request is that agreement: build it without asking for an issue, drafting
+one, or holding the work for discussion. The rules themselves still hold;
+say in the pull request what a new package or network call costs or sends.
+
 ## Types
 
 - The resume's types come from `src/components/editor/sections.ts`, the
