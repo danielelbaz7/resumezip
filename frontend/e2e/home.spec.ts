@@ -121,37 +121,47 @@ test("a screen reader is told what the notes on the editor say", async ({ page }
   await expect(said).toHaveText(MARKS.map((mark) => mark.said))
 })
 
-for (const [screen, size] of [
-  ["a wide screen", { width: 1440, height: 900 }],
-  ["a phone", PHONE],
+// Beside the editor each note stays once it's written, so the story ends with them all; on a phone,
+// where the camera moves from mark to mark, each makes way for the next.
+for (const [screen, size, kept] of [
+  ["a wide screen", { width: 1440, height: 900 }, true],
+  ["a phone", PHONE, false],
 ] as const) {
-  test(`on ${screen} the editor is marked left to right, a note at a time, each written out for a while`, async ({ page }) => {
+  test(`on ${screen} the editor is marked left to right, each note written out for a while${kept ? " and kept" : ""}`, async ({ page }) => {
     await page.setViewportSize(size)
     await page.goto("/")
     const steps = (await readThrough(page, 30)).map(({ written }) => written)
-    // Never more than one at once, and each in its turn.
-    for (const written of steps) expect(written.length).toBeLessThanOrEqual(1)
-    const order = steps.flat().filter((note, i, all) => note !== all[i - 1])
+    // Each in its turn: every earlier one with it, or none.
+    for (const written of steps) {
+      if (kept) expect(written).toEqual(written.map((_, i) => i))
+      else expect(written.length).toBeLessThanOrEqual(1)
+    }
+    const order = steps.map((written) => written.at(-1)).filter((note, i, all) => note !== undefined && note !== all[i - 1])
     expect(order).toEqual(MARKS.map((_, i) => i))
-    // Each is written out whole for a while: over a fifth of a screen of scrolling.
-    for (const [i] of MARKS.entries()) expect(steps.filter((written) => written[0] === i).length * 30).toBeGreaterThan(size.height / 5)
+    if (kept) expect(steps.some((written) => written.length === MARKS.length)).toBe(true)
+    // Each is the newest written out whole for a while: over a fifth of a screen of scrolling.
+    for (const [i] of MARKS.entries()) expect(steps.filter((written) => written.at(-1) === i).length * 30).toBeGreaterThan(size.height / 5)
   })
 }
 
 // The template picker and the download menu are clicked open for their notes, as the story comes
-// to them: one at a time, the gallery shut before the downloads open, each open while its note is.
-test("the template gallery, then the download menu, open as their notes are written", async ({ page }) => {
+// to them: one at a time, the gallery shut before the downloads open, each open as its note is
+// written out and shut again after, while the note stays.
+test("the template gallery, then the download menu, open as their notes are written and close after", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto("/")
   const steps = await readThrough(page, 30)
   for (const { open } of steps) expect(open.length).toBeLessThanOrEqual(1)
   const opened = steps.flatMap(({ open }) => open).filter((menu, i, all) => menu !== all[i - 1])
   expect(opened).toEqual(["templates", "download"])
-  const templates = MARKS.findIndex((mark) => mark.menu?.open.src.includes("templates"))
-  const download = MARKS.findIndex((mark) => mark.menu?.open.src.includes("download"))
-  for (const { written, open } of steps) {
-    if (written[0] === templates) expect(open).toEqual(["templates"])
-    if (written[0] === download) expect(open).toEqual(["download"])
+  for (const [menu, mark] of [
+    ["templates", MARKS.findIndex((mark) => mark.menu?.open.src.includes("templates"))],
+    ["download", MARKS.findIndex((mark) => mark.menu?.open.src.includes("download"))],
+  ] as const) {
+    const newest = steps.filter(({ written }) => written.at(-1) === mark)
+    expect(newest[0].open, menu).toEqual([menu])
+    // Shut by the time the next mark's menu opens, before that mark's note is written out.
+    expect(newest.at(-1)!.open, menu).not.toContain(menu)
   }
 })
 
@@ -160,7 +170,7 @@ test("on a wide screen each note is over what it's about, left to right across t
   await page.goto("/")
   await page.mouse.move(400, 400)
   await playStoryTo(page, STORY_LENGTH - 50)
-  // Where each note was written, shown or not: they make way for one another.
+  // Where each note was written, whether it shows yet or not.
   const at = (line: string) =>
     page.getByText(line, { exact: true }).evaluate((element) => {
       const box = element.getBoundingClientRect()
