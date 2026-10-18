@@ -233,11 +233,68 @@
     }
   }
 
+  /* crackedresume's dark keys at the foot of the screen, over a blur. */
+  .review-dock {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
+    padding: 28px 16px 20px;
+  }
+  .review-dock::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    -webkit-mask-image: linear-gradient(transparent, #000 65%);
+    mask-image: linear-gradient(transparent, #000 65%);
+  }
+  .review-dock-keys {
+    position: relative;
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 16px;
+    background: #16181d;
+    box-shadow: 0 16px 32px -14px rgb(0 0 0 / 0.55);
+  }
+  .review-dock-main,
+  .review-dock-other {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 16px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .review-dock-main {
+    background: #fff;
+    color: var(--color-ink);
+  }
+  .review-dock-other {
+    color: rgb(255 255 255 / 0.8);
+  }
+  .review-dock-other:hover {
+    background: rgb(255 255 255 / 0.08);
+    color: #fff;
+  }
+  .review-dock svg {
+    width: 16px;
+    height: 16px;
+  }
+
   @media (prefers-reduced-transparency: reduce) {
     .review-haze,
     .review-sheet,
     .review-score,
-    .review-fog > span {
+    .review-fog > span,
+    .review-dock::before {
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
     }

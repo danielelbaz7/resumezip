@@ -141,16 +141,6 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
             {!review.spelled && "Spelling wasn’t checked: the spelling checker couldn’t load."}
           </p>
         )}
-        <div className="mt-9 flex flex-wrap items-center justify-center gap-x-8 gap-y-5">
-          <button type="button" className="halo-button" onClick={onFix}>
-            <PenLine aria-hidden="true" />
-            Fix it in the editor
-          </button>
-          <button type="button" onClick={onAnother} className="inline-flex items-center gap-2 text-[16px] text-ink-2 hover:text-ink">
-            <RotateCcw className="h-4 w-4" aria-hidden="true" />
-            Review another
-          </button>
-        </div>
       </section>
 
       <section
@@ -169,19 +159,19 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
         <div className="mx-auto mt-8 max-w-[700px]">
           <MarkedPages pdf={pdf} view={report.view} notes={marked} />
         </div>
-        <div className="mt-14 flex flex-col items-center gap-5 border-t border-hairline pt-12 text-center">
-          <p className="font-serif text-[28px] leading-[1.1] tracking-[-0.02em] text-ink md:text-[36px]">
-            Fix it in resumezip.
-            <br />
-            Your notes come with you.
-          </p>
-          <button type="button" className="halo-button" onClick={onFix}>
-            <PenLine aria-hidden="true" />
-            Open it in the editor
-          </button>
-          <p className="text-[13px] text-ink-3">Read in your browser. Nothing was uploaded.</p>
-        </div>
       </section>
+      <div className="review-dock">
+        <div className="review-dock-keys">
+          <button type="button" onClick={onFix} className="review-dock-main">
+            <PenLine aria-hidden="true" />
+            Fix it in the editor
+          </button>
+          <button type="button" onClick={onAnother} className="review-dock-other">
+            <RotateCcw aria-hidden="true" />
+            Review another
+          </button>
+        </div>
+      </div>
     </>
   )
 }
