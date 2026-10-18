@@ -231,7 +231,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
                 {/* With nothing to point with, Use is a button here instead of the plate, which leaves the
                     page in full on a phone's narrow cards. */}
                 <div className="hidden px-2.5 pb-2.5 pt-1 [@media(hover:none)]:block">
-                  <StartWritingLink template={template.id} className={sheetPill("white", "h-9 w-full text-[14px] font-medium")}>
+                  <StartWritingLink template={template.id} className={sheetPill("blue", "h-9 w-full text-[14px] font-medium")}>
                     <span className="sr-only">Use {template.name}</span>
                     <span aria-hidden="true">Use</span>
                     <ArrowUpRight aria-hidden="true" />
