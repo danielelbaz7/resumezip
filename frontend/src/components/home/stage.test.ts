@@ -7,6 +7,7 @@ import {
   GAP,
   MARKS,
   type StageLayout,
+  type WrittenNote,
   cameraAt,
   headerHeight,
   layoutStage,
@@ -42,6 +43,13 @@ function onScreen({ editor }: StageLayout, camera: Camera, [left, top, right, bo
 /** About how wide a note's longest line is: Caveat's letters are about a third of its size across, measured on the page. */
 const widthOf = (lines: readonly string[], size: number) => Math.max(...lines.map((line) => line.length)) * size * 0.36
 
+/** Where a note's longest line starts and ends across the screen. */
+function spanOf(note: WrittenNote, lines: readonly string[]) {
+  const width = widthOf(lines, note.size)
+  const left = note.align === "left" ? note.x : note.align === "right" ? note.x - width : note.x - width / 2
+  return { left, right: left + width }
+}
+
 describe("each note", () => {
   it("is written over the editor, over what it's about, under the header and wholly on the screen", () => {
     for (const screen of [...WIDE, ...NARROW]) {
@@ -49,16 +57,28 @@ describe("each note", () => {
       layout.notes.forEach((note, i) => {
         const lines = MARKS[i].note
         const width = widthOf(lines, note.size)
-        expect(note.align).toBe("center")
+        const { left, right } = spanOf(note, lines)
         expect(note.y).toBeGreaterThan(headerHeight(screen))
         expect(note.y + 2 * note.size).toBeLessThan(layout.editor.y)
-        expect(note.x - width / 2, lines[0]).toBeGreaterThanOrEqual(0)
-        expect(note.x + width / 2, lines[0]).toBeLessThanOrEqual(screen.width)
-        // Over its mark, unless the screen's edge keeps it from being.
+        expect(left, lines[0]).toBeGreaterThanOrEqual(0)
+        expect(right, lines[0]).toBeLessThanOrEqual(screen.width)
+        // Over its mark: centred on it, unless the screen's edge or a note beside it keeps it from being.
         const box = onScreen(layout, layout.cameras[i], MARKS[i].box)
         const middle = (box.left + box.right) / 2
-        if (middle - width / 2 > 12 && middle + width / 2 < screen.width - 12) expect(note.x).toBeCloseTo(middle)
+        if (note.align !== "center") {
+          expect(middle, lines[0]).toBeGreaterThan(left)
+          expect(middle, lines[0]).toBeLessThan(right)
+        } else if (middle - width / 2 > 12 && middle + width / 2 < screen.width - 12) expect(note.x).toBeCloseTo(middle)
       })
+    }
+  })
+
+  // On a wide screen every note stays once it's written, so none can run into another.
+  it("keeps clear of the others beside the editor", () => {
+    for (const screen of WIDE) {
+      const { notes } = layoutStage(screen)
+      const spans = notes.map((note, i) => spanOf(note, MARKS[i].note))
+      spans.slice(1).forEach((span, i) => expect(span.left - spans[i].right, `${screen.width}×${screen.height}`).toBeGreaterThan(16))
     }
   })
 })

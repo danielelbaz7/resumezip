@@ -104,6 +104,10 @@ const SIDE_ROOM = 280
 const ARROW_ROOM = 44
 /** How far under the header the notes are written. */
 const UNDER_HEADER = 10
+/** The least room between two notes beside the editor, which all stay. */
+const NOTE_SPACE = 24
+/** How far a note pushed aside by its neighbor reaches past its mark's middle, so its arrow starts under it. */
+const OVERHANG = 24
 /** How far a phone's camera zooms into the editor, at most, to what's being marked. */
 const ZOOM = 2.1
 
@@ -128,7 +132,7 @@ export interface WrittenNote {
 }
 
 export interface StageLayout {
-  /** The editor is shown whole; otherwise its camera moves in on each mark. */
+  /** The editor is shown whole, and every note stays once it's written; otherwise its camera moves in on each mark, and each note makes way for the next. */
   beside: boolean
   editor: Box
   /** Where the camera is on the editor while each mark is drawn. */
@@ -186,10 +190,20 @@ export function layoutStage(screen: Size): StageLayout {
   // Over each mark, kept on the screen: a note's about a third of its size across a letter.
   const over = editor.y - twoLines - ARROW_ROOM
   const middles = MARKS.map(({ box }, i) => (on(cameras[i], box[0], box[1])[0] + on(cameras[i], box[2], box[3])[0]) / 2)
-  const notes = MARKS.map(({ note }, i): WrittenNote => {
-    const half = (Math.max(...note.map((line) => line.length)) * size * 0.36) / 2
+  const widths = MARKS.map(({ note }) => Math.max(...note.map((line) => line.length)) * size * 0.36)
+  const notes = MARKS.map((_, i): WrittenNote => {
+    const half = widths[i] / 2
     return { x: clamp(middles[i], half + 12, vw - half - 12), y: over, align: "center", size, turn: i % 2 ? 1.5 : -1.5 }
   })
+  // Beside the editor every note stays once it's written, so two whose marks are close would run
+  // into each other: the first ends just past its mark, and the second starts just before its own.
+  if (beside) {
+    for (let i = 0; i + 1 < notes.length; i++) {
+      if (notes[i].x + widths[i] / 2 + NOTE_SPACE <= notes[i + 1].x - widths[i + 1] / 2) continue
+      notes[i] = { ...notes[i], x: middles[i] + OVERHANG, align: "right" }
+      notes[i + 1] = { ...notes[i + 1], x: middles[i + 1] - OVERHANG, align: "left" }
+    }
+  }
 
   // Down from under its note, as near over its mark as the note reaches, to just short of the
   // loop's top: a loop is drawn a few pixels outside its box.
