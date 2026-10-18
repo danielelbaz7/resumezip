@@ -1,9 +1,12 @@
-// Hand-drawn marks as SVG paths: a pen's circle round a word, an underline
-// gone over twice, and a highlighter's stroke. Drawn rather than taken from a
-// package (rough-notation), as each is a few lines. The wobble comes from a
-// seeded random, so a mark looks the same on every render.
+// Hand-drawn marks as SVG paths: a pen's circle round a word, a box, a line
+// through, a bracket, an underline gone over twice, and a highlighter's
+// stroke. Drawn rather than taken from a package (rough-notation), as each is
+// a few lines. The wobble comes from a seeded random, so a mark looks the same
+// on every render.
 
-export type Box = [left: number, top: number, right: number, bottom: number]
+import type { Box } from "@/lib/review/marks"
+
+export type { Box }
 
 /** The same numbers for the same seed (Park–Miller). */
 export function seeded(seed: number): () => number {
@@ -28,6 +31,55 @@ function smooth(points: [number, number][]): string {
     d += ` C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`
   }
   return d
+}
+
+// A pen's straight line from one point to another: its ends a little off, and bowed a little.
+function stroke([x0, y0]: [number, number], [x1, y1]: [number, number], random: () => number, jitter: number): string {
+  const off = () => (random() - 0.5) * 2 * jitter
+  return smooth([
+    [x0 + off(), y0 + off()],
+    [(x0 + x1) / 2 + off(), (y0 + y1) / 2 + off()],
+    [x1 + off(), y1 + off()],
+  ])
+}
+
+/** A box round `box`, gone over twice, its corners overshot. */
+export function rectangle([left, top, right, bottom]: Box, seed: number, pad = 2.5): string {
+  const random = seeded(seed)
+  const [l, t, r, b] = [left - pad, top - pad * 0.6, right + pad, bottom + pad * 0.6]
+  return [0, 1]
+    .flatMap(() => [
+      stroke([l - 1, t], [r + 1.5, t], random, 0.8),
+      stroke([r, t - 1], [r, b + 1.5], random, 0.8),
+      stroke([r + 1, b], [l - 1.5, b], random, 0.8),
+      stroke([l, b + 1], [l, t - 1.5], random, 0.8),
+    ])
+    .join(" ")
+}
+
+/** A line through the middle of `box`, gone over twice. */
+export function strike([left, top, right, bottom]: Box, seed: number): string {
+  const random = seeded(seed)
+  // Through the lowercase letters, which sit a little below the box's middle.
+  const y = top + (bottom - top) * 0.56
+  return [0, 1].map(() => stroke([left - 2, y], [right + 2, y], random, 0.9)).join(" ")
+}
+
+/** A bracket down the left of `boxes`, from the first's top to the last's bottom. */
+export function bracket(boxes: readonly Box[], seed: number): string {
+  const random = seeded(seed)
+  const x = Math.min(...boxes.map(([left]) => left)) - 6
+  const top = boxes[0][1] - 1
+  const bottom = boxes[boxes.length - 1][3] + 1
+  return [0, 1]
+    .map(() =>
+      [
+        stroke([x + 5, top], [x, top + 1], random, 0.5),
+        stroke([x, top], [x, bottom], random, 0.7),
+        stroke([x, bottom - 1], [x + 5, bottom], random, 0.5),
+      ].join(" "),
+    )
+    .join(" ")
 }
 
 /** A loop round `box`, going a little past where it started, as a pen does. */

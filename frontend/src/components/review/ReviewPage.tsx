@@ -7,10 +7,9 @@ import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { marksOf } from "@/lib/review/marks"
 import type { Review, ReviewStep } from "@/lib/review/review"
-import { countsOf, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
+import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import CloudWord from "./CloudWord"
-import MarkedPages, { type NumberedMark } from "./MarkedPages"
-import Notes from "./Notes"
+import MarkedPages, { type Note } from "./MarkedPages"
 import { circle, highlight, underline, type Box } from "./rough"
 
 const ACCEPTED_FILES =
@@ -31,8 +30,6 @@ const STEPS: { step: ReviewStep; label: string }[] = [
 // How much of each verdict blows away (CloudWord), and how it breaks on a phone.
 const DRIFT: Record<Verdict, number> = { ready: 0, almost: 0.4, drafts: 1 }
 const NARROW_LINES: Record<Verdict, string[]> = { ready: ["Ready", "to send"], almost: ["Almost", "there"], drafts: ["Back to", "drafts"] }
-
-const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 // The sample resume on the first screen (Jake's template's picture), and
 // where its marks go, in the picture's pixels.
@@ -84,113 +81,67 @@ function Backdrop({ scanning }: { scanning: boolean }) {
   )
 }
 
-/** The score's ring, filled to the score. */
-function Ring({ score }: { score: number }) {
-  const r = 14
-  const around = 2 * Math.PI * r
-  return (
-    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true" className="shrink-0">
-      <circle cx="17" cy="17" r={r} fill="#fff" stroke="rgb(17 19 24 / 0.13)" strokeWidth="4" />
-      <circle
-        cx="17"
-        cy="17"
-        r={r}
-        fill="none"
-        stroke="#2e5be6"
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeDasharray={`${(around * score) / 100} ${around}`}
-        transform="rotate(-90 17 17)"
-      />
-    </svg>
-  )
-}
-
-/** What the review found: the verdict on the sky, then the notes on a sheet. */
+/**
+ * What the review found, as crackedresume shows it: the verdict in cloud on
+ * the sky, then the resume itself in a frosted frame, scribbled on where each
+ * note is, with the note beside the pen when it's pointed at.
+ */
 function Result({ review, onFix, onAnother }: { review: Review; onFix: () => void; onAnother: () => void }) {
   const { report, score, reading, pdf } = review
   const verdict = verdictOf(score.total)
-  const { notes, mustFixes } = countsOf(report)
-  const marks = useMemo(
-    () =>
-      marksOf(report.view, report.findings, reading).flatMap((mark, index): NumberedMark[] => {
-        const finding = report.findings[index]
-        return mark ? [{ number: index + 1, level: finding.advisory ? "look" : finding.level, mark }] : []
-      }),
-    [report, reading],
-  )
+  const counts = countsOf(report)
+  const marked = useMemo(() => {
+    const marks = marksOf(report.view, report.findings, reading)
+    return report.findings.map((finding, index): Note => ({ finding, mark: marks[index] }))
+  }, [report, reading])
 
   return (
-    <>
-      <section className="relative flex flex-col items-center px-4 pb-16 pt-4 text-center md:pt-8">
-        <h1 className="font-serif text-[22px] tracking-[-0.01em] text-ink-2 md:text-[28px]">
+    <section className="review-board">
+      <div className="mb-3 flex flex-col items-center text-center">
+        <h1 className="font-serif text-[20px] tracking-[-0.01em] text-ink-2 md:text-[24px]">
           Your resume is<span className="sr-only"> {VERDICT_WORDS[verdict].toLowerCase()}</span>
         </h1>
-        <CloudWord lines={[VERDICT_WORDS[verdict]]} drift={DRIFT[verdict]} className="mt-2 hidden w-[min(1040px,92vw)] sm:block" />
-        <CloudWord lines={NARROW_LINES[verdict]} drift={DRIFT[verdict]} className="mt-2 w-[min(340px,86vw)] sm:hidden" />
-        <p className="mt-6 max-w-xl text-pretty text-[17px] text-ink-2 md:text-[19px]">{reasonOf(score, report)}</p>
-        <p className="review-score mt-6 text-[14px] text-ink-2">
-          <Ring score={score.total} />
-          <span className="font-serif text-[22px] leading-none text-ink">
-            {score.total}
-            <span className="text-[13px] text-ink-3">/100</span>
-          </span>
-          <span aria-hidden="true" className="h-1 w-1 rounded-full bg-ink/25" />
-          <span>
-            {count(notes, "note")} · {count(mustFixes, "must-fix", "must-fixes")}
-          </span>
+        <CloudWord lines={[VERDICT_WORDS[verdict]]} drift={DRIFT[verdict]} className="hidden w-[min(600px,80vw)] sm:block" />
+        <CloudWord lines={NARROW_LINES[verdict]} drift={DRIFT[verdict]} className="w-[min(300px,80vw)] sm:hidden" />
+      </div>
+      <div className="relative mx-auto w-full max-w-[700px]">
+        <p className="review-bubble">
+          {reasonOf(score, report)}{" "}
+          {counts.notes > 0 && (
+            <>
+              {foundSentence(counts)} <span className="pointer-coarse:hidden">Hover over a scribble to see why.</span>
+              <span className="hidden pointer-coarse:inline">Tap a scribble to see why.</span>
+            </>
+          )}
+          {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
+          {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
         </p>
-        {(!reading || !review.spelled) && (
-          <p className="mt-3 max-w-md text-[13px] text-ink-2">
-            {!reading && "The printed copy couldn’t be read back, so how hiring software reads it isn’t scored. "}
-            {!review.spelled && "Spelling wasn’t checked: the spelling checker couldn’t load."}
+        <div className="review-card">
+          <p className="flex flex-wrap items-baseline justify-center gap-x-2 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
+            <span className="font-medium">{score.total}/100</span>
+            {counts.notes > 0 && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>{countsLabel(counts)}</span>
+              </>
+            )}
           </p>
-        )}
-        <div className="mt-9 flex flex-wrap items-center justify-center gap-x-8 gap-y-5">
-          <button type="button" className="halo-button" onClick={onFix}>
+          <MarkedPages pdf={pdf} view={report.view} notes={marked} />
+        </div>
+      </div>
+      <div className="review-dock">
+        <div className="review-dock-keys">
+          <button type="button" onClick={onFix} className="review-dock-main">
             <PenLine aria-hidden="true" />
             Fix it in the editor
           </button>
-          <button type="button" onClick={onAnother} className="inline-flex items-center gap-2 text-[16px] text-ink-2 hover:text-ink">
-            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+          <button type="button" onClick={onAnother} className="review-dock-other">
+            <RotateCcw aria-hidden="true" />
             Review another
           </button>
         </div>
-      </section>
-
-      <section
-        aria-labelledby="notes"
-        className="review-notes mx-auto mb-4 w-[calc(100%-24px)] max-w-[1320px] px-5 pb-14 pt-10 md:mb-8 md:w-[calc(100%-48px)] md:px-12 md:pt-14"
-      >
-        <p className="label-mono text-ink-3">Review · {count(notes, "note")}</p>
-        <h2 id="notes" className="mt-2 font-serif text-[34px] leading-[1.05] tracking-[-0.02em] text-ink md:text-[44px]">
-          Notes on your resume
-        </h2>
-        <p className="mt-3 max-w-2xl text-pretty text-[16px] text-ink-2">
-          {notes > 0
-            ? "Each number is a note, marked where it is on the page. They’re waiting in Check when you fix it in the editor."
-            : "Nothing to note. A recruiter has nothing to trip on."}
-        </p>
-        <div
-          className={`mt-8 grid gap-8 md:gap-10 ${notes > 0 ? "md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]" : "mx-auto max-w-[680px]"}`}
-        >
-          <MarkedPages pdf={pdf} marks={marks} />
-          {notes > 0 && <Notes view={report.view} findings={report.findings} />}
-        </div>
-        <div className="mt-14 flex flex-col items-center gap-5 border-t border-hairline pt-12 text-center">
-          <p className="font-serif text-[28px] leading-[1.1] tracking-[-0.02em] text-ink md:text-[36px]">
-            Fix it in resumezip.
-            <br />
-            Your notes come with you.
-          </p>
-          <button type="button" className="halo-button" onClick={onFix}>
-            <PenLine aria-hidden="true" />
-            Open it in the editor
-          </button>
-          <p className="text-[13px] text-ink-3">Read in your browser. Nothing was uploaded.</p>
-        </div>
-      </section>
-    </>
+      </div>
+    </section>
   )
 }
 

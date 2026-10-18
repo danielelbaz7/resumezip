@@ -55,6 +55,24 @@ export function reasonOf(score: Score, report: Report): string {
 const isMustFix = (finding: Finding) => finding.level === "fix" && !finding.advisory
 
 /** How many notes the review shows, and how many of them are must-fixes. */
-export function countsOf(report: Report): { notes: number; mustFixes: number } {
+export interface Counts {
+  notes: number
+  mustFixes: number
+}
+
+export function countsOf(report: Report): Counts {
   return { notes: report.findings.length, mustFixes: report.findings.filter(isMustFix).length }
+}
+
+const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
+/** The counts on the frame round the reviewed resume: "4 notes, 2 must-fixes". */
+export function countsLabel({ notes, mustFixes }: Counts): string {
+  return mustFixes > 0 ? `${count(notes, "note")}, ${count(mustFixes, "must-fix", "must-fixes")}` : count(notes, "note")
+}
+
+/** The counts as a sentence: "We found 4 things a recruiter would trip on, 2 of them must-fixes." */
+export function foundSentence({ notes, mustFixes }: Counts): string {
+  const fixes = mustFixes === 0 ? "" : mustFixes === 1 ? ", one of them a must-fix" : `, ${mustFixes} of them must-fixes`
+  return `We found ${count(notes, "thing")} a recruiter would trip on${fixes}.`
 }
