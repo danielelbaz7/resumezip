@@ -182,23 +182,18 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
             <h2 id="other-templates" className="label-mono text-ink-3">
               Other templates
             </h2>
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
-              {TEMPLATES.filter((other) => other.id !== template.id).map((other) => (
-                <li key={other.id} className="min-w-0">
-                  <Link href={templatePath(other)} className="tile">
-                    <span className="tile-stage">
-                      <span className="tile-page block">
-                        <Image
-                          src={other.image}
-                          alt=""
-                          fill
-                          sizes="(min-width: 1024px) 200px, (min-width: 640px) 30vw, 50vw"
-                          className="object-cover object-top"
-                        />
-                      </span>
-                    </span>
-                    <span className="tile-text truncate px-3.5 py-2.5 text-[14px] font-medium tracking-[-0.01em]">{other.name}</span>
+            {/* Names only: a picture of every other template drew the eye away from this one's. */}
+            <ul className="flex flex-wrap items-baseline gap-y-1 font-serif text-[28px] leading-[1.25] tracking-[-0.03em] sm:text-[36px]">
+              {TEMPLATES.filter((other) => other.id !== template.id).map((other, i, others) => (
+                <li key={other.id} className="whitespace-nowrap">
+                  <Link href={templatePath(other)} className="text-ink transition-colors hover:text-accent">
+                    {other.name}
                   </Link>
+                  {i < others.length - 1 && (
+                    <span aria-hidden="true" className="px-[0.35em] italic text-rule-strong">
+                      /
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
