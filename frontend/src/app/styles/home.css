@@ -414,44 +414,6 @@
     }
   }
 
-  /* Under the floating "Start writing": a blur that thickens toward the bottom
-     of the screen, in three bands that each fade in and out. */
-  .floating-blur {
-    position: fixed;
-    inset: auto 0 0;
-    z-index: 20;
-    height: 7.5rem;
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transition:
-      opacity 300ms,
-      visibility 300ms;
-  }
-  .floating-blur[data-shown] {
-    opacity: 1;
-    visibility: visible;
-  }
-  .floating-blur > span {
-    position: absolute;
-    inset: 0;
-  }
-  .floating-blur > span:nth-child(1) {
-    -webkit-backdrop-filter: blur(1px);
-    backdrop-filter: blur(1px);
-    mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 50%, transparent 75%);
-  }
-  .floating-blur > span:nth-child(2) {
-    -webkit-backdrop-filter: blur(3px);
-    backdrop-filter: blur(3px);
-    mask-image: linear-gradient(to bottom, transparent 25%, #000 50%, #000 75%, transparent);
-  }
-  .floating-blur > span:nth-child(3) {
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-    mask-image: linear-gradient(to bottom, transparent 50%, #000 75%);
-  }
-
   /* The templates page's cards (TemplateGallery.tsx), as the dashboard's are
      (.tile in dashboard.css). A hover, or focus on its link or its Use, slides
      a glass plate with Use up over the foot of its page. The plate only moves,
@@ -505,13 +467,6 @@
     }
     .nav-underline {
       transition: color 150ms;
-    }
-  }
-
-  /* Some people ask for less see-through UI. */
-  @media (prefers-reduced-transparency: reduce) {
-    .floating-blur {
-      display: none;
     }
   }
 }
