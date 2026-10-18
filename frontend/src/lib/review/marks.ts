@@ -10,10 +10,16 @@ import { placeId } from "@/lib/check/places"
 import type { ResumeView } from "@/lib/check/resume"
 import type { Line } from "@/lib/import/lines"
 
-/** Where a finding is printed: its page (from 1), and its lines' boxes there, in PDF points from the page's top-left. */
+/** [left, top, right, bottom], in PDF points from the page's top-left. */
+export type Box = [number, number, number, number]
+
+/** A printed line, with where it is. */
+export type MarkedLine = Line & { box: Box }
+
+/** Where a finding is printed: its page (from 1), and its lines there. */
 export interface Mark {
   page: number
-  boxes: [number, number, number, number][]
+  lines: MarkedLine[]
 }
 
 // Shorter text is too likely to be found on a line it isn't about.
@@ -44,7 +50,7 @@ export function marksOf(view: ResumeView, findings: readonly Finding[], pdf: Pdf
         : [])
     // A bullet split over two pages is marked where it starts.
     const page = printed[0]?.page
-    const boxes = printed.flatMap((line) => (line.page === page && line.box ? [line.box] : []))
-    return page !== undefined && boxes.length > 0 ? { page, boxes } : null
+    const marked = printed.filter((line): line is MarkedLine => line.page === page && line.box !== undefined)
+    return page !== undefined && marked.length > 0 ? { page, lines: marked } : null
   })
 }

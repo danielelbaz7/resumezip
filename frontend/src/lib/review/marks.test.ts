@@ -42,15 +42,15 @@ test("marks a bullet on its lines, a role's bullets on all of theirs, a field on
   const report = runChecks(weak, { rules: [notes], pdf })
   const [bullet, role, email, section] = marksOf(report.view, report.findings, pdf)
 
-  const textAt = (box: [number, number, number, number]) => pdf.lines.find((line) => line.box === box)?.text ?? ""
+  const textOf = (mark: typeof bullet) => mark!.lines.map((line) => line.text).join(" ")
   expect(bullet?.page).toBe(1)
-  expect(bullet!.boxes.map(textAt).join(" ")).toContain("Responsible for various tasks related to testing")
+  expect(textOf(bullet)).toContain("Responsible for various tasks related to testing")
   // Each of the second job's bullets, from its first line to its last.
   const [first, ...rest] = (sample.workExperienceSection[1].workDescription as string).split("\n").map((bullet) => bullet.slice(2))
-  const marked = role!.boxes.map(textAt).join(" ")
+  const marked = textOf(role)
   expect(marked.startsWith(first.slice(0, 40))).toBe(true)
   for (const bullet of rest) expect(marked).toContain(bullet.split(" ").slice(-3).join(" "))
-  expect(email?.boxes.map(textAt).join(" ")).toContain(sample.profileSection.email)
+  expect(textOf(email)).toContain(sample.profileSection.email)
   expect(section).toBeNull()
 })
 

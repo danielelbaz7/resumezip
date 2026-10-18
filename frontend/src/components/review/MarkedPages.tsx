@@ -28,10 +28,11 @@ const INK: Record<Level, string> = { fix: "#b42318", look: "#2e5be6" }
 // every note that starts there ("1, 4"): two notes on one bullet would
 // otherwise hide one number under the other. Red if any of them is a must-fix.
 function badges(marks: readonly NumberedMark[]) {
-  // A line's box is the same object for every note on it, so it's the key.
-  const starts = new Map<Mark["boxes"][number], NumberedMark[]>()
-  for (const mark of marks) starts.set(mark.mark.boxes[0], [...(starts.get(mark.mark.boxes[0]) ?? []), mark])
-  return [...starts].map(([[left, top, , bottom], here]) => {
+  // A line is the same object for every note on it, so it's the key.
+  const starts = new Map<Mark["lines"][number], NumberedMark[]>()
+  for (const mark of marks) starts.set(mark.mark.lines[0], [...(starts.get(mark.mark.lines[0]) ?? []), mark])
+  return [...starts].map(([line, here]) => {
+    const [left, top, , bottom] = line.box
     const label = here.map(({ number }) => number).join(", ")
     const width = 13 + (label.length - 1) * 4.4
     const right = left - 4.5
@@ -126,7 +127,7 @@ export default function MarkedPages({ pdf, marks }: { pdf: Uint8Array; marks: re
             {marks
               .filter(({ mark }) => mark.page === index + 1)
               .flatMap(({ number, level, mark }) =>
-                mark.boxes.map((box, line) => (
+                mark.lines.map(({ box }, line) => (
                   <path
                     key={`${number}.${line}`}
                     d={underline(box, number * 31 + line, 0.5)}
