@@ -259,7 +259,7 @@ export function cameraAt(v: number, cameras: readonly Camera[]): Camera {
   const [first] = BEATS.notes
   let camera = mix(AT_REST, cameras[0], inOut(span(v, [first[0] - 24, first[0] - 4])))
   BEATS.notes.forEach((beat, i) => {
-    if (i > 0) camera = mix(camera, cameras[i], inOut(span(v, [beat[0] - 7, beat[0]])))
+    if (i > 0) camera = mix(camera, cameras[i], inOut(span(v, [beat[0] - 14, beat[0]])))
   })
   return mix(camera, AT_REST, inOut(span(v, [BEATS.wrap[0], BEATS.wrap[0] + 20])))
 }

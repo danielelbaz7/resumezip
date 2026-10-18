@@ -307,21 +307,20 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
 
       // Each thing is marked in turn, left to right, and its arrow and note make way for the next's;
       // the last's step back for the way in. A mark in one of the editor's menus has it opened first,
-      // by the pointer's click, and closed again, the mark with it, as the next starts.
+      // by the pointer's click, and closed again, the mark with it, before the next starts.
       let clicking = -1
       BEATS.notes.forEach((beat, i) => {
         const t = span(v, beat)
-        const next = BEATS.notes[i + 1]
-        const kept = next ? 1 - smooth(span(v, [next[0] - 10, next[0] - 6])) : 1
-        show(i, kept)
+        const open = 1 - smooth(span(v, BEATS.closes[i]))
+        show(i, i === BEATS.notes.length - 1 ? 1 : open)
         const menu = menus.current[i]
         if (!menu) return draw(i, t)
         draw(i, span(t, CLICK.ink))
-        menu.style.opacity = String(kept * (1 - wrap))
+        menu.style.opacity = String(open * (1 - wrap))
         pressed.current[i]!.style.opacity = t >= CLICK.press[0] ? "1" : "0"
-        const open = out3(span(t, CLICK.open))
+        const opening = out3(span(t, CLICK.open))
         opened.current[i]!.style.opacity = String(smooth(span(t, CLICK.open)))
-        opened.current[i]!.style.transform = `translate3d(0, ${(1 - open) * -10}px, 0) scale(${lerp(0.97, 1, open)})`
+        opened.current[i]!.style.transform = `translate3d(0, ${(1 - opening) * -10}px, 0) scale(${lerp(0.97, 1, opening)})`
         if (t > 0 && t < CLICK.leave[1]) clicking = i
       })
 
