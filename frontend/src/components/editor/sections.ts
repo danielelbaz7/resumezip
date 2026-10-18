@@ -48,7 +48,7 @@ interface Definition<Field extends string, Data extends string, Heading extends 
   summary: readonly Field[]
   /**
    * The fields that name an entry's card in the form, in place of `summary`'s,
-   * as the company alone. The checker still reads an entry by `summary`, so
+   * as the company or the school alone. The checker still reads an entry by `summary`, so
    * findings dismissed on a saved resume stay dismissed.
    */
   card?: readonly Field[]
@@ -122,10 +122,11 @@ const DEFINITIONS = {
     headingKey: "edu",
     addLabel: "Add education",
     summary: ["degree", "schoolName"],
+    card: ["schoolName"],
     fields: [
       { key: "schoolName", label: "School", placeholder: "Stanford University", size: "full" },
+      { key: "degree", label: "Degree", placeholder: "B.S. in Computer Science", size: "full" },
       { key: "schoolLocation", label: "Location", placeholder: "Stanford, CA", size: "half" },
-      { key: "degree", label: "Degree", placeholder: "B.S. in Computer Science", size: "half" },
       { key: "gpa", label: "GPA", placeholder: "3.9 / 4.0", size: "half" },
       { key: "schoolStartDate", label: "Start", placeholder: "Sep 2024", size: "half" },
       { key: "schoolEndDate", label: "End", placeholder: "Jun 2028", size: "half" },
@@ -222,8 +223,9 @@ const DEFINITIONS = {
     headingKey: "volunteer",
     addLabel: "Add volunteering",
     summary: ["volunteerRole", "volunteerOrg"],
+    card: ["volunteerOrg"],
     fields: [
-      { key: "volunteerRole", label: "Role", placeholder: "Volunteer coordinator", size: "full" },
+      { key: "volunteerRole", label: "Role", placeholder: "Volunteer coordinator", size: "half" },
       { key: "volunteerOrg", label: "Organization", placeholder: "Central Texas Food Bank", size: "half" },
       { key: "volunteerLocation", label: "Location", placeholder: "Austin, TX", size: "half" },
       ...dates("volunteer"),
@@ -238,8 +240,9 @@ const DEFINITIONS = {
     headingKey: "leadership",
     addLabel: "Add leadership",
     summary: ["leadershipRole", "leadershipOrg"],
+    card: ["leadershipOrg"],
     fields: [
-      { key: "leadershipRole", label: "Role", placeholder: "President", size: "full" },
+      { key: "leadershipRole", label: "Role", placeholder: "President", size: "half" },
       { key: "leadershipOrg", label: "Organization", placeholder: "Student Council", size: "half" },
       { key: "leadershipLocation", label: "Location", placeholder: "University of Texas", size: "half" },
       ...dates("leadership"),

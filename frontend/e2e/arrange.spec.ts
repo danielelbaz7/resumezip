@@ -144,6 +144,47 @@ test("a project's card is named by the project alone, without its tech stack", a
   expect(errors).toEqual([])
 })
 
+test("a school's card is named by the school alone, and volunteering's and leadership's by the organization", async ({ page }) => {
+  const errors = pageErrors(page)
+  await openSection(page, "Education", {
+    ...RESUME,
+    id: "named",
+    educationSection: [
+      { id: 1, schoolName: "Stanford University", degree: "B.S. in Computer Science" },
+      { id: 2, schoolName: "De Anza College", degree: "A.S. in Mathematics" },
+    ],
+    volunteerExperienceSection: [
+      { id: 1, volunteerRole: "Tutor", volunteerOrg: "Code Club" },
+      { id: 2, volunteerRole: "Driver", volunteerOrg: "Meals on Wheels" },
+    ],
+    leadershipExperienceSection: [
+      { id: 1, leadershipRole: "President", leadershipOrg: "Chess Club" },
+      { id: 2, leadershipRole: "Captain", leadershipOrg: "Rowing Team" },
+    ],
+  })
+  // Open, the degree or the role is a field under the name, not part of it.
+  const sections = [
+    { section: "Education", name: "School", first: "Stanford University", field: "Degree", value: "B.S. in Computer Science" },
+    { section: "Volunteer", name: "Organization", first: "Code Club", field: "Role", value: "Tutor" },
+    { section: "Leadership", name: "Organization", first: "Chess Club", field: "Role", value: "President" },
+  ]
+  const folded = {
+    Education: ["De Anza College", "A.S."],
+    Volunteer: ["Meals on Wheels", "Driver"],
+    Leadership: ["Rowing Team", "Captain"],
+  }
+  for (const { section, name, first, field, value } of sections) {
+    await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: section, exact: true }).click()
+    await expect(page.getByRole("textbox", { name, exact: true })).toHaveValue(first)
+    await expect(page.getByLabel(field, { exact: true }).first()).toHaveValue(value)
+    const [named, left] = folded[section as keyof typeof folded]
+    const card = page.locator("[data-card]").nth(1)
+    await expect(card.getByText(named, { exact: true })).toBeVisible()
+    await expect(card).not.toContainText(left)
+  }
+  expect(errors).toEqual([])
+})
+
 test("a folded card shows its dates in a few words, and the note under the title says when the newest is first", async ({ page }) => {
   const errors = pageErrors(page)
   await openSection(page, "Experience", {
