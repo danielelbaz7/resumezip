@@ -31,7 +31,7 @@ const STEPS: { step: ReviewStep; label: string }[] = [
 const DRIFT: Record<Verdict, number> = { ready: 0, almost: 0.4, drafts: 1 }
 const NARROW_LINES: Record<Verdict, string[]> = { ready: ["Ready", "to send"], almost: ["Almost", "there"], drafts: ["Back to", "drafts"] }
 
-const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+const count = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`
 
 // The sample resume on the first screen (Jake's template's picture), and
 // where its marks go, in the picture's pixels.
@@ -83,29 +83,11 @@ function Backdrop({ scanning }: { scanning: boolean }) {
   )
 }
 
-/** The score's ring, filled to the score. */
-function Ring({ score }: { score: number }) {
-  const r = 14
-  const around = 2 * Math.PI * r
-  return (
-    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true" className="shrink-0">
-      <circle cx="17" cy="17" r={r} fill="#fff" stroke="rgb(17 19 24 / 0.13)" strokeWidth="4" />
-      <circle
-        cx="17"
-        cy="17"
-        r={r}
-        fill="none"
-        stroke="#2e5be6"
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeDasharray={`${(around * score) / 100} ${around}`}
-        transform="rotate(-90 17 17)"
-      />
-    </svg>
-  )
-}
-
-/** What the review found: the verdict on the sky, then the notes on a sheet. */
+/**
+ * What the review found, as crackedresume shows it: the verdict in cloud on
+ * the sky, then the resume itself in a frosted frame, scribbled on where each
+ * note is, with the note beside the pen when it's pointed at.
+ */
 function Result({ review, onFix, onAnother }: { review: Review; onFix: () => void; onAnother: () => void }) {
   const { report, score, reading, pdf } = review
   const verdict = verdictOf(score.total)
@@ -116,50 +98,44 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
   }, [report, reading])
 
   return (
-    <>
-      <section className="relative flex flex-col items-center px-4 pb-16 pt-4 text-center md:pt-8">
-        <h1 className="font-serif text-[22px] tracking-[-0.01em] text-ink-2 md:text-[28px]">
+    <section className="review-board">
+      <div className="mb-3 flex flex-col items-center text-center">
+        <h1 className="font-serif text-[20px] tracking-[-0.01em] text-ink-2 md:text-[24px]">
           Your resume is<span className="sr-only"> {VERDICT_WORDS[verdict].toLowerCase()}</span>
         </h1>
-        <CloudWord lines={[VERDICT_WORDS[verdict]]} drift={DRIFT[verdict]} className="mt-2 hidden w-[min(1040px,92vw)] sm:block" />
-        <CloudWord lines={NARROW_LINES[verdict]} drift={DRIFT[verdict]} className="mt-2 w-[min(340px,86vw)] sm:hidden" />
-        <p className="mt-6 max-w-xl text-pretty text-[17px] text-ink-2 md:text-[19px]">{reasonOf(score, report)}</p>
-        <p className="review-score mt-6 text-[14px] text-ink-2">
-          <Ring score={score.total} />
-          <span className="font-serif text-[22px] leading-none text-ink">
-            {score.total}
-            <span className="text-[13px] text-ink-3">/100</span>
-          </span>
-          <span aria-hidden="true" className="h-1 w-1 rounded-full bg-ink/25" />
-          <span>
-            {count(notes, "note")} · {count(mustFixes, "must-fix", "must-fixes")}
-          </span>
+        <CloudWord lines={[VERDICT_WORDS[verdict]]} drift={DRIFT[verdict]} className="hidden w-[min(600px,80vw)] sm:block" />
+        <CloudWord lines={NARROW_LINES[verdict]} drift={DRIFT[verdict]} className="w-[min(300px,80vw)] sm:hidden" />
+      </div>
+      <div className="relative mx-auto w-full max-w-[700px]">
+        <p className="review-bubble">
+          {reasonOf(score, report)}{" "}
+          {notes > 0 && (
+            <>
+              We found {count(notes, "thing")} a recruiter would trip on
+              {mustFixes > 0 && `, ${mustFixes === 1 ? "one" : mustFixes} of them a must-fix`}.{" "}
+              <span className="pointer-coarse:hidden">Hover over a scribble to see why.</span>
+              <span className="hidden pointer-coarse:inline">Tap a scribble to see why.</span>
+            </>
+          )}
+          {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
+          {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
         </p>
-        {(!reading || !review.spelled) && (
-          <p className="mt-3 max-w-md text-[13px] text-ink-2">
-            {!reading && "The printed copy couldn’t be read back, so how hiring software reads it isn’t scored. "}
-            {!review.spelled && "Spelling wasn’t checked: the spelling checker couldn’t load."}
+        <div className="review-card">
+          <p className="flex flex-wrap items-baseline justify-center gap-x-2 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
+            <span className="font-medium">{score.total}/100</span>
+            {notes > 0 && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>
+                  {count(notes, "note")}
+                  {mustFixes > 0 && `, ${count(mustFixes, "must-fix")}`}
+                </span>
+              </>
+            )}
           </p>
-        )}
-      </section>
-
-      <section
-        aria-labelledby="notes"
-        className="review-notes mx-auto mb-4 w-[calc(100%-24px)] max-w-[1320px] px-5 pb-14 pt-10 md:mb-8 md:w-[calc(100%-48px)] md:px-12 md:pt-14"
-      >
-        <p className="label-mono text-ink-3">Review · {count(notes, "note")}</p>
-        <h2 id="notes" className="mt-2 font-serif text-[34px] leading-[1.05] tracking-[-0.02em] text-ink md:text-[44px]">
-          Notes on your resume
-        </h2>
-        <p className="mt-3 max-w-2xl text-pretty text-[16px] text-ink-2">
-          {notes > 0
-            ? "Each scribble is a note, drawn where it is on the page: point at one, or tab to it, to see what it says. They’re waiting in Check when you fix it in the editor."
-            : "Nothing to note. A recruiter has nothing to trip on."}
-        </p>
-        <div className="mx-auto mt-8 max-w-[700px]">
           <MarkedPages pdf={pdf} view={report.view} notes={marked} />
         </div>
-      </section>
+      </div>
       <div className="review-dock">
         <div className="review-dock-keys">
           <button type="button" onClick={onFix} className="review-dock-main">
@@ -172,7 +148,7 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
           </button>
         </div>
       </div>
-    </>
+    </section>
   )
 }
 
