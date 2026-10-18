@@ -23,8 +23,20 @@ export interface Mark {
   lines: MarkedLine[]
 }
 
+/** The pen marks drawn on the page, as crackedresume draws them. */
+export type ScribbleKind = "box" | "circle" | "strike" | "bracket" | "underline"
+
+export interface Scribble {
+  kind: ScribbleKind
+  /** The word's box, or each line's. */
+  boxes: Box[]
+}
+
 // Shorter text is too likely to be found on a line it isn't about.
 const LEAST_TEXT = 4
+
+// The words a finding is about, when its message quotes them: “Responsible for” is a weak start.
+const QUOTED = /“([^”]+)”/
 
 /** Each finding's mark, in the findings' order; null where it isn't on a line of its own. */
 export function marksOf(view: ResumeView, findings: readonly Finding[], pdf: PdfReading | null): (Mark | null)[] {
@@ -79,4 +91,22 @@ export function wordBox(lines: readonly MarkedLine[], words: string, measure: (t
     }
   }
   return null
+}
+
+/**
+ * How a finding is scribbled on its mark. When its message quotes words that
+ * are printed there: a box round them if the line opens with them, else a
+ * circle, or a line through them if they're a must-fix. Otherwise beside its
+ * lines: a bracket for several, a box for a must-fix, and an underline.
+ */
+export function scribbleOf(finding: Finding, mark: Mark, measure: (text: string) => number): Scribble {
+  const fix = finding.level === "fix" && !finding.advisory
+  const quoted = finding.message.match(QUOTED)?.[1]
+  const word = quoted ? wordBox(mark.lines, quoted, measure) : null
+  if (word) {
+    const opens = mark.lines.some(({ box: [, top], x }) => top === word[1] && Math.abs(word[0] - x) < 1)
+    return { kind: fix ? "strike" : opens ? "box" : "circle", boxes: [word] }
+  }
+  const boxes = mark.lines.map(({ box }) => box)
+  return { kind: boxes.length > 1 ? "bracket" : fix ? "box" : "underline", boxes }
 }
