@@ -93,10 +93,13 @@ function Tip({ finding, area, page, describe }: { finding: Finding; area: Box; p
 /**
  * The resume's pages as its template prints them, scribbled on in pen where
  * each note is, as crackedresume does. Pointing at a scribble, or tabbing to
- * it, shows its note; the notes that aren't on a line are listed below.
+ * it, shows its note; the notes that aren't on a line are listed below, and
+ * every note is, if the pages can't be drawn.
  */
 export default function MarkedPages({ pdf, view, notes }: { pdf: Uint8Array; view: ResumeView; notes: readonly Note[] }) {
   const [pages, setPages] = useState<Drawn[] | null>(null)
+  // The pages couldn't be drawn, so nothing can be scribbled on them.
+  const [failed, setFailed] = useState(false)
   const [open, setOpen] = useState<number | null>(null)
   const describe = useId()
 
@@ -111,7 +114,8 @@ export default function MarkedPages({ pdf, view, notes }: { pdf: Uint8Array; vie
       })
       .sort((a, b) => a.page - b.page || a.area[1] - b.area[1] || a.area[0] - b.area[0])
   }, [notes])
-  const loose = notes.filter(({ mark }) => !mark).map(({ finding }) => finding)
+  // Listed under the page: the notes that aren't on a line, or every note when there's no page to scribble on.
+  const loose = notes.filter(({ mark }) => failed || !mark).map(({ finding }) => finding)
 
   useEffect(() => {
     let live = true
@@ -147,7 +151,9 @@ export default function MarkedPages({ pdf, view, notes }: { pdf: Uint8Array; vie
         void task.destroy()
       }
     })().catch((error) => {
-      if (live) console.warn("The review couldn't draw the resume:", error)
+      if (!live) return
+      console.warn("The review couldn't draw the resume:", error)
+      setFailed(true)
     })
     return () => {
       live = false
@@ -234,12 +240,12 @@ export default function MarkedPages({ pdf, view, notes }: { pdf: Uint8Array; vie
             </div>
           )
         })
-      ) : (
+      ) : failed ? null : (
         <div aria-hidden="true" className="aspect-[8.5/11] w-full animate-pulse rounded-[12px] bg-white/70" />
       )}
       {loose.length > 0 && (
         <div className="rounded-[12px] bg-white/75 px-4 py-3">
-          <p className="text-[13px] font-medium text-accent">About the whole resume</p>
+          <p className="text-[13px] font-medium text-accent">{failed ? "Notes on your resume" : "About the whole resume"}</p>
           <ul className="mt-1.5 flex flex-col gap-1.5 text-[14px] leading-snug">
             {loose.map((finding) => (
               <li key={finding.key}>

@@ -56,6 +56,22 @@ test("reviews a resume in the browser, scribbles its notes on the page, and open
   expect(errors).toEqual([])
 })
 
+test("when the resume can't be drawn, every note is listed under where it would be", async ({ page }) => {
+  const errors = pageErrors(page)
+  // A browser that can't turn the drawn page into a picture.
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.toBlob = function (callback) {
+      callback(null)
+    }
+  })
+  await page.goto("/review")
+  await page.locator('input[type="file"]').setInputFiles(pdf(RESUME))
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("listitem").filter({ hasText: "“Responsible for” is a weak start" })).toBeVisible()
+  await expect(page.getByRole("img", { name: /^Page 1 of your resume/ })).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
 test("a file with no resume in it says so, and another can be tried", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/review")
