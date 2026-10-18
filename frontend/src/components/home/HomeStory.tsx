@@ -185,7 +185,6 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   const stage = useRef<HTMLDivElement>(null)
   const heroBox = useRef<HTMLDivElement>(null)
   const meadow = useRef<HTMLImageElement>(null)
-  const mist = useRef<HTMLDivElement>(null)
   const editor = useRef<HTMLElement>(null)
   const lens = useRef<HTMLDivElement>(null)
   const inkBox = useRef<HTMLDivElement>(null)
@@ -210,7 +209,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   const toEnd = useRef<() => void>(() => {})
 
   useEffect(() => {
-    const parts = { story, stage, heroBox, meadow, mist, editor, lens, inkBox, wayIn, wayInCopy, pointer }
+    const parts = { story, stage, heroBox, meadow, editor, lens, inkBox, wayIn, wayInCopy, pointer }
     const el = Object.fromEntries(Object.entries(parts).map(([name, ref]) => [name, ref.current])) as {
       [K in keyof typeof parts]: NonNullable<(typeof parts)[K]["current"]>
     }
@@ -241,8 +240,6 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
         left: `${editor.x}px`,
         top: `${editor.y}px`,
       })
-      // Across the notes' middle.
-      el.mist.style.setProperty("--notes", `${laid.notes[0].y + laid.notes[0].size}px`)
       el.wayIn.style.setProperty("--cta-width", `${wayInAt(laid, screen, 0).width}px`)
       wayInHeight = el.wayInCopy.offsetHeight
       el.pointer.style.width = `${editor.width * POINTER}px`
@@ -307,9 +304,6 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
       }
       const camera = cameraAt(v, laid.cameras)
       el.lens.style.transform = `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.scale})`
-
-      // A mist gathers where the notes are written, so the blue ink reads on the sky.
-      el.mist.style.opacity = String(smooth(span(v, [BEATS.notes[0][0] - 10, BEATS.notes[0][0] + 20])) * (1 - wrap))
 
       // Each thing is marked in turn, left to right, and its arrow and note make way for the next's;
       // the last's step back for the way in. A mark in one of the editor's menus has it opened first,
@@ -445,7 +439,6 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
         <div ref={heroBox} className="home-hero">
           {hero}
         </div>
-        <div ref={mist} aria-hidden="true" className="home-mist" />
         {/* The editor, and the marks on it, under the camera (`lens`), which moves in on a phone. */}
         <figure ref={editor} aria-hidden="true" className="home-editor">
           <div ref={lens} className="home-lens">

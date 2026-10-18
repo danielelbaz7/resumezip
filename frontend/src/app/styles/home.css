@@ -238,15 +238,6 @@
     animation: home-sway 7s ease-in-out infinite alternate;
   }
 
-  /* A soft white mist where the notes are written, over the editor (HomeStory.tsx sets how far
-     down), so the blue ink reads on the sky. */
-  .home-stage > .home-mist {
-    inset: 0;
-  }
-  .home-mist {
-    background: radial-gradient(ellipse min(620px, 72vw) 86px at 50% var(--notes, 20%), rgb(255 255 255 / 0.82), rgb(255 255 255 / 0) 74%);
-  }
-
   /* The marker: loops, lines and arrows, and the notes written by hand, in the one blue. */
   .home-stage > .home-ink-layer {
     inset: 0;
@@ -348,7 +339,7 @@
     width: min(1040px, 100%);
     aspect-ratio: 2088 / 1278;
   }
-  /* Every note at once, written on a pane of the mist. */
+  /* Every note at once, written on a white pane. */
   .home-still-notes {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
