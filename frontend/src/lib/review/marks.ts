@@ -8,6 +8,7 @@ import type { Finding, PdfReading } from "@/lib/check/engine"
 import { comparable, printedLayoutBullets } from "@/lib/check/pdf"
 import { placeId } from "@/lib/check/places"
 import type { ResumeView } from "@/lib/check/resume"
+import { escaped } from "@/lib/check/text"
 import type { Line } from "@/lib/import/lines"
 
 /** [left, top, right, bottom], in PDF points from the page's top-left. */
@@ -53,4 +54,29 @@ export function marksOf(view: ResumeView, findings: readonly Finding[], pdf: Pdf
     const marked = printed.filter((line): line is MarkedLine => line.page === page && line.box !== undefined)
     return page !== undefined && marked.length > 0 ? { page, lines: marked } : null
   })
+}
+
+/**
+ * Where `words` are printed on one of `lines`, as a whole word. A line only
+ * knows where each of its parts starts, so the words' place in their part is
+ * worked out from how wide its text is: `measure` gives a width in any unit,
+ * scaled to the line by its last part, which ends where the line does.
+ */
+export function wordBox(lines: readonly MarkedLine[], words: string, measure: (text: string) => number): Box | null {
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped(words)}(?![\\p{L}\\p{N}])`, "iu")
+  for (const line of lines) {
+    const [, top, right, bottom] = line.box
+    // The first part starts after the bullet the line's text was taken from.
+    const start = (index: number) => (index === 0 ? line.x : line.parts[index].x)
+    const last = line.parts.length - 1
+    const scale = (right - start(last)) / measure(line.parts[last].text)
+    if (!(scale > 0) || !Number.isFinite(scale)) continue
+    for (const [index, part] of line.parts.entries()) {
+      const found = pattern.exec(part.text)
+      if (!found) continue
+      const left = start(index) + scale * measure(part.text.slice(0, found.index))
+      return [left, top, left + scale * measure(found[0]), bottom]
+    }
+  }
+  return null
 }

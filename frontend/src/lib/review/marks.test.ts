@@ -4,7 +4,7 @@ import { pdfLayoutOf } from "@/lib/check/extraPdf"
 import { viewOf } from "@/lib/check/resume"
 import { readForChecks } from "@/lib/import/read"
 import { readBack, render, samples } from "@/lib/import/testRender"
-import { marksOf } from "./marks"
+import { marksOf, wordBox, type Box, type MarkedLine } from "./marks"
 
 const sample = samples.find((resume) => resume.selectedTemplate === "jake")!
 // The first job's first bullet, made a duty with nothing to show for it.
@@ -57,4 +57,54 @@ test("marks a bullet on its lines, a role's bullets on all of theirs, a field on
 test("nothing is marked without a reading of the PDF", () => {
   const report = runChecks(weak, { rules: [notes] })
   expect(marksOf(report.view, report.findings, null)).toEqual([null, null, null, null])
+})
+
+// Every character as wide as the next, so where a word is printed is easy to work out.
+const measure = (text: string) => text.length
+const printed = (parts: [string, number][], box: Box): MarkedLine => ({
+  parts: parts.map(([text, x]) => ({ text, x, runs: [] })),
+  text: parts.map(([text]) => text).join(" "),
+  bullet: true,
+  left: box[0],
+  x: parts[0][1],
+  size: 10,
+  bold: false,
+  italic: false,
+  links: [],
+  page: 1,
+  box,
+})
+// 29 characters printed across 290 points, after a bullet: 10 points each.
+const duty = printed([["Responsible for various tasks", 60]], [50, 100, 350, 112])
+// Two parts, the last 17 characters across 85 points: 5 points each.
+const role = printed(
+  [
+    ["Google", 50],
+    ["Mountain View, CA", 400],
+  ],
+  [50, 130, 485, 142],
+)
+
+test("finds a word where it's printed, as a whole word, in the part of its line it's in", () => {
+  expect(wordBox([duty], "various", measure)).toEqual([220, 100, 290, 112])
+  expect(wordBox([duty], "RESPONSIBLE FOR", measure)).toEqual([60, 100, 210, 112])
+  expect(wordBox([duty], "task", measure)).toBeNull()
+  expect(wordBox([role], "View", measure)).toEqual([445, 130, 465, 142])
+  expect(wordBox([role], "Google", measure)).toEqual([50, 130, 80, 142])
+  expect(wordBox([duty, role], "Google", measure)?.[1]).toBe(130)
+})
+
+test("finds a quoted word on a real template's line", async () => {
+  const { parsed, pages } = await readBack(await render(weak))
+  const read = readForChecks(parsed.lines, pdfLayoutOf(viewOf(weak)))
+  const pdf = { lines: read.parsed.lines, pages, ...read }
+  const report = runChecks(weak, { rules: [notes], pdf })
+  const [mark] = marksOf(report.view, report.findings, pdf)
+  const [line] = mark!.lines
+  const [left, top, right, bottom] = wordBox(mark!.lines, "various", measure)!
+  // After “Responsible for ”, on the same line, and about as wide as the word.
+  expect(left).toBeGreaterThan(line.x + 30)
+  expect([top, bottom]).toEqual([line.box[1], line.box[3]])
+  expect(right).toBeLessThan(line.box[2])
+  expect(right - left).toBeGreaterThan(15)
 })
