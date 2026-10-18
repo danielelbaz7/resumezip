@@ -27,7 +27,6 @@ const useLessMotion = () =>
 
 // The marks on the editor's picture, the same at every size: the picture scales, and they with it.
 const MARKED = marksOnPicture()
-const LAST_MENU = MARKS.map(({ menu }) => menu).findLast((menu) => menu !== undefined)
 
 // The pointer that clicks the editor's menus open, as a share of the editor's width, and where its
 // tip is on it, as shares of its size.
@@ -541,8 +540,6 @@ function StillStory({ hero }: { hero: React.ReactNode }) {
       <figure aria-hidden="true" className="home-editor">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={EDITOR.src} alt="" />
-        {/* The last menu open, as the moving story leaves it. */}
-        {LAST_MENU && [LAST_MENU.button, LAST_MENU.open].map((overlay) => <OverlayPicture key={overlay.src} overlay={overlay} />)}
         <svg viewBox={`0 0 ${EDITOR.width} ${EDITOR.height}`} className="home-still-marks">
           {MARKED.map((stroke) => (
             <path key={stroke.outline} className="home-mark" d={stroke.outline} />
