@@ -36,7 +36,8 @@ export async function POST(request: Request): Promise<Response> {
   if (providers.length === 0) return answer(503, { error: "off" })
 
   const address = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local"
-  if (!allowed(address)) return answer(429, { error: "limit" })
+  // On `npm run dev` every request comes from one address: the person testing.
+  if (process.env.NODE_ENV !== "development" && !allowed(address)) return answer(429, { error: "limit" })
 
   const lines = linesOf(await request.json().catch(() => null))
   if (!lines) return answer(400, { error: "lines" })
