@@ -42,7 +42,15 @@ export default function NoWatermark() {
         },
         {
           question: "Is there a limit on downloads?",
-          answer: "No. Download as often as you like, in any template. Your browser makes each PDF, so each one costs nothing.",
+          answer: (
+            <>
+              No. Download as often as you like, in any template. Your browser makes each PDF, so each one costs nothing, and{" "}
+              <Link href="/open-source-resume-builder" className={TEXT_LINK}>
+                the code that makes it
+              </Link>{" "}
+              is open for anyone to read.
+            </>
+          ),
         },
         {
           question: "What’s the file attached to my PDF?",

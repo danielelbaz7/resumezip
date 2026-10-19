@@ -19,4 +19,9 @@ export const PROMISES: readonly PromiseInfo[] = [
     name: "No watermark",
     summary: "Nothing printed on your PDF but what you wrote, and every download free.",
   },
+  {
+    path: "/open-source-resume-builder",
+    name: "Open source",
+    summary: "All the code is on GitHub, so you can read what it does with your resume.",
+  },
 ]

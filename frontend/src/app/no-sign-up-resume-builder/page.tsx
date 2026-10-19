@@ -31,8 +31,15 @@ export default function NoSignUp() {
       questions={[
         {
           question: "What’s the catch?",
-          answer:
-            "There isn’t one. resumezip is free and open source, with no ads and no paid plan. Your browser makes the PDF, not our servers.",
+          answer: (
+            <>
+              There isn’t one. resumezip is free and{" "}
+              <Link href="/open-source-resume-builder" className={TEXT_LINK}>
+                open source
+              </Link>
+              , with no ads and no paid plan. Your browser makes the PDF, not our servers.
+            </>
+          ),
         },
         {
           question: "Can I come back and edit my resume later?",

@@ -45,9 +45,12 @@ export default function HowTheyReadPage() {
             }
           >
             <p className="text-pretty">
-              Hiring software reads the text in your PDF, not how it looks. Each time resumezip’s code changes, a test prints every
-              template’s sample resume and reads it back as plain text, the way that software does. Here’s what it checks, and what it
-              finds.
+              Hiring software reads the text in your PDF, not how it looks. Each time{" "}
+              <Link href="/open-source-resume-builder" className={TEXT_LINK}>
+                resumezip’s code
+              </Link>{" "}
+              changes, a test prints every template’s sample resume and reads it back as plain text, the way that software does. Here’s what
+              it checks, and what it finds.
             </p>
           </PageIntro>
 
