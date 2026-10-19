@@ -92,3 +92,31 @@ test("the headline is in the home page's headline face", async ({ page }) => {
   expect(home).toMatch(/Instrument Serif/)
   expect(await face("/review")).toBe(home)
 })
+
+test("the sky is asked for with the page, and a soft copy of it shows until it arrives", async ({ page }) => {
+  let arrive = () => {}
+  const arrived = new Promise<void>((resolve) => (arrive = resolve))
+  await page.route("**/backgrounds/sky-*.webp", async (route) => {
+    await arrived
+    await route.continue()
+  })
+  // Not waiting for the page's load, which waits for the picture.
+  await page.goto("/review", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+  // While the picture's on its way, the sky under it is the inlined copy, not a flat color.
+  expect(await page.getByRole("main").evaluate((main) => getComputedStyle(main.parentElement!).backgroundImage)).toContain(
+    "data:image/webp",
+  )
+  arrive()
+  // Asked for by the page's head, rather than once the stylesheet's been read.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (performance.getEntriesByType("resource") as PerformanceResourceTiming[]).find((entry) =>
+            /\/backgrounds\/sky-(wide|tall)\.webp$/.test(entry.name),
+          )?.initiatorType,
+      ),
+    )
+    .toBe("link")
+})
