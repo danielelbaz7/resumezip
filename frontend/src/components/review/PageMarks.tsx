@@ -149,6 +149,9 @@ export function PageMarks({
   const describe = useId()
   const here = placed.filter((scribble) => scribble.page === page)
   const showing = here.find(({ note }) => note.key === open)
+  // The others fade behind the open note's mark, on any page; a note with no
+  // mark (an AI flag pointed at in its list while the checks are drawn) fades nothing.
+  const fading = open !== null && placed.some(({ note }) => note.key === open)
   const leave = (key: string) => {
     if (open === key) onOpen(null)
   }
@@ -167,7 +170,7 @@ export function PageMarks({
             key={note.key}
             className="review-scribble"
             data-ink={note.ink}
-            data-quiet={open !== null && open !== note.key ? "" : undefined}
+            data-quiet={fading && open !== note.key ? "" : undefined}
             style={{ "--delay": `${placed.findIndex((other) => other.note === note) * 90}ms` } as React.CSSProperties}
           >
             {/* Each pass on its own, so each draws from its start. */}
