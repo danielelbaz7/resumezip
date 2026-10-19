@@ -7,7 +7,8 @@ import { SYSTEM_PROMPT, userPrompt } from "@/lib/review/ai/prompt"
 import { askAny, providersOf } from "@/lib/review/ai/providers"
 import { linesOf } from "@/lib/review/ai/request"
 
-// Waiting on one service and then another can take most of a minute.
+// Waiting on one service and then another can take most of a minute: askAny
+// keeps them all within its BUDGET_MS, under this.
 export const maxDuration = 60
 
 // Reviews one address may ask for in a window. Kept in this server

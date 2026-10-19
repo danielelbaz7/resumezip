@@ -121,7 +121,13 @@ export async function ask(provider: Provider, system: string, user: string, { si
 }
 
 // How long one provider gets before the next is asked: a review takes 5–30 s.
-const PATIENCE_MS = 40_000
+const PATIENCE_MS = 35_000
+// How long every provider together gets: under the route's maxDuration (60 s),
+// with time left to answer "busy" before the platform cuts the function off.
+export const BUDGET_MS = 55_000
+// Less time than this left, and the next provider isn't asked: it couldn't
+// finish, and its tokens would be paid for nothing.
+const LEAST_MS = 10_000
 // How long a provider that failed is passed over, so a visitor doesn't wait on one that's busy or down.
 const REST_MS = 60_000
 const resting = new Map<Provider["name"], number>()
@@ -129,14 +135,18 @@ const resting = new Map<Provider["name"], number>()
 /**
  * Asks each provider in turn until one answers: the next when one is busy,
  * failing or slower than PATIENCE_MS, passing over one that failed in the
- * last minute unless every one has. Throws the last ProviderError when none answers.
+ * last minute unless every one has. All of them share BUDGET_MS. Throws the
+ * last ProviderError when none answers.
  */
 export async function askAny(providers: readonly Provider[], system: string, user: string, options: AskOptions = {}): Promise<Asked> {
   const now = Date.now()
+  const deadline = now + BUDGET_MS
   const awake = providers.filter((provider) => (resting.get(provider.name) ?? 0) <= now)
   let last: ProviderError | null = null
   for (const provider of awake.length > 0 ? awake : providers) {
-    const timeout = AbortSignal.timeout(PATIENCE_MS)
+    const left = deadline - Date.now()
+    if (left < LEAST_MS) break
+    const timeout = AbortSignal.timeout(Math.min(PATIENCE_MS, left))
     const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
     try {
       const asked = await ask(provider, system, user, { ...options, signal })

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
-import { wakeAll } from "@/lib/review/ai/providers"
+import { BUDGET_MS, wakeAll } from "@/lib/review/ai/providers"
 import { POST } from "./route"
 
 const LINES = [
@@ -44,6 +44,7 @@ beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {})
 })
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
   vi.restoreAllMocks()
@@ -70,6 +71,31 @@ test("asks OpenAI when Azure is busy, and passes Azure over for a minute after",
   expect(new URL(fetched.mock.calls[2][0] as string).host).toBe("api.openai.com")
   // The same model as Azure's deployment.
   expect(JSON.parse(fetched.mock.calls[2][1]!.body as string).model).toBe("gpt-5.4-mini")
+})
+
+// Azure answers with an error once `ms` have gone by.
+const slowFailure = (ms: number) => async () => {
+  vi.setSystemTime(Date.now() + ms)
+  return new Response("Gateway timeout", { status: 504 })
+}
+
+test("gives OpenAI only the time the function has left after a slow Azure", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] })
+  const timeouts = vi.spyOn(AbortSignal, "timeout")
+  fetched.mockImplementationOnce(slowFailure(40_000)).mockImplementation(async () => answered(NOTES))
+  expect((await post()).status).toBe(200)
+  expect(fetched).toHaveBeenCalledTimes(2)
+  const [, openai] = timeouts.mock.calls.map(([ms]) => ms)
+  expect(openai).toBeLessThanOrEqual(BUDGET_MS - 40_000)
+})
+
+test("doesn't ask OpenAI when too little time is left to answer, and says it's busy", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] })
+  fetched.mockImplementationOnce(slowFailure(50_000)).mockImplementation(async () => answered(NOTES))
+  const response = await post()
+  expect(response.status).toBe(503)
+  expect(await response.json()).toEqual({ error: "busy" })
+  expect(fetched).toHaveBeenCalledTimes(1)
 })
 
 test("says it's busy when no service answers", async () => {
