@@ -146,6 +146,13 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
                   className="text-ink-2 underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
                 >
                   no sign-up
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/resume-builder-no-watermark"
+                  className="text-ink-2 underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
+                >
+                  no watermark
                 </Link>
                 .
               </p>
