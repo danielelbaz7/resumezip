@@ -4,7 +4,7 @@ import type React from "react"
 import { Fragment, type RefObject, useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
 import { ArrowUpRight } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
-import { INK_PILL } from "@/components/pills"
+import { INK_GLASS_PILL } from "@/components/pills"
 import EmailContact from "@/components/site/EmailContact"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import FloatingStart from "./FloatingStart"
@@ -165,7 +165,7 @@ function WayIn({ ref, copyRef, onFocus, contactId }: WayInProps) {
         <p className="mt-3.5 text-pretty text-[15.5px] leading-normal text-ink-2 sm:text-[17px]">
           Every template is free, and your resume stays in your browser.
         </p>
-        <StartWritingLink className={`${INK_PILL} mt-6`} preloadOnHover>
+        <StartWritingLink className={`${INK_GLASS_PILL} mt-6`} preloadOnHover>
           Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </StartWritingLink>
         <div id={contactId} className="mt-6 border-t border-ink/10 pt-5">
