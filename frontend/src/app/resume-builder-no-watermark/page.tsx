@@ -9,7 +9,7 @@ export const metadata = pageMetadata({
   path: PATH,
   title: NAME,
   description:
-    "Download your resume as a PDF with nothing added: no logo, no “made with” line and no paid plan to remove one. Word and LaTeX downloads are free too.",
+    "Download your resume as a PDF with no watermark: no logo, no “made with” line and no paid plan to remove one. Word and LaTeX downloads are free too.",
 })
 
 export default function NoWatermark() {
@@ -19,7 +19,7 @@ export default function NoWatermark() {
       name={NAME}
       heading={
         <>
-          Your PDF, with <em className="text-accent">nothing added</em>
+          Your PDF, with <em className="text-accent">no watermark</em>
         </>
       }
       intro="No logo in the corner, no “made with” line at the bottom, and no paid plan to take them off. What you write is all that’s printed."
