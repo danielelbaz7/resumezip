@@ -1,7 +1,7 @@
 // The review page's side of /api/review.
 
-import { notesOf, type AiNote } from "./answer"
 import { sentOf } from "./request"
+import { savedNotesOf, type SavedNote } from "./saved"
 import type { Unit } from "./units"
 
 /** Why there are no notes, worded for the person. */
@@ -14,7 +14,7 @@ const PROBLEMS: Record<string, string> = {
   lines: "This resume is too long for AI notes.",
 }
 
-export async function askForNotes(units: readonly Unit[], signal?: AbortSignal): Promise<AiNote[]> {
+export async function askForNotes(units: readonly Unit[], signal?: AbortSignal): Promise<SavedNote[]> {
   let response: Response
   try {
     response = await fetch("/api/review", {
@@ -32,5 +32,5 @@ export async function askForNotes(units: readonly Unit[], signal?: AbortSignal):
     const problem = typeof body?.error === "string" ? PROBLEMS[body.error] : undefined
     throw new AiReviewError(problem ?? "Something went wrong getting AI notes. Try again in a minute.")
   }
-  return notesOf(body, units)
+  return savedNotesOf(body.notes)
 }
