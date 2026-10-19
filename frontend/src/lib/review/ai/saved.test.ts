@@ -15,7 +15,15 @@ function memory(): Storage {
   }
 }
 
-const NOTE: SavedNote = { tone: "red", line: "u2", quote: "Responsible for", title: "Vague", why: "No result.", suggestion: "Built [X]" }
+const NOTE: SavedNote = {
+  tone: "red",
+  line: "u2",
+  quote: "Responsible for",
+  title: "Vague",
+  why: "No result.",
+  suggestion: "Built [X]",
+  text: "Responsible for working on backend services",
+}
 const LINES = [
   { id: "u1", text: "Marcus Bell", bullet: false },
   { id: "u2", text: "Responsible for working on backend services", bullet: true },
@@ -65,6 +73,8 @@ test("what's saved is read with care: broken, old or edited data is left out", (
   )
   expect(savedByHash("a", storage)?.notes).toEqual([NOTE])
   expect(savedNotesOf([{ ...NOTE, suggestion: undefined }])).toEqual([{ ...NOTE, suggestion: null }])
+  // The answer from the AI has no line's words yet, and neither do notes kept before they were saved.
+  expect(savedNotesOf([{ ...NOTE, text: undefined }])).toEqual([{ ...NOTE, text: null }])
 })
 
 test("a full or refused storage doesn't stop anything", () => {

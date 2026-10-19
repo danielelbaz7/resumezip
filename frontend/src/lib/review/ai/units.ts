@@ -62,3 +62,9 @@ export function unitsOf(view: ResumeView, pdf: PdfReading): Unit[] {
   }
   return units.filter((unit) => unit.lines.length > 0).map((unit, index) => ({ ...unit, id: `u${index + 1}` }))
 }
+
+/** The lines the AI is sent and points at, or null when there are none: the PDF wasn't read, or has no line to point at. */
+export function unitsToSend(view: ResumeView, pdf: PdfReading | null): Unit[] | null {
+  const units = pdf ? unitsOf(view, pdf) : []
+  return units.length > 0 ? units : null
+}

@@ -1,7 +1,8 @@
 import { expect, test } from "vitest"
 import { viewOf } from "@/lib/check/resume"
 import { samples } from "@/lib/import/testRender"
-import { placeOfQuote } from "./place"
+import { placeOfNote, placeOfQuote } from "./place"
+import type { SavedNote } from "./saved"
 
 const sample = samples.find((resume) => resume.selectedTemplate === "jake")!
 const view = viewOf(sample)
@@ -44,4 +45,29 @@ test("finds words in a custom section's text, which has no bullets", () => {
 test("an empty quote has no place", () => {
   expect(placeOfQuote(view, "")).toBeNull()
   expect(placeOfQuote(view, " – ")).toBeNull()
+})
+
+const note = (fields: Partial<SavedNote>): SavedNote => ({
+  tone: "red",
+  line: "",
+  quote: "",
+  title: "Vague",
+  why: "Says nothing.",
+  suggestion: null,
+  text: null,
+  ...fields,
+})
+
+test("a note about a whole line, or with a reworded quote, is found by its line's words", () => {
+  expect(placeOfNote(view, note({ text: second }))).toMatchObject({ field: "workDescription", line: 1 })
+  expect(placeOfNote(view, note({ quote: "Added tracing and found a slow lookup", text: second }))).toMatchObject({ line: 1 })
+  // A printed line that starts with a two-word job title, then its dates.
+  const [job, ...jobs] = sample.workExperienceSection
+  const analyst = viewOf({ ...sample, workExperienceSection: [{ ...job, workRole: "Data Analyst" }, ...jobs] })
+  expect(placeOfNote(analyst, note({ text: `Data Analyst ${job.workStartDate} – ${job.workEndDate}` }))).toMatchObject({
+    field: "workRole",
+  })
+  // Never on a line, or its line rewritten since: no place.
+  expect(placeOfNote(view, note({ quote: "nowhere on this resume" }))).toBeNull()
+  expect(placeOfNote(view, note({ text: "Responsible for synergy across many teams" }))).toBeNull()
 })

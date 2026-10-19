@@ -86,14 +86,15 @@ test("AI notes are asked for with a button, sent as the printed lines, and drawn
   const red = page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })
   await expect(red).toBeAttached()
   await expect(page.getByRole("button", { name: "Green flag: A result anyone can picture" })).toBeAttached()
-  await page.locator(".review-flag", { hasText: "Says what you did, not what changed" }).hover()
+  // The list's rows are named by their titles alone; the marks say which flag they are first.
+  await page.getByRole("button", { name: "Says what you did, not what changed", exact: true }).hover()
   const tip = page.getByRole("tooltip")
   await expect(tip).toContainText("Red flag")
   await expect(tip).toContainText("Tested the checkout service, catching [number] bugs before release")
   await page.keyboard.press("Escape")
   await expect(tip).toBeHidden()
   // Picking one brings its mark into focus, which shows its note.
-  await page.locator(".review-flag", { hasText: "A result anyone can picture" }).click()
+  await page.getByRole("button", { name: "A result anyone can picture", exact: true }).click()
   await expect(page.getByRole("button", { name: "Green flag: A result anyone can picture" })).toBeFocused()
   await expect(tip).toContainText("Before and after, with who it helped.")
   // A note whose words aren't on the resume is listed under the page instead.
@@ -153,13 +154,46 @@ test("AI notes are kept in the browser: the same resume shows them again without
   await expect(page.getByRole("tooltip")).toContainText("Tested the checkout service, catching [number] bugs before release")
   // Choosing it opens the words it's about, which say the note to a screen reader, not under the field.
   await row.click()
-  await expect(page.locator(":focus")).toHaveAccessibleDescription(/Red flag: Says what you did, not what changed/)
-  // The note whose words aren't on the resume can't be opened.
-  await expect(notes.getByText("Changed since the notes")).toBeVisible()
+  const bullets = page.getByLabel(/^What you did/)
+  await expect(bullets).toBeFocused()
+  await expect(bullets).toHaveAccessibleDescription(/Red flag: Says what you did, not what changed/)
+  // The note that was never on a line is about the whole resume, and has nothing to open.
+  await expect(notes.getByText("On your resume")).toBeVisible()
+  await expect(notes.getByText("Changed since the notes")).toHaveCount(0)
+  // Once its words are rewritten, a note says so, and its mark goes from the preview.
+  await bullets.fill(
+    "• Responsible for the checkout service, catching 12 bugs before release\n• Built a deploy tool that cut release time from two hours to ten minutes for 40 engineers",
+  )
+  await expect(notes.getByText("Changed since the notes")).toBeVisible({ timeout: 60_000 })
+  await expect(mark).toHaveCount(0, { timeout: 60_000 })
+  await expect(page.getByRole("button", { name: "Green flag: A result anyone can picture" })).toBeAttached()
   // The checks' marks are a switch away, and never drawn with the AI's.
   await page.getByRole("button", { name: "ATS checks" }).click()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start", exact: true })).toBeAttached()
   await expect(mark).toHaveCount(0)
   expect(calls).toBe(1)
+  expect(errors).toEqual([])
+})
+
+test("a review that found nothing can be asked again from the editor", async ({ page }) => {
+  const errors = pageErrors(page)
+  let calls = 0
+  await page.route("**/api/review", async (route) => {
+    calls++
+    await route.fulfill({ json: { notes: calls === 1 ? [] : NOTES } })
+  })
+  await reviewed(page)
+  await page.getByRole("button", { name: "Get AI notes" }).click()
+  await expect(page.getByText("None found. Nice.")).toBeVisible()
+
+  await page.getByRole("button", { name: "Fix it in the editor" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  await page.getByRole("button", { name: "AI notes", pressed: false }).click()
+  // Its empty review isn't taken for an answer: the AI is asked.
+  const ask = page.getByRole("button", { name: "Get AI notes" })
+  await expect(ask).toBeEnabled({ timeout: 60_000 })
+  await ask.click()
+  await expect(page.getByRole("region", { name: "AI notes" }).getByRole("region", { name: "Red flags, 2" })).toBeVisible()
+  expect(calls).toBe(2)
   expect(errors).toEqual([])
 })

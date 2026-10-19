@@ -18,6 +18,11 @@ export interface SavedNote {
   title: string
   why: string
   suggestion: string | null
+  /**
+   * The words of the line it was marked on when it was kept (keptNotesOf),
+   * which find it again once line ids have moved; null if it wasn't on one.
+   */
+  text: string | null
 }
 
 export interface SavedReview {
@@ -47,9 +52,9 @@ export function savedNotesOf(raw: unknown): SavedNote[] {
   if (!Array.isArray(raw)) return []
   return raw.flatMap((item): SavedNote[] => {
     if (!item || typeof item !== "object") return []
-    const { tone, line, quote, title, why, suggestion } = item as Record<string, unknown>
+    const { tone, line, quote, title, why, suggestion, text } = item as Record<string, unknown>
     if ((tone !== "red" && tone !== "green") || !isText(line) || !isText(quote) || !isText(title) || !isText(why)) return []
-    return [{ tone, line, quote, title, why, suggestion: isText(suggestion) ? suggestion : null }]
+    return [{ tone, line, quote, title, why, suggestion: isText(suggestion) ? suggestion : null, text: isText(text) ? text : null }]
   })
 }
 

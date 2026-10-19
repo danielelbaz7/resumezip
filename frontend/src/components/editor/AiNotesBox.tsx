@@ -3,8 +3,9 @@
 import { useId } from "react"
 import { RotateCcw, Sparkles } from "lucide-react"
 import { describePlace } from "@/lib/check/labels"
+import type { Place } from "@/lib/check/places"
 import type { ResumeView } from "@/lib/check/resume"
-import { findingOf, placeOfQuote } from "@/lib/review/ai/place"
+import { findingOf } from "@/lib/review/ai/place"
 import type { SavedNote } from "@/lib/review/ai/saved"
 import { useCheckActions } from "./CheckContext"
 import { aiKeyOf, useMarks, usePointAt } from "./MarksContext"
@@ -18,14 +19,14 @@ const TONE_LINE = {
 const button =
   "inline-flex h-9 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[13px] font-medium text-white transition-colors hover:bg-ink/85 disabled:opacity-60"
 
-function Note({ note, index, view }: { note: SavedNote; index: number; view: ResumeView }) {
+function Note({ note, index, place, view }: { note: SavedNote; index: number; place: Place | null; view: ResumeView }) {
   const { open } = useCheckActions()
   const point = usePointAt(aiKeyOf(index))
-  const place = placeOfQuote(view, note.quote)
   const body = (
     <>
       <span className="w-full truncate font-mono text-[11px] text-ink-2">
-        {place ? describePlace(view, place) : "Changed since the notes"}
+        {/* One that was never on a line (text: null) hasn't changed: it's about the whole resume. */}
+        {place ? describePlace(view, place) : note.text === null ? "On your resume" : "Changed since the notes"}
       </span>
       <span className={`text-sm leading-snug ${place ? "text-ink" : "text-ink-2"}`}>{note.title}</span>
       <span className="text-[13px] leading-snug text-ink-2">{note.why}</span>
@@ -62,7 +63,7 @@ const PRIVACY = "This sends your resume’s text to GPT-5.4 mini, run by Microso
  * preview; one whose words have been rewritten says so.
  */
 export default function AiNotesBox({ view }: { view: ResumeView }) {
-  const { aiNotes, ai, canAsk, askAi } = useMarks()
+  const { aiNotes, aiPlaces, ai, canAsk, askAi } = useMarks()
   const heading = useId()
   const asking = ai.step === "asking"
   const problem = ai.step === "problem" && (
@@ -120,7 +121,7 @@ export default function AiNotesBox({ view }: { view: ResumeView }) {
             </h3>
             <ul className="flex flex-col">
               {some.map(({ note, index }) => (
-                <Note key={index} note={note} index={index} view={view} />
+                <Note key={index} note={note} index={index} place={aiPlaces[index] ?? null} view={view} />
               ))}
             </ul>
           </section>

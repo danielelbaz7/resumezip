@@ -3,8 +3,9 @@
 // on that line, is looked for by its quote, and listed under the page if it
 // can't be placed, never marked somewhere it isn't about.
 
-import { comparable } from "@/lib/check/pdf"
+import { comparable, wordsOf } from "@/lib/check/pdf"
 import { MOST_GREEN, MOST_RED } from "./prompt"
+import type { SavedNote } from "./saved"
 import type { Unit } from "./units"
 
 export type Tone = "red" | "green"
@@ -31,6 +32,14 @@ const text = (value: unknown, most = MOST_CHARS): string | null =>
 // A quote shorter than this would be found on lines it isn't about.
 const LEAST_QUOTE = 4
 
+// Whether a quote that isn't on its line is that line reworded: most of its
+// longer words are there. Short ones ("a", "for", "the") are on every line.
+function reworded(quote: string, text: string): boolean {
+  const there = new Set(wordsOf(text))
+  const words = wordsOf(quote).filter((word) => word.length > 3)
+  return words.length > 0 && words.filter((word) => there.has(word)).length * 2 >= words.length
+}
+
 /** The notes in `answer` that can be shown, at most MOST_RED red and MOST_GREEN green. */
 export function notesOf(answer: unknown, units: readonly Unit[]): AiNote[] {
   const raw = answer && typeof answer === "object" && "notes" in answer && Array.isArray(answer.notes) ? answer.notes : []
@@ -51,11 +60,12 @@ export function notesOf(answer: unknown, units: readonly Unit[]): AiNote[] {
     const wanted = quote && comparable(quote).length >= LEAST_QUOTE ? comparable(quote) : null
     const id = typeof item.line === "string" ? item.line.replace(/[[\]\s]/g, "") : ""
     const named = byId.get(id)
+    // A quote that's on no line marks the whole line it names, if it's that line reworded.
     const unit =
       named && (!wanted || comparable(named.text).includes(wanted))
         ? named
         : wanted
-          ? (units.find((each) => comparable(each.text).includes(wanted)) ?? named ?? null)
+          ? (units.find((each) => comparable(each.text).includes(wanted)) ?? (named && quote && reworded(quote, named.text) ? named : null))
           : (named ?? null)
     const quoted = unit && wanted && comparable(unit.text).includes(wanted) ? quote : null
     // One note of each kind per line: the model sometimes splits one point in two.
@@ -65,4 +75,24 @@ export function notesOf(answer: unknown, units: readonly Unit[]): AiNote[] {
     notes.push({ index, tone, title, why, suggestion: tone === "red" ? text(item.suggestion) : null, unit, quote: quoted })
   }
   return notes
+}
+
+/**
+ * The notes in an answer as they're kept in this browser: the ones notesOf
+ * shows, each with the line it's marked on and that line's words, so the
+ * same notes are shown wherever they're read back.
+ */
+export function keptNotesOf(notes: readonly SavedNote[], units: readonly Unit[]): SavedNote[] {
+  return notesOf({ notes }, units).map(({ index, unit }) => ({ ...notes[index], line: unit?.id ?? "", text: unit?.text ?? null }))
+}
+
+/**
+ * Kept notes on a resume that's been edited since: each found by its quote,
+ * or by the words of the line it was marked on. Line ids are numbered down
+ * the page, so an id from before a line was added or removed is another
+ * line now; it's never used.
+ */
+export function notesNowOf(notes: readonly SavedNote[], units: readonly Unit[]): AiNote[] {
+  const idOf = (text: string | null) => (text && units.find((unit) => comparable(unit.text) === comparable(text))?.id) || ""
+  return notesOf({ notes: notes.map((note) => ({ ...note, line: idOf(note.text) })) }, units)
 }

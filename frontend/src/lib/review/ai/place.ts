@@ -12,8 +12,9 @@ import type { SavedNote } from "./saved"
 /** The rule an AI note goes by when it's opened like a finding (CheckContext's open). */
 export const AI_RULE = "AI"
 
-// Fewer words than this would be found in fields they aren't from.
-const LEAST_WORDS = 3
+// Fewer first words than this could end a field they aren't from. Two is
+// enough for a job title ("Software Engineer") at the start of a printed line.
+const LEAST_WORDS = 2
 
 /**
  * The field the quoted words are in, or null once they aren't anywhere. A
@@ -35,6 +36,15 @@ export function placeOfQuote(view: ResumeView, quote: string): Place | null {
     if (ended) return ended.place
   }
   return null
+}
+
+/**
+ * The field a kept note is about: where its quoted words are, or else where
+ * the words of the line it was marked on are, for a note on a whole line or
+ * one whose quote the AI reworded. Null once they've been rewritten.
+ */
+export function placeOfNote(view: ResumeView, note: SavedNote): Place | null {
+  return placeOfQuote(view, note.quote) ?? (note.text ? placeOfQuote(view, note.text) : null)
 }
 
 /** An AI note as a finding, so choosing it opens its field as choosing a finding does. */

@@ -6,10 +6,10 @@ import { Check, PenLine, RotateCcw, Upload } from "lucide-react"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { headlineFont } from "@/components/site/headlineFont"
-import { notesOf } from "@/lib/review/ai/answer"
+import { keptNotesOf, notesOf } from "@/lib/review/ai/answer"
 import { sentOf } from "@/lib/review/ai/request"
 import { hashOf, saveNotes, savedByHash, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
-import { unitsOf } from "@/lib/review/ai/units"
+import { unitsToSend } from "@/lib/review/ai/units"
 import type { Review, ReviewStep } from "@/lib/review/review"
 import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import CloudWord from "./CloudWord"
@@ -102,8 +102,8 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
   const counts = countsOf(report)
   const measure = useMemo(() => measurer(), [])
   const checked = useMemo(() => checkNotesOf(report.view, report.findings, reading, measure), [report, reading, measure])
-  // The lines the AI is sent and points at; without a reading of the PDF, there's nothing to point at.
-  const units = useMemo(() => (reading ? unitsOf(report.view, reading) : null), [report, reading])
+  // The lines the AI is sent and points at; without one, there's nothing to ask about.
+  const units = useMemo(() => unitsToSend(report.view, reading), [report, reading])
   const [ai, setAi] = useState<AiState>({ step: "idle" })
   const [shown, setShown] = useState<Shown>("checks")
   const [open, setOpen] = useState<string | null>(null)
@@ -152,7 +152,7 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
     try {
       const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
       try {
-        const saved = await askForNotes(units, current.signal)
+        const saved = keptNotesOf(await askForNotes(units, current.signal), units)
         if (asking.current !== current) return
         saveNotes(hash ?? (await hashOf(sentOf(units))), saved)
         showAi(saved)

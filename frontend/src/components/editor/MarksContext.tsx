@@ -6,14 +6,15 @@
 // at its row in the Check panel shows the same note on the page.
 
 import type React from "react"
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useOpenResume } from "@/context/ResumeContext"
 import type { PdfReading, Report } from "@/lib/check/engine"
-import { notesOf } from "@/lib/review/ai/answer"
-import { findingOf, placeOfQuote } from "@/lib/review/ai/place"
+import type { Place } from "@/lib/check/places"
+import { keptNotesOf, notesNowOf } from "@/lib/review/ai/answer"
+import { findingOf, placeOfNote } from "@/lib/review/ai/place"
 import { sentOf } from "@/lib/review/ai/request"
 import { hashOf, saveNotes, savedByHash, savedForResume, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
-import { unitsOf, type Unit } from "@/lib/review/ai/units"
+import { unitsToSend } from "@/lib/review/ai/units"
 import { measurer, PageMarks, useEscapeCloses, usePlaced, type Note, type PageSize, type Placed } from "@/components/review/PageMarks"
 import { aiKeyOf, aiNotesOf, checkKeyOf, checkNotesOf } from "@/components/review/notes"
 import type { Mode } from "./CheckContext"
@@ -35,6 +36,8 @@ interface MarksValue {
   pages: readonly PageSize[] | null
   /** The AI's notes for this resume, kept in this browser; null when it has none. */
   aiNotes: SavedNote[] | null
+  /** The field each of aiNotes is about, by its place in aiNotes; null once its words have been rewritten. */
+  aiPlaces: (Place | null)[]
   ai: AiAsk
   /** Whether the AI can be asked: the preview has been read, so there are lines to send. */
   canAsk: boolean
@@ -81,38 +84,56 @@ export function MarksProvider({
 
   const measure = useMemo(() => measurer(), [])
   const view = report?.view
-  const units: Unit[] | null = useMemo(() => (view && reading ? unitsOf(view, reading) : null), [view, reading])
+  const units = useMemo(() => (view ? unitsToSend(view, reading) : null), [view, reading])
+  const aiPlaces = useMemo(() => (view && aiNotes ? aiNotes.map((note) => placeOfNote(view, note)) : []), [view, aiNotes])
   const notes = useMemo(() => {
     if (mode !== "check" || !report) return []
     if (shown === "checks") return checkNotesOf(report.view, report.findings, reading, measure)
-    return aiNotes && units ? aiNotesOf(notesOf({ notes: aiNotes }, units), measure) : []
-  }, [mode, report, reading, shown, aiNotes, units, measure])
+    if (!aiNotes || !units) return []
+    // Drawn only where the Check panel can open it, so a mark is never left on a line the panel says has changed.
+    const now = notesNowOf(aiNotes, units).map((note) => (aiPlaces[note.index] ? note : { ...note, unit: null }))
+    return aiNotesOf(now, measure)
+  }, [mode, report, reading, shown, aiNotes, aiPlaces, units, measure])
   const placed = usePlaced(notes)
   useEscapeCloses(open, setOpen)
 
+  // Opening another resume, or leaving the editor, stops the AI on its way:
+  // its notes would be saved and tied to a resume that isn't open, or is gone.
+  const asking = useRef<AbortController | null>(null)
+  useEffect(() => () => asking.current?.abort(), [id])
+
   const askAi = useCallback(() => {
     if (!units) return
+    asking.current?.abort()
+    const current = new AbortController()
+    asking.current = current
     setAi({ step: "asking" })
     void (async () => {
       const hash = await hashOf(sentOf(units))
-      // This version of the resume was reviewed before, here or in the editor: no need to ask again.
-      let saved = savedByHash(hash)?.notes ?? null
+      // This version of the resume was reviewed before, here or in the editor: no need to ask again,
+      // unless that review found nothing, which would only show this prompt again.
+      const before = savedByHash(hash)?.notes
+      let saved = before?.length ? before : null
       if (!saved) {
         const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
         try {
-          saved = await askForNotes(units)
+          saved = keptNotesOf(await askForNotes(units, current.signal), units)
         } catch (error) {
+          if (current.signal.aborted) return
           if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
           setAi({ step: "problem", message: error instanceof AiReviewError ? error.message : PROBLEM })
           return
         }
+        if (current.signal.aborted) return
         saveNotes(hash, saved)
       }
+      if (current.signal.aborted) return
       tieToResume(hash, id)
       setAiNotes(saved)
       setAi({ step: "idle" })
       show("ai")
     })().catch((error) => {
+      if (current.signal.aborted) return
       console.error("Couldn't get AI notes:", error)
       setAi({ step: "problem", message: PROBLEM })
     })
@@ -124,14 +145,14 @@ export function MarksProvider({
       if (note.key.startsWith("ai:")) {
         const index = Number(note.key.slice(3))
         const saved = aiNotes?.[index]
-        const place = saved && placeOfQuote(report.view, saved.quote)
+        const place = aiPlaces[index]
         if (saved && place) openFinding(findingOf(saved, place, index))
         return
       }
       const finding = report.findings.find((each) => checkKeyOf(each) === note.key)
       if (finding) openFinding(finding)
     },
-    [report, aiNotes, openFinding],
+    [report, aiNotes, aiPlaces, openFinding],
   )
 
   const value = useMemo<MarksValue>(
@@ -143,12 +164,13 @@ export function MarksProvider({
       placed,
       pages: reading?.pages ?? null,
       aiNotes,
+      aiPlaces,
       ai,
       canAsk: units !== null,
       askAi,
       choose,
     }),
-    [shown, show, open, placed, reading, aiNotes, ai, units, askAi, choose],
+    [shown, show, open, placed, reading, aiNotes, aiPlaces, ai, units, askAi, choose],
   )
   return <MarksContext.Provider value={value}>{children}</MarksContext.Provider>
 }
