@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { expect, test, type Locator, type Page } from "./test"
-import { editorHeading, holdablePreviews, holdPreviews, pageErrors, seriousAccessibilityProblems, settled } from "./helpers"
+import { editorHeading, holdablePreviews, holdPreviews, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 // The editor's left bar switches between the sections (Write) and what the
 // checker found (Check), and remembers which for the visit.
@@ -112,7 +112,7 @@ test("the left bar switches between writing and checking, and remembers which", 
   const preview = page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()
   const score = page
     .getByRole("tabpanel", { name: /^Check/ })
-    .getByRole("region", { name: "Resume score" })
+    .getByRole("region", { name: "ATS score" })
     .locator("[aria-live=polite]")
   const checked = () => expect(score).toContainText(/^\d+\s*\/ 100\s*out of 100$/)
   await expect(preview).toBeVisible()
@@ -159,7 +159,7 @@ test("the checker asks for a name and an entry first, then scores the resume and
   const write = page.getByRole("tab", { name: "Write" })
   const check = page.getByRole("tab", { name: /^Check/ })
   const panel = page.getByRole("tabpanel", { name: /^Check/ })
-  const score = panel.getByRole("region", { name: "Resume score" })
+  const score = panel.getByRole("region", { name: "ATS score" })
 
   await check.click()
   const waiting = panel.getByText("Add your name and some section content to check this resume.")
@@ -227,7 +227,7 @@ test("the score goes up as a problem is fixed", async ({ page }) => {
   await newResume(page)
   const panel = page.getByRole("tabpanel", { name: /^Check/ })
   await page.getByLabel("Full name").fill("Ada Lovelace")
-  await page.getByLabel("Email").fill("ada@example")
+  await page.getByLabel("Email", { exact: true }).fill("ada@example")
   await page
     .getByRole("navigation", { name: "Sections" })
     .getByRole("button", { name: /^Experience$/ })
@@ -245,11 +245,11 @@ test("the score goes up as a problem is fixed", async ({ page }) => {
   const email = panel.getByRole("button", { name: /Not a whole email address/ })
   await expect(email).toBeVisible()
 
-  const number = panel.getByRole("region", { name: "Resume score" }).getByText(/^\d+$/)
+  const number = panel.getByRole("region", { name: "ATS score" }).getByText(/^\d+$/)
   await expect(panel.getByRole("status")).toBeHidden()
   const before = Number(await number.textContent())
   await email.click()
-  await page.getByLabel("Email").fill("ada@example.com")
+  await page.getByLabel("Email", { exact: true }).fill("ada@example.com")
   await expect.poll(async () => Number(await number.textContent())).toBeGreaterThan(before)
   await expect(panel.getByRole("button", { name: /^Contact & personal details/ })).not.toHaveAccessibleName(/to fix/)
 
@@ -266,7 +266,7 @@ test("the resume is checked again once typing pauses, not at every key, and a di
   await expect(panel.getByRole("status")).toBeHidden()
   const missing = panel.getByRole("button", { name: /Add your email address/ })
   await missing.click()
-  const email = page.getByLabel("Email")
+  const email = page.getByLabel("Email", { exact: true })
   await expect(email).toBeFocused()
 
   // With the page's clock stopped, typing never pauses. What the person
@@ -296,7 +296,7 @@ test("the score moves while it's worked out: dots bounce in its place, the numbe
   await holdablePreviews(page)
   await resumeToCheck(page)
   const panel = page.getByRole("tabpanel", { name: /^Check/ })
-  const score = panel.getByRole("region", { name: "Resume score" })
+  const score = panel.getByRole("region", { name: "ATS score" })
 
   // A change the preview hasn't caught up with keeps the checks on the PDF
   // waiting, and the score with them. Meanwhile three dots bounce in its place.
@@ -329,7 +329,7 @@ test("the score's word says how it reads, and a perfect score's scale turns to a
   const errors = pageErrors(page)
   await resumeToCheck(page)
   const panel = page.getByRole("tabpanel", { name: /^Check/ })
-  const score = panel.getByRole("region", { name: "Resume score" })
+  const score = panel.getByRole("region", { name: "ATS score" })
   await page.getByRole("tab", { name: /^Check/ }).click()
   await expect(panel.getByRole("status")).toBeHidden()
   await expect(score).toContainText("Needs work")
@@ -343,7 +343,7 @@ test("the score's word says how it reads, and a perfect score's scale turns to a
   // With the email added, every check passes: the scale turns to a gradient
   // that a light sweeps along once.
   await panel.getByRole("button", { name: /Add your email address/ }).click()
-  await page.getByLabel("Email").fill("marcus.bell@example.com")
+  await page.getByLabel("Email", { exact: true }).fill("marcus.bell@example.com")
   await expect(score.getByText(/^\d+$/)).toHaveText("100")
   await expect(score).toContainText("Perfect")
   await expect.poll(() => perfectScaleShown(score)).toBe(true)
@@ -366,7 +366,7 @@ test("choosing a finding opens its field, where it shows while Check is open, fi
   // The tab says only Check: what it found is in the panel.
   await expect(check).toHaveAccessibleName("Check")
   await page.getByLabel("Full name").fill("Ada Lovelace")
-  await page.getByLabel("Email").fill("ada@example")
+  await page.getByLabel("Email", { exact: true }).fill("ada@example")
   await page
     .getByRole("navigation", { name: "Sections" })
     .getByRole("button", { name: /^Experience$/ })
@@ -375,22 +375,28 @@ test("choosing a finding opens its field, where it shows while Check is open, fi
   await page.getByLabel("Company").fill("Analytical Engines")
   await expect(check).toHaveAccessibleName("Check")
 
-  // The email's finding opens the profile, with the cursor in the field and why it matters under it.
+  // The email's finding opens the profile, with the cursor in the field. Why it matters is
+  // marked on the preview, not written under the field, which says it to a screen reader.
   await check.click()
   const email = panel.getByRole("button", { name: /Not a whole email address/ })
   await email.click()
-  const field = page.getByLabel("Email")
+  const field = page.getByLabel("Email", { exact: true })
   await expect(field).toBeFocused()
   await expect(field).toHaveAttribute("aria-invalid", "true")
-  const why = page.getByText("Recruiters reply by email, and application forms ask for it, so it has to work.")
-  await expect(why).toBeVisible()
+  const why = /Recruiters reply by email, and application forms ask for it, so it has to work\./
+  await expect(field).toHaveAccessibleDescription(why)
+  // Read out, but not shown: it's in a screen reader's one-pixel box.
+  const hidden = await page
+    .getByText("Recruiters reply by email, and application forms ask for it, so it has to work.")
+    .evaluate((element) => element.closest(".sr-only")?.getBoundingClientRect().height)
+  expect(hidden).toBeLessThanOrEqual(1)
 
   // Back in Write mode the field is left plain, until Check is open again.
   await modes.getByRole("tab", { name: "Write" }).click()
-  await expect(why).toBeHidden()
+  await expect(field).not.toHaveAccessibleDescription(why)
   await expect(field).not.toHaveAttribute("aria-invalid")
   await check.click()
-  await expect(why).toBeVisible()
+  await expect(field).toHaveAccessibleDescription(why)
   await expect(field).toHaveAttribute("aria-invalid", "true")
   await field.fill("ada@example.com")
   await expect(email).toBeHidden()
@@ -409,57 +415,6 @@ test("choosing a finding opens its field, where it shows while Check is open, fi
   await expect(advice).toBeVisible()
 
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
-  expect(errors).toEqual([])
-})
-
-/** How wide each line a paragraph wraps onto is. */
-const lineWidths = (paragraph: Locator) =>
-  paragraph.evaluate((element) => {
-    const range = document.createRange()
-    range.selectNodeContents(element)
-    const lines = new Map<number, number>()
-    for (const rect of range.getClientRects()) lines.set(Math.round(rect.top), (lines.get(Math.round(rect.top)) ?? 0) + rect.width)
-    return [...lines.values()]
-  })
-
-test("the note under a field doesn't leave a word or two on a line of their own, and sets its sentences apart", async ({ page }) => {
-  const errors = pageErrors(page)
-  // At this width the email is a field on its own line, and its reason runs a few words past one line.
-  await page.setViewportSize({ width: 440, height: 900 })
-  await newResume(page)
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  await page.getByLabel("Email").fill("ada@example")
-  await page
-    .getByRole("navigation", { name: "Sections" })
-    .getByRole("button", { name: /^Experience$/ })
-    .click()
-  await page.getByRole("button", { name: "Add experience" }).click()
-  await page.getByLabel("Company").fill("Analytical Engines")
-  await page
-    .getByRole("tablist", { name: "Write, check or style" })
-    .getByRole("tab", { name: /^Check/ })
-    .click()
-  await page
-    .getByRole("tabpanel", { name: /^Check/ })
-    .getByRole("button", { name: /Not a whole email address/ })
-    .click()
-
-  const why = page.getByText("Recruiters reply by email, and application forms ask for it, so it has to work.")
-  const suggestion = page.getByText("Check the email spelling and domain, like jake@gmail.com.")
-  await expect(why).toBeVisible()
-  // Measured once the section has faded in, as it grows into place.
-  await settled(why)
-  const widths = await lineWidths(why)
-  expect(widths).toHaveLength(2)
-  expect(Math.min(...widths)).toBeGreaterThan(Math.max(...widths) / 2)
-  // Both measured at once: the form is still scrolling smoothly to the field, so two
-  // measurements a moment apart could each be taken at a different place.
-  const gap = await why.evaluate(
-    (element, other) => other!.getBoundingClientRect().top - element.getBoundingClientRect().bottom,
-    await suggestion.elementHandle(),
-  )
-  expect(gap).toBeGreaterThanOrEqual(8)
-
   expect(errors).toEqual([])
 })
 
@@ -558,7 +513,7 @@ test.describe("with less motion", () => {
     await holdablePreviews(page)
     await resumeToCheck(page)
     const panel = page.getByRole("tabpanel", { name: /^Check/ })
-    const score = panel.getByRole("region", { name: "Resume score" })
+    const score = panel.getByRole("region", { name: "ATS score" })
 
     await holdPreviews(page, true)
     await page.getByLabel("Role").fill("Analyst")
@@ -585,7 +540,7 @@ test.describe("with less motion", () => {
     await openSample(page, "perfect")
     await page.getByRole("tab", { name: /^Check/ }).click()
     const panel = page.getByRole("tabpanel", { name: /^Check/ })
-    const score = panel.getByRole("region", { name: "Resume score" })
+    const score = panel.getByRole("region", { name: "ATS score" })
     await expect(score.getByText(/^\d+$/)).toHaveText("100")
     await expect(score).toContainText("Perfect")
     expect(await perfectScaleShown(score)).toBe(true)
