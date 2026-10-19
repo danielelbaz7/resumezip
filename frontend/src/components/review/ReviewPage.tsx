@@ -338,7 +338,7 @@ export default function ReviewPage() {
           </section>
         )}
       </main>
-      <SiteFooter />
+      <SiteFooter bare />
       <input
         ref={fileInput}
         type="file"

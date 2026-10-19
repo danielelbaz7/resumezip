@@ -120,3 +120,32 @@ test("the sky is asked for with the page, and a soft copy of it shows until it a
     )
     .toBe("link")
 })
+
+test("the page's fog runs on into the footer, with no strip of sky between them", async ({ page }) => {
+  await page.goto("/review")
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  const footer = (await page.getByRole("contentinfo").boundingBox())!
+  // Down a column clear of the words and the footer's rounded corners, from above the footer into its lift.
+  // In CSS pixels, so the column's where the footer is on WebKit's double-density screen too.
+  const shot = await page.screenshot({ scale: "css" })
+  const bluest = await page.evaluate(
+    async ({ png, from, to }) => {
+      const image = new Image()
+      image.src = `data:image/png;base64,${png}`
+      await image.decode()
+      const canvas = document.createElement("canvas")
+      canvas.width = image.width
+      canvas.height = image.height
+      const context = canvas.getContext("2d")!
+      context.drawImage(image, 0, 0)
+      const { data } = context.getImageData(200, from, 1, to - from)
+      let most = 0
+      for (let i = 0; i < data.length; i += 4) most = Math.max(most, data[i + 2] - data[i])
+      return most
+    },
+    { png: shot.toString("base64"), from: Math.round(footer.y - 80), to: Math.round(footer.y + 16) },
+  )
+  // The fog is a white with a faint cool tint (blue at most 12 above red, where WebKit's tests draw it
+  // without its blur); the sky is 90 or more.
+  expect(bluest).toBeLessThan(30)
+})

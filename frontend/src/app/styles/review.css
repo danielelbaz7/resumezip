@@ -141,13 +141,21 @@
   }
 
   /* The results, rising into place on the sky. */
+  /* Its foot is as tall as the footer's lift (.zip-footer in globals.css),
+     which the page runs on into with no strip of sky (SiteFooter's bare), so
+     the buttons' dock stops above the footer's rounded corners, not over them. */
   .review-board {
     position: relative;
     display: flex;
     flex: 1;
     flex-direction: column;
-    padding: 4px 16px 0;
+    padding: 4px 16px 24px;
     animation: review-rise 600ms var(--ease-glide) backwards;
+  }
+  @media (min-width: 48rem) {
+    .review-board {
+      padding-bottom: 40px;
+    }
   }
   @keyframes review-rise {
     from {

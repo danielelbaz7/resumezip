@@ -12,15 +12,17 @@ const LINKS = [
  * social card. It sits shut and doesn't move. The strip is the sky itself
  * (desk), so it's the same on every page, whatever's above; the home page,
  * whose story ends on the ground in its meadow, ends on its grass instead
- * (`ground`, .footer-ground in home.css), rather than sky under grass.
+ * (`ground`, .footer-ground in home.css), rather than sky under grass. The
+ * review page, which comes down into a fog, runs on into the footer with no
+ * strip at all (`bare`), rather than ending the fog at a line of sky.
  */
-export default function SiteFooter({ ground = false }: { ground?: boolean }) {
+export default function SiteFooter({ ground = false, bare = false }: { ground?: boolean; bare?: boolean }) {
   return (
     <>
       {ground ? (
         <div aria-hidden="true" className="footer-ground relative" />
       ) : (
-        <div aria-hidden="true" className="desk relative h-16 md:h-20" />
+        !bare && <div aria-hidden="true" className="desk relative h-16 md:h-20" />
       )}
       <footer className="zip-footer text-white">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-8 gap-y-3 px-5 pt-6 md:px-10 md:pt-7">
