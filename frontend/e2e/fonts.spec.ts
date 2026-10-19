@@ -3,7 +3,7 @@ import { expect, test } from "./test"
 test("pages preload one file per font, with its Latin letters", async ({ page }) => {
   await page.goto("/")
   // Newsreader, Geist, Geist Mono and Outfit (app/layout.tsx), and the home
-  // page's headline, Instrument Serif (app/page.tsx). Other alphabets download
+  // page's headline, Instrument Serif (components/site/headlineFont.ts). Other alphabets download
   // when a page shows a letter from them.
   await expect(page.locator('link[rel="preload"][as="font"]')).toHaveCount(5)
 })

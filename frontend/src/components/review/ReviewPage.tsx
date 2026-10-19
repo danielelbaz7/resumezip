@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Check, PenLine, RotateCcw, Upload } from "lucide-react"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
+import { headlineFont } from "@/components/site/headlineFont"
 import { marksOf } from "@/lib/review/marks"
 import type { Review, ReviewStep } from "@/lib/review/review"
 import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
@@ -272,7 +273,7 @@ export default function ReviewPage() {
             <div className="relative flex flex-col items-center">
               {working ? (
                 <div role="status" className="flex flex-col items-center">
-                  <h1 className="font-serif text-[clamp(34px,5vw,56px)] font-medium leading-none tracking-[-0.025em] text-[#3a3e46]">
+                  <h1 className={`${headlineFont.className} text-[clamp(40px,5.8vw,66px)] leading-none tracking-[-0.02em] text-[#3a3e46]`}>
                     Reading it like a recruiter…
                   </h1>
                   <p className="mt-4 text-[17px] text-ink-2">Recruiters take 7 seconds. The first review takes a little longer.</p>
@@ -304,7 +305,9 @@ export default function ReviewPage() {
                 </div>
               ) : (
                 <>
-                  <h1 className="font-serif text-[clamp(38px,5.4vw,66px)] font-medium leading-none tracking-[-0.025em] text-[#3a3e46] [text-wrap:balance]">
+                  <h1
+                    className={`${headlineFont.className} text-[clamp(44px,6.4vw,80px)] leading-[1.02] tracking-[-0.02em] text-[#3a3e46] [text-wrap:balance]`}
+                  >
                     Your resume has 7 seconds. <br className="hidden sm:inline" />
                     Will it make the cut?
                   </h1>
@@ -335,7 +338,7 @@ export default function ReviewPage() {
           </section>
         )}
       </main>
-      <SiteFooter />
+      <SiteFooter bare />
       <input
         ref={fileInput}
         type="file"

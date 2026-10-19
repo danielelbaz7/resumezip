@@ -1,6 +1,6 @@
 import { expect, test } from "./test"
 import { textPdf } from "../src/lib/import/testFiles"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { instantScrolling, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 // A resume from elsewhere: plain text, with a bullet that's a duty rather than a contribution.
 const RESUME = [
@@ -81,4 +81,78 @@ test("a file with no resume in it says so, and another can be tried", async ({ p
   ).toBeVisible()
   await expect(page.getByRole("button", { name: "Try another file" })).toBeVisible()
   expect(errors).toEqual([])
+})
+
+test("the headline is in the home page's headline face", async ({ page }) => {
+  const face = async (path: string) => {
+    await page.goto(path)
+    return page.getByRole("heading", { level: 1 }).evaluate((heading) => getComputedStyle(heading).fontFamily.split(",")[0])
+  }
+  const home = await face("/")
+  expect(home).toMatch(/Instrument Serif/)
+  expect(await face("/review")).toBe(home)
+})
+
+test("the sky is asked for with the page, and a soft copy of it shows until it arrives", async ({ page }) => {
+  let arrive = () => {}
+  const arrived = new Promise<void>((resolve) => (arrive = resolve))
+  await page.route("**/backgrounds/sky-*.webp", async (route) => {
+    await arrived
+    await route.continue()
+  })
+  // Not waiting for the page's load, which waits for the picture.
+  await page.goto("/review", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+  // While the picture's on its way, the sky under it is the inlined copy, not a flat color.
+  expect(await page.getByRole("main").evaluate((main) => getComputedStyle(main.parentElement!).backgroundImage)).toContain(
+    "data:image/webp",
+  )
+  arrive()
+  // Asked for by the page's head, rather than once the stylesheet's been read.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (performance.getEntriesByType("resource") as PerformanceResourceTiming[]).find((entry) =>
+            /\/backgrounds\/sky-(wide|tall)\.webp$/.test(entry.name),
+          )?.initiatorType,
+      ),
+    )
+    .toBe("link")
+})
+
+test("the page's fog runs on into the footer, with no strip of sky between them", async ({ page }) => {
+  await page.goto("/review")
+  // The page scrolls smoothly: measured mid-glide, the footer would move between its box and the picture.
+  await instantScrolling(page)
+  // How much bluer than red the bluest pixel is, down a column clear of the words and the footer's
+  // rounded corners, from above the footer into its lift.
+  const bluest = async () => {
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    const footer = (await page.getByRole("contentinfo").boundingBox())!
+    // In CSS pixels, so the column's where the footer is on WebKit's double-density screen too.
+    const shot = await page.screenshot({ scale: "css" })
+    return page.evaluate(
+      async ({ png, from, to }) => {
+        const image = new Image()
+        image.src = `data:image/png;base64,${png}`
+        await image.decode()
+        const canvas = document.createElement("canvas")
+        canvas.width = image.width
+        canvas.height = image.height
+        const context = canvas.getContext("2d")!
+        context.drawImage(image, 0, 0)
+        const { data } = context.getImageData(200, from, 1, to - from)
+        let most = 0
+        for (let i = 0; i < data.length; i += 4) most = Math.max(most, data[i + 2] - data[i])
+        return most
+      },
+      { png: shot.toString("base64"), from: Math.round(footer.y - 80), to: Math.round(footer.y + 16) },
+    )
+  }
+  // The fog is a white with a faint cool tint (blue at most 12 above red, where WebKit's tests draw it
+  // without its blur); the sky is 90 or more. Measured again while the page is still settling (its
+  // headline's face arriving can move the footer between its box and the picture): a strip of sky
+  // stays blue however often it's measured.
+  await expect.poll(bluest).toBeLessThan(30)
 })
