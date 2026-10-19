@@ -82,9 +82,10 @@ export default function OpenSource() {
     >
       <PromiseSection id="check" heading="What you can check">
         <p>
-          <Code path={CODE.storage}>Where your resume is saved</Code>: in your browser’s storage, and nowhere else.{" "}
-          <Code path={CODE.pdf}>How your PDF is made</Code>: by Typst, running in your browser. And{" "}
-          <Code path={CODE.sites}>the list of sites the app contacts</Code>, in its security policy, with why each one is there.
+          <Code path={CODE.storage}>Where your resume is saved</Code>: in your browser’s storage, unless you save a PDF to your own Google
+          Drive. <Code path={CODE.pdf}>How your PDF is made</Code>: by Typst, running in your browser. And{" "}
+          <Code path={CODE.sites}>the list of sites the app’s pages may connect to</Code>, in its security policy, with why each one is
+          there.
         </p>
       </PromiseSection>
 
