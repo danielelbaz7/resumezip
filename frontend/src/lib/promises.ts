@@ -14,4 +14,9 @@ export const PROMISES: readonly PromiseInfo[] = [
     name: "No sign-up",
     summary: "No account, no email and no card, now or when you download.",
   },
+  {
+    path: "/resume-builder-no-watermark",
+    name: "No watermark",
+    summary: "Nothing printed on your PDF but what you wrote, and every download free.",
+  },
 ]

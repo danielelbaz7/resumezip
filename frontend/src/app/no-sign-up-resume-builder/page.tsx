@@ -1,4 +1,5 @@
-import PromisePage, { PromiseSection } from "@/components/site/PromisePage"
+import Link from "next/link"
+import PromisePage, { PromiseSection, TEXT_LINK } from "@/components/site/PromisePage"
 import { pageMetadata } from "@/lib/site"
 
 const PATH = "/no-sign-up-resume-builder"
@@ -36,6 +37,18 @@ export default function NoSignUp() {
         {
           question: "Can I come back and edit my resume later?",
           answer: "Yes. Open resumezip in the same browser and it’s on your dashboard, as you left it.",
+        },
+        {
+          question: "Will my PDF have a watermark?",
+          answer: (
+            <>
+              No.{" "}
+              <Link href="/resume-builder-no-watermark" className={TEXT_LINK}>
+                Nothing is printed on your PDF
+              </Link>{" "}
+              but what you wrote: no logo and no “made with” line.
+            </>
+          ),
         },
         {
           question: "Do I need a Google account to save to Google Drive?",

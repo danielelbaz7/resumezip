@@ -76,7 +76,15 @@ const TABS: { id: TabId; label: string; items: { title: string; body: React.Reac
     items: [
       {
         title: "Is resumezip really free?",
-        body: "Yes. No fees, no upsells, no subscriptions.",
+        body: (
+          <>
+            Yes. No fees, no upsells, no subscriptions, and{" "}
+            <Link href="/resume-builder-no-watermark" className={TEXT_LINK}>
+              no watermark on your PDF
+            </Link>
+            .
+          </>
+        ),
       },
       {
         title: "Do I need an account?",
