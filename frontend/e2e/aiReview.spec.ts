@@ -58,12 +58,12 @@ test("AI notes are asked for with a button, sent as the printed lines, and drawn
   let sent: unknown = null
   await page.route("**/api/review", async (route) => {
     sent = route.request().postDataJSON()
-    await route.fulfill({ json: { notes: NOTES, model: "GPT-5 mini" } })
+    await route.fulfill({ json: { notes: NOTES } })
   })
   await reviewed(page)
   // Nothing goes to the AI until the person asks.
   expect(sent).toBeNull()
-  await expect(page.getByText("This sends your resume’s text to GPT-5 mini")).toBeVisible()
+  await expect(page.getByText("This sends your resume’s text to GPT-5.4 mini")).toBeVisible()
 
   await page.getByRole("button", { name: "Get AI notes" }).click()
   await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
@@ -101,7 +101,7 @@ test("when the AI can't answer, the page says why and it can be asked again", as
   await page.route("**/api/review", async (route) => {
     calls++
     if (calls === 1) await route.fulfill({ status: 429, json: { error: "limit" } })
-    else await route.fulfill({ json: { notes: NOTES.slice(0, 1), model: "GPT-5 mini" } })
+    else await route.fulfill({ json: { notes: NOTES.slice(0, 1) } })
   })
   await reviewed(page)
   await page.getByRole("button", { name: "Get AI notes" }).click()

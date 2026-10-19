@@ -3,8 +3,7 @@
 import { RotateCcw, Sparkles } from "lucide-react"
 import type { Note } from "./MarkedPages"
 
-export type AiState =
-  { step: "idle" } | { step: "asking" } | { step: "done"; notes: Note[]; model: string } | { step: "problem"; message: string }
+export type AiState = { step: "idle" } | { step: "asking" } | { step: "done"; notes: Note[] } | { step: "problem"; message: string }
 
 function Flags({
   title,
@@ -75,7 +74,6 @@ export default function AiNotes({
       <div className="review-ai flex flex-col gap-3">
         <Flags title="Red flags" empty="None found. Nice." notes={red} open={open} onOpen={onOpen} onPick={onPick} />
         <Flags title="Green flags" empty="None stood out." notes={green} open={open} onOpen={onOpen} onPick={onPick} />
-        <p className="text-[12px] text-ink-3">Written by {state.model}. It can be wrong, so check each note against what you did.</p>
       </div>
     )
   }
@@ -108,7 +106,7 @@ export default function AiNotes({
         {state.step === "problem" ? "Try again" : "Get AI notes"}
       </button>
       <p className="mt-2 text-[12px] text-ink-3">
-        This sends your resume’s text to GPT-5 mini, run by Microsoft Azure or OpenAI. resumezip doesn’t keep it.
+        This sends your resume’s text to GPT-5.4 mini, run by Microsoft Azure or OpenAI. resumezip doesn’t keep it.
       </p>
     </div>
   )

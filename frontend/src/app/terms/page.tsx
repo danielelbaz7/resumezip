@@ -44,7 +44,7 @@ const TABS: { id: TabId; label: string; items: { title: string; body: string }[]
     items: [
       {
         title: "What we collect",
-        body: "We don’t collect your resume, and there are no ads or trackers. Your browser only goes online to load the site and its tools (our host and jsDelivr keep basic logs), look up a paper’s DOI you add, save a PDF to your own Google Drive when you ask, or get AI notes when you ask for them on the review page. AI notes send your resume’s text to GPT-5 mini, run by Microsoft Azure or OpenAI, and we don’t keep it.",
+        body: "We don’t collect your resume, and there are no ads or trackers. Your browser only goes online to load the site and its tools (our host and jsDelivr keep basic logs), look up a paper’s DOI you add, save a PDF to your own Google Drive when you ask, or get AI notes when you ask for them on the review page. AI notes send your resume’s text to GPT-5.4 mini, run by Microsoft Azure or OpenAI, and we don’t keep it.",
       },
       {
         title: "How it’s used",

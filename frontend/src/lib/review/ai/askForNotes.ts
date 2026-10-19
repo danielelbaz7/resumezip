@@ -4,12 +4,6 @@ import { notesOf, type AiNote } from "./answer"
 import { sentOf } from "./request"
 import type { Unit } from "./units"
 
-export interface AiReview {
-  notes: AiNote[]
-  /** The model that wrote them, as the page credits it. */
-  model: string
-}
-
 /** Why there are no notes, worded for the person. */
 export class AiReviewError extends Error {}
 
@@ -20,7 +14,7 @@ const PROBLEMS: Record<string, string> = {
   lines: "This resume is too long for AI notes.",
 }
 
-export async function askForNotes(units: readonly Unit[], signal?: AbortSignal): Promise<AiReview> {
+export async function askForNotes(units: readonly Unit[], signal?: AbortSignal): Promise<AiNote[]> {
   let response: Response
   try {
     response = await fetch("/api/review", {
@@ -33,10 +27,10 @@ export async function askForNotes(units: readonly Unit[], signal?: AbortSignal):
     if (signal?.aborted) throw error
     throw new AiReviewError("The AI notes couldn’t load. Check your connection and try again.")
   }
-  const body = (await response.json().catch(() => null)) as { notes?: unknown; model?: unknown; error?: unknown } | null
+  const body = (await response.json().catch(() => null)) as { notes?: unknown; error?: unknown } | null
   if (!response.ok || !body) {
     const problem = typeof body?.error === "string" ? PROBLEMS[body.error] : undefined
     throw new AiReviewError(problem ?? "Something went wrong getting AI notes. Try again in a minute.")
   }
-  return { notes: notesOf(body, units), model: typeof body.model === "string" ? body.model : "AI" }
+  return notesOf(body, units)
 }

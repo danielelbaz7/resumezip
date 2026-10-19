@@ -151,8 +151,8 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
     try {
       const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
       try {
-        const { notes, model } = await askForNotes(units, current.signal)
-        if (asking.current === current) setAi({ step: "done", notes: aiNotesOf(notes, measure), model })
+        const notes = await askForNotes(units, current.signal)
+        if (asking.current === current) setAi({ step: "done", notes: aiNotesOf(notes, measure) })
       } catch (error) {
         if (current.signal.aborted) return
         if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
