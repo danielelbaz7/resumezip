@@ -165,7 +165,10 @@ test("pointed at, a card's Use plate whitens gradually, and its Use stays lit wi
       fade.finish()
     }),
   )
-  // Pointed at once it has come up: hidden under the page, it would be missed, and looked for with a scroll.
+  // Pointed at once it has come up and stopped: hidden under the page, it would be missed, and looked for with a
+  // scroll. Still sliding, it isn't stable, and Playwright's retries scroll it to the end, centre, then top of the
+  // window, which leaves it under the header and the pointer moved to Use below on the header instead.
+  await expect(plate).toHaveCSS("transform", "none")
   await expect(plate).toBeInViewport({ ratio: 1 })
   await plate.hover({ position: { x: 30, y: 30 } })
   await expect(plate).toHaveAttribute("data-halfway", /linear-gradient/)
