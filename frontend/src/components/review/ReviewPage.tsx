@@ -7,13 +7,15 @@ import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { headlineFont } from "@/components/site/headlineFont"
 import { keptNotesOf, notesOf } from "@/lib/review/ai/answer"
+import type { Problem } from "@/lib/review/ai/askForNotes"
+import { aiPaused } from "@/lib/review/ai/paused"
 import { sentOf } from "@/lib/review/ai/request"
 import { hashOf, saveNotes, savedByHash, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
 import { unitsToSend } from "@/lib/review/ai/units"
 import type { Review, ReviewStep } from "@/lib/review/review"
 import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import CloudWord from "./CloudWord"
-import AiNotes, { type AiState } from "./AiNotes"
+import AiNotes, { Pill, PILL_WORDS, type AiState } from "./AiNotes"
 import MarkedPages from "./MarkedPages"
 import { aiNotesOf, checkNotesOf } from "./notes"
 import { measurer, type Note } from "./PageMarks"
@@ -104,13 +106,16 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
   const checked = useMemo(() => checkNotesOf(report.view, report.findings, reading, measure), [report, reading, measure])
   // The lines the AI is sent and points at; without one, there's nothing to ask about.
   const units = useMemo(() => unitsToSend(report.view, reading), [report, reading])
-  const [ai, setAi] = useState<AiState>({ step: "idle" })
-  const [shown, setShown] = useState<Shown>("checks")
+  // The AI is asked as soon as the resume is read, and its notes are what the page opens on.
+  const [ai, setAi] = useState<AiState>({ step: "asking" })
+  const [shown, setShown] = useState<Shown>(units ? "ai" : "checks")
   const [open, setOpen] = useState<string | null>(null)
+  // Why the AI notes couldn't be had, said over the dock while the page shows the checks instead.
+  const [pill, setPill] = useState<string | null>(null)
   // The printed lines' hash, which the AI's notes are saved by in this browser.
   const [hash, setHash] = useState<string | null>(null)
   const asking = useRef<AbortController | null>(null)
-  const notes = shown === "ai" && ai.step === "done" ? ai.notes : checked
+  const notes = shown === "checks" ? checked : ai.step === "done" ? ai.notes : []
 
   const show = useCallback((which: Shown) => {
     setShown(which)
@@ -124,8 +129,45 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
     },
     [units, measure, show],
   )
+  const fail = useCallback(
+    (reason: Problem, message: string) => {
+      setAi({ step: "problem", reason, message })
+      show("checks")
+      if (reason !== "off") setPill(PILL_WORDS[reason])
+    },
+    [show],
+  )
+
+  const ask = useCallback(
+    async (hashed: string) => {
+      if (!units) return
+      asking.current?.abort()
+      const current = new AbortController()
+      asking.current = current
+      setAi({ step: "asking" })
+      setPill(null)
+      try {
+        const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
+        try {
+          const saved = keptNotesOf(await askForNotes(units, current.signal), units)
+          if (asking.current !== current) return
+          saveNotes(hashed, saved)
+          showAi(saved)
+        } catch (error) {
+          if (current.signal.aborted) return
+          if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
+          if (error instanceof AiReviewError) fail(error.reason, error.message)
+          else fail("other", "Something went wrong getting AI notes. Try again in a minute.")
+        }
+      } catch {
+        if (!current.signal.aborted) fail("other", "The AI notes couldn’t load. Check your connection and try again.")
+      }
+    },
+    [units, showAi, fail],
+  )
 
   // A resume reviewed in this browser before shows the AI's notes it got then, without asking again.
+  // Otherwise the AI is asked, unless it turned this tab away moments ago.
   useEffect(() => {
     if (!units) return
     let live = true
@@ -134,40 +176,16 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
       setHash(hashed)
       const saved = savedByHash(hashed)
       if (saved) showAi(saved.notes)
+      else if (aiPaused()) fail("limit", "You’ve asked for a lot of AI notes in a short time. Try again in a few minutes.")
+      else void ask(hashed)
     })
     return () => {
       live = false
     }
-  }, [units, showAi])
+  }, [units, showAi, fail, ask])
 
   // Leaving the result stops the AI on its way.
   useEffect(() => () => asking.current?.abort(), [])
-
-  const ask = async () => {
-    if (!units) return
-    asking.current?.abort()
-    const current = new AbortController()
-    asking.current = current
-    setAi({ step: "asking" })
-    try {
-      const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
-      try {
-        const saved = keptNotesOf(await askForNotes(units, current.signal), units)
-        if (asking.current !== current) return
-        saveNotes(hash ?? (await hashOf(sentOf(units))), saved)
-        showAi(saved)
-      } catch (error) {
-        if (current.signal.aborted) return
-        if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
-        setAi({
-          step: "problem",
-          message: error instanceof AiReviewError ? error.message : "Something went wrong getting AI notes. Try again in a minute.",
-        })
-      }
-    } catch {
-      if (!current.signal.aborted) setAi({ step: "problem", message: "The AI notes couldn’t load. Check your connection and try again." })
-    }
-  }
 
   // A flag picked in the list: its mark, brought into view and focused, which shows its note.
   // When the page shows the checks, it's switched to the AI's notes first, and the mark is looked for once they're drawn.
@@ -210,17 +228,27 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
             {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
             {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
           </p>
-          {units && <AiNotes state={ai} onAsk={() => void ask()} open={open} onOpen={setOpen} onPick={pick} />}
+          {units && !(ai.step === "problem" && ai.reason === "off") && (
+            <AiNotes
+              state={ai}
+              onAsk={() => {
+                if (hash) void ask(hash)
+              }}
+              open={open}
+              onOpen={setOpen}
+              onPick={pick}
+            />
+          )}
         </div>
         <div className="review-card">
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
-            {ai.step === "done" && (
+            {units && !(ai.step === "problem" && ai.reason === "off") && (
               <div role="group" aria-label="Notes on the page" className="review-switch">
                 <button type="button" aria-pressed={shown === "ai"} onClick={() => show("ai")}>
                   AI notes
                 </button>
                 <button type="button" aria-pressed={shown === "checks"} onClick={() => show("checks")}>
-                  Checks
+                  ATS checks
                 </button>
               </div>
             )}
@@ -230,6 +258,8 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
                 <span aria-hidden="true"> · </span>
                 {green} green {green === 1 ? "flag" : "flags"}
               </p>
+            ) : shown === "ai" ? (
+              <p>{ai.step === "asking" ? "Reading it like a recruiter…" : "No AI notes yet"}</p>
             ) : (
               <p className="flex items-baseline gap-x-2">
                 <span className="font-medium">{score.total}/100</span>
@@ -246,6 +276,7 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
         </div>
       </div>
       <div className="review-dock">
+        {pill && <Pill onClose={() => setPill(null)}>{pill}</Pill>}
         <div className="review-dock-keys">
           <button type="button" onClick={() => onFix(hash)} className="review-dock-main">
             <PenLine aria-hidden="true" />
@@ -270,6 +301,9 @@ export default function ReviewPage() {
   const router = useRouter()
   const [state, setState] = useState<State>({ step: "idle" })
   const [dragging, setDragging] = useState(false)
+  // Whether to say, before a file is dropped, that the AI turned this tab away moments ago.
+  // Read after the first paint: the page is prerendered, with no tab to ask.
+  const [paused, setPaused] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const running = useRef<AbortController | null>(null)
 
@@ -347,6 +381,10 @@ export default function ReviewPage() {
       window.removeEventListener("drop", onDrop)
     }
   }, [])
+
+  useEffect(() => {
+    if (state.step === "idle" || state.step === "problem") setPaused(aiPaused())
+  }, [state.step])
 
   const chooseFile = () => fileInput.current?.click()
 
@@ -440,7 +478,7 @@ export default function ReviewPage() {
                     <div className="review-drop mt-8">
                       <Upload className="h-6 w-6 text-accent" aria-hidden="true" />
                       <span className="text-[18px] font-medium text-[#2a2e35]">Drop it here</span>
-                      <span className="text-[13.5px] text-ink-2">PDF or Word, read in your browser</span>
+                      <span className="text-[13.5px] text-ink-2">PDF or Word</span>
                     </div>
                   ) : (
                     <button type="button" className="halo-button mt-9" onClick={chooseFile}>
@@ -448,7 +486,12 @@ export default function ReviewPage() {
                       {state.step === "problem" ? "Try another file" : "Review my resume"}
                     </button>
                   )}
-                  <p className="mt-6 text-[13px] text-ink-2">PDF or Word · Free · Read in your browser, never uploaded</p>
+                  <p className="mt-6 text-[13px] text-ink-2">PDF or Word · Free · Resume is sent to AI for review. Nothing is kept.</p>
+                  {paused && (
+                    <div className="review-pill-float">
+                      <Pill onClose={() => setPaused(false)}>AI notes are paused for a few minutes. You’ll still get the ATS checks.</Pill>
+                    </div>
+                  )}
                 </>
               )}
             </div>

@@ -19,7 +19,7 @@ const pdf = (lines: string[]) => ({ name: "Mara Lin.pdf", mimeType: "application
 
 test("reviews a resume in the browser, scribbles its notes on the page, and opens it in Check with the same score", async ({ page }) => {
   const errors = pageErrors(page)
-  // Nothing is sent anywhere: the review only downloads what it needs.
+  // Nothing is sent anywhere but the AI notes' request (its body is checked in aiReview.spec.ts): the review only downloads what it needs.
   const sent: string[] = []
   page.on("request", (request) => {
     if (request.method() !== "GET" && request.method() !== "HEAD") sent.push(`${request.method()} ${request.url()}`)
@@ -43,7 +43,7 @@ test("reviews a resume in the browser, scribbles its notes on the page, and open
   await expect(page.getByRole("tooltip")).toBeHidden()
   const reviewed = (await page.getByText(/^\d+\/100$/).innerText()).replace("/100", "")
   expect(await seriousAccessibilityProblems(page)).toEqual([])
-  expect(sent).toEqual([])
+  expect(sent.filter((request) => !request.endsWith("/api/review"))).toEqual([])
 
   // Fix it in the editor: the resume is added, and opens in Check, scored the same.
   await page.getByRole("button", { name: "Fix it in the editor" }).click()
