@@ -1,4 +1,4 @@
-import { expect, test } from "./test"
+import { expect, testWithoutBrowser as test } from "./test"
 import { cutShort, thrownText } from "./helpers"
 
 /** An error as Playwright hands on one a page threw: split at the first colon, the character after it dropped. */
