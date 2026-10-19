@@ -56,7 +56,7 @@ export default function OpenSource() {
               </Link>{" "}
               and{" "}
               <Link href="/resume-builder-no-watermark" className={TEXT_LINK}>
-                nothing added to your PDF
+                no watermark on your PDF
               </Link>
               .
             </>
