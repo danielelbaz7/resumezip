@@ -129,3 +129,14 @@ export function highlight([left, top, right, bottom]: Box, seed: number): string
     ` L${right + 2 + j()} ${y1 + j()} C${left + w * 0.6} ${y1 + 1.5 + j()} ${left + w * 0.3} ${y1 - 1 + j()} ${left - 2 + j()} ${y1 + j()} Z`
   )
 }
+
+/** A tick, its foot at `foot`: a short stroke down, then a long one up. */
+export function tick([x, y]: [number, number], size: number, seed: number): string {
+  const random = seeded(seed)
+  const j = () => (random() - 0.5) * size * 0.1
+  const foot: [number, number] = [x + j(), y + j()]
+  return [
+    smooth([[x - size * 0.42 + j(), y - size * 0.42 + j()], [x - size * 0.2, y - size * 0.15], foot]),
+    smooth([foot, [x + size * 0.25 + j(), y - size * 0.55], [x + size * 0.62 + j(), y - size * 1.05 + j()]]),
+  ].join(" ")
+}

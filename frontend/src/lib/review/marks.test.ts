@@ -5,7 +5,8 @@ import { viewOf } from "@/lib/check/resume"
 import type { Level } from "@/lib/check/settings"
 import { readForChecks } from "@/lib/import/read"
 import { readBack, render, samples } from "@/lib/import/testRender"
-import { marksOf, scribbleOf, wordBox, type Box, type MarkedLine } from "./marks"
+import type { AiNote } from "./ai/answer"
+import { aiScribbleOf, marksOf, scribbleOf, wordBox, type Box, type MarkedLine } from "./marks"
 
 const sample = samples.find((resume) => resume.selectedTemplate === "jake")!
 // The first job's first bullet, made a duty with nothing to show for it.
@@ -135,4 +136,19 @@ test("scribbles round the words a note quotes where they're printed, or else bes
   expect(scribbleOf(note("Could you add the scope or result?"), two, measure)).toEqual({ kind: "bracket", boxes: [duty.box, more.box] })
   expect(scribbleOf(note("“Led” starts 2 nearby bullets"), one, measure)).toEqual({ kind: "underline", boxes: [duty.box] })
   expect(scribbleOf(note("A date in the future", "fix"), one, measure)).toEqual({ kind: "box", boxes: [duty.box] })
+})
+
+test("an AI's red flag circles a few words, underlines more, and marks a whole bullet beside it; a green flag ticks its line", () => {
+  const unit = { id: "u1", bullet: true, text: `${duty.text} ${more.text}`, page: 1, lines: [duty, more] }
+  const flag = (tone: AiNote["tone"], quote: string | null): AiNote => ({ tone, title: "", why: "", suggestion: null, unit, quote })
+  expect(aiScribbleOf(flag("red", "various"), measure)).toEqual({ kind: "circle", boxes: [[220, 100, 290, 112]] })
+  const long = printed([["Built a deploy tool for the team", 60]], [50, 140, 350, 152])
+  expect(aiScribbleOf({ ...flag("red", "a deploy tool for the team"), unit: { ...unit, lines: [long] } }, measure)?.kind).toBe("underline")
+  expect(aiScribbleOf(flag("red", null), measure)).toEqual({ kind: "bracket", boxes: [duty.box, more.box] })
+  const green = aiScribbleOf(flag("green", "various"), measure)!
+  expect(green.kind).toBe("tick")
+  expect(green.boxes).toEqual([[220, 100, 290, 112]])
+  // In the margin, left of the line it's on.
+  expect(green.foot![0]).toBeLessThan(duty.box[0])
+  expect(aiScribbleOf({ ...flag("red", "various"), unit: null }, measure)).toBeNull()
 })
