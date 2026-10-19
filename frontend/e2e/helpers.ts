@@ -12,6 +12,9 @@ import { expect, type Locator, type Page } from "@playwright/test"
 const CUT_SHORT = [
   /^Fetch API cannot load \S+\.(wasm|otf|ttf|mjs) due to access control checks\.$/,
   /^Cannot load (\S+\.m?js|blob:\S+) due to access control checks\.$/,
+  // pdf.js reads the PDF at a blob: URL with an XMLHttpRequest, whose load
+  // Safari words its own way.
+  /^XMLHttpRequest cannot load blob:\S+ due to access control checks\.$/,
   /^Failed to fetch RSC payload for \S+\. Falling back to browser navigation\. TypeError: Load failed$/,
   // What pdf.js (4.8) throws after those: its worker cut short, it tries
   // to load the worker's code on the page instead, which is cut short too...
@@ -24,6 +27,9 @@ const CUT_SHORT = [
 // Safari can report a load cut short just before the request for the next page.
 const BEFORE_LEAVING_MS = 500
 
+/** Whether `text`, an error as Safari words it, is a load cut short by leaving the page. */
+export const cutShort = (text: string) => CUT_SHORT.some((pattern) => pattern.test(text))
+
 // What the Content-Security-Policy logs for what it refuses.
 const REFUSED = /^Refused to /
 
@@ -32,7 +38,7 @@ const REFUSED = /^Refused to /
 // colon, here the one in "http://", into a name ("Cannot load http") and a
 // message ("/localhost:…"), dropping the character after the colon: "/", or
 // "h" in "blob:http://". Put back together, it reads as it does when it's logged.
-const thrownText = (error: Error) => {
+export const thrownText = (error: Error) => {
   if (/ https?$/.test(error.name)) return `${error.name}:/${error.message}`
   if (/ blob$/.test(error.name)) return `${error.name}:h${error.message}`
   return error.message
@@ -67,7 +73,7 @@ export function pageErrors(page: Page): string[] {
   })
   // `text` is the error as Safari words it, to tell a load cut short.
   const add = (entry: string, text: string) => {
-    if (CUT_SHORT.some((pattern) => pattern.test(text))) {
+    if (cutShort(text)) {
       if (leaving) return
       recent.push({ entry, at: Date.now() })
     }
