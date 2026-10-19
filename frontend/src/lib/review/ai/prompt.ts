@@ -54,7 +54,7 @@ export const ANSWER_SCHEMA = {
 } as const
 
 /** The message with the resume in it. */
-export function userPrompt(units: readonly Unit[]): string {
+export function userPrompt(units: readonly Pick<Unit, "id" | "text" | "bullet">[]): string {
   const lines = units.map((unit) => `[${unit.id}] ${unit.bullet ? "• " : ""}${unit.text}`)
   return ["<resume>", ...lines, "</resume>"].join("\n")
 }

@@ -34,6 +34,7 @@ export class ProviderError extends Error {
 }
 
 const MODEL = "gpt-5-mini"
+const MODEL_NAME = "GPT-5 mini"
 
 /** The providers that have keys in `env`, in the order they're tried. */
 export function providersOf(env: Record<string, string | undefined>): Provider[] {
@@ -42,7 +43,7 @@ export function providersOf(env: Record<string, string | undefined>): Provider[]
   if (AZURE_OPENAI_API_KEY && AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_DEPLOYMENT) {
     providers.push({
       name: "azure",
-      model: MODEL,
+      model: MODEL_NAME,
       url: `${new URL(AZURE_OPENAI_ENDPOINT).origin}/openai/v1/chat/completions`,
       headers: { "api-key": AZURE_OPENAI_API_KEY },
       deployment: AZURE_OPENAI_DEPLOYMENT,
@@ -51,7 +52,7 @@ export function providersOf(env: Record<string, string | undefined>): Provider[]
   if (OPENAI_API_KEY) {
     providers.push({
       name: "openai",
-      model: MODEL,
+      model: MODEL_NAME,
       url: "https://api.openai.com/v1/chat/completions",
       headers: { authorization: `Bearer ${OPENAI_API_KEY}` },
       deployment: MODEL,
@@ -123,4 +124,42 @@ export async function ask(provider: Provider, system: string, user: string, { si
         }
       : null,
   }
+}
+
+// How long one provider gets before the next is asked: a review takes 5–30 s.
+const PATIENCE_MS = 40_000
+// How long a provider that failed is passed over, so a visitor doesn't wait on one that's busy or down.
+const REST_MS = 60_000
+const resting = new Map<Provider["name"], number>()
+
+/**
+ * Asks each provider in turn until one answers: the next when one is busy,
+ * failing or slower than PATIENCE_MS, passing over one that failed in the
+ * last minute unless every one has. Throws the last ProviderError when none answers.
+ */
+export async function askAny(providers: readonly Provider[], system: string, user: string, options: AskOptions = {}): Promise<Asked> {
+  const now = Date.now()
+  const awake = providers.filter((provider) => (resting.get(provider.name) ?? 0) <= now)
+  let last: ProviderError | null = null
+  for (const provider of awake.length > 0 ? awake : providers) {
+    const timeout = AbortSignal.timeout(PATIENCE_MS)
+    const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
+    try {
+      const asked = await ask(provider, system, user, { ...options, signal })
+      resting.delete(provider.name)
+      return asked
+    } catch (error) {
+      if (options.signal?.aborted) throw error
+      last = error instanceof ProviderError ? error : new ProviderError(provider.name, null, timeout.aborted ? "too slow" : String(error))
+      resting.set(provider.name, Date.now() + REST_MS)
+      // Never the body: it can quote the request, and the request is someone's resume.
+      console.warn(`AI review: ${provider.name} didn't answer (${last.status ?? "no status"})`)
+    }
+  }
+  throw last ?? new ProviderError("openai", null, "no provider has keys")
+}
+
+/** For tests: every provider awake again. */
+export function wakeAll() {
+  resting.clear()
 }
