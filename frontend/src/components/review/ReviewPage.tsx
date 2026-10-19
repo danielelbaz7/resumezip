@@ -441,7 +441,7 @@ export default function ReviewPage() {
     <div className="desk isolate flex min-h-screen flex-col">
       <div aria-hidden="true" className="review-haze" />
       <SiteHeader />
-      <main className="relative flex flex-1 flex-col [--sheet:min(640px,88vw)]">
+      <main className="relative flex flex-1 flex-col [--sheet:min(576px,88vw)]">
         {state.step === "done" ? (
           <Result
             review={state.review}
@@ -490,12 +490,12 @@ export default function ReviewPage() {
               ) : (
                 <>
                   <h1
-                    className={`${headlineFont.className} text-[clamp(44px,6.4vw,80px)] leading-[1.02] tracking-[-0.02em] text-[#3a3e46] [text-wrap:balance]`}
+                    className={`${headlineFont.className} text-[clamp(44px,6.4vw,72px)] leading-[1.02] tracking-[-0.02em] text-[#3a3e46] [text-wrap:balance]`}
                   >
                     Your resume has 7 seconds. <br className="hidden sm:inline" />
                     Will it make the cut?
                   </h1>
-                  <p className="mt-5 max-w-[38rem] text-pretty text-[17px] text-ink-2 md:text-[19px]">
+                  <p className="mt-[18px] text-pretty text-[17px] text-ink-2 sm:whitespace-nowrap">
                     Drop it here, and see what a recruiter would skip, marked right on the page.
                   </p>
                   {state.step === "problem" && (
@@ -510,12 +510,12 @@ export default function ReviewPage() {
                       <span className="text-[13.5px] text-ink-2">PDF or Word</span>
                     </div>
                   ) : (
-                    <button type="button" className="halo-button mt-9" onClick={chooseFile}>
+                    <button type="button" className="halo-button mt-8" onClick={chooseFile}>
                       <Upload aria-hidden="true" />
                       {state.step === "problem" ? "Try another file" : "Review my resume"}
                     </button>
                   )}
-                  <p className="mt-6 text-[13px] text-ink-2">
+                  <p className="mt-[22px] text-[12px] text-ink-2">
                     PDF or Word · Free · Resume is sent to AI for review.{" "}
                     <Link href="/private-resume-builder" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
                       Nothing is kept
