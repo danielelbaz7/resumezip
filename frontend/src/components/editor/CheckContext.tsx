@@ -9,6 +9,7 @@ import type { Place } from "@/lib/check/places"
 import { pdfLayoutOf, type PdfSectionLayout } from "@/lib/check/extraPdf"
 import { viewOf } from "@/lib/check/resume"
 import { grammarTexts } from "@/lib/check/spelling"
+import { AI_RULE } from "@/lib/review/ai/place"
 import { printedOf } from "@/lib/typst/compile"
 import type { ActiveSection } from "./SectionNav"
 import { usePausedResume, useResumeCheck } from "./useResumeCheck"
@@ -310,11 +311,14 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
 
   // The same finding while it's there, or else the same problem as its text
   // changes while it's being fixed: one rule can find more than one thing at
-  // a place, as two typos in a bullet.
+  // a place, as two typos in a bullet. An AI note from the review isn't the
+  // checker's: it's opened where it was found.
   const live =
     chosen && report
-      ? (report.findings.find((finding) => finding.key === chosen.finding.key) ??
-        report.findings.find((finding) => sameIssue(finding, chosen.finding)))
+      ? chosen.finding.rule === AI_RULE
+        ? chosen.finding
+        : (report.findings.find((finding) => finding.key === chosen.finding.key) ??
+          report.findings.find((finding) => sameIssue(finding, chosen.finding)))
       : undefined
   const target = useMemo(
     () => (chosen && live && mode === "check" ? { finding: live, request: chosen.request } : null),

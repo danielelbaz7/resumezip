@@ -4,6 +4,7 @@ import type React from "react"
 import { useEffect, useId, useRef, useState } from "react"
 import { Pencil } from "lucide-react"
 import type { Finding } from "@/lib/check/engine"
+import { aiToneOf } from "@/lib/review/ai/place"
 import { onMac, shortcut } from "@/lib/keys"
 import { markedPieces } from "@/lib/typst/resumeData"
 import { bulletLines, withBullets } from "./arrange"
@@ -60,17 +61,29 @@ export const levelPill = (tier: Tier) =>
  * box would otherwise leave a word or two on a line of its own.
  */
 export function FlagNote({ id, finding }: { id?: string; finding: Finding }) {
+  // An AI note from the review is called by its flag, in the review's pens.
+  const tone = aiToneOf(finding)
   return (
     <div
       id={id}
       className="flex flex-col gap-2 rounded-[4px] bg-sheet px-4 py-3 text-[13px] leading-normal text-balance ring-1 ring-ink/[0.08]"
     >
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ink">
-        <span className={levelPill(tierOf(finding))}>{TIER_NAMES[tierOf(finding)]}</span>
+        {tone ? (
+          <span
+            className={`inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[11px] font-medium leading-none text-white ${
+              tone === "green" ? "bg-[#12773b]" : "bg-[var(--review-red)]"
+            }`}
+          >
+            {tone === "green" ? "Green flag" : "Red flag"}
+          </span>
+        ) : (
+          <span className={levelPill(tierOf(finding))}>{TIER_NAMES[tierOf(finding)]}</span>
+        )}
         {finding.message}
       </p>
       <p className="text-ink-2">{finding.why}</p>
-      {finding.suggestion && <p className="text-ink-2">{finding.suggestion}</p>}
+      {finding.suggestion && <p className={tone ? "border-l-2 border-hairline pl-2 text-ink" : "text-ink-2"}>{finding.suggestion}</p>}
     </div>
   )
 }
