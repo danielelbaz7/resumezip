@@ -61,7 +61,9 @@ export interface Counts {
 }
 
 export function countsOf(report: Report): Counts {
-  return { notes: report.findings.length, mustFixes: report.findings.filter(isMustFix).length }
+  // One rule can find the same thing twice at a place, as a word typed twice: it's marked once (checkNotesOf), and counted once.
+  const findings = [...new Map(report.findings.map((finding) => [finding.key, finding])).values()]
+  return { notes: findings.length, mustFixes: findings.filter(isMustFix).length }
 }
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`

@@ -75,7 +75,7 @@ const TABS: { id: TabId; label: string; items: { title: string; body: React.Reac
       },
       {
         title: "Sharing and selling",
-        body: "We don’t share or sell your data, and we don’t store your resume.",
+        body: "We don’t share or sell your data, and we don’t store your resume. Your resume’s text only goes to the AI when you review it on the review page or ask for AI notes in the editor.",
       },
     ],
   },
@@ -89,7 +89,7 @@ const TABS: { id: TabId; label: string; items: { title: string; body: React.Reac
           <>
             Yes. No fees, no upsells, no subscriptions, and{" "}
             <Link href="/resume-builder-no-watermark" className={TEXT_LINK}>
-              nothing added to your PDF
+              no watermark on your PDF
             </Link>
             .
           </>

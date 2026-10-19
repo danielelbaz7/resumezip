@@ -12,6 +12,7 @@ import { compilerStatus, onCompilerStatus } from "@/lib/typst/compile"
 import { scrollerOf, uncovered } from "./layout"
 import PrintingPage from "./PrintingPage"
 import { OPEN_NAME } from "@/components/dashboard/viewSwitch"
+import { PreviewMarks } from "./MarksContext"
 
 type ReactPdf = typeof import("./reactPdf")
 
@@ -461,7 +462,7 @@ function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPre
                                   }
                                 : undefined
                             }
-                            className="bg-sheet shadow-[0_1px_3px_rgba(17,19,24,0.08),0_32px_64px_-24px_rgba(24,44,110,0.4)]"
+                            className="relative bg-sheet shadow-[0_1px_3px_rgba(17,19,24,0.08),0_32px_64px_-24px_rgba(24,44,110,0.4)]"
                             style={{ width: pageWidth, height: pageHeight(pageWidth, drawing.ratio ?? PAGE_RATIO) }}
                           >
                             <div
@@ -481,6 +482,8 @@ function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPre
                                 onRenderTextLayerSuccess={lightUpChanges}
                               />
                             </div>
+                            {/* In Check mode, the checks' or the AI's pen marks, over the page that's shown. */}
+                            {drawing === shownDrawing && drawing.ready && <PreviewMarks page={index + 1} file={drawing.file} />}
                           </div>
                         ))}
                       </div>

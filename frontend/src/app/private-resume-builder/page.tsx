@@ -34,7 +34,8 @@ export default function Private() {
         },
         {
           question: "Does anyone at resumezip read my resume?",
-          answer: "No one can: it never reaches us. The checks in the editor’s Check tab run in your browser too.",
+          answer:
+            "No. For AI notes, your resume’s text goes to the AI and isn’t kept. The checks in the editor’s Check tab run in your browser.",
         },
         {
           question: "What happens when I save to Google Drive?",
@@ -52,20 +53,20 @@ export default function Private() {
           <Link href="/review" className={TEXT_LINK}>
             review page
           </Link>{" "}
-          reads your file in your browser the same way: it isn’t uploaded.
+          reads your file in your browser too. Only its text goes to the AI for its notes, and that isn’t kept.
         </p>
       </PromiseSection>
 
       <PromiseSection id="online" heading="What does go online">
         <p>{WHAT_GOES_ONLINE}</p>
-        <p>Apart from a DOI you look up, nothing you write is sent anywhere.</p>
+        <p>Apart from those, nothing you write is sent anywhere.</p>
       </PromiseSection>
 
       <PromiseSection id="check" heading="Check it yourself">
         <p>
           Open your browser’s developer tools and choose Network, then write. You’ll see the site and its tools load, and nothing go out
-          with what you typed. Under Application in Chrome, or Storage in Firefox and Safari, Local storage holds your resumes, each under
-          “resume:” and an id.
+          with what you typed until you ask for AI notes. Under Application in Chrome, or Storage in Firefox and Safari, Local storage holds
+          your resumes, each under “resume:” and an id.
         </p>
         <p>
           Or read the code:{" "}

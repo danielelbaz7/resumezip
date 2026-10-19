@@ -54,23 +54,18 @@ export const levelPill = (tier: Tier) =>
   }`
 
 /**
- * What the checker found where the person is fixing it, and why it matters.
- * It says how sure the checker is in words, so the field's color isn't the
- * only sign. Its lines are balanced, as a sentence a little too long for the
- * box would otherwise leave a word or two on a line of its own.
+ * What the checker or the AI found where the person is fixing it, read out
+ * with the field it describes. It isn't shown: the Check panel and the marks
+ * on the preview show it, and the form stays clear for writing.
  */
 export function FlagNote({ id, finding }: { id?: string; finding: Finding }) {
   return (
-    <div
-      id={id}
-      className="flex flex-col gap-2 rounded-[4px] bg-sheet px-4 py-3 text-[13px] leading-normal text-balance ring-1 ring-ink/[0.08]"
-    >
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ink">
-        <span className={levelPill(tierOf(finding))}>{TIER_NAMES[tierOf(finding)]}</span>
-        {finding.message}
+    <div id={id} className="sr-only">
+      <p>
+        {finding.flag ? (finding.flag === "green" ? "Green flag" : "Red flag") : TIER_NAMES[tierOf(finding)]}: {finding.message}
       </p>
-      <p className="text-ink-2">{finding.why}</p>
-      {finding.suggestion && <p className="text-ink-2">{finding.suggestion}</p>}
+      <p>{finding.why}</p>
+      {finding.suggestion && <p>{finding.suggestion}</p>}
     </div>
   )
 }

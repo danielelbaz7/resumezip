@@ -12,6 +12,7 @@
 import { CORE_SECTIONS, SECTIONS, type SectionName } from "@/components/editor/sections"
 import type { Resume, ResumeContent, ResumeField } from "./resume"
 import type { FileResume } from "./resumeFile"
+import { forgetResume } from "./review/ai/saved"
 import {
   changedPaths,
   deleteKeptAside,
@@ -467,6 +468,7 @@ export function createResumeStore(delay = SAVE_DELAY) {
       }
       deleted.delete(id)
       seen.set(id, null)
+      forgetResume(id, storage)
     }
     for (const [id, changed] of pending) {
       if (!has(id)) {

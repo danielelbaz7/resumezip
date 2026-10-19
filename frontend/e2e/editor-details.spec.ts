@@ -51,7 +51,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
       await page.getByRole("button", { name: "Add experience" }).click()
       await page.getByLabel("Company").fill("Analytical Engines")
       await page.getByRole("tab", { name: /^Check/ }).click()
-      const number = page.getByRole("region", { name: "Resume score" }).getByText(/^\d+$/)
+      const number = page.getByRole("region", { name: "ATS score" }).getByText(/^\d+$/)
       await expect(number).toBeVisible()
 
       // The number is what's read, and the rolling digits over it show the same.

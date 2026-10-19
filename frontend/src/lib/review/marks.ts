@@ -5,6 +5,7 @@
 // itself, has no line of its own, so it isn't marked; the page lists it below.
 
 import type { Finding, PdfReading } from "@/lib/check/engine"
+import type { AiNote } from "./ai/answer"
 import { comparable, printedLayoutBullets } from "@/lib/check/pdf"
 import { placeId } from "@/lib/check/places"
 import type { ResumeView } from "@/lib/check/resume"
@@ -109,4 +110,18 @@ export function scribbleOf(finding: Finding, mark: Mark, measure: (text: string)
   }
   const boxes = mark.lines.map(({ box }) => box)
   return { kind: boxes.length > 1 ? "bracket" : fix ? "box" : "underline", boxes }
+}
+
+/**
+ * How an AI note is drawn on its line: a red flag circles the words it
+ * quotes, or underlines them when they're more than a few, or marks the
+ * whole bullet beside it; a green flag underlines its words, or its lines.
+ */
+export function aiScribbleOf({ tone, unit, quote }: AiNote, measure: (text: string) => number): Scribble | null {
+  if (!unit) return null
+  const word = quote ? wordBox(unit.lines, quote, measure) : null
+  const boxes = word ? [word] : unit.lines.map(({ box }) => box)
+  if (tone === "green") return { kind: "underline", boxes }
+  if (word) return { kind: quote!.trim().split(/\s+/).length <= 4 ? "circle" : "underline", boxes }
+  return { kind: boxes.length > 1 ? "bracket" : "underline", boxes }
 }
