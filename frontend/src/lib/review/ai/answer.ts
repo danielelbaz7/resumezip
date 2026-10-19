@@ -10,6 +10,8 @@ import type { Unit } from "./units"
 export type Tone = "red" | "green"
 
 export interface AiNote {
+  /** Its place in what the AI sent, which tells it apart wherever it's shown. */
+  index: number
   tone: Tone
   title: string
   why: string
@@ -36,7 +38,7 @@ export function notesOf(answer: unknown, units: readonly Unit[]): AiNote[] {
   const counts: Record<Tone, number> = { red: 0, green: 0 }
   const taken = new Set<string>()
   const notes: AiNote[] = []
-  for (const each of raw as unknown[]) {
+  for (const [index, each] of (raw as unknown[]).entries()) {
     if (!each || typeof each !== "object") continue
     const item = each as Record<string, unknown>
     const tone = item.tone === "red" || item.tone === "green" ? item.tone : null
@@ -60,7 +62,7 @@ export function notesOf(answer: unknown, units: readonly Unit[]): AiNote[] {
     if (unit && taken.has(`${tone}|${unit.id}`)) continue
     if (unit) taken.add(`${tone}|${unit.id}`)
     counts[tone]++
-    notes.push({ tone, title, why, suggestion: tone === "red" ? text(item.suggestion) : null, unit, quote: quoted })
+    notes.push({ index, tone, title, why, suggestion: tone === "red" ? text(item.suggestion) : null, unit, quote: quoted })
   }
   return notes
 }
