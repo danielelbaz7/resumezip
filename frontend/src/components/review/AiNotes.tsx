@@ -1,7 +1,7 @@
 "use client"
 
 import { RotateCcw, Sparkles } from "lucide-react"
-import type { Note } from "./MarkedPages"
+import type { Note } from "./PageMarks"
 
 export type AiState = { step: "idle" } | { step: "asking" } | { step: "done"; notes: Note[] } | { step: "problem"; message: string }
 

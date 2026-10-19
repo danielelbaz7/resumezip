@@ -6,17 +6,17 @@ import { Check, PenLine, RotateCcw, Upload } from "lucide-react"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { headlineFont } from "@/components/site/headlineFont"
-import { describePlace } from "@/lib/check/labels"
-import { notesOf, type AiNote } from "@/lib/review/ai/answer"
+import { notesOf } from "@/lib/review/ai/answer"
 import { sentOf } from "@/lib/review/ai/request"
 import { hashOf, saveNotes, savedByHash, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
 import { unitsOf } from "@/lib/review/ai/units"
-import { aiScribbleOf, marksOf, scribbleOf } from "@/lib/review/marks"
 import type { Review, ReviewStep } from "@/lib/review/review"
 import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import CloudWord from "./CloudWord"
 import AiNotes, { type AiState } from "./AiNotes"
-import MarkedPages, { measurer, type Note } from "./MarkedPages"
+import MarkedPages from "./MarkedPages"
+import { aiNotesOf, checkNotesOf } from "./notes"
+import { measurer, type Note } from "./PageMarks"
 import { circle, highlight, underline, type Box } from "./rough"
 
 const ACCEPTED_FILES =
@@ -93,25 +93,6 @@ function Backdrop({ scanning }: { scanning: boolean }) {
  * the sky, then the resume itself in a frosted frame, scribbled on where each
  * note is, with the note beside the pen when it's pointed at.
  */
-// What the list under the page calls an AI note's line: its first words.
-const placeOf = (text: string) => (text.length > 48 ? `“${text.slice(0, 46).trimEnd()}…”` : `“${text}”`)
-
-function aiNotesOf(notes: readonly AiNote[], measure: (text: string) => number): Note[] {
-  return notes.map((note, index) => {
-    const scribble = aiScribbleOf(note, measure)
-    return {
-      key: `ai-${index}`,
-      ink: note.tone,
-      label: note.tone === "red" ? "Red flag" : "Green flag",
-      title: note.title,
-      body: note.why,
-      rewrite: note.suggestion,
-      place: note.unit ? placeOf(note.unit.text) : "On your resume",
-      drawn: note.unit && scribble ? { page: note.unit.page, scribble } : null,
-    }
-  })
-}
-
 /** Which notes the page is marked with: the AI's, or the checks'. */
 type Shown = "ai" | "checks"
 
@@ -120,23 +101,7 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
   const verdict = verdictOf(score.total)
   const counts = countsOf(report)
   const measure = useMemo(() => measurer(), [])
-  const checked = useMemo(() => {
-    const marks = marksOf(report.view, report.findings, reading)
-    return report.findings.map((finding, index): Note => {
-      const mark = marks[index]
-      const fix = finding.level === "fix" && !finding.advisory
-      return {
-        key: `check-${index}`,
-        ink: fix ? "fix" : "look",
-        label: fix ? "Must fix" : null,
-        title: finding.message,
-        body: finding.suggestion ?? null,
-        rewrite: null,
-        place: describePlace(report.view, finding.place),
-        drawn: mark ? { page: mark.page, scribble: scribbleOf(finding, mark, measure) } : null,
-      }
-    })
-  }, [report, reading, measure])
+  const checked = useMemo(() => checkNotesOf(report.view, report.findings, reading, measure), [report, reading, measure])
   // The lines the AI is sent and points at; without a reading of the PDF, there's nothing to point at.
   const units = useMemo(() => (reading ? unitsOf(report.view, reading) : null), [report, reading])
   const [ai, setAi] = useState<AiState>({ step: "idle" })
