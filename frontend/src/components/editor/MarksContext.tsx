@@ -33,6 +33,8 @@ interface MarksValue {
   setOpen: (key: string | null) => void
   /** The shown notes' marks, by page, while in Check mode and once the preview has been read. */
   placed: Placed[]
+  /** The PDF the marks were measured on: they're drawn over that one alone. */
+  file: string | null
   pages: readonly PageSize[] | null
   /** The AI's notes for this resume, kept in this browser; null when it has none. */
   aiNotes: SavedNote[] | null
@@ -53,6 +55,7 @@ const PROBLEM = "Something went wrong getting AI notes. Try again in a minute."
 export function MarksProvider({
   report,
   reading,
+  file,
   mode,
   open: openFinding,
   children,
@@ -60,6 +63,8 @@ export function MarksProvider({
   report: Report | null
   /** The preview as read, when it's of the resume as it is now. */
   reading: PdfReading | null
+  /** The preview's PDF that `reading` is of. */
+  file: string | null
   mode: Mode
   open: (finding: Finding) => void
   children: React.ReactNode
@@ -162,6 +167,7 @@ export function MarksProvider({
       open,
       setOpen,
       placed,
+      file,
       pages: reading?.pages ?? null,
       aiNotes,
       aiPlaces,
@@ -170,7 +176,7 @@ export function MarksProvider({
       askAi,
       choose,
     }),
-    [shown, show, open, placed, reading, aiNotes, aiPlaces, ai, units, askAi, choose],
+    [shown, show, open, placed, file, reading, aiNotes, aiPlaces, ai, units, askAi, choose],
   )
   return <MarksContext.Provider value={value}>{children}</MarksContext.Provider>
 }
@@ -209,10 +215,15 @@ export function usePointAt(key: string) {
   }
 }
 
-/** One preview page's marks, over the page (in a `relative` box its size). */
-export function PreviewMarks({ page }: { page: number }) {
-  const { placed, pages, open, setOpen, choose } = useMarks()
+/**
+ * One preview page's marks, over the page (in a `relative` box its size).
+ * The preview keeps an older PDF on screen while a newer one draws, and the
+ * newer one can be read first: marks are drawn only over the PDF they're of.
+ */
+export function PreviewMarks({ page, file }: { page: number; file: string }) {
+  const { placed, file: measured, pages, open, setOpen, choose } = useMarks()
   const size = pages?.[page - 1]
+  if (file !== measured) return null
   if (!size || !placed.some((each) => each.page === page)) return null
   return <PageMarks page={page} size={size} placed={placed} open={open} onOpen={setOpen} onChoose={choose} />
 }

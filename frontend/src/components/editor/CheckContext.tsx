@@ -203,13 +203,13 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
   // editor target. Include source addresses in the reading cache key.
   const readingKey = previewPrinted ? `${previewPrinted}\n${layoutJSON}` : ""
   // The latest preview as read, and what it prints; null if it couldn't be read.
-  const [read, setRead] = useState<{ printed: string; key: string; pdf: PdfReading | null } | null>(null)
+  const [read, setRead] = useState<{ printed: string; key: string; url: string; pdf: PdfReading | null } | null>(null)
   const readings = useRef(new Map<string, PdfReading | null>())
   useEffect(() => {
     if (!watching || !previewUrl || !previewPrinted) return
     const known = readings.current
     if (known.has(readingKey)) {
-      setRead({ printed: previewPrinted, key: readingKey, pdf: known.get(readingKey) ?? null })
+      setRead({ printed: previewPrinted, key: readingKey, url: previewUrl, pdf: known.get(readingKey) ?? null })
       return
     }
     const reading = new AbortController()
@@ -222,12 +222,12 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
           known.set(readingKey, pdf)
           // Maps keep the order things were added in: the first is the oldest.
           if (known.size > READINGS_KEPT) known.delete(known.keys().next().value!)
-          setRead({ printed: previewPrinted, key: readingKey, pdf })
+          setRead({ printed: previewPrinted, key: readingKey, url: previewUrl, pdf })
         })
         .catch((error) => {
           if (reading.signal.aborted) return
           console.warn("The checker couldn't read the preview:", error)
-          setRead({ printed: previewPrinted, key: readingKey, pdf: null })
+          setRead({ printed: previewPrinted, key: readingKey, url: previewUrl, pdf: null })
         })
     })
     return () => {
@@ -332,7 +332,7 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
       <CheckModeContext.Provider value={mode}>
         <CheckContext.Provider value={value}>
           <CheckTargetContext.Provider value={target}>
-            <MarksProvider report={report ?? null} reading={current?.pdf ?? null} mode={mode} open={open}>
+            <MarksProvider report={report ?? null} reading={current?.pdf ?? null} file={current?.url ?? null} mode={mode} open={open}>
               {children}
             </MarksProvider>
           </CheckTargetContext.Provider>

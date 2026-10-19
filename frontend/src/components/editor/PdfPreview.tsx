@@ -483,7 +483,7 @@ function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPre
                               />
                             </div>
                             {/* In Check mode, the checks' or the AI's pen marks, over the page that's shown. */}
-                            {drawing === shownDrawing && drawing.ready && <PreviewMarks page={index + 1} />}
+                            {drawing === shownDrawing && drawing.ready && <PreviewMarks page={index + 1} file={drawing.file} />}
                           </div>
                         ))}
                       </div>
