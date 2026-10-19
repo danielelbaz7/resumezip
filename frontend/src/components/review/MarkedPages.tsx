@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from "react"
 import type { Box, Scribble } from "@/lib/review/marks"
-import { bracket, circle, rectangle, strike, tick, underline } from "./rough"
+import { bracket, circle, rectangle, strike, underline } from "./rough"
 
 /** The pen a note is drawn in: the checker's must-fix and look, and the AI's red and green flags. */
 export type Ink = "fix" | "look" | "red" | "green"
@@ -50,8 +50,7 @@ export function measurer(): (text: string) => number {
   return (text) => context.measureText(text).width
 }
 
-function pathOf({ kind, boxes, foot }: Scribble, seed: number): string {
-  if (kind === "tick" && foot) return [tick(foot, 9, seed), ...boxes.map((box, line) => underline(box, seed + line, 0.5))].join(" ")
+function pathOf({ kind, boxes }: Scribble, seed: number): string {
   if (kind === "circle") return circle(boxes[0], seed, 2)
   if (kind === "box") return rectangle(boxes[0], seed)
   if (kind === "strike") return strike(boxes[0], seed)
@@ -59,8 +58,8 @@ function pathOf({ kind, boxes, foot }: Scribble, seed: number): string {
   return boxes.map((box, line) => underline(box, seed + line, 0.5)).join(" ")
 }
 
-function areaOf({ kind, boxes, foot }: Scribble): Box {
-  const left = Math.min(...boxes.map((box) => box[0]), foot ? foot[0] - 5 : Infinity) - (kind === "bracket" ? 9 : 4)
+function areaOf({ kind, boxes }: Scribble): Box {
+  const left = Math.min(...boxes.map((box) => box[0])) - (kind === "bracket" ? 9 : 4)
   return [
     left,
     Math.min(...boxes.map((box) => box[1])) - 3,

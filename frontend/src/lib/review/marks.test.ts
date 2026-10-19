@@ -138,17 +138,15 @@ test("scribbles round the words a note quotes where they're printed, or else bes
   expect(scribbleOf(note("A date in the future", "fix"), one, measure)).toEqual({ kind: "box", boxes: [duty.box] })
 })
 
-test("an AI's red flag circles a few words, underlines more, and marks a whole bullet beside it; a green flag ticks its line", () => {
+test("an AI's red flag circles a few words, underlines more, and marks a whole bullet beside it; a green flag underlines", () => {
   const unit = { id: "u1", bullet: true, text: `${duty.text} ${more.text}`, page: 1, lines: [duty, more] }
   const flag = (tone: AiNote["tone"], quote: string | null): AiNote => ({ tone, title: "", why: "", suggestion: null, unit, quote })
   expect(aiScribbleOf(flag("red", "various"), measure)).toEqual({ kind: "circle", boxes: [[220, 100, 290, 112]] })
   const long = printed([["Built a deploy tool for the team", 60]], [50, 140, 350, 152])
   expect(aiScribbleOf({ ...flag("red", "a deploy tool for the team"), unit: { ...unit, lines: [long] } }, measure)?.kind).toBe("underline")
   expect(aiScribbleOf(flag("red", null), measure)).toEqual({ kind: "bracket", boxes: [duty.box, more.box] })
-  const green = aiScribbleOf(flag("green", "various"), measure)!
-  expect(green.kind).toBe("tick")
-  expect(green.boxes).toEqual([[220, 100, 290, 112]])
-  // In the margin, left of the line it's on.
-  expect(green.foot![0]).toBeLessThan(duty.box[0])
+  // A green flag only underlines: its words, or its lines.
+  expect(aiScribbleOf(flag("green", "various"), measure)).toEqual({ kind: "underline", boxes: [[220, 100, 290, 112]] })
+  expect(aiScribbleOf(flag("green", null), measure)).toEqual({ kind: "underline", boxes: [duty.box, more.box] })
   expect(aiScribbleOf({ ...flag("red", "various"), unit: null }, measure)).toBeNull()
 })

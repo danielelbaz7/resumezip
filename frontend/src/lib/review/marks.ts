@@ -25,14 +25,12 @@ export interface Mark {
 }
 
 /** The pen marks drawn on the page, as crackedresume draws them. */
-export type ScribbleKind = "box" | "circle" | "strike" | "bracket" | "underline" | "tick"
+export type ScribbleKind = "box" | "circle" | "strike" | "bracket" | "underline"
 
 export interface Scribble {
   kind: ScribbleKind
   /** The word's box, or each line's. */
   boxes: Box[]
-  /** A tick's foot, in the margin beside its line. */
-  foot?: [number, number]
 }
 
 // Shorter text is too likely to be found on a line it isn't about.
@@ -117,18 +115,13 @@ export function scribbleOf(finding: Finding, mark: Mark, measure: (text: string)
 /**
  * How an AI note is drawn on its line: a red flag circles the words it
  * quotes, or underlines them when they're more than a few, or marks the
- * whole bullet beside it; a green flag ticks the line in the margin and
- * underlines the words.
+ * whole bullet beside it; a green flag underlines its words, or its lines.
  */
 export function aiScribbleOf({ tone, unit, quote }: AiNote, measure: (text: string) => number): Scribble | null {
   if (!unit) return null
   const word = quote ? wordBox(unit.lines, quote, measure) : null
   const boxes = word ? [word] : unit.lines.map(({ box }) => box)
-  if (tone === "green") {
-    const line = (word && unit.lines.find(({ box }) => box[1] === word[1])) || unit.lines[0]
-    const [left, top, , bottom] = line.box
-    return { kind: "tick", boxes, foot: [left - 7, top + (bottom - top) * 0.8] }
-  }
+  if (tone === "green") return { kind: "underline", boxes }
   if (word) return { kind: quote!.trim().split(/\s+/).length <= 4 ? "circle" : "underline", boxes }
   return { kind: boxes.length > 1 ? "bracket" : "underline", boxes }
 }
