@@ -2,6 +2,9 @@ import { test as base, type Browser, type BrowserContext } from "@playwright/tes
 
 export * from "@playwright/test"
 
+/** For checks that need no page: `test`'s fixtures below are automatic, and start a browser for every test. */
+export const testWithoutBrowser = base
+
 // Specs import test and expect from here, not from @playwright/test (lint
 // enforces it), so that WebKit's tests draw the glass without its blur.
 //
