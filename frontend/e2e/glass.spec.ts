@@ -63,3 +63,36 @@ test("the search bar on the templates and the dashboard is in no block that fade
   await expect(resumes).toBeVisible()
   expect(await fadesFromMain(resumes)).toEqual([])
 })
+
+/** What in `main` draws a backdrop filter inside a block that fades in (page-in in globals.css), by its words. */
+const frostedInAFade = (page: Page) =>
+  page.getByRole("main").evaluate((main) =>
+    [...main.querySelectorAll("*")]
+      .filter((element) =>
+        [null, "::before", "::after"].some((pseudo) => {
+          const style = getComputedStyle(element, pseudo)
+          const filter = style.getPropertyValue("backdrop-filter") || style.getPropertyValue("-webkit-backdrop-filter")
+          return filter !== "" && filter !== "none"
+        }),
+      )
+      .filter((element) => {
+        for (let at: Element | null = element; at && at !== main; at = at.parentElement) {
+          if (getComputedStyle(at).animationName !== "none") return true
+        }
+        return false
+      })
+      .map((element) => element.textContent?.trim() ?? ""),
+  )
+
+// The review page's frosted sheet and fog were in the block that fades in, so
+// the sky showed through them sharp and bright as the page opened, then
+// frosted over in one frame as the fade ended.
+test("the review page's frosted sheet and fog are in no block that fades in, and its words still fade", async ({ page, browserName }) => {
+  test.skip(browserName === "webkit", "WebKit's tests draw no blur (e2e/test.ts)")
+  await page.goto("/review")
+  const headline = page.getByRole("heading", { level: 1 })
+  await expect(headline).toBeVisible()
+  expect(await fadesFromMain(headline)).toContain("page-in")
+  // Its button is solid white glass, with nothing behind it showing through.
+  expect(await frostedInAFade(page)).toEqual(["Review my resume"])
+})

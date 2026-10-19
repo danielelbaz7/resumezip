@@ -452,9 +452,9 @@ export default function ReviewPage() {
             }}
           />
         ) : (
-          <section className="relative flex min-h-[calc(100svh-84px)] flex-col items-center px-4 pb-24 pt-[calc(var(--sheet)*0.62)] text-center">
+          <section className="no-page-in relative flex min-h-[calc(100svh-84px)] flex-col items-center px-4 pb-24 pt-[calc(var(--sheet)*0.62)] text-center">
             <Backdrop scanning={working} />
-            <div className="relative flex flex-col items-center">
+            <div className="page-in relative flex flex-col items-center">
               {working ? (
                 <div role="status" className="flex flex-col items-center">
                   <h1 className={`${headlineFont.className} text-[clamp(40px,5.8vw,66px)] leading-none tracking-[-0.02em] text-[#3a3e46]`}>
