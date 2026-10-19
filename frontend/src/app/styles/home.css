@@ -86,6 +86,11 @@
     object-fit: cover;
     object-position: center bottom;
     transform-origin: 50% 100%;
+    /* Its hills are at its foot, where the grass would hide them: it's drawn larger about its foot,
+       and its foot is lifted behind the grass (as far as the grass is sunk, short of where its blades
+       meet), so the hills stand clear of the grass. The camera's push (HomeStory.tsx) scales on top. */
+    scale: 1.18;
+    translate: 0 calc(var(--grass-width) * -0.085 * 941 / 1672);
   }
 
   /* The first screen: the name, what it is, the way in, and Microsoft for Startups. Clear of the
