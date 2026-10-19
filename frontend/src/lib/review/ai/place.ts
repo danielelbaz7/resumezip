@@ -58,14 +58,8 @@ export function findingOf(note: SavedNote, place: Place, index: number): Finding
     why: note.why,
     ...(note.suggestion && { suggestion: note.suggestion }),
     text: note.quote,
-    // Its tone goes in its key, the one part of a finding that's free to say it.
-    key: `${AI_RULE}:${note.tone}:${index}`,
+    key: `${AI_RULE}:${index}`,
     dismissed: false,
+    flag: note.tone,
   }
-}
-
-/** An AI note's flag, red or green, when a finding is one (findingOf); null for the checker's. */
-export function aiToneOf(finding: Finding): "red" | "green" | null {
-  if (finding.rule !== AI_RULE) return null
-  return finding.key.startsWith(`${AI_RULE}:green:`) ? "green" : "red"
 }

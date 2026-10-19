@@ -4,7 +4,6 @@ import type React from "react"
 import { useEffect, useId, useRef, useState } from "react"
 import { Pencil } from "lucide-react"
 import type { Finding } from "@/lib/check/engine"
-import { aiToneOf } from "@/lib/review/ai/place"
 import { onMac, shortcut } from "@/lib/keys"
 import { markedPieces } from "@/lib/typst/resumeData"
 import { bulletLines, withBullets } from "./arrange"
@@ -60,11 +59,10 @@ export const levelPill = (tier: Tier) =>
  * on the preview show it, and the form stays clear for writing.
  */
 export function FlagNote({ id, finding }: { id?: string; finding: Finding }) {
-  const tone = aiToneOf(finding)
   return (
     <div id={id} className="sr-only">
       <p>
-        {tone ? (tone === "green" ? "Green flag" : "Red flag") : TIER_NAMES[tierOf(finding)]}: {finding.message}
+        {finding.flag ? (finding.flag === "green" ? "Green flag" : "Red flag") : TIER_NAMES[tierOf(finding)]}: {finding.message}
       </p>
       <p>{finding.why}</p>
       {finding.suggestion && <p>{finding.suggestion}</p>}
