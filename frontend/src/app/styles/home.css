@@ -73,6 +73,7 @@
     will-change: transform, opacity;
   }
   .home-stage > .home-meadow,
+  .home-stage > .home-shade,
   .home-stage > .home-hero,
   .home-stage > .home-grass,
   .home-stage > .home-ink-layer {
@@ -91,6 +92,17 @@
        meet), so the hills stand clear of the grass. The camera's push (HomeStory.tsx) scales on top. */
     scale: 1.18;
     translate: 0 calc(var(--grass-width) * -0.085 * 941 / 1672);
+  }
+
+  /* The sky's top three quarters a deeper blue, so the white words on the first screen read where
+     they cross the clouds. It fades with them (HomeStory.tsx), and stays still as the camera pushes
+     in on the meadow. */
+  .home-stage > .home-shade {
+    width: 100%;
+    height: 76%;
+  }
+  .home-shade {
+    background: linear-gradient(rgb(10 70 200 / 0.5), rgb(10 70 200 / 0.42) 62%, rgb(10 70 200 / 0));
   }
 
   /* The first screen: the name, what it is, the way in, and Microsoft for Startups. Clear of the
@@ -128,7 +140,8 @@
   }
   .home-definition {
     margin: 22px 0 0;
-    max-width: 660px;
+    /* Wide enough for two lines from a tablet up, fewer of them over the clouds. */
+    max-width: 36em;
     font-size: clamp(16px, 1.45vw, 21px);
     line-height: 1.45;
     color: #fff;

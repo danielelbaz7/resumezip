@@ -24,9 +24,12 @@ test("the header's Star on GitHub is ink glass with a gold star, and gets lighte
   expect(await brightness(button)).toBeGreaterThan(resting)
 })
 
-// A page's main button is ink on the pages about resumezip, and blue glass on
-// the app's white sheet (blue-button in styles/sheet.css).
+// A page's main button is ink on the pages about resumezip, ink glass on the
+// home page's sky (ink-glass in globals.css), and blue glass on the app's white
+// sheet (blue-button in styles/sheet.css).
 const INK = "rgb(17, 19, 24)"
+// ink-glass's gradient, lighter at its top, starts from this grey.
+const INK_GLASS = /^linear-gradient\(rgb\(58, 62, 74\)/
 // blue-button's gradient, lighter at its top, starts from this blue.
 const GLASS_BLUE = /^linear-gradient\(rgb\(91, 151, 251\)/
 
@@ -38,10 +41,10 @@ async function background(button: Locator) {
   })
 }
 
-test("a main button is ink on the pages about resumezip, and blue glass in the app", async ({ page }) => {
+test("a main button is ink on the pages about resumezip, ink glass on the home page, and blue glass in the app", async ({ page }) => {
   await page.goto("/")
   // The hero's: Start writing is a button there too, not words beside a blue square.
-  expect(await background(page.getByRole("link", { name: "Start writing", exact: true }).first())).toEqual({ color: INK, image: "none" })
+  expect((await background(page.getByRole("link", { name: "Start writing", exact: true }).first())).image).toMatch(INK_GLASS)
   await page.goto("/does-not-exist")
   expect(await background(page.getByRole("link", { name: "Back to home" }))).toEqual({ color: INK, image: "none" })
 

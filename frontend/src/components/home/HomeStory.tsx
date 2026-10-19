@@ -4,7 +4,7 @@ import type React from "react"
 import { Fragment, type RefObject, useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
 import { ArrowUpRight } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
-import { INK_PILL } from "@/components/pills"
+import { INK_GLASS_PILL } from "@/components/pills"
 import EmailContact from "@/components/site/EmailContact"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import FloatingStart from "./FloatingStart"
@@ -165,7 +165,7 @@ function WayIn({ ref, copyRef, onFocus, contactId }: WayInProps) {
         <p className="mt-3.5 text-pretty text-[15.5px] leading-normal text-ink-2 sm:text-[17px]">
           Every template is free, and your resume stays in your browser.
         </p>
-        <StartWritingLink className={`${INK_PILL} mt-6`} preloadOnHover>
+        <StartWritingLink className={`${INK_GLASS_PILL} mt-6`} preloadOnHover>
           Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </StartWritingLink>
         <div id={contactId} className="mt-6 border-t border-ink/10 pt-5">
@@ -184,6 +184,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   const stage = useRef<HTMLDivElement>(null)
   const heroBox = useRef<HTMLDivElement>(null)
   const meadow = useRef<HTMLImageElement>(null)
+  const shade = useRef<HTMLDivElement>(null)
   const editor = useRef<HTMLElement>(null)
   const lens = useRef<HTMLDivElement>(null)
   const inkBox = useRef<HTMLDivElement>(null)
@@ -210,7 +211,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
   const toEnd = useRef<() => void>(() => {})
 
   useEffect(() => {
-    const parts = { story, stage, heroBox, meadow, editor, lens, inkBox, wayIn, wayInCopy, pointer }
+    const parts = { story, stage, heroBox, meadow, shade, editor, lens, inkBox, wayIn, wayInCopy, pointer }
     const el = Object.fromEntries(Object.entries(parts).map(([name, ref]) => [name, ref.current])) as {
       [K in keyof typeof parts]: NonNullable<(typeof parts)[K]["current"]>
     }
@@ -288,6 +289,9 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
       el.heroBox.style.transform = `translate3d(0, ${-gone * vh * 0.12}px, 0) scale(${1 - 0.04 * gone})`
       el.heroBox.style.filter = gone > 0.01 ? `blur(${gone * 6}px)` : "none"
       el.heroBox.style.visibility = gone > 0.99 ? "hidden" : ""
+      // The deeper sky is for the first screen's white words: it goes with them, so the notes' blue
+      // ink is written on the plain sky.
+      el.shade.style.opacity = String(1 - gone)
 
       // The camera eases toward the meadow.
       el.meadow.style.transform = `scale(${1 + 0.07 * inOut(span(v, BEATS.push))})`
@@ -439,6 +443,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
       <div ref={stage} className="home-stage">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img ref={meadow} src="/home/meadow.webp" alt="" className="home-meadow" />
+        <div ref={shade} aria-hidden="true" className="home-shade" />
         <div ref={heroBox} className="home-hero">
           {hero}
         </div>
