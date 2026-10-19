@@ -43,8 +43,8 @@ export async function POST(request: Request): Promise<Response> {
   if (!lines) return answer(400, { error: "lines" })
 
   try {
-    const { answer: notes, model } = await askAny(providers, SYSTEM_PROMPT, userPrompt(lines), { signal: request.signal })
-    return answer(200, { notes: (notes as { notes?: unknown }).notes ?? [], model })
+    const { answer: notes } = await askAny(providers, SYSTEM_PROMPT, userPrompt(lines), { signal: request.signal })
+    return answer(200, { notes: (notes as { notes?: unknown }).notes ?? [] })
   } catch {
     return answer(503, { error: "busy" })
   }

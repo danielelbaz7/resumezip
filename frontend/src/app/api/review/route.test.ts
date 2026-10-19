@@ -39,7 +39,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetched)
   vi.stubEnv("AZURE_OPENAI_API_KEY", "azure-key")
   vi.stubEnv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com/")
-  vi.stubEnv("AZURE_OPENAI_DEPLOYMENT", "gpt-5-mini")
+  vi.stubEnv("AZURE_OPENAI_DEPLOYMENT", "gpt-5.4-mini")
   vi.stubEnv("OPENAI_API_KEY", "openai-key")
   vi.spyOn(console, "warn").mockImplementation(() => {})
 })
@@ -53,11 +53,11 @@ test("asks Azure first, with the lines and the answer schema, and hands back its
   fetched.mockResolvedValueOnce(answered(NOTES))
   const response = await post()
   expect(response.status).toBe(200)
-  expect(await response.json()).toEqual({ notes: NOTES.notes, model: "GPT-5 mini" })
+  expect(await response.json()).toEqual({ notes: NOTES.notes })
   const [url, init] = fetched.mock.calls[0]
   expect(url).toBe("https://example.openai.azure.com/openai/v1/chat/completions")
   const sent = JSON.parse(init!.body as string)
-  expect(sent.model).toBe("gpt-5-mini")
+  expect(sent.model).toBe("gpt-5.4-mini")
   expect(sent.response_format.json_schema.strict).toBe(true)
   expect(sent.messages[1].content).toContain("[u2] • Responsible for working on backend services")
 })
@@ -68,6 +68,8 @@ test("asks OpenAI when Azure is busy, and passes Azure over for a minute after",
   expect(fetched.mock.calls.map(([url]) => new URL(url as string).host)).toEqual(["example.openai.azure.com", "api.openai.com"])
   expect((await post()).status).toBe(200)
   expect(new URL(fetched.mock.calls[2][0] as string).host).toBe("api.openai.com")
+  // The same model as Azure's deployment.
+  expect(JSON.parse(fetched.mock.calls[2][1]!.body as string).model).toBe("gpt-5.4-mini")
 })
 
 test("says it's busy when no service answers", async () => {

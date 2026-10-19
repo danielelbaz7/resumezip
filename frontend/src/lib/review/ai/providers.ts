@@ -7,8 +7,6 @@ import { ANSWER_SCHEMA } from "./prompt"
 
 export interface Provider {
   name: "azure" | "openai"
-  /** What the page credits the notes to. */
-  model: string
   url: string
   headers: Record<string, string>
   /** What the request names as the model: Azure takes its deployment's name. */
@@ -17,7 +15,6 @@ export interface Provider {
 
 export interface Asked {
   provider: Provider["name"]
-  model: string
   answer: unknown
   ms: number
   usage: { input: number; output: number; reasoning: number } | null
@@ -33,8 +30,8 @@ export class ProviderError extends Error {
   }
 }
 
-const MODEL = "gpt-5-mini"
-const MODEL_NAME = "GPT-5 mini"
+// Azure's deployment runs the same model (AZURE_OPENAI_DEPLOYMENT), so either one's notes read alike.
+const OPENAI_MODEL = "gpt-5.4-mini"
 
 /** The providers that have keys in `env`, in the order they're tried. */
 export function providersOf(env: Record<string, string | undefined>): Provider[] {
@@ -43,7 +40,6 @@ export function providersOf(env: Record<string, string | undefined>): Provider[]
   if (AZURE_OPENAI_API_KEY && AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_DEPLOYMENT) {
     providers.push({
       name: "azure",
-      model: MODEL_NAME,
       url: `${new URL(AZURE_OPENAI_ENDPOINT).origin}/openai/v1/chat/completions`,
       headers: { "api-key": AZURE_OPENAI_API_KEY },
       deployment: AZURE_OPENAI_DEPLOYMENT,
@@ -52,10 +48,9 @@ export function providersOf(env: Record<string, string | undefined>): Provider[]
   if (OPENAI_API_KEY) {
     providers.push({
       name: "openai",
-      model: MODEL_NAME,
       url: "https://api.openai.com/v1/chat/completions",
       headers: { authorization: `Bearer ${OPENAI_API_KEY}` },
-      deployment: MODEL,
+      deployment: OPENAI_MODEL,
     })
   }
   return providers
@@ -63,8 +58,8 @@ export function providersOf(env: Record<string, string | undefined>): Provider[]
 
 export interface AskOptions {
   signal?: AbortSignal
-  /** gpt-5-mini thinks before it answers; more is slower and costs more. */
-  effort?: "minimal" | "low" | "medium" | "high"
+  /** gpt-5.4-mini thinks before it answers; more is slower and costs more. */
+  effort?: "none" | "low" | "medium" | "high"
 }
 
 /** Asks one provider for the notes; throws a ProviderError when it can't answer. */
@@ -113,7 +108,6 @@ export async function ask(provider: Provider, system: string, user: string, { si
   const usage = body.usage
   return {
     provider: provider.name,
-    model: provider.model,
     answer,
     ms: Date.now() - started,
     usage: usage
