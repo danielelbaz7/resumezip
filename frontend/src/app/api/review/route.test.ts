@@ -98,6 +98,14 @@ test("doesn't ask OpenAI when too little time is left to answer, and says it's b
   expect(fetched).toHaveBeenCalledTimes(1)
 })
 
+test("a request turned away for its lines doesn't count toward the limit", async () => {
+  fetched.mockImplementation(async () => answered(NOTES))
+  const from = (body: unknown) => post(body, { "x-forwarded-for": "10.8.8.8" })
+  for (let tried = 0; tried < 6; tried++) expect((await from({ lines: [] })).status).toBe(400)
+  for (let review = 0; review < 6; review++) expect((await from({ lines: LINES })).status).toBe(200)
+  expect((await from({ lines: LINES })).status).toBe(429)
+})
+
 test("says it's busy when no service answers", async () => {
   fetched.mockImplementation(async () => new Response("down", { status: 500 }))
   const response = await post()
