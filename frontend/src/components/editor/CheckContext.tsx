@@ -12,6 +12,7 @@ import { grammarTexts } from "@/lib/check/spelling"
 import { AI_RULE } from "@/lib/review/ai/place"
 import { printedOf } from "@/lib/typst/compile"
 import type { ActiveSection } from "./SectionNav"
+import { MarksProvider } from "./MarksContext"
 import { usePausedResume, useResumeCheck } from "./useResumeCheck"
 
 /** What the left bar shows: the sections to write in, what the checker found, or the template and Fine-tune. */
@@ -330,7 +331,11 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
     <CheckActionsContext.Provider value={actions}>
       <CheckModeContext.Provider value={mode}>
         <CheckContext.Provider value={value}>
-          <CheckTargetContext.Provider value={target}>{children}</CheckTargetContext.Provider>
+          <CheckTargetContext.Provider value={target}>
+            <MarksProvider report={report ?? null} reading={current?.pdf ?? null} mode={mode} open={open}>
+              {children}
+            </MarksProvider>
+          </CheckTargetContext.Provider>
         </CheckContext.Provider>
       </CheckModeContext.Provider>
     </CheckActionsContext.Provider>

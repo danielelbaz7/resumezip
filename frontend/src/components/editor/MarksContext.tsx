@@ -1,0 +1,198 @@
+"use client"
+
+// The pen marks on the editor's preview, in Check mode: the ATS checks' (blue
+// and red) or the AI's notes (red and green), never both, as on the review
+// page. Which note is showing is shared, so pointing at a mark on the page or
+// at its row in the Check panel shows the same note on the page.
+
+import type React from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { useOpenResume } from "@/context/ResumeContext"
+import type { PdfReading, Report } from "@/lib/check/engine"
+import { notesOf } from "@/lib/review/ai/answer"
+import { findingOf, placeOfQuote } from "@/lib/review/ai/place"
+import { sentOf } from "@/lib/review/ai/request"
+import { hashOf, saveNotes, savedByHash, savedForResume, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
+import { unitsOf, type Unit } from "@/lib/review/ai/units"
+import { measurer, PageMarks, useEscapeCloses, usePlaced, type Note, type PageSize, type Placed } from "@/components/review/PageMarks"
+import { aiKeyOf, aiNotesOf, checkKeyOf, checkNotesOf } from "@/components/review/notes"
+import type { Mode } from "./CheckContext"
+import type { Finding } from "@/lib/check/engine"
+
+/** Which notes mark the preview. */
+export type Shown = "checks" | "ai"
+
+export type AiAsk = { step: "idle" } | { step: "asking" } | { step: "problem"; message: string }
+
+interface MarksValue {
+  shown: Shown
+  show: (which: Shown) => void
+  /** The key of the note that's showing on the preview. */
+  open: string | null
+  setOpen: (key: string | null) => void
+  /** The shown notes' marks, by page, while in Check mode and once the preview has been read. */
+  placed: Placed[]
+  pages: readonly PageSize[] | null
+  /** The AI's notes for this resume, kept in this browser; null when it has none. */
+  aiNotes: SavedNote[] | null
+  ai: AiAsk
+  /** Whether the AI can be asked: the preview has been read, so there are lines to send. */
+  canAsk: boolean
+  askAi: () => void
+  /** Opens the field a note is about, as choosing a finding does. */
+  choose: (note: Note) => void
+}
+
+const MarksContext = createContext<MarksValue | null>(null)
+
+const PROBLEM = "Something went wrong getting AI notes. Try again in a minute."
+
+export function MarksProvider({
+  report,
+  reading,
+  mode,
+  open: openFinding,
+  children,
+}: {
+  report: Report | null
+  /** The preview as read, when it's of the resume as it is now. */
+  reading: PdfReading | null
+  mode: Mode
+  open: (finding: Finding) => void
+  children: React.ReactNode
+}) {
+  const { id } = useOpenResume()
+  const [aiNotes, setAiNotes] = useState<SavedNote[] | null>(null)
+  const [shown, setShown] = useState<Shown>("checks")
+  const [open, setOpen] = useState<string | null>(null)
+  const [ai, setAi] = useState<AiAsk>({ step: "idle" })
+
+  // A resume opened from the review brings its AI notes, kept in this browser, and opens on them.
+  useEffect(() => {
+    const saved = savedForResume(id)?.notes ?? null
+    setAiNotes(saved)
+    if (saved?.length) setShown("ai")
+  }, [id])
+
+  const show = useCallback((which: Shown) => {
+    setShown(which)
+    setOpen(null)
+  }, [])
+
+  const measure = useMemo(() => measurer(), [])
+  const view = report?.view
+  const units: Unit[] | null = useMemo(() => (view && reading ? unitsOf(view, reading) : null), [view, reading])
+  const notes = useMemo(() => {
+    if (mode !== "check" || !report) return []
+    if (shown === "checks") return checkNotesOf(report.view, report.findings, reading, measure)
+    return aiNotes && units ? aiNotesOf(notesOf({ notes: aiNotes }, units), measure) : []
+  }, [mode, report, reading, shown, aiNotes, units, measure])
+  const placed = usePlaced(notes)
+  useEscapeCloses(open, setOpen)
+
+  const askAi = useCallback(() => {
+    if (!units) return
+    setAi({ step: "asking" })
+    void (async () => {
+      const hash = await hashOf(sentOf(units))
+      // This version of the resume was reviewed before, here or in the editor: no need to ask again.
+      let saved = savedByHash(hash)?.notes ?? null
+      if (!saved) {
+        const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
+        try {
+          saved = await askForNotes(units)
+        } catch (error) {
+          if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
+          setAi({ step: "problem", message: error instanceof AiReviewError ? error.message : PROBLEM })
+          return
+        }
+        saveNotes(hash, saved)
+      }
+      tieToResume(hash, id)
+      setAiNotes(saved)
+      setAi({ step: "idle" })
+      show("ai")
+    })().catch((error) => {
+      console.error("Couldn't get AI notes:", error)
+      setAi({ step: "problem", message: PROBLEM })
+    })
+  }, [units, id, show])
+
+  const choose = useCallback(
+    (note: Note) => {
+      if (!report) return
+      if (note.key.startsWith("ai:")) {
+        const index = Number(note.key.slice(3))
+        const saved = aiNotes?.[index]
+        const place = saved && placeOfQuote(report.view, saved.quote)
+        if (saved && place) openFinding(findingOf(saved, place, index))
+        return
+      }
+      const finding = report.findings.find((each) => checkKeyOf(each) === note.key)
+      if (finding) openFinding(finding)
+    },
+    [report, aiNotes, openFinding],
+  )
+
+  const value = useMemo<MarksValue>(
+    () => ({
+      shown,
+      show,
+      open,
+      setOpen,
+      placed,
+      pages: reading?.pages ?? null,
+      aiNotes,
+      ai,
+      canAsk: units !== null,
+      askAi,
+      choose,
+    }),
+    [shown, show, open, placed, reading, aiNotes, ai, units, askAi, choose],
+  )
+  return <MarksContext.Provider value={value}>{children}</MarksContext.Provider>
+}
+
+export function useMarks(): MarksValue {
+  const marks = useContext(MarksContext)
+  if (!marks) throw new Error("useMarks must be used inside MarksProvider")
+  return marks
+}
+
+/**
+ * Pointing at a note's row in the Check panel: shows its note on the
+ * preview, brought into view if it's scrolled out of it. Leaving puts it away.
+ */
+export function usePointAt(key: string) {
+  const { open, setOpen } = useMarks()
+  return {
+    onMouseEnter: () => {
+      setOpen(key)
+      const mark = document.querySelector<HTMLElement>(`.preview-canvas [data-note="${CSS.escape(key)}"]`)
+      const scroller = mark?.closest<HTMLElement>(".preview-canvas")
+      // Not when the preview is hidden, as on small screens while the form shows.
+      if (!mark || !scroller || mark.offsetParent === null) return
+      const seen = scroller.getBoundingClientRect()
+      const box = mark.getBoundingClientRect()
+      if (box.top < seen.top || box.bottom > seen.bottom) {
+        scroller.scrollBy({
+          top: box.top - seen.top - seen.height / 3,
+          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        })
+      }
+    },
+    onMouseLeave: () => {
+      if (open === key) setOpen(null)
+    },
+  }
+}
+
+/** One preview page's marks, over the page (in a `relative` box its size). */
+export function PreviewMarks({ page }: { page: number }) {
+  const { placed, pages, open, setOpen, choose } = useMarks()
+  const size = pages?.[page - 1]
+  if (!size || !placed.some((each) => each.page === page)) return null
+  return <PageMarks page={page} size={size} placed={placed} open={open} onOpen={setOpen} onChoose={choose} />
+}
+
+export { aiKeyOf, checkKeyOf }
