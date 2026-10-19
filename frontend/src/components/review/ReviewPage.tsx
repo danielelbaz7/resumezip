@@ -1,16 +1,20 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Check, PenLine, RotateCcw, Upload } from "lucide-react"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { headlineFont } from "@/components/site/headlineFont"
-import { marksOf } from "@/lib/review/marks"
+import { describePlace } from "@/lib/check/labels"
+import type { AiNote } from "@/lib/review/ai/answer"
+import { unitsOf } from "@/lib/review/ai/units"
+import { aiScribbleOf, marksOf, scribbleOf } from "@/lib/review/marks"
 import type { Review, ReviewStep } from "@/lib/review/review"
 import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import CloudWord from "./CloudWord"
-import MarkedPages, { type Note } from "./MarkedPages"
+import AiNotes, { type AiState } from "./AiNotes"
+import MarkedPages, { measurer, type Note } from "./MarkedPages"
 import { circle, highlight, underline, type Box } from "./rough"
 
 const ACCEPTED_FILES =
@@ -87,14 +91,88 @@ function Backdrop({ scanning }: { scanning: boolean }) {
  * the sky, then the resume itself in a frosted frame, scribbled on where each
  * note is, with the note beside the pen when it's pointed at.
  */
+// What the list under the page calls an AI note's line: its first words.
+const placeOf = (text: string) => (text.length > 48 ? `“${text.slice(0, 46).trimEnd()}…”` : `“${text}”`)
+
+function aiNotesOf(notes: readonly AiNote[], measure: (text: string) => number): Note[] {
+  return notes.map((note, index) => {
+    const scribble = aiScribbleOf(note, measure)
+    return {
+      key: `ai-${index}`,
+      ink: note.tone,
+      label: note.tone === "red" ? "Red flag" : "Green flag",
+      title: note.title,
+      body: note.why,
+      rewrite: note.suggestion,
+      place: note.unit ? placeOf(note.unit.text) : "On your resume",
+      drawn: note.unit && scribble ? { page: note.unit.page, scribble } : null,
+    }
+  })
+}
+
 function Result({ review, onFix, onAnother }: { review: Review; onFix: () => void; onAnother: () => void }) {
   const { report, score, reading, pdf } = review
   const verdict = verdictOf(score.total)
   const counts = countsOf(report)
-  const marked = useMemo(() => {
+  const measure = useMemo(() => measurer(), [])
+  const checked = useMemo(() => {
     const marks = marksOf(report.view, report.findings, reading)
-    return report.findings.map((finding, index): Note => ({ finding, mark: marks[index] }))
-  }, [report, reading])
+    return report.findings.map((finding, index): Note => {
+      const mark = marks[index]
+      const fix = finding.level === "fix" && !finding.advisory
+      return {
+        key: `check-${index}`,
+        ink: fix ? "fix" : "look",
+        label: fix ? "Must fix" : null,
+        title: finding.message,
+        body: finding.suggestion ?? null,
+        rewrite: null,
+        place: describePlace(report.view, finding.place),
+        drawn: mark ? { page: mark.page, scribble: scribbleOf(finding, mark, measure) } : null,
+      }
+    })
+  }, [report, reading, measure])
+  // The lines the AI is sent and points at; without a reading of the PDF, there's nothing to point at.
+  const units = useMemo(() => (reading ? unitsOf(report.view, reading) : null), [report, reading])
+  const [ai, setAi] = useState<AiState>({ step: "idle" })
+  const [open, setOpen] = useState<string | null>(null)
+  const asking = useRef<AbortController | null>(null)
+  const notes = useMemo(() => (ai.step === "done" ? [...checked, ...ai.notes] : checked), [checked, ai])
+
+  // Leaving the result stops the AI on its way.
+  useEffect(() => () => asking.current?.abort(), [])
+
+  const ask = async () => {
+    if (!units) return
+    asking.current?.abort()
+    const current = new AbortController()
+    asking.current = current
+    setAi({ step: "asking" })
+    try {
+      const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
+      try {
+        const { notes, model } = await askForNotes(units, current.signal)
+        if (asking.current === current) setAi({ step: "done", notes: aiNotesOf(notes, measure), model })
+      } catch (error) {
+        if (current.signal.aborted) return
+        if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
+        setAi({
+          step: "problem",
+          message: error instanceof AiReviewError ? error.message : "Something went wrong getting AI notes. Try again in a minute.",
+        })
+      }
+    } catch {
+      if (!current.signal.aborted) setAi({ step: "problem", message: "The AI notes couldn’t load. Check your connection and try again." })
+    }
+  }
+
+  // A flag picked in the list: its mark, brought into view and focused, which shows its note.
+  const pick = useCallback((note: Note) => {
+    const mark = document.querySelector<HTMLElement>(`[data-note="${CSS.escape(note.key)}"]`)
+    if (!mark) return
+    mark.focus({ preventScroll: true })
+    mark.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
+  }, [])
 
   return (
     <section className="review-board">
@@ -106,17 +184,20 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
         <CloudWord lines={NARROW_LINES[verdict]} drift={DRIFT[verdict]} className="w-[min(300px,80vw)] sm:hidden" />
       </div>
       <div className="relative mx-auto w-full max-w-[700px]">
-        <p className="review-bubble">
-          {reasonOf(score, report)}{" "}
-          {counts.notes > 0 && (
-            <>
-              {foundSentence(counts)} <span className="pointer-coarse:hidden">Hover over a scribble to see why.</span>
-              <span className="hidden pointer-coarse:inline">Tap a scribble to see why.</span>
-            </>
-          )}
-          {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
-          {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
-        </p>
+        <div className="review-side">
+          <p className="review-bubble">
+            {reasonOf(score, report)}{" "}
+            {counts.notes > 0 && (
+              <>
+                {foundSentence(counts)} <span className="pointer-coarse:hidden">Hover over a scribble to see why.</span>
+                <span className="hidden pointer-coarse:inline">Tap a scribble to see why.</span>
+              </>
+            )}
+            {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
+            {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
+          </p>
+          {units && <AiNotes state={ai} onAsk={() => void ask()} open={open} onOpen={setOpen} onPick={pick} />}
+        </div>
         <div className="review-card">
           <p className="flex flex-wrap items-baseline justify-center gap-x-2 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
             <span className="font-medium">{score.total}/100</span>
@@ -127,7 +208,7 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
               </>
             )}
           </p>
-          <MarkedPages pdf={pdf} view={report.view} notes={marked} />
+          <MarkedPages pdf={pdf} notes={notes} open={open} onOpen={setOpen} />
         </div>
       </div>
       <div className="review-dock">
