@@ -1,16 +1,22 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Check, PenLine, RotateCcw, Upload } from "lucide-react"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { headlineFont } from "@/components/site/headlineFont"
-import { marksOf } from "@/lib/review/marks"
+import { keptNotesOf, notesOf } from "@/lib/review/ai/answer"
+import { sentOf } from "@/lib/review/ai/request"
+import { hashOf, saveNotes, savedByHash, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
+import { unitsToSend } from "@/lib/review/ai/units"
 import type { Review, ReviewStep } from "@/lib/review/review"
 import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import CloudWord from "./CloudWord"
-import MarkedPages, { type Note } from "./MarkedPages"
+import AiNotes, { type AiState } from "./AiNotes"
+import MarkedPages from "./MarkedPages"
+import { aiNotesOf, checkNotesOf } from "./notes"
+import { measurer, type Note } from "./PageMarks"
 import { circle, highlight, underline, type Box } from "./rough"
 
 const ACCEPTED_FILES =
@@ -87,14 +93,100 @@ function Backdrop({ scanning }: { scanning: boolean }) {
  * the sky, then the resume itself in a frosted frame, scribbled on where each
  * note is, with the note beside the pen when it's pointed at.
  */
-function Result({ review, onFix, onAnother }: { review: Review; onFix: () => void; onAnother: () => void }) {
+/** Which notes the page is marked with: the AI's, or the checks'. */
+type Shown = "ai" | "checks"
+
+function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: string | null) => void; onAnother: () => void }) {
   const { report, score, reading, pdf } = review
   const verdict = verdictOf(score.total)
   const counts = countsOf(report)
-  const marked = useMemo(() => {
-    const marks = marksOf(report.view, report.findings, reading)
-    return report.findings.map((finding, index): Note => ({ finding, mark: marks[index] }))
-  }, [report, reading])
+  const measure = useMemo(() => measurer(), [])
+  const checked = useMemo(() => checkNotesOf(report.view, report.findings, reading, measure), [report, reading, measure])
+  // The lines the AI is sent and points at; without one, there's nothing to ask about.
+  const units = useMemo(() => unitsToSend(report.view, reading), [report, reading])
+  const [ai, setAi] = useState<AiState>({ step: "idle" })
+  const [shown, setShown] = useState<Shown>("checks")
+  const [open, setOpen] = useState<string | null>(null)
+  // The printed lines' hash, which the AI's notes are saved by in this browser.
+  const [hash, setHash] = useState<string | null>(null)
+  const asking = useRef<AbortController | null>(null)
+  const notes = shown === "ai" && ai.step === "done" ? ai.notes : checked
+
+  const show = useCallback((which: Shown) => {
+    setShown(which)
+    setOpen(null)
+  }, [])
+  const showAi = useCallback(
+    (saved: SavedNote[]) => {
+      if (!units) return
+      setAi({ step: "done", notes: aiNotesOf(notesOf({ notes: saved }, units), measure) })
+      show("ai")
+    },
+    [units, measure, show],
+  )
+
+  // A resume reviewed in this browser before shows the AI's notes it got then, without asking again.
+  useEffect(() => {
+    if (!units) return
+    let live = true
+    void hashOf(sentOf(units)).then((hashed) => {
+      if (!live) return
+      setHash(hashed)
+      const saved = savedByHash(hashed)
+      if (saved) showAi(saved.notes)
+    })
+    return () => {
+      live = false
+    }
+  }, [units, showAi])
+
+  // Leaving the result stops the AI on its way.
+  useEffect(() => () => asking.current?.abort(), [])
+
+  const ask = async () => {
+    if (!units) return
+    asking.current?.abort()
+    const current = new AbortController()
+    asking.current = current
+    setAi({ step: "asking" })
+    try {
+      const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
+      try {
+        const saved = keptNotesOf(await askForNotes(units, current.signal), units)
+        if (asking.current !== current) return
+        saveNotes(hash ?? (await hashOf(sentOf(units))), saved)
+        showAi(saved)
+      } catch (error) {
+        if (current.signal.aborted) return
+        if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
+        setAi({
+          step: "problem",
+          message: error instanceof AiReviewError ? error.message : "Something went wrong getting AI notes. Try again in a minute.",
+        })
+      }
+    } catch {
+      if (!current.signal.aborted) setAi({ step: "problem", message: "The AI notes couldn’t load. Check your connection and try again." })
+    }
+  }
+
+  // A flag picked in the list: its mark, brought into view and focused, which shows its note.
+  // When the page shows the checks, it's switched to the AI's notes first, and the mark is looked for once they're drawn.
+  const pick = useCallback(
+    (note: Note) => {
+      const focus = () => {
+        const mark = document.querySelector<HTMLElement>(`[data-note="${CSS.escape(note.key)}"]`)
+        if (!mark) return
+        mark.focus({ preventScroll: true })
+        mark.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
+      }
+      if (shown === "ai") return focus()
+      show("ai")
+      requestAnimationFrame(() => requestAnimationFrame(focus))
+    },
+    [shown, show],
+  )
+  const red = ai.step === "done" ? ai.notes.filter((note) => note.ink === "red").length : 0
+  const green = ai.step === "done" ? ai.notes.length - red : 0
 
   return (
     <section className="review-board">
@@ -106,33 +198,56 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: () => voi
         <CloudWord lines={NARROW_LINES[verdict]} drift={DRIFT[verdict]} className="w-[min(300px,80vw)] sm:hidden" />
       </div>
       <div className="relative mx-auto w-full max-w-[700px]">
-        <p className="review-bubble">
-          {reasonOf(score, report)}{" "}
-          {counts.notes > 0 && (
-            <>
-              {foundSentence(counts)} <span className="pointer-coarse:hidden">Hover over a scribble to see why.</span>
-              <span className="hidden pointer-coarse:inline">Tap a scribble to see why.</span>
-            </>
-          )}
-          {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
-          {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
-        </p>
-        <div className="review-card">
-          <p className="flex flex-wrap items-baseline justify-center gap-x-2 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
-            <span className="font-medium">{score.total}/100</span>
+        <div className="review-side">
+          <p className="review-bubble">
+            {reasonOf(score, report)}{" "}
             {counts.notes > 0 && (
               <>
-                <span aria-hidden="true">·</span>
-                <span>{countsLabel(counts)}</span>
+                {foundSentence(counts)} <span className="pointer-coarse:hidden">Hover over a scribble to see why.</span>
+                <span className="hidden pointer-coarse:inline">Tap a scribble to see why.</span>
               </>
             )}
+            {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
+            {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
           </p>
-          <MarkedPages pdf={pdf} view={report.view} notes={marked} />
+          {units && <AiNotes state={ai} onAsk={() => void ask()} open={open} onOpen={setOpen} onPick={pick} />}
+        </div>
+        <div className="review-card">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
+            {ai.step === "done" && (
+              <div role="group" aria-label="Notes on the page" className="review-switch">
+                <button type="button" aria-pressed={shown === "ai"} onClick={() => show("ai")}>
+                  AI notes
+                </button>
+                <button type="button" aria-pressed={shown === "checks"} onClick={() => show("checks")}>
+                  Checks
+                </button>
+              </div>
+            )}
+            {shown === "ai" && ai.step === "done" ? (
+              <p>
+                {red} red {red === 1 ? "flag" : "flags"}
+                <span aria-hidden="true"> · </span>
+                {green} green {green === 1 ? "flag" : "flags"}
+              </p>
+            ) : (
+              <p className="flex items-baseline gap-x-2">
+                <span className="font-medium">{score.total}/100</span>
+                {counts.notes > 0 && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>{countsLabel(counts)}</span>
+                  </>
+                )}
+              </p>
+            )}
+          </div>
+          <MarkedPages pdf={pdf} notes={notes} open={open} onOpen={setOpen} />
         </div>
       </div>
       <div className="review-dock">
         <div className="review-dock-keys">
-          <button type="button" onClick={onFix} className="review-dock-main">
+          <button type="button" onClick={() => onFix(hash)} className="review-dock-main">
             <PenLine aria-hidden="true" />
             Fix it in the editor
           </button>
@@ -236,8 +351,9 @@ export default function ReviewPage() {
   const chooseFile = () => fileInput.current?.click()
 
   // Adds the reviewed resume to this browser's, unless it's here already as
-  // it is, and opens it in the editor's Check, where the notes are.
-  const fix = async (reviewed: Review) => {
+  // it is, and opens it in the editor's Check, where the notes are. The AI's
+  // notes, if it was asked, go with it: the editor finds them by its id.
+  const fix = async (reviewed: Review, hash: string | null) => {
     const [{ openResumes }, { copyHere }, { saveMode }] = await Promise.all([
       import("@/context/ResumeContext"),
       import("@/lib/resumeStore"),
@@ -247,6 +363,7 @@ export default function ReviewPage() {
     const here = copyHere(store.getState().resumes, reviewed.content)
     // A different version of a resume that's here is added beside it, as a copy.
     const id = here?.unchanged ? here.resume.id! : store.importResume(reviewed.content, reviewed.title, { keepId: !here })
+    if (hash) tieToResume(hash, id)
     saveMode("check")
     router.push(`/create/new/${id}`)
   }
@@ -261,7 +378,7 @@ export default function ReviewPage() {
         {state.step === "done" ? (
           <Result
             review={state.review}
-            onFix={() => void fix(state.review)}
+            onFix={(hash) => void fix(state.review, hash)}
             onAnother={() => {
               setState({ step: "idle" })
               chooseFile()

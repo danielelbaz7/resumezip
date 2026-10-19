@@ -9,8 +9,10 @@ import type { Place } from "@/lib/check/places"
 import { pdfLayoutOf, type PdfSectionLayout } from "@/lib/check/extraPdf"
 import { viewOf } from "@/lib/check/resume"
 import { grammarTexts } from "@/lib/check/spelling"
+import { AI_RULE } from "@/lib/review/ai/place"
 import { printedOf } from "@/lib/typst/compile"
 import type { ActiveSection } from "./SectionNav"
+import { MarksProvider } from "./MarksContext"
 import { usePausedResume, useResumeCheck } from "./useResumeCheck"
 
 /** What the left bar shows: the sections to write in, what the checker found, or the template and Fine-tune. */
@@ -201,13 +203,13 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
   // editor target. Include source addresses in the reading cache key.
   const readingKey = previewPrinted ? `${previewPrinted}\n${layoutJSON}` : ""
   // The latest preview as read, and what it prints; null if it couldn't be read.
-  const [read, setRead] = useState<{ printed: string; key: string; pdf: PdfReading | null } | null>(null)
+  const [read, setRead] = useState<{ printed: string; key: string; url: string; pdf: PdfReading | null } | null>(null)
   const readings = useRef(new Map<string, PdfReading | null>())
   useEffect(() => {
     if (!watching || !previewUrl || !previewPrinted) return
     const known = readings.current
     if (known.has(readingKey)) {
-      setRead({ printed: previewPrinted, key: readingKey, pdf: known.get(readingKey) ?? null })
+      setRead({ printed: previewPrinted, key: readingKey, url: previewUrl, pdf: known.get(readingKey) ?? null })
       return
     }
     const reading = new AbortController()
@@ -220,12 +222,12 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
           known.set(readingKey, pdf)
           // Maps keep the order things were added in: the first is the oldest.
           if (known.size > READINGS_KEPT) known.delete(known.keys().next().value!)
-          setRead({ printed: previewPrinted, key: readingKey, pdf })
+          setRead({ printed: previewPrinted, key: readingKey, url: previewUrl, pdf })
         })
         .catch((error) => {
           if (reading.signal.aborted) return
           console.warn("The checker couldn't read the preview:", error)
-          setRead({ printed: previewPrinted, key: readingKey, pdf: null })
+          setRead({ printed: previewPrinted, key: readingKey, url: previewUrl, pdf: null })
         })
     })
     return () => {
@@ -310,11 +312,14 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
 
   // The same finding while it's there, or else the same problem as its text
   // changes while it's being fixed: one rule can find more than one thing at
-  // a place, as two typos in a bullet.
+  // a place, as two typos in a bullet. An AI note from the review isn't the
+  // checker's: it's opened where it was found.
   const live =
     chosen && report
-      ? (report.findings.find((finding) => finding.key === chosen.finding.key) ??
-        report.findings.find((finding) => sameIssue(finding, chosen.finding)))
+      ? chosen.finding.rule === AI_RULE
+        ? chosen.finding
+        : (report.findings.find((finding) => finding.key === chosen.finding.key) ??
+          report.findings.find((finding) => sameIssue(finding, chosen.finding)))
       : undefined
   const target = useMemo(
     () => (chosen && live && mode === "check" ? { finding: live, request: chosen.request } : null),
@@ -326,7 +331,11 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
     <CheckActionsContext.Provider value={actions}>
       <CheckModeContext.Provider value={mode}>
         <CheckContext.Provider value={value}>
-          <CheckTargetContext.Provider value={target}>{children}</CheckTargetContext.Provider>
+          <CheckTargetContext.Provider value={target}>
+            <MarksProvider report={report ?? null} reading={current?.pdf ?? null} file={current?.url ?? null} mode={mode} open={open}>
+              {children}
+            </MarksProvider>
+          </CheckTargetContext.Provider>
         </CheckContext.Provider>
       </CheckModeContext.Provider>
     </CheckActionsContext.Provider>

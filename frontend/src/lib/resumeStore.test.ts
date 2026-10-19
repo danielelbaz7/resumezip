@@ -3,6 +3,7 @@ import { memoryStorage } from "./memoryStorage"
 import type { Resume } from "./resume"
 import { createResumeStore, SAVE_DELAY } from "./resumeStore"
 import { keyOf, LEGACY_KEY, readResume } from "./resumeStorage"
+import { saveNotes, savedByHash, savedForResume, tieToResume } from "./review/ai/saved"
 
 const ada = { id: "a", resumeTitle: "Ada", profileSection: { fullName: "Ada Lovelace" }, updatedAt: "2026-10-06T10:00:00.000Z" }
 const grace = { id: "g", resumeTitle: "Grace", profileSection: { fullName: "Grace Hopper" }, updatedAt: "2026-10-06T10:00:00.000Z" }
@@ -228,6 +229,18 @@ describe("two tabs editing the profile", () => {
 })
 
 describe("deleting", () => {
+  test("a resume deleted for good takes the AI notes that quote it with it, and leaves others'", () => {
+    const storage = memoryStorage(saved(ada, grace))
+    saveNotes("ada's lines", [], storage, 1)
+    tieToResume("ada's lines", "a", storage)
+    saveNotes("grace's lines", [], storage, 2)
+    tieToResume("grace's lines", "g", storage)
+    openTab(storage).remove("a")
+    expect(savedForResume("a", storage)).toBeNull()
+    expect(savedByHash("ada's lines", storage)).toBeNull()
+    expect(savedForResume("g", storage)?.hash).toBe("grace's lines")
+  })
+
   test("a resume deleted in another tab goes from this one too", () => {
     const storage = memoryStorage(saved(ada, grace))
     const one = openTab(storage)

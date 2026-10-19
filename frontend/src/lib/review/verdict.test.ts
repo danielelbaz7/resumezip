@@ -27,7 +27,8 @@ function scoreOf(total: number, lost: Partial<Record<CategoryId, number>> = {}):
   return { total, categories }
 }
 
-const finding = (level: Finding["level"], advisory = false): Finding => ({
+let keys = 0
+const finding = (level: Finding["level"], advisory = false, key = `k${++keys}`): Finding => ({
   rule: "B1",
   level,
   ...(advisory && { advisory }),
@@ -36,7 +37,7 @@ const finding = (level: Finding["level"], advisory = false): Finding => ({
   message: "",
   why: "",
   text: "",
-  key: "",
+  key,
   dismissed: false,
 })
 const reportOf = (findings: Finding[]) => ({ findings }) as unknown as Report
@@ -57,6 +58,13 @@ describe("reasonOf", () => {
 
 test("countsOf counts every note, and the must-fixes that aren't advice", () => {
   expect(countsOf(reportOf([finding("fix"), finding("look"), finding("look", true), finding("fix")]))).toEqual({ notes: 4, mustFixes: 2 })
+})
+
+test("countsOf counts a thing found twice at one place once, as it's marked once", () => {
+  expect(countsOf(reportOf([finding("fix", false, "twice"), finding("fix", false, "twice"), finding("look")]))).toEqual({
+    notes: 2,
+    mustFixes: 1,
+  })
 })
 
 test("says how many notes and must-fixes there are, in words", () => {

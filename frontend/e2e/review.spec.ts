@@ -52,7 +52,7 @@ test("reviews a resume in the browser, scribbles its notes on the page, and open
     "aria-selected",
     "true",
   )
-  await expect(page.getByRole("region", { name: "Resume score" }).getByText(/^\d+$/)).toHaveText(reviewed)
+  await expect(page.getByRole("region", { name: "ATS score" }).getByText(/^\d+$/)).toHaveText(reviewed)
   expect(errors).toEqual([])
 })
 
