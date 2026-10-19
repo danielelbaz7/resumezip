@@ -64,13 +64,12 @@ const PERMISSIONS_POLICY = [
   .join(", ")
 
 const SECURITY_HEADERS = [
-  // Report-only to start with: it blocks nothing, and logs what it would
-  // have, which the browser tests fail on (pageErrors, in e2e/helpers.ts).
-  // Safari also logs an error that it names nowhere to send reports to, as
-  // the site has no server to take them, and visitors' browsers send it nothing.
-  { key: "Content-Security-Policy-Report-Only", value: CONTENT_SECURITY_POLICY },
-  // Meanwhile, as frame-ancestors only reports, this keeps other sites from
-  // showing the site in a frame, where a click on it could be made a click on theirs.
+  // Enforced: the browser refuses what it doesn't allow, and logs it, which
+  // the browser tests fail on (pageErrors, in e2e/helpers.ts). It names
+  // nowhere to send reports to: visitors' browsers send the site nothing.
+  { key: "Content-Security-Policy", value: CONTENT_SECURITY_POLICY },
+  // frame-ancestors, for browsers older than it: no other site can show this
+  // one in a frame, where a click on it could be made a click on theirs.
   { key: "X-Frame-Options", value: "DENY" },
   // A file is only run as the type it's sent as, never as one guessed from what's in it.
   { key: "X-Content-Type-Options", value: "nosniff" },
