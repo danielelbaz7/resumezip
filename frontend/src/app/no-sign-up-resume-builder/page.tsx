@@ -74,8 +74,11 @@ export default function NoSignUp() {
 
       <PromiseSection id="why" heading="Why there’s no account">
         <p>
-          An account is how a site keeps your resume on its servers. resumezip doesn’t keep it at all: it’s saved in your browser as you
-          type. With nothing stored on our side, there’s nothing to sign in to.
+          An account is how a site keeps your resume on its servers. resumezip{" "}
+          <Link href="/private-resume-builder" className={TEXT_LINK}>
+            doesn’t keep it at all
+          </Link>
+          : it’s saved in your browser as you type. With nothing stored on our side, there’s nothing to sign in to.
         </p>
       </PromiseSection>
 

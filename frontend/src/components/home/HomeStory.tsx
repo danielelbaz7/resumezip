@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { Fragment, type RefObject, useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
+import Link from "next/link"
 import { ArrowUpRight } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
 import { INK_GLASS_PILL } from "@/components/pills"
@@ -163,7 +164,11 @@ function WayIn({ ref, copyRef, onFocus, contactId }: WayInProps) {
           Your resume, on <em className="text-accent">your own computer.</em>
         </h2>
         <p className="mt-3.5 text-pretty text-[15.5px] leading-normal text-ink-2 sm:text-[17px]">
-          Every template is free, and your resume stays in your browser.
+          Every template is free, and{" "}
+          <Link href="/private-resume-builder" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+            your resume stays in your browser
+          </Link>
+          .
         </p>
         <StartWritingLink className={`${INK_GLASS_PILL} mt-6`} preloadOnHover>
           Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />

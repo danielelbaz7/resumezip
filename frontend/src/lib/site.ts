@@ -11,6 +11,14 @@ export const LINKEDIN_URL = "https://www.linkedin.com/company/resumezip"
 /** The logo as a picture, for search engines: Google wants one at least 112 px square, which logo.svg doesn't say it is. */
 export const LOGO_IMAGE = { url: "/logo.png", width: 1024, height: 1024 }
 
+/**
+ * Everything that goes online from a visitor's browser, as the privacy policy
+ * and the private page both say it. Anything new that sends what someone
+ * writes elsewhere changes this sentence, and so both pages.
+ */
+export const WHAT_GOES_ONLINE =
+  "Your browser only goes online to load the site and its tools (our host and jsDelivr keep basic logs), look up a paper’s DOI you add, or save a PDF to your own Google Drive when you ask."
+
 /** What search results and link previews say about resumezip, unless a page says something of its own. */
 export const SITE_DESCRIPTION = "Free, open-source resume builder that runs in your browser."
 

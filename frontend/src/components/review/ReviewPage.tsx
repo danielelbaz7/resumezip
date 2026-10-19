@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Check, PenLine, RotateCcw, Upload } from "lucide-react"
 import SiteFooter from "@/components/site/SiteFooter"
@@ -331,7 +332,12 @@ export default function ReviewPage() {
                       {state.step === "problem" ? "Try another file" : "Review my resume"}
                     </button>
                   )}
-                  <p className="mt-6 text-[13px] text-ink-2">PDF or Word · Free · Read in your browser, never uploaded</p>
+                  <p className="mt-6 text-[13px] text-ink-2">
+                    PDF or Word · Free · Read in your browser,{" "}
+                    <Link href="/private-resume-builder" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+                      never uploaded
+                    </Link>
+                  </p>
                 </>
               )}
             </div>
