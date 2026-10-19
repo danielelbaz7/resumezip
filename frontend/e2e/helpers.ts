@@ -84,6 +84,8 @@ export function pageErrors(page: Page): string[] {
   page.on("console", (message) => {
     const text = message.text()
     if (NOWHERE_TO_REPORT.test(text)) return
+    // How every test that doesn't answer it sees /api/review (test.ts): as on a site with no AI keys.
+    if (/status of 503/.test(text) && message.location().url.endsWith("/api/review")) return
     // A report-only policy blocks nothing and only logs, which Chromium does as info.
     if (message.type() === "error" || text.startsWith("[Report Only]")) add(`${text} (at ${message.location().url})`, text)
   })

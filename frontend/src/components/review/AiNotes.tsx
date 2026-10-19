@@ -1,9 +1,42 @@
 "use client"
 
-import { RotateCcw, Sparkles } from "lucide-react"
+import { Clock, RotateCcw, Sparkles } from "lucide-react"
+import type { Problem } from "@/lib/review/ai/askForNotes"
 import type { Note } from "./PageMarks"
 
-export type AiState = { step: "idle" } | { step: "asking" } | { step: "done"; notes: Note[] } | { step: "problem"; message: string }
+export type AiState = { step: "asking" } | { step: "done"; notes: Note[] } | { step: "problem"; reason: Problem; message: string }
+
+// The problem's headline, its last words set in italic; the line under it, when the message would only repeat it.
+// prettier-ignore
+const PROBLEM_WORDS: Record<Problem, { lead: string; stress: string; body?: string }> = {
+  limit: { lead: "Give it", stress: "a few minutes.", body: "You’ve asked for a lot of AI notes in a short time." },
+  busy: { lead: "Give it", stress: "a minute.", body: "The AI is busy right now." },
+  lines: { lead: "Too long for", stress: "AI notes." },
+  off: { lead: "AI notes are", stress: "off here." },
+  other: { lead: "AI notes", stress: "didn’t load." },
+}
+
+/** What the pill over the dock says when the AI notes couldn't be had. */
+export const PILL_WORDS: Record<Problem, string> = {
+  limit: "AI notes are paused for a few minutes",
+  busy: "The AI is busy, so here are the ATS checks",
+  lines: "This resume is too long for AI notes",
+  off: "AI notes are off here",
+  other: "AI notes didn’t load, so here are the ATS checks",
+}
+
+/** A short note in a dark pill, over the dock or under the drop zone, that the person can put away. */
+export function Pill({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div role="status" className="review-pill">
+      <Clock aria-hidden="true" />
+      <span>{children}</span>
+      <button type="button" onClick={onClose}>
+        OK
+      </button>
+    </div>
+  )
+}
 
 function Flags({
   title,
@@ -51,8 +84,8 @@ function Flags({
 }
 
 /**
- * The AI's notes, beside the page: asked for with a button, as they send the
- * resume's text away, then its red and green flags, each pointing at its mark.
+ * The AI's notes, beside the page: asked for as soon as the resume is read,
+ * then its red and green flags, each pointing at its mark.
  */
 export default function AiNotes({
   state,
@@ -88,26 +121,20 @@ export default function AiNotes({
       </div>
     )
   }
+  const words = PROBLEM_WORDS[state.reason]
   return (
     <div className="review-ai">
-      <p className="font-medium text-ink">Want a second opinion?</p>
-      <p className="mt-0.5 text-ink-2">An AI reads it like a recruiter and marks red flags and green flags on the page.</p>
-      {state.step === "problem" && (
-        <p role="alert" className="mt-2 text-alert">
-          {state.message}
-        </p>
-      )}
-      <button type="button" onClick={onAsk} className="review-dock-main mt-3 w-full justify-center bg-ink text-white">
-        {state.step === "problem" ? (
-          <RotateCcw aria-hidden="true" className="h-4 w-4" />
-        ) : (
-          <Sparkles aria-hidden="true" className="h-4 w-4" />
-        )}
-        {state.step === "problem" ? "Try again" : "Get AI notes"}
-      </button>
-      <p className="mt-2 text-[12px] text-ink-3">
-        This sends your resume’s text to GPT-5.4 mini, run by Microsoft Azure or OpenAI. resumezip doesn’t keep it.
+      <p className="label-mono text-ink-2">AI notes</p>
+      <p className="mt-1.5 text-balance font-serif text-[28px] leading-[1.05] tracking-[-0.03em] text-ink">
+        {words.lead} <em className="text-accent">{words.stress}</em>
       </p>
+      <p className="mt-2 text-[13px] text-ink-2">{words.body ?? state.message}</p>
+      {state.reason !== "lines" && state.reason !== "off" && (
+        <button type="button" onClick={onAsk} className="review-try mt-3">
+          <RotateCcw aria-hidden="true" className="h-4 w-4" />
+          Try again
+        </button>
+      )}
     </div>
   )
 }

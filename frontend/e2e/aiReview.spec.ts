@@ -53,19 +53,19 @@ async function reviewed(page: import("@playwright/test").Page) {
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
 }
 
-test("AI notes are asked for with a button, sent as the printed lines, and drawn in red and green with their lists", async ({ page }) => {
+test("AI notes are asked for once the resume is read, sent as the printed lines, and drawn in red and green with their lists", async ({
+  page,
+}) => {
   const errors = pageErrors(page)
   let sent: unknown = null
   await page.route("**/api/review", async (route) => {
     sent = route.request().postDataJSON()
     await route.fulfill({ json: { notes: NOTES } })
   })
+  await page.goto("/review")
+  // The page says, before a file is chosen, that the resume goes to an AI.
+  await expect(page.getByText("Resume is sent to AI for review. Nothing is kept.")).toBeVisible()
   await reviewed(page)
-  // Nothing goes to the AI until the person asks.
-  expect(sent).toBeNull()
-  await expect(page.getByText("This sends your resume’s text to GPT-5.4 mini")).toBeVisible()
-
-  await page.getByRole("button", { name: "Get AI notes" }).click()
   await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Green flags 1" })).toBeVisible()
   // The lines, numbered, and nothing else: not the file, not its name.
@@ -77,7 +77,7 @@ test("AI notes are asked for with a button, sent as the printed lines, and drawn
   // The page is marked with the AI's notes alone, and the checks are a switch away.
   await expect(page.getByRole("button", { name: "AI notes", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toHaveCount(0)
-  await page.getByRole("button", { name: "Checks" }).click()
+  await page.getByRole("button", { name: "ATS checks" }).click()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
   await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toHaveCount(0)
   await page.getByRole("button", { name: "AI notes" }).click()
@@ -104,20 +104,39 @@ test("AI notes are asked for with a button, sent as the printed lines, and drawn
   expect(errors).toEqual([])
 })
 
-test("when the AI can't answer, the page says why and it can be asked again", async ({ page }) => {
+test("when the AI turns a review away, the page shows the checks and says why, and it can be asked again", async ({ page }) => {
   const errors = pageErrors(page)
   let calls = 0
   await page.route("**/api/review", async (route) => {
     calls++
-    if (calls === 1) await route.fulfill({ status: 429, json: { error: "limit" } })
+    // The firewall's answer: no { error } body.
+    if (calls === 1) await route.fulfill({ status: 429, contentType: "text/plain", body: "Too Many Requests" })
     else await route.fulfill({ json: { notes: NOTES.slice(0, 1) } })
   })
   await reviewed(page)
-  await page.getByRole("button", { name: "Get AI notes" }).click()
-  await expect(page.getByRole("alert").filter({ hasText: "You’ve asked for a lot of AI notes in a short time" })).toBeVisible()
+  await expect(page.getByRole("status").filter({ hasText: "AI notes are paused for a few minutes" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "ATS checks", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
+  await expect(page.getByText("Give it a few minutes.")).toBeVisible()
+  await page.getByRole("button", { name: "OK" }).click()
+  await expect(page.getByText("AI notes are paused for a few minutes")).toHaveCount(0)
+
+  // Back on the drop zone in this tab, the pause is said before a file is chosen, and another resume doesn't ask.
+  await page.reload()
+  await expect(page.getByRole("status").filter({ hasText: "AI notes are paused for a few minutes" })).toBeVisible()
+  await page.locator('input[type="file"]').setInputFiles({ ...pdf, buffer: textPdf([[...RESUME, "Volunteer tutor, 2022"]]) })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByText("Give it a few minutes.")).toBeVisible()
+  expect(calls).toBe(1)
+
+  // Asked again, it answers, and the pause is over.
   await page.getByRole("button", { name: "Try again" }).click()
   await expect(page.getByRole("heading", { name: "Red flags 1" })).toBeVisible()
   await expect(page.getByText("None stood out.")).toBeVisible()
+  await expect(page.getByRole("button", { name: "AI notes", pressed: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole("button", { name: "Review my resume" })).toBeVisible()
+  await expect(page.getByText("AI notes are paused for a few minutes")).toHaveCount(0)
   // The browser logs the refused request itself; nothing else went wrong.
   expect(errors.filter((error) => !error.includes("status of 429"))).toEqual([])
 })
@@ -130,7 +149,6 @@ test("AI notes are kept in the browser: the same resume shows them again without
     await route.fulfill({ json: { notes: NOTES } })
   })
   await reviewed(page)
-  await page.getByRole("button", { name: "Get AI notes" }).click()
   await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
 
   // Reviewed again, as a file with another name: the same notes, with no call.
@@ -183,7 +201,6 @@ test("a review that found nothing can be asked again from the editor", async ({ 
     await route.fulfill({ json: { notes: calls === 1 ? [] : NOTES } })
   })
   await reviewed(page)
-  await page.getByRole("button", { name: "Get AI notes" }).click()
   await expect(page.getByText("None found. Nice.")).toBeVisible()
 
   await page.getByRole("button", { name: "Fix it in the editor" }).click()
@@ -196,4 +213,33 @@ test("a review that found nothing can be asked again from the editor", async ({ 
   await expect(page.getByRole("region", { name: "AI notes" }).getByRole("region", { name: "Red flags, 2" })).toBeVisible()
   expect(calls).toBe(2)
   expect(errors).toEqual([])
+})
+
+test("the ATS checks, chosen while the AI reads, stay on the page when its notes arrive", async ({ page }) => {
+  const errors = pageErrors(page)
+  let answer = () => {}
+  const answered = new Promise<void>((resolve) => (answer = resolve))
+  await page.route("**/api/review", async (route) => {
+    await answered
+    await route.fulfill({ json: { notes: NOTES } })
+  })
+  await reviewed(page)
+  await expect(page.getByText("Reading it like a recruiter…").first()).toBeVisible()
+  await page.getByRole("button", { name: "ATS checks" }).click()
+  answer()
+  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "ATS checks", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
+  expect(errors).toEqual([])
+})
+
+test("the drop zone's note that AI notes are paused goes when the pause is over", async ({ page }) => {
+  await page.clock.install()
+  await page.goto("/review")
+  await page.evaluate(() => sessionStorage.setItem("resumezip.aiPausedUntil", String(Date.now() + 60_000)))
+  await page.reload()
+  const note = page.getByRole("status").filter({ hasText: "AI notes are paused for a few minutes" })
+  await expect(note).toBeVisible()
+  await page.clock.fastForward(61_000)
+  await expect(note).toHaveCount(0)
 })
