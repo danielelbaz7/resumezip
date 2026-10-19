@@ -24,4 +24,9 @@ export const PROMISES: readonly PromiseInfo[] = [
     name: "Open source",
     summary: "All the code is on GitHub, so you can read what it does with your resume.",
   },
+  {
+    path: "/private-resume-builder",
+    name: "Private",
+    summary: "Your resume is saved in your browser, and we keep no copy.",
+  },
 ]

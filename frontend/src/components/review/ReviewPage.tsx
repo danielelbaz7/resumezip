@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Check, PenLine, RotateCcw, Upload } from "lucide-react"
 import SiteFooter from "@/components/site/SiteFooter"
@@ -514,7 +515,13 @@ export default function ReviewPage() {
                       {state.step === "problem" ? "Try another file" : "Review my resume"}
                     </button>
                   )}
-                  <p className="mt-6 text-[13px] text-ink-2">PDF or Word · Free · Resume is sent to AI for review. Nothing is kept.</p>
+                  <p className="mt-6 text-[13px] text-ink-2">
+                    PDF or Word · Free · Resume is sent to AI for review.{" "}
+                    <Link href="/private-resume-builder" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+                      Nothing is kept
+                    </Link>
+                    .
+                  </p>
                   {paused && (
                     <div className="review-pill-float">
                       <Pill onClose={() => setPaused(false)}>AI notes are paused for a few minutes. You’ll still get the ATS checks.</Pill>
