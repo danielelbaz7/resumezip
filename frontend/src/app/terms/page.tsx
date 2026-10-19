@@ -11,7 +11,9 @@ import { PAPER_FRAME, SHEET } from "@/components/site/sheet"
 
 type TabId = "terms" | "privacy" | "faq"
 
-const TABS: { id: TabId; label: string; items: { title: string; body: string }[] }[] = [
+const TEXT_LINK = "text-ink underline underline-offset-4 hover:decoration-2"
+
+const TABS: { id: TabId; label: string; items: { title: string; body: React.ReactNode }[] }[] = [
   {
     id: "terms",
     label: "Terms of service",
@@ -30,7 +32,15 @@ const TABS: { id: TabId; label: string; items: { title: string; body: string }[]
       },
       {
         title: "No accounts",
-        body: "There’s nothing to sign up for, and we don’t store your resume.",
+        body: (
+          <>
+            There’s{" "}
+            <Link href="/no-sign-up-resume-builder" className={TEXT_LINK}>
+              nothing to sign up for
+            </Link>
+            , and we don’t store your resume.
+          </>
+        ),
       },
       {
         title: "No guarantees",
@@ -70,7 +80,15 @@ const TABS: { id: TabId; label: string; items: { title: string; body: string }[]
       },
       {
         title: "Do I need an account?",
-        body: "No. Open the builder and start writing.",
+        body: (
+          <>
+            No. Open the builder and start writing, with{" "}
+            <Link href="/no-sign-up-resume-builder" className={TEXT_LINK}>
+              no email or card
+            </Link>{" "}
+            asked for, even when you download.
+          </>
+        ),
       },
       {
         title: "How long are my resumes kept?",
