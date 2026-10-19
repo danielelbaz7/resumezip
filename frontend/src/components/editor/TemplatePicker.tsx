@@ -161,7 +161,7 @@ function TemplatePicker({ value, onChange }: TemplatePickerProps) {
                     className="group flex flex-col gap-2 text-left"
                   >
                     <span
-                      className={`relative block aspect-[8.5/11] w-full overflow-hidden bg-sheet transition-shadow ${
+                      className={`relative block aspect-[8.5/11] w-full overflow-hidden rounded-md bg-sheet transition-shadow ${
                         selected ? "ring-2 ring-accent" : "ring-1 ring-rule group-hover:ring-ink"
                       }`}
                     >
