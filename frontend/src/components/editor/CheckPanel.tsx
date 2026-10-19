@@ -35,6 +35,7 @@ import {
 } from "@/lib/check/score"
 import { CATEGORIES, MUST_FIX_MAX, SCORE_BANDS, type CategoryId } from "@/lib/check/settings"
 import { hasLeftOut } from "@/lib/leftOut"
+import AiNotesBox from "./AiNotesBox"
 import { useCheck, useCheckActions } from "./CheckContext"
 import { levelPill, TIER_BG, TIER_NAMES, tierOf, type Tier } from "./fields"
 
@@ -120,6 +121,8 @@ export default function CheckPanel() {
           )}
         </div>
       )}
+
+      <AiNotesBox view={view} />
 
       {shown.length > 0 ? (
         <div className="flex flex-col gap-3.5">
