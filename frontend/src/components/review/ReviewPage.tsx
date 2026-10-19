@@ -8,7 +8,7 @@ import SiteHeader from "@/components/site/SiteHeader"
 import { headlineFont } from "@/components/site/headlineFont"
 import { keptNotesOf, notesOf } from "@/lib/review/ai/answer"
 import type { Problem } from "@/lib/review/ai/askForNotes"
-import { aiPaused } from "@/lib/review/ai/paused"
+import { aiPaused, aiPausedUntil } from "@/lib/review/ai/paused"
 import { sentOf } from "@/lib/review/ai/request"
 import { hashOf, saveNotes, savedByHash, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
 import { unitsToSend } from "@/lib/review/ai/units"
@@ -117,15 +117,18 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
   const asking = useRef<AbortController | null>(null)
   const notes = shown === "checks" ? checked : ai.step === "done" ? ai.notes : []
 
+  // Whether the person has chosen a view with the switch: an answer that arrives later doesn't take them off it.
+  const chose = useRef(false)
+
   const show = useCallback((which: Shown) => {
     setShown(which)
     setOpen(null)
   }, [])
   const showAi = useCallback(
-    (saved: SavedNote[]) => {
+    (saved: SavedNote[], reveal: boolean) => {
       if (!units) return
       setAi({ step: "done", notes: aiNotesOf(notesOf({ notes: saved }, units), measure) })
-      show("ai")
+      if (reveal) show("ai")
     },
     [units, measure, show],
   )
@@ -139,7 +142,8 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
   )
 
   const ask = useCallback(
-    async (hashed: string) => {
+    /** `asked`: the person asked (Try again), so the answer is shown whichever view they're on. */
+    async (hashed: string, asked = false) => {
       if (!units) return
       asking.current?.abort()
       const current = new AbortController()
@@ -152,7 +156,7 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
           const saved = keptNotesOf(await askForNotes(units, current.signal), units)
           if (asking.current !== current) return
           saveNotes(hashed, saved)
-          showAi(saved)
+          showAi(saved, asked || !chose.current)
         } catch (error) {
           if (current.signal.aborted) return
           if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
@@ -175,7 +179,7 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
       if (!live) return
       setHash(hashed)
       const saved = savedByHash(hashed)
-      if (saved) showAi(saved.notes)
+      if (saved) showAi(saved.notes, !chose.current)
       else if (aiPaused()) fail("limit", "You’ve asked for a lot of AI notes in a short time. Try again in a few minutes.")
       else void ask(hashed)
     })
@@ -232,7 +236,7 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
             <AiNotes
               state={ai}
               onAsk={() => {
-                if (hash) void ask(hash)
+                if (hash) void ask(hash, true)
               }}
               open={open}
               onOpen={setOpen}
@@ -244,10 +248,24 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
             {units && !(ai.step === "problem" && ai.reason === "off") && (
               <div role="group" aria-label="Notes on the page" className="review-switch">
-                <button type="button" aria-pressed={shown === "ai"} onClick={() => show("ai")}>
+                <button
+                  type="button"
+                  aria-pressed={shown === "ai"}
+                  onClick={() => {
+                    chose.current = true
+                    show("ai")
+                  }}
+                >
                   AI notes
                 </button>
-                <button type="button" aria-pressed={shown === "checks"} onClick={() => show("checks")}>
+                <button
+                  type="button"
+                  aria-pressed={shown === "checks"}
+                  onClick={() => {
+                    chose.current = true
+                    show("checks")
+                  }}
+                >
                   ATS checks
                 </button>
               </div>
@@ -382,8 +400,18 @@ export default function ReviewPage() {
     }
   }, [])
 
+  // Read on the drop zone, again when the tab comes back into view, and once more when the pause ends.
   useEffect(() => {
-    if (state.step === "idle" || state.step === "problem") setPaused(aiPaused())
+    if (state.step !== "idle" && state.step !== "problem") return
+    const check = () => setPaused(aiPaused())
+    check()
+    const left = aiPausedUntil() - Date.now()
+    const timer = left > 0 ? setTimeout(check, left) : undefined
+    document.addEventListener("visibilitychange", check)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener("visibilitychange", check)
+    }
   }, [state.step])
 
   const chooseFile = () => fileInput.current?.click()

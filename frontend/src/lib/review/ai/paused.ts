@@ -14,12 +14,17 @@ export function pauseAi(now = Date.now()) {
   }
 }
 
-export function aiPaused(now = Date.now()): boolean {
+/** When the pause ends, in ms since the epoch; 0 with none kept. */
+export function aiPausedUntil(): number {
   try {
-    return Number(sessionStorage.getItem(KEY)) > now
+    return Number(sessionStorage.getItem(KEY)) || 0
   } catch {
-    return false
+    return 0
   }
+}
+
+export function aiPaused(now = Date.now()): boolean {
+  return aiPausedUntil() > now
 }
 
 /** The AI answered: whatever turned this tab away is over. */

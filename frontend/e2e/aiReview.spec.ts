@@ -214,3 +214,32 @@ test("a review that found nothing can be asked again from the editor", async ({ 
   expect(calls).toBe(2)
   expect(errors).toEqual([])
 })
+
+test("the ATS checks, chosen while the AI reads, stay on the page when its notes arrive", async ({ page }) => {
+  const errors = pageErrors(page)
+  let answer = () => {}
+  const answered = new Promise<void>((resolve) => (answer = resolve))
+  await page.route("**/api/review", async (route) => {
+    await answered
+    await route.fulfill({ json: { notes: NOTES } })
+  })
+  await reviewed(page)
+  await expect(page.getByText("Reading it like a recruiter…").first()).toBeVisible()
+  await page.getByRole("button", { name: "ATS checks" }).click()
+  answer()
+  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "ATS checks", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
+  expect(errors).toEqual([])
+})
+
+test("the drop zone's note that AI notes are paused goes when the pause is over", async ({ page }) => {
+  await page.clock.install()
+  await page.goto("/review")
+  await page.evaluate(() => sessionStorage.setItem("resumezip.aiPausedUntil", String(Date.now() + 60_000)))
+  await page.reload()
+  const note = page.getByRole("status").filter({ hasText: "AI notes are paused for a few minutes" })
+  await expect(note).toBeVisible()
+  await page.clock.fastForward(61_000)
+  await expect(note).toHaveCount(0)
+})
