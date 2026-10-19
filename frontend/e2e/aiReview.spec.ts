@@ -138,18 +138,28 @@ test("AI notes are kept in the browser: the same resume shows them again without
   await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible({ timeout: 90_000 })
   expect(calls).toBe(1)
 
-  // In the editor, the Check tab lists them, and choosing one opens the words it's about.
+  // In the editor, the Check tab opens on them and lists them, and they're marked on the preview.
   await page.getByRole("button", { name: "Fix it in the editor" }).click()
   await expect(page).toHaveURL(/\/create\/new\//)
+  await expect(page.getByRole("button", { name: "AI notes", pressed: true })).toBeVisible()
   const notes = page.getByRole("region", { name: "AI notes" })
   await expect(notes.getByRole("region", { name: "Red flags, 2" })).toBeVisible()
   await expect(notes.getByRole("region", { name: "Green flags, 1" })).toBeVisible()
-  await notes.getByRole("button", { name: /Says what you did, not what changed/ }).click()
-  await expect(page.getByText("Red flag", { exact: true })).toBeVisible()
-  // Its rewrite, in the list and now beside the field too.
-  await expect(page.getByText("Tested the checkout service, catching [number] bugs before release")).toHaveCount(2)
+  const mark = page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })
+  await expect(mark).toBeAttached({ timeout: 60_000 })
+  // Pointing at its row shows its note on the preview.
+  const row = notes.getByRole("button", { name: /Says what you did, not what changed/ })
+  await row.hover()
+  await expect(page.getByRole("tooltip")).toContainText("Tested the checkout service, catching [number] bugs before release")
+  // Choosing it opens the words it's about, which say the note to a screen reader, not under the field.
+  await row.click()
+  await expect(page.locator(":focus")).toHaveAccessibleDescription(/Red flag: Says what you did, not what changed/)
   // The note whose words aren't on the resume can't be opened.
-  await expect(notes.getByText("Changed since the review")).toBeVisible()
+  await expect(notes.getByText("Changed since the notes")).toBeVisible()
+  // The checks' marks are a switch away, and never drawn with the AI's.
+  await page.getByRole("button", { name: "ATS checks" }).click()
+  await expect(page.getByRole("button", { name: "“Responsible for” is a weak start", exact: true })).toBeAttached()
+  await expect(mark).toHaveCount(0)
   expect(calls).toBe(1)
   expect(errors).toEqual([])
 })
