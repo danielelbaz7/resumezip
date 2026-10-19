@@ -1,13 +1,24 @@
 // The review page's side of /api/review.
 
+import { pauseAi, resumeAi } from "./paused"
 import { sentOf } from "./request"
 import { savedNotesOf, type SavedNote } from "./saved"
 import type { Unit } from "./units"
 
-/** Why there are no notes, worded for the person. */
-export class AiReviewError extends Error {}
+/** Why there are no notes: "off" when the site has no AI keys, "other" for anything unexpected. */
+export type Problem = "limit" | "busy" | "off" | "lines" | "other"
 
-const PROBLEMS: Record<string, string> = {
+/** Why there are no notes, worded for the person. */
+export class AiReviewError extends Error {
+  constructor(
+    message: string,
+    readonly reason: Problem = "other",
+  ) {
+    super(message)
+  }
+}
+
+const PROBLEMS: Record<Exclude<Problem, "other">, string> = {
   limit: "You’ve asked for a lot of AI notes in a short time. Try again in a few minutes.",
   busy: "The AI is busy right now. Try again in a minute.",
   off: "AI notes aren’t switched on here.",
@@ -29,8 +40,16 @@ export async function askForNotes(units: readonly Unit[], signal?: AbortSignal):
   }
   const body = (await response.json().catch(() => null)) as { notes?: unknown; error?: unknown } | null
   if (!response.ok || !body) {
-    const problem = typeof body?.error === "string" ? PROBLEMS[body.error] : undefined
-    throw new AiReviewError(problem ?? "Something went wrong getting AI notes. Try again in a minute.")
+    // The firewall's rate limit turns a review away before the route runs, so its 429 has no { error }.
+    const reason: Problem =
+      response.status === 429
+        ? "limit"
+        : typeof body?.error === "string" && Object.hasOwn(PROBLEMS, body.error)
+          ? (body.error as Problem)
+          : "other"
+    if (reason === "limit") pauseAi()
+    throw new AiReviewError(reason === "other" ? "Something went wrong getting AI notes. Try again in a minute." : PROBLEMS[reason], reason)
   }
+  resumeAi()
   return savedNotesOf(body.notes)
 }

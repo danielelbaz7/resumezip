@@ -436,7 +436,92 @@
     height: 16px;
   }
 
+  /* Why the AI notes aren't there: a dark pill over the dock, or under the drop zone. */
+  .review-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    max-width: calc(100vw - 32px);
+    padding: 6px 6px 6px 14px;
+    border-radius: 999px;
+    background: rgb(22 24 29 / 0.88);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.3;
+    text-align: left;
+    box-shadow:
+      0 12px 32px -8px rgb(17 19 24 / 0.4),
+      0 2px 6px rgb(17 19 24 / 0.18);
+    animation: review-pill 360ms var(--ease-glide) both;
+  }
+  .review-pill > svg {
+    flex: none;
+    width: 16px;
+    height: 16px;
+  }
+  .review-pill button {
+    flex: none;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: #fff;
+    color: var(--color-ink);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .review-pill button:focus-visible {
+    outline: 2px solid var(--color-accent-soft);
+    outline-offset: 2px;
+  }
+  .review-dock .review-pill {
+    position: absolute;
+    bottom: calc(100% - 14px);
+    left: 50%;
+    translate: -50% 0;
+    width: max-content;
+  }
+  /* On the drop zone, where there's no dock: held under the header, where it's seen without scrolling and
+     doesn't cover the line under the button that says the resume goes to an AI. */
+  .review-pill-float {
+    position: fixed;
+    top: 84px;
+    left: 50%;
+    z-index: 30;
+    translate: -50% 0;
+    width: max-content;
+    max-width: calc(100vw - 32px);
+  }
+  @keyframes review-pill {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  /* Try again on the AI notes: an outline, as the problem isn't the person's to fix. */
+  .review-try {
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 42px;
+    border-radius: 12px;
+    color: var(--color-ink);
+    font-size: 15px;
+    font-weight: 500;
+    box-shadow: inset 0 0 0 1px var(--color-rule-strong);
+  }
+  .review-try:hover {
+    background: rgb(255 255 255 / 0.7);
+  }
+
   @media (prefers-reduced-transparency: reduce) {
+    .review-pill {
+      background: #16181d;
+    }
+    .review-pill,
     .review-haze,
     .review-sheet,
     .review-fog > span,
@@ -453,7 +538,8 @@
     }
     .review-board,
     .review-scribble path,
-    .review-tip {
+    .review-tip,
+    .review-pill {
       animation: none;
     }
     /* The band stays put, partway down, still saying it's reading. */

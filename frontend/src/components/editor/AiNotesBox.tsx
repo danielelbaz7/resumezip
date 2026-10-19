@@ -54,8 +54,6 @@ function Note({ note, index, place, view }: { note: SavedNote; index: number; pl
   )
 }
 
-const PRIVACY = "This sends your resume’s text to GPT-5.4 mini, run by Microsoft Azure or OpenAI. resumezip doesn’t keep it."
-
 /**
  * The AI's notes in the Check panel: the ones from the review, or asked for
  * here, kept in this browser so they're shown again without asking. Each
@@ -88,7 +86,6 @@ export default function AiNotesBox({ view }: { view: ResumeView }) {
           {asking ? "Reading it like a recruiter…" : ai.step === "problem" ? "Try again" : "Get AI notes"}
         </button>
         {!canAsk && <p className="text-[12px] leading-snug text-ink-3">Waiting for the preview…</p>}
-        <p className="text-[12px] leading-snug text-ink-3">{PRIVACY}</p>
       </section>
     )
   }
