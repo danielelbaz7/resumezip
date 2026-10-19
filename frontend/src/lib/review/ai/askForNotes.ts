@@ -29,7 +29,8 @@ export async function askForNotes(units: readonly Unit[], signal?: AbortSignal):
   }
   const body = (await response.json().catch(() => null)) as { notes?: unknown; error?: unknown } | null
   if (!response.ok || !body) {
-    const problem = typeof body?.error === "string" ? PROBLEMS[body.error] : undefined
+    // The firewall's rate limit turns a review away before the route runs, so its 429 has no { error }.
+    const problem = response.status === 429 ? PROBLEMS.limit : typeof body?.error === "string" ? PROBLEMS[body.error] : undefined
     throw new AiReviewError(problem ?? "Something went wrong getting AI notes. Try again in a minute.")
   }
   return savedNotesOf(body.notes)
