@@ -82,3 +82,13 @@ test("a file with no resume in it says so, and another can be tried", async ({ p
   await expect(page.getByRole("button", { name: "Try another file" })).toBeVisible()
   expect(errors).toEqual([])
 })
+
+test("the headline is in the home page's headline face", async ({ page }) => {
+  const face = async (path: string) => {
+    await page.goto(path)
+    return page.getByRole("heading", { level: 1 }).evaluate((heading) => getComputedStyle(heading).fontFamily.split(",")[0])
+  }
+  const home = await face("/")
+  expect(home).toMatch(/Instrument Serif/)
+  expect(await face("/review")).toBe(home)
+})

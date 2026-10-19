@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Caveat, Instrument_Serif } from "next/font/google"
+import { Caveat } from "next/font/google"
 import { ArrowUpRight } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
 import HomeStory from "@/components/home/HomeStory"
@@ -8,6 +8,7 @@ import { INK_PILL, WHITE_PILL } from "@/components/pills"
 import StructuredData from "@/components/site/StructuredData"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
+import { headlineFont } from "@/components/site/headlineFont"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import { pageMetadata, SITE_DESCRIPTION } from "@/lib/site"
 import { HOME_DATA } from "@/lib/structuredData"
@@ -17,8 +18,6 @@ export const metadata = pageMetadata({ path: "/", description: SITE_DESCRIPTION 
 // The handwriting of the notes on the editor. Only this page uses it, and it's first seen a
 // screen and more down, so it isn't preloaded.
 const marker = Caveat({ weight: "600", subsets: ["latin"], variable: "--font-caveat", preload: false })
-// The headline's face. It's the first thing on the first screen, so it is preloaded.
-const headline = Instrument_Serif({ weight: "400", subsets: ["latin"], variable: "--font-instrument-serif" })
 
 const MICROSOFT_STARTUPS_URL = "https://www.microsoft.com/en-us/startups"
 
@@ -76,7 +75,7 @@ export default function Home() {
       <StructuredData data={HOME_DATA} />
       <SiteHeader />
       {/* A column, so the story's pull up behind the header doesn't move the main part with it. */}
-      <main className={`flex flex-1 flex-col ${marker.variable} ${headline.variable}`}>
+      <main className={`flex flex-1 flex-col ${marker.variable} ${headlineFont.variable}`}>
         <HomeStory hero={<Hero />} />
       </main>
       <SiteFooter ground />
