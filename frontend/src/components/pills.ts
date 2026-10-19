@@ -14,6 +14,9 @@ export const OUTLINE_PILL = `${PILL} bg-sheet/70 text-ink ring-1 ring-inset ring
 /** A main action on glass: ink glass, with a glossy lit top (ink-glass in globals.css). */
 export const INK_GLASS_PILL = `${SHAPE} ink-glass`
 
+/** Any other action on the sky: white glass, solid (glass-solid in styles/glass.css). */
+export const GLASS_PILL = `${SHAPE} glass glass-solid text-ink transition-[filter] hover:brightness-[0.97]`
+
 // On the white sheet the dashboard, the editor, the templates pages and their
 // dialogs are on (styles/sheet.css). Each look comes without a size, which sheetPill adds,
 // so one button's size never has to beat another's: Tailwind puts utilities

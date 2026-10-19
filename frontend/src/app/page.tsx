@@ -4,7 +4,7 @@ import { ArrowUpRight } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
 import HomeStory from "@/components/home/HomeStory"
 import PrefetchCompiler from "@/components/home/PrefetchCompiler"
-import { INK_GLASS_PILL, WHITE_PILL } from "@/components/pills"
+import { GLASS_PILL, INK_GLASS_PILL } from "@/components/pills"
 import StructuredData from "@/components/site/StructuredData"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
@@ -46,7 +46,7 @@ function Hero() {
         <StartWritingLink className={`${INK_GLASS_PILL} h-11`} preloadOnHover>
           Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </StartWritingLink>
-        <Link href="/templates" className={`${WHITE_PILL} h-11`}>
+        <Link href="/templates" className={`${GLASS_PILL} h-11`}>
           See templates
         </Link>
       </div>
