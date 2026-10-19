@@ -25,3 +25,23 @@ test("a quote across two printed fields is found by its first words, and one tha
   expect(placeOfQuote(view, `${degree} (GPA: ${gpa})`)).toMatchObject({ kind: "entry", section: "Education", field: "degree" })
   expect(placeOfQuote(view, "Responsible for synergy across many teams")).toBeNull()
 })
+
+test("a bullet rewritten after its first words isn't found by them", () => {
+  const start = first.split(" ").slice(0, 4).join(" ")
+  expect(placeOfQuote(view, `${start} for customer support teams`)).toBeNull()
+})
+
+test("finds words in a custom section's text, which has no bullets", () => {
+  const id = "11111111-1111-4111-8111-111111111111"
+  const custom = viewOf({
+    ...sample,
+    extraSections: { [id]: { kind: "text", heading: "About", text: "I build **tools** that teams rely on every day." } },
+    sectionOrder: [...(sample.sectionOrder ?? []), `extra:${id}`],
+  })
+  expect(placeOfQuote(custom, "tools that teams rely on")).toEqual({ kind: "extra-text", sectionId: id, field: "text" })
+})
+
+test("an empty quote has no place", () => {
+  expect(placeOfQuote(view, "")).toBeNull()
+  expect(placeOfQuote(view, " – ")).toBeNull()
+})

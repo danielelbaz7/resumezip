@@ -6,9 +6,7 @@
 import type { Finding } from "@/lib/check/engine"
 import { comparable } from "@/lib/check/pdf"
 import type { Place } from "@/lib/check/places"
-import type { ResumeView } from "@/lib/check/resume"
-import { layoutBulletsIn } from "@/lib/check/text"
-import type { ProfileKey } from "@/components/editor/sections"
+import { textsOf, type ResumeView } from "@/lib/check/resume"
 import type { SavedNote } from "./saved"
 
 /** The rule an AI note goes by when it's opened like a finding (CheckContext's open). */
@@ -17,33 +15,24 @@ export const AI_RULE = "AI"
 // Fewer words than this would be found in fields they aren't from.
 const LEAST_WORDS = 3
 
-function placeOfWords(view: ResumeView, wanted: string): Place | null {
-  for (const { bullet, place } of layoutBulletsIn(view)) if (comparable(bullet.text).includes(wanted)) return place
-  for (const [field, value] of Object.entries(view.profile)) {
-    if (value && comparable(value).includes(wanted)) return { kind: "profile", field: field as ProfileKey }
-  }
-  for (const section of view.order) {
-    for (const entry of view.sections[section]) {
-      for (const [field, value] of Object.entries(entry.values)) {
-        if (value && comparable(value).includes(wanted)) return { kind: "entry", section, entry: entry.index, field: field as never }
-      }
-    }
-  }
-  return null
-}
-
 /**
  * The field the quoted words are in, or null once they aren't anywhere. A
  * quote that runs across two fields (a degree and its GPA, printed on one
- * line) is found by as many of its first words as one field holds.
+ * line) is found by as many of its first words as end a field: a field
+ * that goes on with other words after them has been rewritten.
  */
 export function placeOfQuote(view: ResumeView, quote: string): Place | null {
+  const wanted = comparable(quote)
+  if (!wanted) return null
+  // Every printed text with a field, custom sections' text too, as the checker reads them.
+  const texts = textsOf(view).map(({ place, text }) => ({ place, text: comparable(text) }))
+  const whole = texts.find(({ text }) => text.includes(wanted))
+  if (whole) return whole.place
   const words = quote.trim().split(/\s+/)
-  for (let count = words.length; count >= Math.min(LEAST_WORDS, words.length); count--) {
-    const wanted = comparable(words.slice(0, count).join(" "))
-    if (!wanted) return null
-    const place = placeOfWords(view, wanted)
-    if (place) return place
+  for (let count = words.length - 1; count >= LEAST_WORDS; count--) {
+    const start = comparable(words.slice(0, count).join(" "))
+    const ended = start && texts.find(({ text }) => text.endsWith(start))
+    if (ended) return ended.place
   }
   return null
 }
