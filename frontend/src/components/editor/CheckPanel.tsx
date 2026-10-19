@@ -222,7 +222,7 @@ function ScoreHeader({
   return (
     <section aria-labelledby={id} data-perfect={total === 100 || undefined} className="flex flex-col px-2">
       <h2 id={id} className="label-mono text-ink-2">
-        Resume score
+        ATS score
       </h2>
       <div className="mt-1.5 flex items-baseline gap-2.5">
         {/* Said aloud when it changes, once the checks under way are done. */}

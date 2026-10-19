@@ -64,9 +64,9 @@ test("a section, Write, Check or Style, and the template gallery fade in as they
 
   const check = await fadingIn(
     page.getByRole("tablist", { name: "Write, check or style" }).getByRole("tab", { name: /^Check/ }),
-    page.getByRole("heading", { name: "Resume score" }),
+    page.getByRole("heading", { name: "ATS score" }),
   )
-  expect(check.some((text) => text.includes("Resume score"))).toBe(true)
+  expect(check.some((text) => text.includes("ATS score"))).toBe(true)
   const write = await fadingIn(page.getByRole("tab", { name: "Write" }), sections)
   expect(write.some((text) => text.includes("Profile"))).toBe(true)
 
@@ -206,7 +206,7 @@ test.describe("with less motion", () => {
         editorHeading(page, "Experience"),
       ),
     ).toEqual([])
-    expect(await fadingIn(page.getByRole("tab", { name: /^Check/ }), page.getByRole("heading", { name: "Resume score" }))).toEqual([])
+    expect(await fadingIn(page.getByRole("tab", { name: /^Check/ }), page.getByRole("heading", { name: "ATS score" }))).toEqual([])
     expect(await fadingIn(page.getByRole("tab", { name: "Style" }), page.getByRole("region", { name: "Style" }))).toEqual([])
     await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
     await page.setViewportSize({ width: 1024, height: 768 })
