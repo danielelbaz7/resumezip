@@ -74,6 +74,14 @@ test("AI notes are asked for with a button, sent as the printed lines, and drawn
   expect(lines[0]).toEqual({ id: "u1", text: "Mara Lin", bullet: false })
   expect(lines.map(({ text }) => text)).toContain("Responsible for testing the checkout service")
 
+  // The page is marked with the AI's notes alone, and the checks are a switch away.
+  await expect(page.getByRole("button", { name: "AI notes", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toHaveCount(0)
+  await page.getByRole("button", { name: "Checks" }).click()
+  await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
+  await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toHaveCount(0)
+  await page.getByRole("button", { name: "AI notes" }).click()
+
   // Each flag is drawn on its line, and pointing at it in the list shows its note there.
   const red = page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })
   await expect(red).toBeAttached()
@@ -111,4 +119,37 @@ test("when the AI can't answer, the page says why and it can be asked again", as
   await expect(page.getByText("None stood out.")).toBeVisible()
   // The browser logs the refused request itself; nothing else went wrong.
   expect(errors.filter((error) => !error.includes("status of 429"))).toEqual([])
+})
+
+test("AI notes are kept in the browser: the same resume shows them again without asking, and the editor lists them", async ({ page }) => {
+  const errors = pageErrors(page)
+  let calls = 0
+  await page.route("**/api/review", async (route) => {
+    calls++
+    await route.fulfill({ json: { notes: NOTES } })
+  })
+  await reviewed(page)
+  await page.getByRole("button", { name: "Get AI notes" }).click()
+  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
+
+  // Reviewed again, as a file with another name: the same notes, with no call.
+  await page.reload()
+  await page.locator('input[type="file"]').setInputFiles({ ...pdf, name: "Mara Lin (2).pdf" })
+  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible({ timeout: 90_000 })
+  expect(calls).toBe(1)
+
+  // In the editor, the Check tab lists them, and choosing one opens the words it's about.
+  await page.getByRole("button", { name: "Fix it in the editor" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  const notes = page.getByRole("region", { name: "AI notes" })
+  await expect(notes.getByRole("region", { name: "Red flags, 2" })).toBeVisible()
+  await expect(notes.getByRole("region", { name: "Green flags, 1" })).toBeVisible()
+  await notes.getByRole("button", { name: /Says what you did, not what changed/ }).click()
+  await expect(page.getByText("Red flag", { exact: true })).toBeVisible()
+  // Its rewrite, in the list and now beside the field too.
+  await expect(page.getByText("Tested the checkout service, catching [number] bugs before release")).toHaveCount(2)
+  // The note whose words aren't on the resume can't be opened.
+  await expect(notes.getByText("Changed since the review")).toBeVisible()
+  expect(calls).toBe(1)
+  expect(errors).toEqual([])
 })
