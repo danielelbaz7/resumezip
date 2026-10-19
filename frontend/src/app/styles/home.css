@@ -140,7 +140,8 @@
   }
   .home-definition {
     margin: 22px 0 0;
-    max-width: 660px;
+    /* Wide enough for two lines from a tablet up, fewer of them over the clouds. */
+    max-width: 36em;
     font-size: clamp(16px, 1.45vw, 21px);
     line-height: 1.45;
     color: #fff;

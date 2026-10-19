@@ -114,6 +114,24 @@ test("the first screen says what resumezip is, with Start writing and the templa
   expect(errors).toEqual([])
 })
 
+// Each line of it is one more over the clouds behind it.
+for (const size of [
+  { width: 1440, height: 900 },
+  { width: 1024, height: 768 },
+]) {
+  test(`on a ${size.width}px screen what resumezip is takes two lines`, async ({ page }) => {
+    await page.setViewportSize(size)
+    await page.goto("/")
+    const definition = page.getByText("A free, open-source resume builder that runs in your browser")
+    await expect(definition).toBeVisible()
+    await page.evaluate(() => document.fonts.ready)
+    const lines = await definition.evaluate(
+      (element) => element.getBoundingClientRect().height / parseFloat(getComputedStyle(element).lineHeight),
+    )
+    expect(Math.round(lines)).toBe(2)
+  })
+}
+
 // The notes are handwriting, a picture; a screen reader is told what they say.
 test("a screen reader is told what the notes on the editor say", async ({ page }) => {
   await page.goto("/")
