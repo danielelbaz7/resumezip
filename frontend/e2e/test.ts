@@ -22,7 +22,17 @@ const adopt = (css: string) => {
 
 const patched = new WeakSet<Browser>()
 
-export const test = base.extend<object, { noBlurInWebKit: void }>({
+export const test = base.extend<{ noRealAi: void }, { noBlurInWebKit: void }>({
+  // The review page asks the AI as soon as a resume is read. A test that
+  // doesn't answer /api/review itself (page.route goes first) gets "off", as on
+  // a site with no AI keys: no test asks a real AI, even where .env.local has keys.
+  noRealAi: [
+    async ({ context }, use) => {
+      await context.route("**/api/review", (route) => route.fulfill({ status: 503, json: { error: "off" } }))
+      await use()
+    },
+    { auto: true },
+  ],
   // On the browser, so the contexts a test opens itself (browser.newContext()) get it too, as well as its own.
   noBlurInWebKit: [
     async ({ browser, browserName }, use) => {

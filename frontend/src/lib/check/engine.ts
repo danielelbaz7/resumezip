@@ -138,6 +138,8 @@ export interface Finding {
   /** Tells it apart from other findings, for dismissing it (see state.ts). */
   key: string
   dismissed: boolean
+  /** An AI note opened like a finding (findingOf) is a red or green flag; the checker's findings have none. */
+  flag?: "red" | "green"
 }
 
 /**

@@ -91,9 +91,9 @@ npm run test:browser   # after a build; see below
   note shown when the scribble is pointed at. "Fix it in the editor" adds the
   resume and opens the editor in Check. All of it happens in the browser.
 - `next.config.js` sends security headers with everything the site serves.
-  Its Content-Security-Policy, report-only for now, names every site the app
-  sends anything to (`connect-src`). A new one goes there too, or the browser
-  tests that use it fail.
+  Its Content-Security-Policy names every site the app sends anything to
+  (`connect-src`), and browsers refuse to send to any other. A new one goes
+  there too, or it's refused, and the browser tests that use it fail.
 
 ## Tests
 

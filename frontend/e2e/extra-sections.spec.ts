@@ -179,7 +179,7 @@ test("extra-only checking targets original list lines and deletion restores focu
   await previewShown(page)
   await page.getByRole("tab", { name: /^Check/ }).click()
   const panel = page.getByRole("tabpanel", { name: /^Check/ })
-  await expect(panel.getByRole("region", { name: "Resume score" })).not.toContainText("Not scored yet")
+  await expect(panel.getByRole("region", { name: "ATS score" })).not.toContainText("Not scored yet")
   const issue = panel.getByRole("button", { name: /“the” twice in a row/ })
   await expect(issue).toBeVisible()
   await issue.click()

@@ -51,9 +51,9 @@ export default function NoSignUp() {
             <>
               No.{" "}
               <Link href="/resume-builder-no-watermark" className={TEXT_LINK}>
-                Nothing is added to your PDF
-              </Link>
-              : no logo and no “made with” line, only what you wrote.
+                Nothing is printed on your PDF
+              </Link>{" "}
+              but what you wrote: no logo and no “made with” line.
             </>
           ),
         },

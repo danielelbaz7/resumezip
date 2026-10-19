@@ -35,7 +35,9 @@ import {
 } from "@/lib/check/score"
 import { CATEGORIES, MUST_FIX_MAX, SCORE_BANDS, type CategoryId } from "@/lib/check/settings"
 import { hasLeftOut } from "@/lib/leftOut"
+import AiNotesBox from "./AiNotesBox"
 import { useCheck, useCheckActions } from "./CheckContext"
+import { checkKeyOf, useMarks, usePointAt } from "./MarksContext"
 import { levelPill, TIER_BG, TIER_NAMES, tierOf, type Tier } from "./fields"
 
 // A typo can't be dismissed, but its word can be added so it isn't flagged
@@ -68,6 +70,7 @@ type Category = (typeof CATEGORIES)[number]
 export default function CheckPanel() {
   const { report, checked, pdf, grammar } = useCheck()
   const { restore } = useCheckActions()
+  const marks = useMarks()
   // The resume as last checked, so places are named as the findings saw them.
   const view = report.view
 
@@ -97,8 +100,17 @@ export default function CheckPanel() {
     report.results.some((result) => result.status === "waiting" && result.rule.reads === reads)
   // Grammar rules check text as it's typed, so they're behind until it's all been checked.
   const checkingGrammar = view.grammarLanguage !== "other" && (waitingFor("grammar") || grammar !== "ready")
+  if (marks.shown === "ai") {
+    return (
+      <div className="flex flex-col gap-5 px-3 py-4 xl:p-0">
+        <MarksSwitch />
+        <AiNotesBox view={view} />
+      </div>
+    )
+  }
   return (
     <div className="flex flex-col gap-5 px-3 py-4 xl:p-0">
+      <MarksSwitch />
       <ScoreHeader total={score.total} mustFix={score.mustFix} fixes={fixes} updating={checking.size > 0} />
       {(waitingFor("pdf") || checkingGrammar) && (
         <div role="status" className="flex flex-col gap-1 px-2 text-sm text-ink-2">
@@ -162,6 +174,21 @@ export default function CheckPanel() {
   )
 }
 
+/** Which notes the panel lists and the preview is marked with: the ATS checks or the AI's. */
+function MarksSwitch() {
+  const { shown, show } = useMarks()
+  return (
+    <div role="group" aria-label="Notes on the page" className="review-switch self-start">
+      <button type="button" aria-pressed={shown === "checks"} onClick={() => show("checks")}>
+        ATS checks
+      </button>
+      <button type="button" aria-pressed={shown === "ai"} onClick={() => show("ai")}>
+        AI notes
+      </button>
+    </div>
+  )
+}
+
 /** The score as shown (`shownScore`), with each category's points as last checked. */
 function useShownScore(report: Report, checking: ReadonlyMap<CategoryId, unknown>) {
   const now = useMemo(() => scoreOf(report), [report])
@@ -219,7 +246,7 @@ function ScoreHeader({
   return (
     <section aria-labelledby={id} data-perfect={total === 100 || undefined} className="flex flex-col px-2">
       <h2 id={id} className="label-mono text-ink-2">
-        Resume score
+        ATS score
       </h2>
       <div className="mt-1.5 flex items-baseline gap-2.5">
         {/* Said aloud when it changes, once the checks under way are done. */}
@@ -507,14 +534,19 @@ const TIER_LINE: Record<Tier, string> = {
  */
 function FindingItem({ finding, view }: { finding: Finding; view: ResumeView }) {
   const { open, dismiss, addWord } = useCheckActions()
+  // Pointing at it shows its mark's note on the preview.
+  const point = usePointAt(checkKeyOf(finding))
   return (
     // Pointing at the finding shades the whole row, its actions too.
     <li
+      {...point}
       className={`flex flex-col border-t border-rule transition-colors has-[>button:first-child:hover]:bg-ink/[0.02] ${TIER_LINE[tierOf(finding)]}`}
     >
       <button
         type="button"
         onClick={() => open(finding)}
+        onFocus={point.onMouseEnter}
+        onBlur={point.onMouseLeave}
         className="flex flex-col items-start gap-1 px-3.5 py-2.5 text-left focus-visible:outline-offset-[-2px]"
       >
         <span className="w-full truncate font-mono text-[11px] text-ink-2">{describePlace(view, finding.place)}</span>
