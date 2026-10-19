@@ -123,3 +123,14 @@ export function tieToResume(hash: string, resumeId: string, storage = storageOf(
     ),
   )
 }
+
+/** Forgets the notes tied to a resume once it's deleted: they quote it, and the site keeps no copy of a deleted resume. */
+export function forgetResume(resumeId: string, storage = storageOf()) {
+  if (!storage) return
+  const reviews = readAll(storage)
+  if (!reviews.some((review) => review.resumeId === resumeId)) return
+  writeAll(
+    storage,
+    reviews.filter((review) => review.resumeId !== resumeId),
+  )
+}
