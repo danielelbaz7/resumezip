@@ -510,7 +510,7 @@ export default function ReviewPage() {
                       <span className="text-[13.5px] text-ink-2">PDF or Word</span>
                     </div>
                   ) : (
-                    <button type="button" className="halo-button mt-8" onClick={chooseFile}>
+                    <button type="button" className="review-key glass glass-solid mt-8" onClick={chooseFile}>
                       <Upload aria-hidden="true" />
                       {state.step === "problem" ? "Try another file" : "Review my resume"}
                     </button>

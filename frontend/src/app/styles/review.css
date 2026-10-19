@@ -64,36 +64,32 @@
     mask-image: linear-gradient(180deg, transparent var(--from), #000 var(--to));
   }
 
-  /* crackedresume's call to action, in resumezip's colors: a white key in a
-     wide, soft ring of white. */
-  .halo-button {
+  /* The way in: a pill of solid white glass, as the home page's See templates
+     (.glass .glass-solid), with a soft shadow all round so it stands off the
+     white fog. Loaded after glass.css, so this shadow replaces .glass's. */
+  .review-key {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 9px;
     height: 49px;
-    padding: 0 23px 0 20px;
-    border-radius: 16px;
-    background: #fff;
-    color: #2a2e35;
+    padding: 0 24px 0 20px;
+    border-radius: 9999px;
+    color: var(--color-ink);
     font-size: 15px;
     font-weight: 500;
     letter-spacing: -0.01em;
     white-space: nowrap;
     box-shadow:
-      0 0 0 7px rgb(255 255 255 / 0.5),
-      0 16px 32px -12px rgb(40 80 160 / 0.35);
-    transition:
-      box-shadow 200ms var(--ease-glide),
-      translate 200ms var(--ease-glide);
+      0 0 0 1px rgb(17 19 24 / 0.05),
+      0 2px 6px -1px rgb(17 19 24 / 0.1),
+      0 10px 28px -8px rgb(17 19 24 / 0.2);
+    transition: filter 200ms var(--ease-glide);
   }
-  .halo-button:hover {
-    translate: 0 -1px;
-    box-shadow:
-      0 0 0 9px rgb(255 255 255 / 0.62),
-      0 20px 36px -12px rgb(40 80 160 / 0.4);
+  .review-key:hover {
+    filter: brightness(0.97);
   }
-  .halo-button svg {
+  .review-key svg {
     width: 16px;
     height: 16px;
     color: #6a6f78;
@@ -532,7 +528,7 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .halo-button,
+    .review-key,
     .review-scribble {
       transition: none;
     }
