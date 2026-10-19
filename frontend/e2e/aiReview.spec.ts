@@ -63,7 +63,6 @@ test("AI notes are asked for with a button, sent as the printed lines, and drawn
   await reviewed(page)
   // Nothing goes to the AI until the person asks.
   expect(sent).toBeNull()
-  await expect(page.getByText("This sends your resume’s text to GPT-5.4 mini")).toBeVisible()
 
   await page.getByRole("button", { name: "Get AI notes" }).click()
   await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()

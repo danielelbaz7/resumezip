@@ -105,9 +105,6 @@ export default function AiNotes({
         )}
         {state.step === "problem" ? "Try again" : "Get AI notes"}
       </button>
-      <p className="mt-2 text-[12px] text-ink-3">
-        This sends your resume’s text to GPT-5.4 mini, run by Microsoft Azure or OpenAI. resumezip doesn’t keep it.
-      </p>
     </div>
   )
 }
