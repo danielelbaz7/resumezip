@@ -1,6 +1,6 @@
 import { expect, test } from "./test"
 import { textPdf } from "../src/lib/import/testFiles"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { instantScrolling, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 // A resume from elsewhere: plain text, with a bullet that's a duty rather than a contribution.
 const RESUME = [
@@ -123,29 +123,36 @@ test("the sky is asked for with the page, and a soft copy of it shows until it a
 
 test("the page's fog runs on into the footer, with no strip of sky between them", async ({ page }) => {
   await page.goto("/review")
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-  const footer = (await page.getByRole("contentinfo").boundingBox())!
-  // Down a column clear of the words and the footer's rounded corners, from above the footer into its lift.
-  // In CSS pixels, so the column's where the footer is on WebKit's double-density screen too.
-  const shot = await page.screenshot({ scale: "css" })
-  const bluest = await page.evaluate(
-    async ({ png, from, to }) => {
-      const image = new Image()
-      image.src = `data:image/png;base64,${png}`
-      await image.decode()
-      const canvas = document.createElement("canvas")
-      canvas.width = image.width
-      canvas.height = image.height
-      const context = canvas.getContext("2d")!
-      context.drawImage(image, 0, 0)
-      const { data } = context.getImageData(200, from, 1, to - from)
-      let most = 0
-      for (let i = 0; i < data.length; i += 4) most = Math.max(most, data[i + 2] - data[i])
-      return most
-    },
-    { png: shot.toString("base64"), from: Math.round(footer.y - 80), to: Math.round(footer.y + 16) },
-  )
+  // The page scrolls smoothly: measured mid-glide, the footer would move between its box and the picture.
+  await instantScrolling(page)
+  // How much bluer than red the bluest pixel is, down a column clear of the words and the footer's
+  // rounded corners, from above the footer into its lift.
+  const bluest = async () => {
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    const footer = (await page.getByRole("contentinfo").boundingBox())!
+    // In CSS pixels, so the column's where the footer is on WebKit's double-density screen too.
+    const shot = await page.screenshot({ scale: "css" })
+    return page.evaluate(
+      async ({ png, from, to }) => {
+        const image = new Image()
+        image.src = `data:image/png;base64,${png}`
+        await image.decode()
+        const canvas = document.createElement("canvas")
+        canvas.width = image.width
+        canvas.height = image.height
+        const context = canvas.getContext("2d")!
+        context.drawImage(image, 0, 0)
+        const { data } = context.getImageData(200, from, 1, to - from)
+        let most = 0
+        for (let i = 0; i < data.length; i += 4) most = Math.max(most, data[i + 2] - data[i])
+        return most
+      },
+      { png: shot.toString("base64"), from: Math.round(footer.y - 80), to: Math.round(footer.y + 16) },
+    )
+  }
   // The fog is a white with a faint cool tint (blue at most 12 above red, where WebKit's tests draw it
-  // without its blur); the sky is 90 or more.
-  expect(bluest).toBeLessThan(30)
+  // without its blur); the sky is 90 or more. Measured again while the page is still settling (its
+  // headline's face arriving can move the footer between its box and the picture): a strip of sky
+  // stays blue however often it's measured.
+  await expect.poll(bluest).toBeLessThan(30)
 })
