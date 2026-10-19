@@ -1,4 +1,5 @@
 import { type APIRequestContext, expect, test } from "./test"
+import { PROMISES } from "../src/lib/promises"
 import { TEMPLATES, templateImageAlt, templatePath } from "../src/lib/templates"
 import { pageErrors, seriousAccessibilityProblems } from "./helpers"
 
@@ -8,6 +9,7 @@ const PAGES = [
   "/templates/jakes",
   "/templates/how-they-read",
   "/review",
+  ...PROMISES.map((promise) => promise.path),
   "/terms",
   "/create/dashboard",
   "/does-not-exist",
@@ -73,7 +75,22 @@ test("the pages that are mostly words are on the sheet the templates are on", as
       .evaluate((main) => [getComputedStyle(main).borderRadius, getComputedStyle(main.parentElement!).borderRadius])
   }
   const templates = await sheet("/templates")
-  for (const path of ["/terms", "/templates/how-they-read", "/does-not-exist"]) expect(await sheet(path), path).toEqual(templates)
+  for (const path of ["/terms", "/templates/how-they-read", "/does-not-exist", ...PROMISES.map((promise) => promise.path)])
+    expect(await sheet(path), path).toEqual(templates)
+})
+
+test("a page on what resumezip promises starts writing, and every page's footer links to them all", async ({ page }) => {
+  for (const { path } of PROMISES) {
+    await page.goto(path)
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+    const footer = page.getByRole("navigation", { name: "Why resumezip" })
+    for (const promise of PROMISES) {
+      await expect(footer.getByRole("link", { name: promise.name, exact: true }), path).toHaveAttribute("href", promise.path)
+    }
+  }
+  // A first visit, with no resumes saved, starts one.
+  await page.getByRole("main").getByRole("link", { name: "Start writing" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
 })
 
 // What a search engine reads: the HTML as served, before any script runs. The
@@ -158,6 +175,25 @@ test.describe("search engines", () => {
       const response = await request.get(`/previews/${template.id}.webp`, { maxRedirects: 0 })
       expect(response.status(), template.name).toBe(308)
       expect(response.headers().location, template.name).toBe(template.image)
+    }
+  })
+
+  // A link in a sentence tells a search engine what the page it goes to is
+  // about; the footer's only say the pages are there.
+  test("find each page on what resumezip promises linked from sentences on other pages", async ({ request }) => {
+    const pages = await Promise.all(
+      (await sitemapUrls(request)).map(async (url) => {
+        const path = new URL(url).pathname
+        return { path, html: await (await request.get(path)).text() }
+      }),
+    )
+    for (const promise of PROMISES) {
+      const linking = pages.filter(
+        ({ path, html }) =>
+          path !== promise.path &&
+          [...html.matchAll(/<(p|dd|li)\b[^>]*>([\s\S]*?)<\/\1>/g)].some(([, , text]) => text.includes(`href="${promise.path}"`)),
+      )
+      expect(linking.length, promise.path).toBeGreaterThanOrEqual(3)
     }
   })
 

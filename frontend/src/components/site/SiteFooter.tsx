@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { PROMISES } from "@/lib/promises"
 
 const LINKS = [
   { href: "/terms", label: "Terms & privacy" },
@@ -39,6 +40,22 @@ export default function SiteFooter({ ground = false, bare = false }: { ground?: 
           </nav>
           <span className="text-[15px] tracking-[-0.01em] text-white/60">Free, private and open source.</span>
         </div>
+        {/* For search engines more than visitors, who know these already: the pages each say why one of them is true. */}
+        <nav
+          aria-label="Why resumezip"
+          className="mx-auto flex max-w-[1440px] flex-wrap items-baseline gap-x-6 gap-y-2 px-5 pt-4 text-[14px] md:px-10"
+        >
+          <span className="label-mono normal-case text-white/60">Why resumezip</span>
+          {PROMISES.map((promise) => (
+            <Link
+              key={promise.path}
+              href={promise.path}
+              className="nav-underline tracking-[-0.01em] text-white/70 [--underline:var(--color-accent-soft)] hover:text-white"
+            >
+              {promise.name}
+            </Link>
+          ))}
+        </nav>
         <div className="mx-auto max-w-[1440px] px-5 md:px-10">
           {/* Up to 150px at 1440px, and no smaller than 56px on a phone. Pulled left by the r's side bearing, so its stem
               lines up with the links; the room under it is in em, as the p's tail hangs below its tight line height. */}

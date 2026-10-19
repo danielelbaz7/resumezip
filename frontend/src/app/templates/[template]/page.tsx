@@ -139,6 +139,16 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
                 </StartWritingLink>
                 <span className="text-[14px] text-ink-3">Switch any time; your writing stays put.</span>
               </div>
+              <p className="mt-3 text-[14px] text-ink-3">
+                Free, with{" "}
+                <Link
+                  href="/no-sign-up-resume-builder"
+                  className="text-ink-2 underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
+                >
+                  no sign-up
+                </Link>
+                .
+              </p>
 
               <section aria-labelledby="reads" className="mt-10">
                 <div className="flex items-baseline justify-between gap-4 border-b border-hairline pb-3">
