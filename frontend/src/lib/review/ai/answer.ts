@@ -44,7 +44,8 @@ export function notesOf(answer: unknown, units: readonly Unit[]): AiNote[] {
     const why = text(item.why)
     if (!tone || !title || !why) continue
     if (counts[tone] >= (tone === "red" ? MOST_RED : MOST_GREEN)) continue
-    const quote = text(item.quote)
+    // Some answers copy the bullet's mark into the quote, and the line's text has none.
+    const quote = text(typeof item.quote === "string" ? item.quote.replace(/^[\s•▪◦‣·*-]+/u, "") : null)
     const wanted = quote && comparable(quote).length >= LEAST_QUOTE ? comparable(quote) : null
     const id = typeof item.line === "string" ? item.line.replace(/[[\]\s]/g, "") : ""
     const named = byId.get(id)
