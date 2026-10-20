@@ -14,7 +14,7 @@ export type AiAnswer = { step: "asking" } | { step: "done"; notes: SavedNote[] }
 export interface AiNotes {
   /** The lines asked about, which the notes point at; null when there are none to ask about. */
   units: Unit[] | null
-  /** The lines' hash, which the notes are kept by in this browser; null until it's worked out. */
+  /** The lines' hash, which the notes are kept by in this browser; null until it's worked out, or if it can't be. */
   hash: string | null
   /** Null when the AI isn't asked. */
   answer: AiAnswer | null
@@ -36,16 +36,16 @@ export function useAiNotes(): AiNotes {
   const [hash, setHash] = useState<string | null>(null)
   const [answer, setAnswer] = useState<AiAnswer | null>(null)
   const asking = useRef<AbortController | null>(null)
-  const asked = useRef<{ units: Unit[]; hash: string } | null>(null)
+  const asked = useRef<{ units: Unit[]; hash: string | null } | null>(null)
 
-  const request = useCallback(async (units: Unit[], hashed: string, current: AbortController) => {
+  const request = useCallback(async (units: Unit[], hashed: string | null, current: AbortController) => {
     setAnswer({ step: "asking" })
     try {
       const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
       try {
         const notes = keptNotesOf(await askForNotes(units, current.signal), units)
         if (asking.current !== current) return
-        saveNotes(hashed, notes)
+        if (hashed) saveNotes(hashed, notes)
         setAnswer({ step: "done", notes })
       } catch (error) {
         if (current.signal.aborted) return
@@ -77,12 +77,13 @@ export function useAiNotes(): AiNotes {
       setHash(null)
       setAnswer(units ? { step: "asking" } : null)
       if (!units) return
-      const hashed = await hashOf(sentOf(units))
+      // Without a hash (no crypto.subtle, on a page that isn't served securely) the notes are still asked for, just not kept.
+      const hashed = await hashOf(sentOf(units)).catch(() => null)
       if (asking.current !== current) return
       asked.current = { units, hash: hashed }
       setHash(hashed)
       // A resume reviewed in this browser before shows the notes it got then, without asking again.
-      const saved = savedByHash(hashed)
+      const saved = hashed ? savedByHash(hashed) : null
       if (saved) setAnswer({ step: "done", notes: saved.notes })
       // Unless it turned this tab away moments ago: asking again would only be turned away.
       else if (aiPaused())
@@ -105,8 +106,8 @@ export function useAiNotes(): AiNotes {
     asking.current = null
   }, [])
 
-  // Leaving the page stops the AI on its way.
-  useEffect(() => () => asking.current?.abort(), [])
+  // Leaving the page stops the AI on its way, and anything still to come of it.
+  useEffect(() => stop, [stop])
 
   return { units, hash, answer, start, retry, stop }
 }

@@ -292,6 +292,21 @@ test("a page that never finishes drawing doesn't hold the result: after the wait
   expect(errors).toEqual([])
 })
 
+test("where the lines can't be hashed, the AI is still asked and its notes shown, just not kept", async ({ page }) => {
+  const errors = pageErrors(page)
+  // Only the lines' hash fails: Next.js hashes with it too, as it prefetches links.
+  await page.addInitScript(() => {
+    const digest = crypto.subtle.digest.bind(crypto.subtle)
+    crypto.subtle.digest = (algorithm: AlgorithmIdentifier, data: BufferSource) =>
+      new TextDecoder().decode(data).startsWith('[["u1"') ? Promise.reject(new Error("No digest for the lines")) : digest(algorithm, data)
+  })
+  await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
+  await reviewed(page)
+  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toBeAttached()
+  expect(errors).toEqual([])
+})
+
 test("the drop zone's note that AI notes are paused goes when the pause is over", async ({ page }) => {
   await page.clock.install()
   await page.goto("/review")
