@@ -12,7 +12,7 @@ import { notesOf } from "@/lib/review/ai/answer"
 import { aiPaused, aiPausedUntil } from "@/lib/review/ai/paused"
 import { tieToResume } from "@/lib/review/ai/saved"
 import { unitsToSend } from "@/lib/review/ai/units"
-import type { Review, ReviewStep } from "@/lib/review/review"
+import { reviewedAsIs, type Review, type ReviewStep } from "@/lib/review/review"
 import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import AiNotes, { Pill, PILL_WORDS, type AiState } from "./AiNotes"
 import Backdrop, { GAZE_DELAY, SHEET_RADIUS } from "./Backdrop"
@@ -32,6 +32,8 @@ type State =
   | {
       step: "working"
       done: ReadonlySet<ReviewStep>
+      /** Its own pages are read (a PDF), rather than printed first. */
+      asIs: boolean
       /** Page 1 of the resume as printed, once it's drawn, which takes the sample's place. */
       page: DrawnPage | null
       gaze: readonly Stop[] | null
@@ -76,11 +78,13 @@ function useTicking(on: boolean, every = 100) {
  */
 function ReadingWords({
   done,
+  asIs,
   asking,
   eyesFrom,
   rest,
 }: {
   done: ReadonlySet<ReviewStep>
+  asIs: boolean
   asking: boolean
   eyesFrom: number | null
   rest: boolean
@@ -91,7 +95,9 @@ function ReadingWords({
   const step = !done.has("open")
     ? "Opening your file"
     : !done.has("read")
-      ? "Printing it the way hiring software reads it"
+      ? asIs
+        ? "Reading it the way hiring software does"
+        : "Printing it the way hiring software reads it"
       : asking
         ? "Getting notes from AI"
         : !done.has("spell")
@@ -365,7 +371,7 @@ export default function ReviewPage() {
     const current = new AbortController()
     running.current = current
     const live = () => running.current === current
-    setState({ step: "working", done: new Set(), page: null, gaze: null, eyesFrom: null, rest: false })
+    setState({ step: "working", done: new Set(), asIs: reviewedAsIs(file), page: null, gaze: null, eyesFrom: null, rest: false })
     window.scrollTo({ top: 0 })
     const asked = { answer: null as Promise<void> | null, at: 0 }
     // All the pages, and page 1 alone, which is all the result needs to open: the rest join it as they're drawn.
@@ -560,7 +566,13 @@ export default function ReviewPage() {
             />
             <div className="page-in relative flex flex-col items-center">
               {working ? (
-                <ReadingWords done={working.done} asking={ai.answer?.step === "asking"} eyesFrom={working.eyesFrom} rest={working.rest} />
+                <ReadingWords
+                  done={working.done}
+                  asIs={working.asIs}
+                  asking={ai.answer?.step === "asking"}
+                  eyesFrom={working.eyesFrom}
+                  rest={working.rest}
+                />
               ) : (
                 <>
                   <h1

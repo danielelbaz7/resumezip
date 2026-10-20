@@ -1,8 +1,12 @@
-// Reviews a resume file in the browser, as the editor's Check would once the
-// file is opened there: it's opened as "Open a file" opens it, printed with
-// its template, read back the way hiring software reads it (lib/check/preview.ts),
-// and its words checked by the grammar checker, then every rule runs over it.
-// So the page's score is the one the editor shows once the file is opened.
+// Reviews a resume file in the browser, as the editor's Check would: it's
+// opened as "Open a file" opens it, its pages are read the way hiring software
+// reads them (lib/check/preview.ts), its words are checked by the grammar
+// checker, then every rule runs over it. A PDF is reviewed as it is, its own
+// pages read, shown and marked, so it's judged as the person would send it.
+// A Word or JSON file has no pages of its own, so it's printed with its
+// template, which for a Word file from elsewhere is the default one. Opened in
+// the editor, a resume is printed in its template, so a PDF from elsewhere
+// can score differently there.
 // Nothing leaves the browser: the PDF engine and the grammar checker are
 // downloaded, not called.
 
@@ -12,7 +16,7 @@ import { hasEnoughToCheck } from "@/lib/check/labels"
 import { viewOf, type ResumeView } from "@/lib/check/resume"
 import { scoreOf, type Score } from "@/lib/check/score"
 import { grammarTexts } from "@/lib/check/spelling"
-import { OpenFileError, openResumeFile, until } from "@/lib/import/open"
+import { kindOf, OpenFileError, openResumeFile, until } from "@/lib/import/open"
 import { toResumeContent } from "@/lib/import/parse"
 import type { Resume, ResumeContent } from "@/lib/resume"
 import { imported } from "@/lib/resumeStore"
@@ -30,7 +34,7 @@ export interface Review {
   resume: Resume
   report: Report
   score: Score & { total: number }
-  /** The resume as its template prints it, which the marks are drawn on. */
+  /** Its pages, which the marks are drawn on: the PDF as it came, or as its template prints it. */
   pdf: Uint8Array
   /** That PDF as hiring software reads it; null if it couldn't be read, and then the PDF rules don't count. */
   reading: PdfReading | null
@@ -38,7 +42,10 @@ export interface Review {
   spelled: boolean
 }
 
-/** The resume as printed and read back, once it is, while its spelling may still be checked. */
+/** Whether `file` is reviewed as it is, its own pages read and marked: a PDF is. */
+export const reviewedAsIs = (file: File) => kindOf(file) === "pdf"
+
+/** The resume's pages, as the PDF came or as printed, and as read back, once they are; its spelling may still be checked. */
 export interface Printed {
   pdf: Uint8Array
   reading: PdfReading | null
@@ -47,7 +54,7 @@ export interface Printed {
 
 /**
  * Reviews `file`, calling `onDone` as each step finishes, and `onPrinted` with
- * the printed resume as soon as it's read back, which the AI can be asked
+ * its pages as soon as they're read back, which the AI can be asked
  * about while the rest goes on. Rejects with an OpenFileError, worded for the
  * person, when the file can't be reviewed, and with the signal's reason once it aborts.
  */
@@ -62,12 +69,13 @@ export async function reviewFile(
   if (opened.kind === "parsed") void opened.pdf?.doc.destroy()
   const content = opened.kind === "parsed" ? toResumeContent(opened.parsed) : opened.resume
   const resume = imported(content, "personal")
+  const asIs = reviewedAsIs(file)
   const view = viewOf(resume)
   if (!hasEnoughToCheck(view)) throw new OpenFileError("There’s no name and no section in this file to check. Is it a resume?")
   onDone("open")
 
   const printing = (async () => {
-    const pdf = await until(compileResume(resume), signal)
+    const pdf = asIs ? new Uint8Array(await until(file.arrayBuffer(), signal)) : await until(compileResume(resume), signal)
     const url = URL.createObjectURL(new Blob([pdf as BlobPart], { type: "application/pdf" }))
     try {
       const { readPreview } = await import("@/lib/check/preview")

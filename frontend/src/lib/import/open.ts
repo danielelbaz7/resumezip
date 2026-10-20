@@ -70,7 +70,7 @@ export function loadPdfjs() {
   return pdfjs
 }
 
-function kindOf(file: File): "pdf" | "docx" | "json" | null {
+export function kindOf(file: File): "pdf" | "docx" | "json" | null {
   if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") return "pdf"
   if (/\.docx$/i.test(file.name) || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return "docx"
   if (/\.json$/i.test(file.name) || file.type === "application/json") return "json"
