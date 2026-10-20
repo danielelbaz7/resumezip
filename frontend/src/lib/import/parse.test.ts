@@ -605,6 +605,16 @@ describe("a link that wrapped after a slash", () => {
     ])
     expect(resume.publicationsSection[0].publicationLink).toBe("doi.org/10.13031/aim.202600531")
   })
+
+  test("in a bullet joins back up without a space", () => {
+    const { resume } = read("Experience", [
+      line([["Data Analyst", 36], ["Jun 2022 – Present", 480]], { bold: true }),
+      line([["Acme Corp", 36]], { italic: true }),
+      line([["Published the cleaning scripts at github.com/", 54]], { bullet: true }),
+      line([["mara/tidy", 54]]),
+    ])
+    expect(resume.workExperienceSection[0].workDescription).toBe("• Published the cleaning scripts at github.com/mara/tidy")
+  })
 })
 
 describe("a line about an award", () => {

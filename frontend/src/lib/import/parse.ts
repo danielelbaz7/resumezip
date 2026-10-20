@@ -433,16 +433,15 @@ function continues(line: ParseLine, item: Item, wasBullet: boolean, above: Parse
   return Math.abs(line.x - item.x) <= 3 && (!/[.!?]$/.test(item.text) || /^[a-z]/.test(line.text) || afterFull)
 }
 
-/**
- * A wrapped line joined onto the one above: a word a soft hyphen broke in two
- * joins back up, and so does a link or "and/or" that broke after a slash.
- */
+// A word broken in two at the end of a line joins back up with no space: at a
+// soft hyphen, at a hyphen with more of the word after it, or after a slash,
+// as a link or "and/or" breaks.
+const joinsWithoutSpace = (text: string, next: string) =>
+  text.endsWith(SOFT_HYPHEN) || (/\w-$/.test(text) && /^[a-z]/.test(next)) || /\w\/$/.test(text)
+
+/** A wrapped line joined onto the one above, without the soft hyphen a word broke at. */
 const joinWrapped = (text: string, next: string) =>
-  text.endsWith(SOFT_HYPHEN)
-    ? text.slice(0, -1) + next
-    : (/\w-$/.test(text) && /^[a-z]/.test(next)) || /\w\/$/.test(text)
-      ? text + next
-      : `${text} ${next}`
+  text.endsWith(SOFT_HYPHEN) ? text.slice(0, -1) + next : joinsWithoutSpace(text, next) ? text + next : `${text} ${next}`
 
 /** Adds text in a style, merged into the piece before when the style is the same. */
 function addPiece(pieces: Piece[], text: string, bold: boolean, italic: boolean) {
@@ -470,15 +469,20 @@ function stylePieces(line: Line): Piece[] {
   return pieces
 }
 
+/** Joins a wrapped line onto the text above it as joinWrapped does, and its pieces onto the pieces above. */
+function joinWrappedLine(above: { text: string; pieces: Piece[] }, line: Line) {
+  const soft = above.text.endsWith(SOFT_HYPHEN)
+  const together = joinsWithoutSpace(above.text, line.text)
+  above.text = joinWrapped(above.text, line.text)
+  const last = above.pieces[above.pieces.length - 1]
+  if (soft && last) last.text = last.text.replace(/\u00AD$/, "")
+  if (!together) addPiece(above.pieces, " ", last?.bold ?? false, last?.italic ?? false)
+  for (const piece of stylePieces(line)) addPiece(above.pieces, piece.text, piece.bold, piece.italic)
+}
+
 /** Adds a wrapped line to the item above it. */
 function extendItem(item: Item, line: ParseLine) {
-  const soft = item.text.endsWith(SOFT_HYPHEN)
-  const together = soft || (/\w-$/.test(item.text) && /^[a-z]/.test(line.text))
-  item.text = joinWrapped(item.text, line.text)
-  const last = item.pieces[item.pieces.length - 1]
-  if (soft && last) last.text = last.text.replace(/\u00AD$/, "")
-  if (!together) addPiece(item.pieces, " ", last?.bold ?? false, last?.italic ?? false)
-  for (const piece of stylePieces(line)) addPiece(item.pieces, piece.text, piece.bold, piece.italic)
+  joinWrappedLine(item, line)
   item.lines.push(line.index)
 }
 
@@ -575,14 +579,7 @@ function written(lines: ParseLine[]): { text: string; pieces: Piece[] }[] {
       out.push({ text: line.text, pieces: stylePieces(line) })
       return
     }
-    // Joined as joinWrapped joins the text: a word broken in two with no space.
-    const soft = last.text.endsWith(SOFT_HYPHEN)
-    const together = soft || (/\w-$/.test(last.text) && /^[a-z]/.test(line.text)) || /\w\/$/.test(last.text)
-    last.text = joinWrapped(last.text, line.text)
-    const end = last.pieces[last.pieces.length - 1]
-    if (soft && end) end.text = end.text.replace(/\u00AD$/, "")
-    if (!together) addPiece(last.pieces, " ", end?.bold ?? false, end?.italic ?? false)
-    for (const piece of stylePieces(line)) addPiece(last.pieces, piece.text, piece.bold, piece.italic)
+    joinWrappedLine(last, line)
   })
   return out
 }
