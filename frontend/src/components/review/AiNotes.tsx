@@ -1,9 +1,11 @@
 "use client"
 
+import { useId, useState } from "react"
 import { Clock, RotateCcw } from "lucide-react"
 import { Squares } from "@/components/site/Loader"
 import type { Problem } from "@/lib/review/ai/askForNotes"
 import type { Note } from "./PageMarks"
+import { STORM, SUN, type Picture } from "./weather/pictures"
 
 export type AiState = { step: "asking" } | { step: "done"; notes: Note[] } | { step: "problem"; reason: Problem; message: string }
 
@@ -39,48 +41,107 @@ export function Pill({ children, onClose }: { children: React.ReactNode; onClose
   )
 }
 
+type Tone = "red" | "good"
+
+// prettier-ignore
+const TILES: Record<Tone, { title: string; line: string; empty: string; picture: Picture }> = {
+  red: { title: "Red flags", line: "Lines a recruiter would trip on.", empty: "None found. Nice.", picture: STORM },
+  good: { title: "Done well", line: "Lines that land. Keep them.", empty: "None stood out.", picture: SUN },
+}
+
+// Each color of a picture is one layer of the whole grid, blank but for its own
+// glyphs, and the layers are laid on each other: a few text nodes, not a span a glyph.
+const layersOf = ({ palette, glyphs, inks }: Picture) =>
+  palette.map((color, ink) => ({
+    color,
+    text: glyphs.map((row, r) => row.replace(/./g, (glyph, c) => (inks[r][c] === String(ink) ? glyph : " "))).join("\n"),
+  }))
+const LAYERS: Record<Tone, { color: string; text: string }[]> = { red: layersOf(STORM), good: layersOf(SUN) }
+
+/** A tile for one kind of flag: its count, and its picture in text. Pressed, it's tall and its flags are listed. */
+function Tile({ tone, count, pressed, onPress }: { tone: Tone; count: number; pressed: boolean; onPress: () => void }) {
+  const line = useId()
+  const { title, line: words } = TILES[tone]
+  return (
+    <button
+      type="button"
+      className="review-tile"
+      data-tone={tone}
+      aria-pressed={pressed}
+      aria-label={`${title}, ${count}`}
+      aria-describedby={line}
+      onClick={onPress}
+    >
+      <span className="review-tile-head">
+        <span className="review-tile-title">{title}</span>
+        <span className="review-tile-count">{count}</span>
+      </span>
+      <span id={line} className="review-tile-line">
+        {words}
+      </span>
+      <span className="review-tile-picture" aria-hidden="true">
+        {LAYERS[tone].map(({ color, text }) => (
+          <span key={color} style={{ color }}>
+            {text}
+          </span>
+        ))}
+      </span>
+    </button>
+  )
+}
+
+/**
+ * The AI's flags as two tiles, red flags and done well; the one pressed lists
+ * its flags under them, each pointing at its mark. It opens on the red flags,
+ * unless there are none and something was done well.
+ */
 function Flags({
-  title,
-  empty,
   notes,
   open,
   onOpen,
   onPick,
 }: {
-  title: string
-  empty: string
   notes: Note[]
   open: string | null
   onOpen: (key: string | null) => void
   onPick: (note: Note) => void
 }) {
+  const of = (tone: Tone) => notes.filter((note) => (tone === "red" ? note.ink === "red" : note.ink === "good"))
+  const [shown, setShown] = useState<Tone>(() => (of("red").length === 0 && of("good").length > 0 ? "good" : "red"))
+  const listed = of(shown)
   return (
-    <section>
-      <h2 className="flex items-baseline gap-1.5 text-[13px] font-medium text-ink-2">
-        {title} <span className="text-ink-3">{notes.length}</span>
-      </h2>
-      {notes.length === 0 ? (
-        <p className="mt-1 text-ink-2">{empty}</p>
-      ) : (
-        <ul className="mt-1 flex flex-col">
-          {notes.map((note) => (
-            <li key={note.key}>
-              <button
-                type="button"
-                className="review-flag"
-                data-ink={note.ink}
-                data-open={open === note.key ? "" : undefined}
-                onMouseEnter={() => note.drawn && onOpen(note.key)}
-                onMouseLeave={() => open === note.key && onOpen(null)}
-                onClick={() => onPick(note)}
-              >
-                {note.title}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <div className="review-flags">
+      <div role="group" aria-label="AI notes" className="flex flex-col gap-2">
+        {(["red", "good"] as const).map((tone) => (
+          <Tile key={tone} tone={tone} count={of(tone).length} pressed={shown === tone} onPress={() => setShown(tone)} />
+        ))}
+      </div>
+      {/* Keyed by the tile, so a new list comes in row by row. */}
+
+      <div key={shown} className="review-flag-list">
+        {listed.length === 0 ? (
+          <p className="text-ink-2">{TILES[shown].empty}</p>
+        ) : (
+          <ul aria-label={TILES[shown].title} className="flex flex-col">
+            {listed.map((note, index) => (
+              <li key={note.key} style={{ "--row": index } as React.CSSProperties}>
+                <button
+                  type="button"
+                  className="review-flag"
+                  data-ink={note.ink}
+                  data-open={open === note.key ? "" : undefined}
+                  onMouseEnter={() => note.drawn && onOpen(note.key)}
+                  onMouseLeave={() => open === note.key && onOpen(null)}
+                  onClick={() => onPick(note)}
+                >
+                  {note.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -102,16 +163,7 @@ export default function AiNotes({
   onOpen: (key: string | null) => void
   onPick: (note: Note) => void
 }) {
-  if (state.step === "done") {
-    const red = state.notes.filter((note) => note.ink === "red")
-    const good = state.notes.filter((note) => note.ink === "good")
-    return (
-      <div className="review-ai flex flex-col gap-3">
-        <Flags title="Red flags" empty="None found. Nice." notes={red} open={open} onOpen={onOpen} onPick={onPick} />
-        <Flags title="Done well" empty="None stood out." notes={good} open={open} onOpen={onOpen} onPick={onPick} />
-      </div>
-    )
-  }
+  if (state.step === "done") return <Flags notes={state.notes} open={open} onOpen={onOpen} onPick={onPick} />
   if (state.step === "asking") {
     return (
       <div role="status" className="review-ai">

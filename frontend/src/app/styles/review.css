@@ -294,7 +294,8 @@
       margin: 0 0 0 24px;
     }
     /* The flags stay in view beside the page as it scrolls. */
-    .review-ai {
+    .review-ai,
+    .review-flags {
       position: sticky;
       top: 96px;
     }
@@ -345,7 +346,7 @@
   }
   .review-flag:hover,
   .review-flag[data-open] {
-    background: rgb(255 255 255 / 0.85);
+    background: rgb(17 19 24 / 0.045);
   }
   .review-flag::before {
     content: "";
@@ -361,6 +362,199 @@
   }
   .review-flag[data-ink="good"]::before {
     color: var(--color-accent);
+  }
+
+  /* The AI's flags: two white tiles, red flags and done well, each with its
+     picture in text (AiNotes.tsx). The pressed one is tall and lists its flags
+     under them; the other shrinks to a strip of its picture. */
+  .review-flags {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .review-tile {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 54px;
+    overflow: hidden;
+    border-radius: 18px;
+    background: #fff;
+    text-align: left;
+    box-shadow:
+      0 0 0 1px rgb(17 19 24 / 0.05),
+      0 1px 2px rgb(17 19 24 / 0.05),
+      0 18px 40px -18px rgb(25 60 130 / 0.35);
+    transition:
+      height 560ms var(--ease-glide),
+      box-shadow 200ms;
+  }
+  .review-tile[aria-pressed="true"] {
+    height: 196px;
+    cursor: default;
+  }
+  .review-tile[aria-pressed="false"]:hover {
+    box-shadow:
+      0 0 0 1px rgb(17 19 24 / 0.08),
+      0 1px 2px rgb(17 19 24 / 0.06),
+      0 20px 44px -16px rgb(25 60 130 / 0.45);
+  }
+  .review-tile:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  .review-tile[data-tone="red"] {
+    --tone: var(--review-red);
+  }
+  .review-tile[data-tone="good"] {
+    --tone: var(--color-accent);
+  }
+  /* White over the picture's left, where the words are: a soft fade on the tall
+     tile, a firmer one on the strip, where the words run across more of it. */
+  .review-tile::before,
+  .review-tile::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    transition: opacity 400ms;
+  }
+  .review-tile::before {
+    background: linear-gradient(90deg, #fff 0%, rgb(255 255 255 / 0.9) 30%, rgb(255 255 255 / 0) 56%);
+  }
+  .review-tile::after {
+    background: linear-gradient(90deg, #fff 0%, rgb(255 255 255 / 0.92) 45%, rgb(255 255 255 / 0.15) 75%);
+  }
+  .review-tile[aria-pressed="false"]::before,
+  .review-tile[aria-pressed="true"]::after {
+    opacity: 0;
+  }
+  .review-tile-head {
+    position: absolute;
+    left: 18px;
+    top: 21px;
+    z-index: 2;
+  }
+  .review-tile-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--color-ink-2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .review-tile-title::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--tone);
+  }
+  /* The count: big under the title on the tall tile, small after it on the
+     strip. It goes sideways faster than it shrinks, so it never crosses the title. */
+  .review-tile-count {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 8px);
+    color: var(--color-ink);
+    font-family: var(--font-serif);
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    transform-origin: 0 0;
+    transform: translateY(-4px) scale(0.34);
+    transition:
+      left 280ms var(--ease-glide),
+      transform 560ms var(--ease-glide);
+  }
+  .review-tile[aria-pressed="true"] .review-tile-count {
+    left: 0;
+    transform: translateY(14px);
+  }
+  .review-tile-line {
+    position: absolute;
+    left: 18px;
+    top: 110px;
+    z-index: 2;
+    width: 112px;
+    color: var(--color-ink-2);
+    font-size: 13px;
+    line-height: 1.3;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition:
+      opacity 200ms,
+      transform 560ms var(--ease-glide);
+  }
+  .review-tile[aria-pressed="true"] .review-tile-line {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 360ms 160ms,
+      transform 560ms var(--ease-glide);
+  }
+  /* Centered on the tile, so as it shrinks it keeps the picture's middle. */
+  .review-tile-picture {
+    position: absolute;
+    top: 50%;
+    right: -6px;
+    display: grid;
+    translate: 0 -50%;
+    opacity: 0.75;
+    transition: opacity 400ms;
+  }
+  .review-tile[aria-pressed="true"] .review-tile-picture,
+  .review-tile:hover .review-tile-picture {
+    opacity: 1;
+  }
+  .review-tile-picture > span {
+    grid-area: 1 / 1;
+    font-family: var(--font-mono);
+    font-size: 6px;
+    font-weight: 600;
+    line-height: 6px;
+    letter-spacing: 0;
+    white-space: pre;
+  }
+  /* The flags listed under the tiles, on the same solid white. */
+  .review-flag-list {
+    padding: 10px 12px;
+    border-radius: 18px;
+    background: #fff;
+    color: #3a3e46;
+    font-size: 14px;
+    line-height: 1.4;
+    box-shadow:
+      0 0 0 1px rgb(17 19 24 / 0.05),
+      0 1px 2px rgb(17 19 24 / 0.05),
+      0 18px 40px -18px rgb(25 60 130 / 0.35);
+  }
+  .review-flag-list li {
+    animation: review-flag-in 420ms var(--ease-glide) calc(120ms + var(--row) * 30ms) backwards;
+  }
+  @keyframes review-flag-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .review-tile,
+    .review-tile::before,
+    .review-tile::after,
+    .review-tile-count,
+    .review-tile-line,
+    .review-tile-picture {
+      transition: none;
+    }
+    .review-flag-list li {
+      animation: none;
+    }
   }
 
   /* A pen mark on the page, drawn in one after another. Its paths are one long
