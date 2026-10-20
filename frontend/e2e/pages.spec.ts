@@ -11,15 +11,15 @@ const PAGES = [
   "/review",
   ...PROMISES.map((promise) => promise.path),
   "/terms",
+  "/contact",
   "/create/dashboard",
   "/does-not-exist",
 ]
 
-test("contact, at the end of the home page, gives the support address to write to or copy", async ({ page, context, browserName }) => {
-  // Contact is part of the home page now; its old address still leads to it.
+test("the contact page gives the support address to write to or copy", async ({ page, context, browserName }) => {
   await page.goto("/contact")
-  await expect(page).toHaveURL(/\/#contact$/)
-  const email = page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Found a bug, or have an idea?")
+  const email = page.getByRole("main").getByRole("link", { name: "hello@tryresumezip.com", exact: true })
   await expect(email).toHaveAttribute("href", "mailto:hello@tryresumezip.com")
 
   // Copied for those who write from a webmail, where the link opens nothing.
@@ -34,7 +34,7 @@ test("contact, at the end of the home page, gives the support address to write t
 // Copy email, and has to show above it there rather than under it.
 test("the Email bubble shows above Copy email where they meet", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.goto("/#contact")
+  await page.goto("/contact")
   const email = page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })
   const copy = page.getByRole("button", { name: "Copy email" })
   // Hovered at its right end, once the page has stopped scrolling to it.
@@ -75,7 +75,7 @@ test("the pages that are mostly words are on the sheet the templates are on", as
       .evaluate((main) => [getComputedStyle(main).borderRadius, getComputedStyle(main.parentElement!).borderRadius])
   }
   const templates = await sheet("/templates")
-  for (const path of ["/terms", "/templates/how-they-read", "/does-not-exist", ...PROMISES.map((promise) => promise.path)])
+  for (const path of ["/terms", "/contact", "/templates/how-they-read", "/does-not-exist", ...PROMISES.map((promise) => promise.path)])
     expect(await sheet(path), path).toEqual(templates)
 })
 
@@ -159,13 +159,10 @@ test.describe("search engines", () => {
     }
   })
 
-  test("are sent from the old About and contact addresses to the home page for good", async ({ request }) => {
+  test("are sent from the old About address to the home page for good", async ({ request }) => {
     const about = await request.get("/about", { maxRedirects: 0 })
     expect(about.status()).toBe(308)
     expect(about.headers().location).toBe("/")
-    const contact = await request.get("/contact", { maxRedirects: 0 })
-    expect(contact.status()).toBe(308)
-    expect(contact.headers().location).toBe("/#contact")
   })
 
   // Named by id, before they were named after their pages. A template added

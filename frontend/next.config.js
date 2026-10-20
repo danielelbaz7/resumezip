@@ -94,15 +94,14 @@ module.exports = {
   async rewrites() {
     return [{ source: "/create/new/:id+", destination: "/create/editor" }]
   },
-  // The About page and the contact page are part of the home page now. Old
-  // links, and messages already sent with these addresses, still land there:
-  // /about#contact keeps its #contact, which the home page's story takes to
-  // its end, where the address is. Here rather than in a page, whose
-  // redirect() answers 307 (temporary), so search engines list the home page instead.
+  // The About page is part of the home page now. Old links, and messages
+  // already sent with its address, still land there: /about#contact keeps its
+  // #contact, which the home page's story takes to its end, where the address
+  // is. Here rather than in a page, whose redirect() answers 307 (temporary),
+  // so search engines list the home page instead.
   async redirects() {
     return [
       { source: "/about", destination: "/", permanent: true },
-      { source: "/contact", destination: "/#contact", permanent: true },
       ...Object.entries(RENAMED_PICTURES).map(([id, page]) => ({
         source: `/previews/${id}.webp`,
         destination: `/previews/${page}-resume-template.webp`,
