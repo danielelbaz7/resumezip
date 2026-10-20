@@ -128,17 +128,20 @@ test("passes a service whose credit has run out over for an hour", async () => {
   expect(asked().slice(4)).toEqual([CLAUDE])
 })
 
-test("on npm run dev, asks only Gemini when it has a key, so testing spends no credit", async () => {
+test("on npm run dev, asks Gemini first when it has a key, and Azure only when Gemini can't answer", async () => {
   vi.stubEnv("NODE_ENV", "development")
   vi.stubEnv("GEMINI_API_KEY", "gemini-key")
-  fetched.mockResolvedValueOnce(new Response("Too many requests", { status: 429 })).mockImplementation(answering())
-  expect((await post()).status).toBe(503)
+  fetched.mockImplementationOnce(answering())
   expect((await post()).status).toBe(200)
-  expect(asked()).toEqual([GEMINI, GEMINI])
-  const [url, init] = fetched.mock.calls[1]
+  expect(asked()).toEqual([GEMINI])
+  const [url, init] = fetched.mock.calls[0]
   expect(String(url)).toBe("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
   expect(new Headers(init!.headers).get("authorization")).toBe("Bearer gemini-key")
   expect(JSON.parse(init!.body as string).model).toBe("gemini-3.5-flash-lite")
+
+  fetched.mockResolvedValueOnce(new Response("Too many requests", { status: 429 })).mockImplementation(answering())
+  expect((await post()).status).toBe(200)
+  expect(asked().slice(1)).toEqual([GEMINI, AZURE])
 })
 
 test("never asks Gemini on the live site, even with a key", async () => {

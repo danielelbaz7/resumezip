@@ -3,7 +3,7 @@
 // renewed each month and lost if it isn't spent; OpenAI's credit expires
 // before Azure's, so OpenAI comes next. Azure OpenAI and OpenAI run the same
 // model behind the same chat completions API. All three take one prompt and
-// one answer schema. On `npm run dev`, Gemini can stand in for all of them.
+// one answer schema. On `npm run dev`, Gemini can stand in for the first two.
 
 import Anthropic from "@anthropic-ai/sdk"
 import { ANSWER_SCHEMA } from "./prompt"
@@ -51,10 +51,22 @@ const GEMINI_MODEL = "gemini-3.5-flash-lite"
 /** The providers that have keys in `env`, in the order they're tried. */
 export function providersOf(env: Record<string, string | undefined>): Provider[] {
   const { ANTHROPIC_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT, GEMINI_API_KEY } = env
+  const azure: Provider[] =
+    AZURE_OPENAI_API_KEY && AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_DEPLOYMENT
+      ? [
+          {
+            name: "azure",
+            url: `${new URL(AZURE_OPENAI_ENDPOINT).origin}/openai/v1/chat/completions`,
+            headers: { "api-key": AZURE_OPENAI_API_KEY },
+            deployment: AZURE_OPENAI_DEPLOYMENT,
+          },
+        ]
+      : []
   // Google's free tier keeps what it's sent and may have people read it, and
   // the site doesn't say it sends resumes to Google: Gemini is only for trying
-  // the review on your own machine. There, with GEMINI_API_KEY set, it's the
-  // only one asked, so testing spends no credit.
+  // the review on your own machine. There, with GEMINI_API_KEY set, it's asked
+  // first so testing spends no credit, and Azure, which has the most credit,
+  // only when Gemini is busy or its free day is used up.
   if (GEMINI_API_KEY && env.NODE_ENV === "development") {
     return [
       {
@@ -63,6 +75,7 @@ export function providersOf(env: Record<string, string | undefined>): Provider[]
         headers: { authorization: `Bearer ${GEMINI_API_KEY}` },
         deployment: GEMINI_MODEL,
       },
+      ...azure,
     ]
   }
   const providers: Provider[] = []
@@ -76,15 +89,7 @@ export function providersOf(env: Record<string, string | undefined>): Provider[]
       deployment: OPENAI_MODEL,
     })
   }
-  if (AZURE_OPENAI_API_KEY && AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_DEPLOYMENT) {
-    providers.push({
-      name: "azure",
-      url: `${new URL(AZURE_OPENAI_ENDPOINT).origin}/openai/v1/chat/completions`,
-      headers: { "api-key": AZURE_OPENAI_API_KEY },
-      deployment: AZURE_OPENAI_DEPLOYMENT,
-    })
-  }
-  return providers
+  return [...providers, ...azure]
 }
 
 export interface AskOptions {
