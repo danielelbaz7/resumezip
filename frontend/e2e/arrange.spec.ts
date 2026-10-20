@@ -128,8 +128,9 @@ test("an entry is a card, folded to its name and what's in it, opened with a cli
 test("an entry's card has room round it for its shadow, open or folded", async ({ page }) => {
   await openSection(page, "Experience")
   await expect(page.getByRole("button", { name: "Done editing entry 1" })).toBeVisible()
-  // What's between each card and the form that scrolls clips nothing near it: the shadow falls
-  // about 50px past the card, and a box clipped close round it would cut it off in a hard line.
+  // What's between each card and the form that scrolls clips nothing near it: an open card's
+  // shadow (--shadow-card-open) falls 44px below it and 28px to its sides, and a box clipped
+  // closer round it would cut it off in a hard line.
   const clipped = await page.locator("[data-card]").evaluateAll((cards) =>
     cards.flatMap((card) => {
       const edge = card.getBoundingClientRect()
@@ -137,7 +138,7 @@ test("an entry's card has room round it for its shadow, open or folded", async (
       for (let box = card.parentElement; box && !["auto", "scroll"].includes(getComputedStyle(box).overflowY); box = box.parentElement) {
         const style = getComputedStyle(box)
         const around = box.getBoundingClientRect()
-        const close = around.bottom - edge.bottom < 40 || edge.left - around.left < 8 || around.right - edge.right < 8
+        const close = around.bottom - edge.bottom < 44 || edge.left - around.left < 28 || around.right - edge.right < 28
         if ((style.overflowX !== "visible" || style.overflowY !== "visible") && close)
           found.push(`${box.tagName} round ${card.textContent?.slice(0, 20)}`)
       }
