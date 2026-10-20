@@ -9,7 +9,7 @@
 import { runChecks, type GrammarLint, type PdfReading, type Report } from "@/lib/check/engine"
 import { pdfLayoutOf } from "@/lib/check/extraPdf"
 import { hasEnoughToCheck } from "@/lib/check/labels"
-import { viewOf } from "@/lib/check/resume"
+import { viewOf, type ResumeView } from "@/lib/check/resume"
 import { scoreOf, type Score } from "@/lib/check/score"
 import { grammarTexts } from "@/lib/check/spelling"
 import { OpenFileError, openResumeFile, until } from "@/lib/import/open"
@@ -38,12 +38,25 @@ export interface Review {
   spelled: boolean
 }
 
+/** The resume as printed and read back, once it is, while its spelling may still be checked. */
+export interface Printed {
+  pdf: Uint8Array
+  reading: PdfReading | null
+  view: ResumeView
+}
+
 /**
- * Reviews `file`, calling `onDone` as each step finishes. Rejects with an
- * OpenFileError, worded for the person, when the file can't be reviewed, and
- * with the signal's reason once it aborts.
+ * Reviews `file`, calling `onDone` as each step finishes, and `onPrinted` with
+ * the printed resume as soon as it's read back, which the AI can be asked
+ * about while the rest goes on. Rejects with an OpenFileError, worded for the
+ * person, when the file can't be reviewed, and with the signal's reason once it aborts.
  */
-export async function reviewFile(file: File, signal: AbortSignal, onDone: (step: ReviewStep) => void): Promise<Review> {
+export async function reviewFile(
+  file: File,
+  signal: AbortSignal,
+  onDone: (step: ReviewStep) => void,
+  onPrinted?: (printed: Printed) => void,
+): Promise<Review> {
   const opened = await openResumeFile(file, { signal })
   if (opened.kind === "all") throw new OpenFileError("This file has several resumes in it. Review a PDF or Word file of one.")
   if (opened.kind === "parsed") void opened.pdf?.doc.destroy()
@@ -60,6 +73,7 @@ export async function reviewFile(file: File, signal: AbortSignal, onDone: (step:
       const { readPreview } = await import("@/lib/check/preview")
       const reading = await readPreview(url, signal, pdfLayoutOf(view))
       onDone("read")
+      onPrinted?.({ pdf, reading, view })
       return { pdf, reading }
     } finally {
       URL.revokeObjectURL(url)

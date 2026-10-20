@@ -215,21 +215,95 @@ test("a review that found nothing can be asked again from the editor", async ({ 
   expect(errors).toEqual([])
 })
 
-test("the ATS checks, chosen while the AI reads, stay on the page when its notes arrive", async ({ page }) => {
-  const errors = pageErrors(page)
+/** Answers /api/review only once `answer()` is called; `asked` settles when the page has asked. */
+async function heldAnswer(page: import("@playwright/test").Page) {
+  let ask = () => {}
+  const asked = new Promise<void>((resolve) => (ask = resolve))
   let answer = () => {}
   const answered = new Promise<void>((resolve) => (answer = resolve))
   await page.route("**/api/review", async (route) => {
+    ask()
     await answered
     await route.fulfill({ json: { notes: NOTES } })
   })
-  await reviewed(page)
-  await expect(page.getByText("Reading it like a recruiter…").first()).toBeVisible()
+  return { asked, answer }
+}
+
+test("the AI is asked as soon as the resume is printed, and the result waits for its notes while a recruiter's seconds count on the page", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  const { asked, answer } = await heldAnswer(page)
+  await page.goto("/review")
+  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await asked
+  // Asked before there's a result: the page is still being read, its own page counting a recruiter's seven seconds.
+  await expect(page.getByRole("heading", { level: 1, name: "Reading it like a recruiter…" })).toBeVisible()
+  await expect(page.getByText(/^\d\.\d seconds$/)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole("status").getByText("Getting notes from AI")).toBeVisible()
+  answer()
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  // It opens with the notes in: nothing says they're on their way.
+  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
+  await expect(page.getByText("Getting notes from AI")).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toBeAttached()
+  expect(errors).toEqual([])
+})
+
+test("when the AI is long coming, the result opens without its notes, and a view chosen meanwhile stays when they arrive", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  await page.clock.install()
+  const { asked, answer } = await heldAnswer(page)
+  await page.goto("/review")
+  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await asked
+  await page.clock.fastForward(26_000)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("status").filter({ hasText: "Getting notes from AI" })).toBeVisible()
   await page.getByRole("button", { name: "ATS checks" }).click()
   answer()
   await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
   await expect(page.getByRole("button", { name: "ATS checks", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
+  expect(errors).toEqual([])
+})
+
+test("a page that never finishes drawing doesn't hold the result: after the wait it opens with the notes listed", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.clock.install()
+  // A browser whose pictures never come back.
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.toBlob = () => {}
+  })
+  let ask = () => {}
+  const asked = new Promise<void>((resolve) => (ask = resolve))
+  await page.route("**/api/review", async (route) => {
+    ask()
+    await route.fulfill({ json: { notes: NOTES } })
+  })
+  await page.goto("/review")
+  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await asked
+  await page.clock.fastForward(26_000)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("listitem").filter({ hasText: "Red flag: Says what you did, not what changed" })).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test("where the lines can't be hashed, the AI is still asked and its notes shown, just not kept", async ({ page }) => {
+  const errors = pageErrors(page)
+  // Only the lines' hash fails: Next.js hashes with it too, as it prefetches links.
+  await page.addInitScript(() => {
+    const digest = crypto.subtle.digest.bind(crypto.subtle)
+    crypto.subtle.digest = (algorithm: AlgorithmIdentifier, data: BufferSource) =>
+      new TextDecoder().decode(data).startsWith('[["u1"') ? Promise.reject(new Error("No digest for the lines")) : digest(algorithm, data)
+  })
+  await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
+  await reviewed(page)
+  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toBeAttached()
   expect(errors).toEqual([])
 })
 

@@ -72,6 +72,66 @@ test("when the resume can't be drawn, every note is listed under where it would 
   expect(errors).toEqual([])
 })
 
+// Long enough that its template prints it on two pages: three pages of jobs as it comes in.
+const LONG = (() => {
+  const jobs = Array.from({ length: 12 }, (_, job) => [
+    `Software Engineer, Company ${job + 1}`,
+    `Jan ${2010 + job} - Dec ${2010 + job}`,
+    ...Array.from(
+      { length: 6 },
+      (_, bullet) => `- Built service ${bullet + 1} that cut the time to deploy a release for ${job + 2} teams by half`,
+    ),
+  ])
+  const pages = [
+    [...RESUME.slice(0, 3), ...jobs.slice(0, 4).flat()],
+    jobs.slice(4, 8).flat(),
+    [...jobs.slice(8).flat(), ...RESUME.slice(7)],
+  ]
+  return { name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf(pages) }
+})()
+
+test("the result opens once page 1 is drawn, and later pages join it as they're drawn", async ({ page }) => {
+  const errors = pageErrors(page)
+  // Page 2's picture is held until the test lets it be made.
+  await page.addInitScript(() => {
+    const toBlob = HTMLCanvasElement.prototype.toBlob
+    let drawn = 0
+    HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, callback: BlobCallback, type?: string, quality?: number) {
+      if (++drawn !== 2) return toBlob.call(this, callback, type, quality)
+      ;(window as unknown as { drawPage2: () => void }).drawPage2 = () => toBlob.call(this, callback, type, quality)
+    }
+  })
+  await page.goto("/review")
+  await page.locator('input[type="file"]').setInputFiles(LONG)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
+  await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toHaveCount(0)
+  await expect.poll(() => page.evaluate(() => "drawPage2" in window)).toBe(true)
+  await page.evaluate(() => (window as unknown as { drawPage2: () => void }).drawPage2())
+  await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test("a page that can't be drawn after page 1 leaves page 1 shown, with its own notes listed under it", async ({ page }) => {
+  const errors = pageErrors(page)
+  // Page 2's picture can't be made.
+  await page.addInitScript(() => {
+    const toBlob = HTMLCanvasElement.prototype.toBlob
+    let drawn = 0
+    HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, callback: BlobCallback, type?: string, quality?: number) {
+      if (++drawn === 2) return callback(null)
+      return toBlob.call(this, callback, type, quality)
+    }
+  })
+  await page.goto("/review")
+  await page.locator('input[type="file"]').setInputFiles(LONG)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByText("Notes on your resume")).toBeVisible()
+  await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
+  await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
 test("a file with no resume in it says so, and another can be tried", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/review")

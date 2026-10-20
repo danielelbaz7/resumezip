@@ -113,7 +113,53 @@
       0 30px 60px -24px rgb(40 80 160 / 0.4);
   }
 
-  /* While a resume is reviewed, a band of light reads down the sample page. */
+  /* The resume being reviewed, once it's printed, taking the sample's place
+     (Backdrop.tsx): it fades in over the sample, which fades out under it. */
+  .review-theirs {
+    animation: review-theirs 600ms var(--ease-glide) backwards;
+  }
+  @keyframes review-theirs {
+    from {
+      opacity: 0;
+    }
+  }
+  .review-gone {
+    opacity: 0;
+    transition: opacity 600ms var(--ease-glide);
+  }
+
+  /* A recruiter's eyes on it: in for a moment, out once their seven seconds are up
+     (the spot's own path is an animation set in Backdrop.tsx), each stop warming as it's looked at. */
+  .review-gaze {
+    mix-blend-mode: multiply;
+    animation-name: review-gaze;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+  }
+  @keyframes review-gaze {
+    from {
+      opacity: 0;
+    }
+    3%,
+    88% {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  .review-heat {
+    animation-name: review-heat;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+  }
+  @keyframes review-heat {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* While a resume is reviewed, a band of light reads down its page. */
   .review-scan {
     position: absolute;
     left: -6%;
@@ -165,6 +211,27 @@
     from {
       opacity: 0;
       transform: translateY(40px);
+    }
+  }
+  /* Arriving with the page that was being read flying into the card (MarkedPages.tsx), the board
+     stays put, what's round the page fades in as it lands, and the marks wait for it to land. */
+  .review-board[data-flight] {
+    --review-marks-wait: 850ms;
+    animation: none;
+  }
+  .review-board[data-flight] > :first-child,
+  .review-board[data-flight] .review-side,
+  .review-board[data-flight] .review-card-head,
+  .review-board[data-flight] .review-dock-keys {
+    animation: review-around 500ms var(--ease-glide) 350ms backwards;
+  }
+  .review-board[data-flight] .review-card::before {
+    animation: review-theirs 500ms var(--ease-glide) 250ms backwards;
+  }
+  @keyframes review-around {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
     }
   }
 
@@ -323,7 +390,7 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     stroke-dasharray: 1 1;
-    animation: review-draw 700ms var(--ease-glide) var(--delay) both;
+    animation: review-draw 700ms var(--ease-glide) calc(var(--review-marks-wait, 0ms) + var(--delay)) both;
   }
   @keyframes review-draw {
     from {
@@ -529,10 +596,14 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .review-key,
+    .review-gone,
     .review-scribble {
       transition: none;
     }
     .review-board,
+    .review-board[data-flight] *,
+    .review-board[data-flight] .review-card::before,
+    .review-theirs,
     .review-scribble path,
     .review-tip,
     .review-pill {
