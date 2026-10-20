@@ -37,8 +37,7 @@ const STEPS: { step: ReviewStep; label: string }[] = [
   { step: "spell", label: "Check spelling and grammar" },
 ]
 
-// How much of each verdict blows away (CloudWord), and how it breaks on a phone.
-const DRIFT: Record<Verdict, number> = { ready: 0, almost: 0.4, drafts: 1 }
+// How each verdict breaks on a phone.
 const NARROW_LINES: Record<Verdict, string[]> = { ready: ["Ready", "to send"], almost: ["Almost", "there"], drafts: ["Back to", "drafts"] }
 
 // The sample resume on the first screen (Jake's template's picture), and
@@ -217,8 +216,8 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
         <h1 className="font-serif text-[20px] tracking-[-0.01em] text-ink-2 md:text-[24px]">
           Your resume is<span className="sr-only"> {VERDICT_WORDS[verdict].toLowerCase()}</span>
         </h1>
-        <CloudWord lines={[VERDICT_WORDS[verdict]]} drift={DRIFT[verdict]} className="hidden w-[min(600px,80vw)] sm:block" />
-        <CloudWord lines={NARROW_LINES[verdict]} drift={DRIFT[verdict]} className="w-[min(300px,80vw)] sm:hidden" />
+        <CloudWord lines={[VERDICT_WORDS[verdict]]} className="hidden w-[min(600px,80vw)] sm:block" />
+        <CloudWord lines={NARROW_LINES[verdict]} className="w-[min(300px,80vw)] sm:hidden" />
       </div>
       <div className="relative mx-auto w-full max-w-[700px]">
         <div className="review-side">
