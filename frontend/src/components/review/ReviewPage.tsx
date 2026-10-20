@@ -3,193 +3,200 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Check, PenLine, RotateCcw, Upload } from "lucide-react"
+import { PenLine, RotateCcw, Upload } from "lucide-react"
+import { Squares } from "@/components/site/Loader"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { headlineFont } from "@/components/site/headlineFont"
-import { keptNotesOf, notesOf } from "@/lib/review/ai/answer"
-import type { Problem } from "@/lib/review/ai/askForNotes"
+import { notesOf } from "@/lib/review/ai/answer"
 import { aiPaused, aiPausedUntil } from "@/lib/review/ai/paused"
-import { sentOf } from "@/lib/review/ai/request"
-import { hashOf, saveNotes, savedByHash, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
+import { tieToResume } from "@/lib/review/ai/saved"
 import { unitsToSend } from "@/lib/review/ai/units"
 import type { Review, ReviewStep } from "@/lib/review/review"
 import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
-import CloudWord from "./CloudWord"
 import AiNotes, { Pill, PILL_WORDS, type AiState } from "./AiNotes"
-import MarkedPages from "./MarkedPages"
+import Backdrop, { GAZE_DELAY, SHEET_RADIUS } from "./Backdrop"
+import CloudWord from "./CloudWord"
+import { drawPages, freePages, type DrawnPage } from "./drawPages"
+import { GAZE_MS, gazeOf, type Stop } from "./gaze"
+import MarkedPages, { type Flight } from "./MarkedPages"
 import { aiNotesOf, checkNotesOf } from "./notes"
 import { measurer, type Note } from "./PageMarks"
-import { circle, highlight, underline, type Box } from "./rough"
+import { useAiNotes, type AiNotes as Ai } from "./useAiNotes"
 
 const ACCEPTED_FILES =
   ".pdf,.docx,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/json"
 
 type State =
   | { step: "idle" }
-  | { step: "working"; done: ReadonlySet<ReviewStep> }
-  | { step: "done"; review: Review }
+  | {
+      step: "working"
+      done: ReadonlySet<ReviewStep>
+      /** Page 1 of the resume as printed, once it's drawn, which takes the sample's place. */
+      page: DrawnPage | null
+      gaze: readonly Stop[] | null
+      /** When the eyes start on the page (performance.now()), or null when there are none to show. */
+      eyesFrom: number | null
+      /** The eyes are done: the rest of the wait is the AI's. */
+      rest: boolean
+    }
+  | { step: "done"; review: Review; pages: readonly DrawnPage[] | null; from: Flight | null }
   | { step: "problem"; message: string }
 
-const STEPS: { step: ReviewStep; label: string }[] = [
-  { step: "open", label: "Open your file" },
-  { step: "read", label: "Read it the way hiring software does" },
-  { step: "spell", label: "Check spelling and grammar" },
-]
+// The result waits this long for the AI's notes, from when it's asked, before it shows the checks' and lets the notes join it.
+// The AI usually answers in 4 to 12 seconds; the route gives up after 55.
+const AI_PATIENCE_MS = 25_000
 
 // How each verdict breaks on a phone.
 const NARROW_LINES: Record<Verdict, string[]> = { ready: ["Ready", "to send"], almost: ["Almost", "there"], drafts: ["Back to", "drafts"] }
 
-// The sample resume on the first screen (Jake's template's picture), and
-// where its marks go, in the picture's pixels.
-const SAMPLE = { src: "/previews/jakes-resume-template.webp", width: 1280, height: 1656 }
-const SAMPLE_MARKS: { kind: "circle" | "highlight" | "underline"; box: Box }[] = [
-  { kind: "circle", box: [84, 222, 348, 248] },
-  { kind: "highlight", box: [742, 517, 1005, 542] },
-  { kind: "underline", box: [145, 549, 1092, 570] },
-  { kind: "circle", box: [145, 679, 334, 702] },
-]
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, ms)))
 
-/** The sample resume, marked, going soft into the fog the words stand on. */
-function Backdrop({ scanning }: { scanning: boolean }) {
+/** Re-renders every `every` ms while `on`, for words that count. */
+function useTicking(on: boolean, every = 100) {
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (!on) return
+    const timer = setInterval(() => setTick((tick) => tick + 1), every)
+    return () => clearInterval(timer)
+  }, [on, every])
+}
+
+/**
+ * The words while a resume is read: what's going on, and once its page is up,
+ * the seven seconds a recruiter gives it, counted while the eyes move over it.
+ * A screen reader hears the headline once and each step as it starts, not the count.
+ */
+function ReadingWords({
+  done,
+  asking,
+  eyesFrom,
+  rest,
+}: {
+  done: ReadonlySet<ReviewStep>
+  asking: boolean
+  eyesFrom: number | null
+  rest: boolean
+}) {
+  const phase = eyesFrom === null ? "start" : rest ? "rest" : "eyes"
+  useTicking(phase === "eyes")
+  const seconds = eyesFrom === null ? 0 : Math.min(GAZE_MS, Math.max(0, performance.now() - eyesFrom)) / 1000
+  const step = !done.has("open")
+    ? "Opening your file"
+    : !done.has("read")
+      ? "Printing it the way hiring software reads it"
+      : asking
+        ? "Getting notes from AI"
+        : !done.has("spell")
+          ? "Checking spelling and grammar"
+          : "Almost there"
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="review-sheet review-fading absolute left-1/2 top-0 w-[var(--sheet)] -translate-x-1/2">
-        <div className="relative">
-          {/* eslint-disable-next-line @next/next/no-img-element -- decoration at a fixed size, which next/image would only resize */}
-          <img src={SAMPLE.src} alt="" width={SAMPLE.width} height={SAMPLE.height} className="block h-auto w-full" />
-          <svg viewBox={`0 0 ${SAMPLE.width} ${SAMPLE.height}`} className="absolute inset-0 h-full w-full overflow-visible">
-            {SAMPLE_MARKS.map(({ kind, box }, index) =>
-              kind === "highlight" ? (
-                <path key={index} d={highlight(box, index + 5)} fill="rgb(168 185 242 / 0.55)" style={{ mixBlendMode: "multiply" }} />
-              ) : (
-                <path
-                  key={index}
-                  d={kind === "circle" ? circle(box, index + 5, 8) : underline(box, index + 5, 2)}
-                  fill="none"
-                  stroke="#2e5be6"
-                  strokeWidth={4.5}
-                  strokeLinecap="round"
-                  opacity={0.88}
-                />
-              ),
-            )}
-          </svg>
-          {scanning && <div className="review-scan" />}
-        </div>
-      </div>
-      <div className="review-fog top-[calc(var(--sheet)*0.22)] bottom-0">
-        {[0.6, 1.2, 2.4, 4.8, 9.6, 19.2].map((blur, index) => (
-          <span
-            key={blur}
-            style={{ "--blur": `${blur}px`, "--from": `${index * 12}%`, "--to": `${index * 12 + 14}%` } as React.CSSProperties}
-          />
-        ))}
-      </div>
+    <div role="status" className="flex flex-col items-center">
+      <h1 className={`${headlineFont.className} text-[clamp(40px,5.8vw,66px)] leading-none tracking-[-0.02em] text-[#3a3e46]`}>
+        <span className="sr-only">Reading it like a recruiter…</span>
+        <span aria-hidden="true">
+          {phase === "eyes" ? (
+            <>
+              <span className="inline-block min-w-[1.2em] text-right">{seconds.toFixed(1)}</span> seconds
+            </>
+          ) : phase === "rest" ? (
+            asking ? (
+              "The AI reads the rest…"
+            ) : (
+              "Checking the rest…"
+            )
+          ) : (
+            "Reading it like a recruiter…"
+          )}
+        </span>
+      </h1>
+      <p aria-hidden="true" className="mt-4 text-[17px] text-ink-2">
+        {phase === "eyes"
+          ? "Where a recruiter’s eyes go first."
+          : phase === "rest"
+            ? "Every line, not just the first seven seconds."
+            : "Recruiters take 7 seconds. Watch."}
+      </p>
+      <p className="mt-7 inline-flex items-center gap-2.5 text-[15px] text-ink-2">
+        <Squares />
+        {step}
+      </p>
     </div>
   )
 }
 
-/**
- * What the review found, as crackedresume shows it: the verdict in cloud on
- * the sky, then the resume itself in a frosted frame, scribbled on where each
- * note is, with the note beside the pen when it's pointed at.
- */
 /** Which notes the page is marked with: the AI's, or the checks'. */
 type Shown = "ai" | "checks"
 
-function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: string | null) => void; onAnother: () => void }) {
-  const { report, score, reading, pdf } = review
+/**
+ * What the review found, as crackedresume shows it: the verdict in cloud on
+ * the sky, then the resume itself in a frosted frame, scribbled on where each
+ * note is, with the note beside the pen when it's pointed at. It opens once
+ * the AI's notes are back, unless they were too long coming; then they join it.
+ */
+function Result({
+  review,
+  pages,
+  ai,
+  from,
+  onFix,
+  onAnother,
+}: {
+  review: Review
+  pages: readonly DrawnPage[] | null
+  ai: Ai
+  /** Where page 1 was as it was read, which it flies from. */
+  from: Flight | null
+  onFix: () => void
+  onAnother: () => void
+}) {
+  const { report, score, reading } = review
+  const { units, answer, retry } = ai
   const verdict = verdictOf(score.total)
   const counts = countsOf(report)
   const measure = useMemo(() => measurer(), [])
   const checked = useMemo(() => checkNotesOf(report.view, report.findings, reading, measure), [report, reading, measure])
-  // The lines the AI is sent and points at; without one, there's nothing to ask about.
-  const units = useMemo(() => unitsToSend(report.view, reading), [report, reading])
-  // The AI is asked as soon as the resume is read, and its notes are what the page opens on.
-  const [ai, setAi] = useState<AiState>({ step: "asking" })
-  const [shown, setShown] = useState<Shown>(units ? "ai" : "checks")
+  const state = useMemo<AiState | null>(
+    () =>
+      !answer
+        ? null
+        : answer.step === "done"
+          ? { step: "done", notes: units ? aiNotesOf(notesOf({ notes: answer.notes }, units), measure) : [] }
+          : answer,
+    [answer, units, measure],
+  )
+  // The page opens on the AI's notes, or on the checks when there are none to be had.
+  const [shown, setShown] = useState<Shown>(answer && answer.step !== "problem" ? "ai" : "checks")
   const [open, setOpen] = useState<string | null>(null)
   // Why the AI notes couldn't be had, said over the dock while the page shows the checks instead.
-  const [pill, setPill] = useState<string | null>(null)
-  // The printed lines' hash, which the AI's notes are saved by in this browser.
-  const [hash, setHash] = useState<string | null>(null)
-  const asking = useRef<AbortController | null>(null)
-  const notes = shown === "checks" ? checked : ai.step === "done" ? ai.notes : []
-
+  const [pill, setPill] = useState<string | null>(() =>
+    answer?.step === "problem" && answer.reason !== "off" ? PILL_WORDS[answer.reason] : null,
+  )
+  const notes = shown === "checks" ? checked : state?.step === "done" ? state.notes : []
   // Whether the person has chosen a view with the switch: an answer that arrives later doesn't take them off it.
   const chose = useRef(false)
+  // Whether they asked again (Try again): its answer is shown whichever view they're on.
+  const retried = useRef(false)
 
   const show = useCallback((which: Shown) => {
     setShown(which)
     setOpen(null)
   }, [])
-  const showAi = useCallback(
-    (saved: SavedNote[], reveal: boolean) => {
-      if (!units) return
-      setAi({ step: "done", notes: aiNotesOf(notesOf({ notes: saved }, units), measure) })
-      if (reveal) show("ai")
-    },
-    [units, measure, show],
-  )
-  const fail = useCallback(
-    (reason: Problem, message: string) => {
-      setAi({ step: "problem", reason, message })
-      show("checks")
-      if (reason !== "off") setPill(PILL_WORDS[reason])
-    },
-    [show],
-  )
 
-  const ask = useCallback(
-    /** `asked`: the person asked (Try again), so the answer is shown whichever view they're on. */
-    async (hashed: string, asked = false) => {
-      if (!units) return
-      asking.current?.abort()
-      const current = new AbortController()
-      asking.current = current
-      setAi({ step: "asking" })
-      setPill(null)
-      try {
-        const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
-        try {
-          const saved = keptNotesOf(await askForNotes(units, current.signal), units)
-          if (asking.current !== current) return
-          saveNotes(hashed, saved)
-          showAi(saved, asked || !chose.current)
-        } catch (error) {
-          if (current.signal.aborted) return
-          if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
-          if (error instanceof AiReviewError) fail(error.reason, error.message)
-          else fail("other", "Something went wrong getting AI notes. Try again in a minute.")
-        }
-      } catch {
-        if (!current.signal.aborted) fail("other", "The AI notes couldn’t load. Check your connection and try again.")
-      }
-    },
-    [units, showAi, fail],
-  )
-
-  // A resume reviewed in this browser before shows the AI's notes it got then, without asking again.
-  // Otherwise the AI is asked, unless it turned this tab away moments ago.
+  // An answer that comes once the page is open: notes that took long, or Try again's.
+  const seen = useRef(answer)
   useEffect(() => {
-    if (!units) return
-    let live = true
-    void hashOf(sentOf(units)).then((hashed) => {
-      if (!live) return
-      setHash(hashed)
-      const saved = savedByHash(hashed)
-      if (saved) showAi(saved.notes, !chose.current)
-      else if (aiPaused()) fail("limit", "You’ve asked for a lot of AI notes in a short time. Try again in a few minutes.")
-      else void ask(hashed)
-    })
-    return () => {
-      live = false
+    if (seen.current === answer) return
+    seen.current = answer
+    if (!answer) return
+    if (answer.step === "asking") setPill(null)
+    else if (answer.step === "done") {
+      if (retried.current || !chose.current) show("ai")
+    } else {
+      show("checks")
+      if (answer.reason !== "off") setPill(PILL_WORDS[answer.reason])
     }
-  }, [units, showAi, fail, ask])
-
-  // Leaving the result stops the AI on its way.
-  useEffect(() => () => asking.current?.abort(), [])
+  }, [answer, show])
 
   // A flag picked in the list: its mark, brought into view and focused, which shows its note.
   // When the page shows the checks, it's switched to the AI's notes first, and the mark is looked for once they're drawn.
@@ -207,11 +214,13 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
     },
     [shown, show],
   )
-  const red = ai.step === "done" ? ai.notes.filter((note) => note.ink === "red").length : 0
-  const green = ai.step === "done" ? ai.notes.length - red : 0
+  const red = state?.step === "done" ? state.notes.filter((note) => note.ink === "red").length : 0
+  const green = state?.step === "done" ? state.notes.length - red : 0
+  const withAi = units && state && !(state.step === "problem" && state.reason === "off")
 
   return (
-    <section className="review-board">
+    // Arriving with the page that was read flying into it, the board stays put and what's round the page fades in.
+    <section className={`review-board ${from ? "no-page-in" : ""}`} data-flight={from ? "" : undefined}>
       <div className="mb-3 flex flex-col items-center text-center">
         <h1 className="font-serif text-[20px] tracking-[-0.01em] text-ink-2 md:text-[24px]">
           Your resume is<span className="sr-only"> {VERDICT_WORDS[verdict].toLowerCase()}</span>
@@ -232,11 +241,12 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
             {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
             {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
           </p>
-          {units && !(ai.step === "problem" && ai.reason === "off") && (
+          {withAi && (
             <AiNotes
-              state={ai}
+              state={state}
               onAsk={() => {
-                if (hash) void ask(hash, true)
+                retried.current = true
+                retry()
               }}
               open={open}
               onOpen={setOpen}
@@ -245,8 +255,8 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
           )}
         </div>
         <div className="review-card">
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
-            {units && !(ai.step === "problem" && ai.reason === "off") && (
+          <div className="review-card-head flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
+            {withAi && (
               <div role="group" aria-label="Notes on the page" className="review-switch">
                 <button
                   type="button"
@@ -270,14 +280,14 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
                 </button>
               </div>
             )}
-            {shown === "ai" && ai.step === "done" ? (
+            {shown === "ai" && state?.step === "done" ? (
               <p>
                 {red} red {red === 1 ? "flag" : "flags"}
                 <span aria-hidden="true"> · </span>
                 {green} green {green === 1 ? "flag" : "flags"}
               </p>
             ) : shown === "ai" ? (
-              <p>{ai.step === "asking" ? "Reading it like a recruiter…" : "No AI notes yet"}</p>
+              <p>{state?.step === "asking" ? "Getting notes from AI…" : "No AI notes yet"}</p>
             ) : (
               <p className="flex items-baseline gap-x-2">
                 <span className="font-medium">{score.total}/100</span>
@@ -290,13 +300,13 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
               </p>
             )}
           </div>
-          <MarkedPages pdf={pdf} notes={notes} open={open} onOpen={setOpen} />
+          <MarkedPages pages={pages} notes={notes} open={open} onOpen={setOpen} from={from} />
         </div>
       </div>
       <div className="review-dock">
         {pill && <Pill onClose={() => setPill(null)}>{pill}</Pill>}
         <div className="review-dock-keys">
-          <button type="button" onClick={() => onFix(hash)} className="review-dock-main">
+          <button type="button" onClick={onFix} className="review-dock-main">
             <PenLine aria-hidden="true" />
             Fix it in the editor
           </button>
@@ -312,11 +322,14 @@ function Result({ review, onFix, onAnother }: { review: Review; onFix: (hash: st
 
 /**
  * The review page: drop a resume, and see what a recruiter would skip, marked
- * on the page, with the score the editor's Check gives it. "Fix it in the
- * editor" adds it to this browser's resumes and opens it in Check.
+ * on the page, with the score the editor's Check gives it. While it's read,
+ * its own page takes the sample's place and a recruiter's eyes go over it; the
+ * AI is asked as soon as it's printed, and the result opens with its notes.
+ * "Fix it in the editor" adds it to this browser's resumes and opens it in Check.
  */
 export default function ReviewPage() {
   const router = useRouter()
+  const ai = useAiNotes()
   const [state, setState] = useState<State>({ step: "idle" })
   const [dragging, setDragging] = useState(false)
   // Whether to say, before a file is dropped, that the AI turned this tab away moments ago.
@@ -324,27 +337,75 @@ export default function ReviewPage() {
   const [paused, setPaused] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const running = useRef<AbortController | null>(null)
+  // The page being read, which the result's first page flies from.
+  const reading = useRef<HTMLDivElement>(null)
+  // The review's drawn pages, freed once it's left.
+  const drawn = useRef<readonly DrawnPage[] | null>(null)
+  const { start: askAi, stop: stopAi } = ai
+
+  const leave = useCallback(() => {
+    running.current?.abort()
+    running.current = null
+    stopAi()
+    freePages(drawn.current)
+    drawn.current = null
+  }, [stopAi])
 
   const review = async (file: File) => {
-    running.current?.abort()
+    leave()
     const current = new AbortController()
     running.current = current
-    setState({ step: "working", done: new Set() })
+    const live = () => running.current === current
+    setState({ step: "working", done: new Set(), page: null, gaze: null, eyesFrom: null, rest: false })
     window.scrollTo({ top: 0 })
+    const asked = { answer: null as Promise<void> | null, at: 0 }
+    let drawing: Promise<readonly DrawnPage[] | null> = Promise.resolve(null)
     try {
       // What reviews a file loads only once there's one to review.
       const { reviewFile } = await import("@/lib/review/review")
-      const result = await reviewFile(file, current.signal, (step) => {
-        if (running.current === current)
-          setState((state) => (state.step === "working" ? { step: "working", done: new Set([...state.done, step]) } : state))
-      })
-      if (running.current !== current) return
+      const result = await reviewFile(
+        file,
+        current.signal,
+        (step) => {
+          if (live()) setState((state) => (state.step === "working" ? { ...state, done: new Set([...state.done, step]) } : state))
+        },
+        // Printed: the AI is asked now, while the spelling's still checked, and the page is drawn to take the sample's place.
+        ({ pdf, reading: read, view }) => {
+          if (!live()) return
+          asked.answer = askAi(unitsToSend(view, read))
+          asked.at = Date.now()
+          drawing = drawPages(pdf).then((pages) => {
+            if (!live()) {
+              freePages(pages)
+              return null
+            }
+            drawn.current = pages
+            const page = pages?.[0]
+            if (!page) return pages
+            const still = matchMedia("(prefers-reduced-motion: reduce)").matches
+            const gaze = read && !still ? gazeOf(read.lines, page) : []
+            const eyesFrom = gaze.length > 0 ? performance.now() + GAZE_DELAY : null
+            setState((state) => (state.step === "working" ? { ...state, page, gaze: gaze.length > 0 ? gaze : null, eyesFrom } : state))
+            return pages
+          })
+        },
+      )
+      // The result waits for the AI's notes, though not for ever.
+      if (asked.answer) await Promise.race([asked.answer, wait(asked.at + AI_PATIENCE_MS - Date.now())])
+      const pages = await drawing
+      if (!live()) return
       running.current = null
-      setState({ step: "done", review: result })
+      const box = pages && reading.current?.getBoundingClientRect()
+      setState({
+        step: "done",
+        review: result,
+        pages,
+        from: box ? { left: box.left, top: box.top, width: box.width, radius: SHEET_RADIUS } : null,
+      })
       window.scrollTo({ top: 0 })
     } catch (error) {
-      if (running.current !== current) return
-      running.current = null
+      if (!live()) return
+      leave()
       const [{ OpenFileError }, { failureOf, PdfError }] = await Promise.all([import("@/lib/import/open"), import("@/lib/typst/compile")])
       const message =
         error instanceof OpenFileError
@@ -359,8 +420,19 @@ export default function ReviewPage() {
   const reviewRef = useRef(review)
   reviewRef.current = review
 
-  // Leaving the page stops a review on its way.
-  useEffect(() => () => running.current?.abort(), [])
+  // Leaving the page stops a review on its way, and frees its pages.
+  useEffect(() => leave, [leave])
+
+  // The eyes let go after their seven seconds, and the rest of the wait is the AI's.
+  const eyesFrom = state.step === "working" ? state.eyesFrom : null
+  useEffect(() => {
+    if (eyesFrom === null) return
+    const timer = setTimeout(
+      () => setState((state) => (state.step === "working" ? { ...state, rest: true } : state)),
+      eyesFrom + GAZE_MS - performance.now(),
+    )
+    return () => clearTimeout(timer)
+  }, [eyesFrom])
 
   // Dropping a file anywhere on the page reviews it.
   useEffect(() => {
@@ -434,7 +506,7 @@ export default function ReviewPage() {
     router.push(`/create/new/${id}`)
   }
 
-  const working = state.step === "working"
+  const working = state.step === "working" ? state : null
   return (
     // Isolated, so the haze (z-index -1) is drawn over the sky but under everything else.
     <div className="desk isolate flex min-h-screen flex-col">
@@ -444,48 +516,28 @@ export default function ReviewPage() {
         {state.step === "done" ? (
           <Result
             review={state.review}
-            onFix={(hash) => void fix(state.review, hash)}
+            pages={state.pages}
+            ai={ai}
+            from={state.from}
+            onFix={() => void fix(state.review, ai.hash)}
             onAnother={() => {
+              leave()
               setState({ step: "idle" })
               chooseFile()
             }}
           />
         ) : (
           <section className="no-page-in relative flex min-h-[calc(100svh-84px)] flex-col items-center px-4 pb-24 pt-[calc(var(--sheet)*0.62)] text-center">
-            <Backdrop scanning={working} />
+            <Backdrop
+              // The scan reads the page while it's printed, and again once the eyes are done with it.
+              scanning={!!working && (working.eyesFrom === null || working.rest)}
+              page={working?.page}
+              gaze={working?.gaze}
+              pageRef={reading}
+            />
             <div className="page-in relative flex flex-col items-center">
               {working ? (
-                <div role="status" className="flex flex-col items-center">
-                  <h1 className={`${headlineFont.className} text-[clamp(40px,5.8vw,66px)] leading-none tracking-[-0.02em] text-[#3a3e46]`}>
-                    Reading it like a recruiter…
-                  </h1>
-                  <p className="mt-4 text-[17px] text-ink-2">Recruiters take 7 seconds. The first review takes a little longer.</p>
-                  <ul className="mt-9 flex flex-col items-start gap-3 text-left text-[15px]">
-                    {STEPS.map(({ step, label }) => {
-                      // Reading the PDF and checking the text both start once the file is open.
-                      const now = state.done.has(step) ? "done" : step === "open" || state.done.has("open") ? "running" : "waiting"
-                      return (
-                        <li key={step} className={`flex items-center gap-3 ${now === "running" ? "text-ink" : "text-ink-2"}`}>
-                          <span
-                            aria-hidden="true"
-                            className={`flex h-5 w-5 items-center justify-center rounded-full ${
-                              now === "done"
-                                ? "bg-white shadow-[0_0_0_4px_rgb(255_255_255/0.5)]"
-                                : now === "running"
-                                  ? "bg-accent shadow-[0_0_0_4px_rgb(46_91_230/0.18)]"
-                                  : "bg-white/60 shadow-[inset_0_0_0_1.5px_#c8ccd4]"
-                            }`}
-                          >
-                            {now === "done" && <Check className="h-3 w-3 text-accent" strokeWidth={3} />}
-                            {now === "running" && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
-                          </span>
-                          {label}
-                          <span className="sr-only">{now === "done" ? ": done" : now === "running" ? ": in progress" : ": waiting"}</span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
+                <ReadingWords done={working.done} asking={ai.answer?.step === "asking"} eyesFrom={working.eyesFrom} rest={working.rest} />
               ) : (
                 <>
                   <h1
