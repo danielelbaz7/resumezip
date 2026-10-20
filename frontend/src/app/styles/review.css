@@ -380,13 +380,18 @@
   .review-scribble[data-ink="green"] {
     color: var(--review-green);
   }
+  /* The checks' worth-a-look marks, in the Check panel's yellow; a little heavier, as yellow is faint on white. */
+  .review-scribble[data-ink="look"] {
+    color: var(--color-caution);
+    --review-pen: 1.5;
+  }
   .review-scribble[data-quiet] {
     opacity: 0.28;
   }
   .review-scribble path {
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.15;
+    stroke-width: var(--review-pen, 1.15);
     stroke-linecap: round;
     stroke-linejoin: round;
     stroke-dasharray: 1 1;
