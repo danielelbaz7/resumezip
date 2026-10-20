@@ -45,7 +45,7 @@ export default function SiteFooter({ ground = false, bare = false }: { ground?: 
           aria-label="Why resumezip"
           className="mx-auto flex max-w-[1440px] flex-wrap items-baseline gap-x-6 gap-y-2 px-5 pt-4 text-[14px] md:px-10"
         >
-          <span className="label-mono normal-case text-white/60">Why resumezip</span>
+          <span className="font-mono tracking-[-0.01em] text-white/60">Why resumezip</span>
           {PROMISES.map((promise) => (
             <Link
               key={promise.path}
@@ -58,12 +58,14 @@ export default function SiteFooter({ ground = false, bare = false }: { ground?: 
         </nav>
         <div className="mx-auto max-w-[1440px] px-5 md:px-10">
           {/* Up to 150px at 1440px, and no smaller than 56px on a phone. Pulled left by the r's side bearing, so its stem
-              lines up with the links; the room under it is in em, as the p's tail hangs below its tight line height. */}
+              lines up with the links; the room under it is in em, as the p's tail hangs below its tight line height.
+              Only its letters take the pointer (.footer-wordmark-hit): the link's own box reaches well past them. */}
           <Link
             href="/"
-            className="-ml-[0.06em] mt-5 block w-fit whitespace-nowrap pb-[0.32em] font-logo text-[clamp(56px,10.4vw,150px)] font-medium leading-[0.74] tracking-[-0.055em] transition-opacity hover:opacity-80 md:mt-6"
+            className="pointer-events-none relative -ml-[0.06em] mt-5 block w-fit whitespace-nowrap pb-[0.32em] font-logo text-[clamp(56px,10.4vw,150px)] font-medium leading-[0.74] tracking-[-0.055em] transition-opacity hover:opacity-80 md:mt-6"
           >
             resumezip
+            <span aria-hidden="true" className="footer-wordmark-hit" />
           </Link>
         </div>
         <div aria-hidden="true" className="zipper">
