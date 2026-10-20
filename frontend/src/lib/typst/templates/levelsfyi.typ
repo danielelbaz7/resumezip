@@ -130,11 +130,11 @@
 
 // The profile's summary, above the sections, set as a text section is.
 #if data.summary.len() > 0 {
-  section("Summary", extra-body((kind: "text", paragraphs: data.summary), bullets))
+  section("Summary", prose(data.summary))
 }
 
 #for name in data.order {
-  if data.extras.at(name, default: none) != none {
+  if name in data.extras {
     let extra = data.extras.at(name)
     section(extra.heading, extra-body(extra, bullets))
   } else if name == "Education" and data.education.len() > 0 {
@@ -172,7 +172,7 @@
       pr.bullets,
     )).join(v(sized(5.2pt))))
   } else if name == "Publications" and data.publications.len() > 0 {
-    section(heading-or(hd.publications, "Publications"), citations(data.publications, (url, body) => web-link(url, body), gap: 5.2pt))
+    section(heading-or(hd.publications, "Publications"), citations(data.publications, web-link, gap: 5.2pt))
   } else if name == "Skills" and data.skills.len() > 0 {
     section(heading-or(hd.skills, "Skills"), bullets(data.skills.map(s => {
       if has(s.name) { strong(s.name + ":") + h(0.5em) }

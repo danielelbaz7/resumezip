@@ -4,7 +4,7 @@
 import type { Finding, PdfReading } from "@/lib/check/engine"
 import { describePlace } from "@/lib/check/labels"
 import type { ResumeView } from "@/lib/check/resume"
-import type { AiNote } from "@/lib/review/ai/answer"
+import type { AiNote, Tone } from "@/lib/review/ai/answer"
 import { aiScribbleOf, marksOf, scribbleOf } from "@/lib/review/marks"
 import type { Note } from "./PageMarks"
 
@@ -13,6 +13,12 @@ export const checkKeyOf = (finding: Finding) => `check:${finding.key}`
 
 /** The key an AI note goes by: its place in what the AI sent, as it's saved. */
 export const aiKeyOf = (index: number) => `ai:${index}`
+
+/** What the AI's notes of each tone are called: one of them, and a list of them. */
+export const TONE_NAMES: Record<Tone, { one: string; many: string }> = {
+  red: { one: "Red flag", many: "Red flags" },
+  green: { one: "Done well", many: "Done well" },
+}
 
 /** The checker's findings as notes, drawn where they're printed in `pdf`, if it's been read. */
 export function checkNotesOf(
@@ -56,7 +62,7 @@ export function aiNotesOf(notes: readonly AiNote[], measure: (text: string) => n
       key: aiKeyOf(note.index),
       // The AI calls what works a green flag; the page calls it done well, in blue.
       ink: note.tone === "red" ? "red" : "good",
-      label: note.tone === "red" ? "Red flag" : "Done well",
+      label: TONE_NAMES[note.tone].one,
       title: note.title,
       body: note.why,
       rewrite: note.suggestion,

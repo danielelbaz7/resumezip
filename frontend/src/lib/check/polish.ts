@@ -24,7 +24,13 @@ import { verbOf } from "./verbs"
 const capitalized = (word: string) => word[0].toUpperCase() + word.slice(1).toLowerCase()
 
 const NAME_KEYS = new Set<string | undefined>(NAME_FIELDS)
-const TITLE_KEYS = new Set<string | undefined>(["workRole", "volunteerRole", "leadershipRole", "awardName", "publicationTitle"])
+const TITLE_KEYS = new Set<string | undefined>([
+  "workRole",
+  "volunteerRole",
+  "leadershipRole",
+  "awardName",
+  "publicationTitle",
+] satisfies FieldKey[])
 const namesIn = (resume: ResumeView) =>
   new Set(
     textsOf(resume)

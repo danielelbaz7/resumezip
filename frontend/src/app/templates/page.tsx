@@ -3,7 +3,7 @@ import { BookOpen, Layers, PenLine } from "lucide-react"
 import { BLUE_PILL, sheetPill } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
-import { PAPER_FRAME } from "@/components/site/sheet"
+import { CARD_SHEET, COUNT_BADGE, PAPER_FRAME } from "@/components/site/sheet"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import StructuredData from "@/components/site/StructuredData"
 import { pageMetadata } from "@/lib/site"
@@ -27,12 +27,11 @@ export default function TemplatesPage() {
       <SiteHeader />
       <StructuredData data={breadcrumbs([TEMPLATES_CRUMB])} />
 
-      {/* The dashboard's sheet, the sky showing through it a little, so the white cards on it stand out. */}
       <div className={PAPER_FRAME}>
-        <main className="paper paper-sky flex flex-1 flex-col px-4 pb-10 pt-4 sm:px-6 sm:pt-6 md:px-9 md:pb-12 md:pt-[30px]">
+        <main className={CARD_SHEET}>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <p className="inline-flex h-[34px] min-w-0 items-center gap-2 rounded-full bg-white/70 px-4 text-[14px] text-[#3a3e46] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.9),0_1px_2px_rgb(17_19_24/0.06)]">
+              <p className={COUNT_BADGE}>
                 <Layers className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="truncate">{TEMPLATES.length} templates · All free</span>
               </p>

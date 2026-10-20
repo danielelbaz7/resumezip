@@ -32,7 +32,6 @@ import type { Resume } from "@/lib/resume"
 import { toJson } from "@/lib/resumeFile"
 import { extraKey, filledSections, resolveSections, type ExtraKind, type SectionRef } from "@/lib/resumeSections"
 import { resumeOf } from "@/lib/resumeStore"
-import { uniqueTitle } from "@/lib/resumeTitles"
 import { fileNameOf, saveFile } from "@/lib/saveFile"
 import { compilePreview, forgetPreviewFit, loadCompiler, makeDownload, printedOf, Superseded } from "@/lib/typst/compile"
 import { templateIdOf } from "@/lib/typst/resumeData"
@@ -788,7 +787,7 @@ function Editor({ id }: { id: string }) {
  * own, so typing a name doesn't re-render the editor.
  */
 function ResumeName() {
-  const { getState } = useResumeActions()
+  const { renameResume } = useResumeActions()
   const { id, update } = useOpenResume()
   const title = useResumeField("resumeTitle")
 
@@ -799,14 +798,7 @@ function ResumeName() {
   }, [tabTitle])
 
   // Once a rename is done, number the name if another resume already has it.
-  const commit = () => {
-    const others = Object.entries(getState().resumes).filter(([key]) => key !== id)
-    const unique = uniqueTitle(
-      title ?? "",
-      others.map(([, resume]) => resume.resumeTitle),
-    )
-    if (unique !== title) update("resumeTitle", unique)
-  }
+  const commit = () => renameResume(id, title ?? "")
 
   // As wide as its words: an unseen copy of them sizes the box, which the input fills.
   return (

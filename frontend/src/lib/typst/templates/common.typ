@@ -43,9 +43,9 @@
   }).join()
 } else { item }
 
-// "Start - End", or whichever of the two is present.
-#let date-range(start, end) = {
-  if has(start) and has(end) { start + " - " + end } else { start + end }
+// "Start - End", or whichever of the two is present, `sep` between them.
+#let date-range(start, end, sep: " - ") = {
+  if has(start) and has(end) { start + sep + end } else { start + end }
 }
 
 // Profile URLs are stored without a scheme (see resumeData.ts).
@@ -146,20 +146,26 @@
   if present.len() == 0 { "" } else { present.join(sep) }
 }
 
-// Optional sections share content formatting, while every template supplies
-// its own heading and bullet styles. Prose is the user's text, never Typst
-// markup, with the words they marked **bold** or *italic* set that way, a
-// line at a time (`rich`). Keep paragraphs breakable so long sections span pages.
+// Paragraphs of prose, as the summary's and a text section's. Prose is the
+// user's text, never Typst markup, with the words they marked **bold** or
+// *italic* set that way, a line at a time (`rich`). Keep paragraphs breakable
+// so long sections span pages.
 //
 // A blank line leaves 0.6em more than a line break does. Between two
 // paragraphs, the template's paragraph spacing stands in for its leading, and
 // most templates set it to 0pt, so the gap is the leading plus 0.6em. It's
 // weak, so it replaces the paragraph spacing of a template that sets one,
 // like Compact, rather than adding to it.
+#let prose(paragraphs) = {
+  let gap = context v(par.leading + 0.6em, weak: true)
+  paragraphs.map(lines => par(lines.map(rich).join(linebreak()))).join(gap)
+}
+
+// Optional sections share content formatting, while every template supplies
+// its own heading and bullet styles.
 #let extra-body(extra, show-bullets) = {
   if extra.kind == "text" {
-    let gap = context v(par.leading + 0.6em, weak: true)
-    extra.paragraphs.map(lines => par(lines.map(rich).join(linebreak()))).join(gap)
+    prose(extra.paragraphs)
   } else if extra.kind == "list" {
     show-bullets(extra.bullets)
   }

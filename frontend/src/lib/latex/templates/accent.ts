@@ -10,8 +10,7 @@
 // that starts a new line (an entry, a list, a paragraph) first takes back the
 // leading above it, which accent.typ's gaps don't count.
 
-import { SECTIONS, type SectionName } from "@/components/editor/sections"
-import type { Paragraph, TemplateData } from "@/lib/typst/resumeData"
+import { printedSections, type Paragraph, type TemplateData } from "@/lib/typst/resumeData"
 import {
   bold,
   CHARIS,
@@ -26,7 +25,6 @@ import {
   projectHeader,
   ROW,
   runs,
-  sectionsOf,
   shownLink,
   signs,
   sum,
@@ -34,8 +32,6 @@ import {
   webLink,
   type Fallbacks,
   type LatexTemplate,
-  type Section,
-  type ShowLink,
   type Units,
 } from "../common"
 
@@ -55,15 +51,10 @@ const FALLBACKS: Fallbacks = {
 
 /** Fine-tune's lengths in bp, and the leading above a line of text this size and its \baselineskip. */
 function lengthsOf(units: Units) {
-  const size = (pt: number) => units.size(pt)
-  const space = (pt: number) => units.space(pt)
-  const lead = (size: number) => space(LEADING * size)
+  const lead = (size: number) => units.space(LEADING * size)
   const pitch = (size: number) => sum(lead(size), units.size(CAP * size))
-  return { size, space, gap: units.gap, lead, pitch }
+  return { size: units.size, space: units.space, gap: units.gap, lead, pitch }
 }
-
-/** Links print as plain text, as accent.typ's do. */
-const plain: ShowLink = (url, text) => shownLink(url, text)
 
 const preamble = (units: Units, title: string, fallbacks: string) => {
   const { size, space, gap, lead, pitch } = lengthsOf(units)
@@ -193,10 +184,6 @@ ${ROW}
 `
 }
 
-/** The heading the person wrote, or the template's, before it's escaped (as sectionsOf finds it). */
-const headingOf = (data: TemplateData, section: Section) =>
-  section.kind === "extra" ? section.extra.heading : data.headings[section.kind] || SECTIONS[section.name as SectionName].title
-
 /**
  * A heading's first three letters and the rest, each escaped. Split before
  * escaping, as the escapes are several characters long; composed first, so
@@ -255,8 +242,8 @@ function body(data: TemplateData, units: Units): string {
     text(data.summary)
   }
 
-  for (const section of sectionsOf(data)) {
-    heading(headingOf(data, section))
+  for (const section of printedSections(data)) {
+    heading(section.heading)
     switch (section.kind) {
       case "extra": {
         const { extra } = section
@@ -285,7 +272,7 @@ function body(data: TemplateData, units: Units): string {
         break
       case "projects":
         entries(data.projects, (project) => {
-          add(`  \\resumeProject{${projectHeader(project, " \\textcolor{accent}{\\textbar} ", plain)}}{${latex(project.date)}}`)
+          add(`  \\resumeProject{${projectHeader(project, " \\textcolor{accent}{\\textbar} ", shownLink)}}{${latex(project.date)}}`)
           items(project.bullets.map(runs))
         })
         break
@@ -293,7 +280,7 @@ function body(data: TemplateData, units: Units): string {
         add(
           citations(
             data.publications,
-            plain,
+            shownLink,
             `labelindent=0pt, labelsep=0.7em, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=${sum(space(5), "-" + lead(BASE))}, before=\\vspace{-${lead(BASE)}}`,
           ),
         )

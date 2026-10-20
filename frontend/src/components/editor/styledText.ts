@@ -7,7 +7,7 @@
 // rules for Enter, pasting and typing; a box for prose has no bullets.
 
 import { markedPieces } from "@/lib/typst/resumeData"
-import { cursorWithBullets, lineStartOf, newBullet, pastedList, typedList, withBullets } from "./arrange"
+import { cursorWithBullets, lineStartOf, newBullet, pastedList, sameEnd, typedList, withBullets } from "./arrange"
 
 export const BOLD = 1
 export const ITALIC = 2
@@ -165,8 +165,7 @@ function readTyped(line: Styled, kind: Kind): { line: Styled; at: number[] } {
 
 /** `line` with its start changed to make `text`: the words at its end keep their styles, and what's new is plain. */
 function restyled(line: Styled, text: string): Styled {
-  let same = 0
-  while (same < line.text.length && same < text.length && line.text[line.text.length - 1 - same] === text[text.length - 1 - same]) same++
+  const same = sameEnd(line.text, text)
   return { text, styles: [...styled(text.slice(0, text.length - same)).styles, ...line.styles.slice(line.text.length - same)] }
 }
 

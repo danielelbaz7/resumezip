@@ -5,11 +5,15 @@ import { createContext, useContext, useEffect, useId, useRef, useState } from "r
 import { X } from "lucide-react"
 import { reducedMotion } from "@/components/editor/layout"
 
-interface ModalProps {
-  title: string
+type ModalProps = (
+  | { title: string; wide?: false }
+  | {
+      title?: never
+      /** A large dialog that lays out its own content, title included (give the title id="modal-title", which names the dialog). */
+      wide: true
+    }
+) & {
   onClose: () => void
-  /** A large dialog that lays out its own content, title included (give the title id="modal-title"). */
-  wide?: boolean
   /**
    * Fades away before onClose is called. Only for a dialog whose onClose just
    * closes it, as New resume's Cancel: not one whose onClose cancels work
@@ -35,6 +39,16 @@ const CloseContext = createContext<() => void>(() => {})
  * then the dialog's onClose is called. For a Cancel button, so it doesn't vanish at once.
  */
 export const useModalClose = () => useContext(CloseContext)
+
+/** Cancel, which closes the dialog as Escape does, fading away with `fade` (useModalClose). */
+export function CancelButton({ className }: { className: string }) {
+  const close = useModalClose()
+  return (
+    <button type="button" onClick={close} className={className}>
+      Cancel
+    </button>
+  )
+}
 
 // What Tab can reach inside a dialog, before leaving out what's hidden or has tabindex="-1".
 const TABBABLE = "a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]"

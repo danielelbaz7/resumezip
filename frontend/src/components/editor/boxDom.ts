@@ -3,6 +3,7 @@
 // after the browser changed it itself, and where the cursor is, as an offset
 // in the text.
 
+import { offsetOfLine } from "./arrange"
 import { BOLD, bulletLength, ITALIC, linesOf, sameStyled, type Style, type Styled } from "./styledText"
 
 interface Point {
@@ -232,7 +233,7 @@ export function selectIn(root: HTMLElement, start: number, end: number) {
 export function selectLineIn(root: HTMLElement, line: number) {
   const lines = readBox(root).styled.text.split("\n")
   if (line < 0 || line >= lines.length) return
-  const start = lines.slice(0, line).reduce((total, words) => total + words.length + 1, 0)
+  const start = offsetOfLine(lines, line)
   selectIn(root, start + bulletLength(lines[line]), start + lines[line].length)
 }
 

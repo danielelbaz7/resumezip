@@ -3,11 +3,13 @@
 import type React from "react"
 import { useEffect, useId, useRef, useState } from "react"
 import { Pencil } from "lucide-react"
+import { TONE_NAMES } from "@/components/review/notes"
 import type { Finding } from "@/lib/check/engine"
 import { onMac, shortcut } from "@/lib/keys"
 import { markedPieces } from "@/lib/typst/resumeData"
 import { bulletLines, withBullets } from "./arrange"
 import { selectLineIn } from "./boxDom"
+import { reducedMotion } from "./layout"
 import { StyledBox } from "./StyledBox"
 
 interface FieldProps {
@@ -27,10 +29,12 @@ interface FieldProps {
   autoComplete?: string
   /** A web address: phones show the keyboard for one, with no spelling marks and no capital first letter. */
   web?: boolean
-  /** What belongs in a one-line field, shown under it and read out with it. */
+  /** What belongs in the field, shown under it and read out with it: in a multiline box, before the keys for bold and italic. */
   hint?: string
   /** A few lines of prose, as the summary: a box that grows with them, where Enter starts a new line, with bold and italic words. */
   multiline?: boolean
+  /** A multiline box's least height, as a class: as tall as three lines unless given, as the text box it replaced was. */
+  boxHeight?: string
 }
 
 /**
@@ -62,7 +66,7 @@ export function FlagNote({ id, finding }: { id?: string; finding: Finding }) {
   return (
     <div id={id} className="sr-only">
       <p>
-        {finding.flag ? (finding.flag === "green" ? "Done well" : "Red flag") : TIER_NAMES[tierOf(finding)]}: {finding.message}
+        {finding.flag ? TONE_NAMES[finding.flag].one : TIER_NAMES[tierOf(finding)]}: {finding.message}
       </p>
       <p>{finding.why}</p>
       {finding.suggestion && <p>{finding.suggestion}</p>}
@@ -122,6 +126,7 @@ export function Field({
   web,
   multiline,
   hint,
+  boxHeight = "min-h-24",
 }: FieldProps) {
   const noteId = useId()
   const boxId = useId()
@@ -150,8 +155,7 @@ export function Field({
             describedBy={flag ? `${hintId} ${noteId}` : hintId}
             invalid={flag?.level === "fix"}
             placeholder={placeholder}
-            // As tall as three lines, as the text box it replaced was.
-            className={`${look} min-h-24 leading-relaxed`}
+            className={`${look} ${boxHeight} leading-relaxed`}
           />
         ) : (
           <input
@@ -172,6 +176,7 @@ export function Field({
       </Labelled>
       {multiline ? (
         <span id={hintId} className="text-[13px] leading-normal text-ink-2">
+          {hint && `${hint} `}
           <FormatHint />
         </span>
       ) : (
@@ -187,8 +192,16 @@ export function Field({
 }
 
 /** Selects a line's words in a bullets box, after its "• ", to point at one bullet. */
-export function selectLine(field: HTMLElement, line: number) {
+function selectLine(field: HTMLElement, line: number) {
   if (field.isContentEditable) selectLineIn(field, line)
+}
+
+/** Moves the cursor to what the checker points at (one bullet, if `line` is given) and scrolls it into view. */
+export function pointAt(target: HTMLElement | null | undefined, line?: number, view: HTMLElement | null | undefined = target) {
+  if (!target) return
+  target.focus({ preventScroll: true })
+  if (line !== undefined) selectLine(target, line)
+  view?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" })
 }
 
 // With Option on a Mac, Alt elsewhere: ⌥↑, Alt+↑.

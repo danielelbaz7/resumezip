@@ -4,8 +4,7 @@
 // its order, and the preamble every file starts with. Each template in
 // templates/ writes its own preamble and body with these.
 
-import { SECTIONS, type SectionName } from "@/components/editor/sections"
-import type { ExtraTemplateSection, Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
+import { printedSections, type Paragraph, type PrintedSection, type Run, type TemplateData } from "@/lib/typst/resumeData"
 import type { PrintedTune } from "@/lib/tune"
 
 /** A template's LaTeX: its preamble, after \documentclass, and its body. */
@@ -111,8 +110,8 @@ export const runs = (pieces: Run[]) =>
 export const paragraphs = (texts: Paragraph[], indent = "    ") =>
   texts.map((lines) => indent + lines.map(runs).join(`\\newline\n${indent}`)).join("\n\n")
 
-/** "Start - End", or whichever of the two is present, as the templates print dates. */
-export const dateRange = (start: string, end: string) => (start && end ? `${start} - ${end}` : start + end)
+/** "Start - End", or whichever of the two is present, as the templates print dates, `separator` between them. */
+export const dateRange = (start: string, end: string, separator = " - ") => (start && end ? `${start}${separator}${end}` : start + end)
 
 /** The values that aren't empty, joined by `separator`, as `join-present` in templates/common.typ. */
 export const joinPresent = (separator: string, ...values: string[]) => values.filter(Boolean).join(separator)
@@ -134,7 +133,7 @@ const address = (url: string) =>
   url.replace(/[\\{}\s^%#&]/g, (character) => `\\${/[%#&]/.test(character) ? character : encodeURIComponent(character)}`)
 
 /** The address a link goes to, or null for one that isn't an address, which is printed without a link. */
-function linkTarget(url: string): string | null {
+export function linkTarget(url: string): string | null {
   try {
     return new URL(url).href
   } catch {
@@ -161,11 +160,24 @@ export const shownLink = (url: string, text: string, style = (body: string) => b
 /** How a template prints a link: its address, and the words it shows, already LaTeX. */
 export type ShowLink = (url: string, text: string) => string
 
+export const underline = (body: string) => `\\underline{${body}}`
+/** A link printed as its own text, underlined. */
+export const underlined: ShowLink = (url, text) => shownLink(url, text, underline)
+
 /** A link that's a profile or project address, stored without its "https://". */
 export const webLink = (url: string, style?: (body: string) => string) => shownLink(web(url), url, style)
 
 /** An email address, linked to write to it. */
 export const emailLink = (address: string, style?: (body: string) => string) => shownLink(`mailto:${address}`, address, style)
+
+/**
+ * A project's name, in the template's `style` (as capitals), linked when the
+ * person chose to link names, as `project-name` in templates/common.typ.
+ */
+export const projectName = (project: TemplateData["projects"][number], style = (body: string) => body) => {
+  const name = style(latex(project.name))
+  return project.link ? href(web(project.link), name) : name
+}
 
 /**
  * A project's first line, as `project-header` in templates/common.typ: its
@@ -174,7 +186,7 @@ export const emailLink = (address: string, style?: (body: string) => string) => 
  */
 export function projectHeader(project: TemplateData["projects"][number], separator: string, showLink: ShowLink): string {
   const parts: string[] = []
-  if (project.name) parts.push(bold(project.link ? href(web(project.link), latex(project.name)) : latex(project.name)))
+  if (project.name) parts.push(bold(projectName(project)))
   if (project.techStack) parts.push(`\\emph{${latex(project.techStack)}}`)
   for (const url of project.links) parts.push(showLink(web(url), url))
   return parts.join(separator)
@@ -242,37 +254,12 @@ export function citations(publications: TemplateData["publications"], showLink: 
 
 // ---------- Sections ----------
 
-/** Where each section's entries and heading are in TemplateData. */
-const SECTION_KEYS: Record<SectionName, keyof TemplateData["headings"]> = {
-  Education: "education",
-  Work: "work",
-  Projects: "projects",
-  Publications: "publications",
-  Skills: "skills",
-  Leadership: "leadership",
-  Volunteership: "volunteer",
-  Awards: "awards",
-}
-
 /** A section with something to print, and its heading, already LaTeX. */
-export type Section = { heading: string; name: string } & (
-  { kind: "extra"; extra: ExtraTemplateSection } | { kind: keyof TemplateData["headings"] }
-)
+export type Section = PrintedSection
 
-/**
- * The resume's sections in its order, each with something to print: the
- * heading the person wrote, or the one every template prints (`heading-or`
- * in the .typ files). The summary isn't one; it's in `data.summary`.
- */
-export function sectionsOf(data: TemplateData): Section[] {
-  return data.order.flatMap((name): Section[] => {
-    const extra = data.extras[name]
-    if (extra) return [{ kind: "extra", name, heading: latex(extra.heading), extra }]
-    const kind = SECTION_KEYS[name as SectionName]
-    if (!kind || data[kind].length === 0) return []
-    return [{ kind, name, heading: latex(data.headings[kind] || SECTIONS[name as SectionName].title) }]
-  })
-}
+/** The resume's sections in its order, as `printedSections` finds them, their headings already LaTeX. */
+export const sectionsOf = (data: TemplateData): Section[] =>
+  printedSections(data).map((section) => ({ ...section, heading: latex(section.heading) }))
 
 // ---------- Fine-tune ----------
 
@@ -300,12 +287,14 @@ export interface Units {
 // smaller, which over a page comes to a line's worth.
 const length = (value: number, unit: "bp" | "in") => `${Math.round(value * 100) / 100}${unit}`
 
+/** A number of Typst's points as a length, as `Units` writes them, for a template's own arithmetic on lengths. */
+export const bp = (points: number) => length(points, "bp")
+
 /** Lengths that `Units` gave, added up into one, so the .tex has a number rather than a \dimexpr. */
-export const sum = (...lengths: string[]) =>
-  length(
-    lengths.reduce((total, part) => total + parseFloat(part), 0),
-    "bp",
-  )
+export const sum = (...lengths: string[]) => bp(lengths.reduce((total, part) => total + parseFloat(part), 0))
+
+/** A length, negated: to take it away in `sum`, or in TeX. */
+export const minus = (length: string) => `-${length}`
 
 export function unitsOf(tune: PrintedTune): Units {
   return {
@@ -315,6 +304,20 @@ export function unitsOf(tune: PrintedTune): Units {
     margin: (inches) => length(inches * tune.margin, "in"),
     paper: (own) => (tune.paper === "a4" ? "a4paper" : tune.paper === "us-letter" ? "letterpaper" : own),
   }
+}
+
+/**
+ * A size's \fontsize, for a .typ that sets lines `leading` (in em) apart, from
+ * one line's baseline to the top of the next one's capitals, `cap` (in em)
+ * tall: a line is its capitals' height and the gap above them.
+ */
+export const fontSize = (units: Units, size: number, cap: number, leading: number) =>
+  `\\fontsize{${units.size(size)}}{${sum(units.size(cap * size), units.space(leading * size))}}`
+
+/** How far \arraystretch stretches the lines fontSize sets at `size`, for a table's rows to be `gap` points apart, as the .typ's are. */
+export function stretch(units: Units, size: number, cap: number, leading: number, gap: number): number {
+  const line = parseFloat(sum(units.size(cap * size), units.space(leading * size)))
+  return Math.round((parseFloat(sum(units.size(cap * size), units.space(gap))) / line) * 1000) / 1000
 }
 
 // ---------- Preamble ----------
@@ -362,23 +365,56 @@ export const ROW = `\\newcolumntype{L}{>{\\raggedright\\arraybackslash}X}
   \\begin{tabularx}{\\linewidth}{@{}L@{\\hspace{0.8em}}r@{}}#1 & #2\\end{tabularx}%
 }}`
 
+/** \resumeRow{left}{right}, as ROW's, set as one paragraph rather than a table. */
+export const PLAIN_ROW = `% A line with one part flush left and one flush right. A long left part
+% wraps, and the right one sits on its last line.
+\\newlength{\\rowRight}
+\\newcommand{\\resumeRow}[2]{%
+  \\par\\begingroup
+  \\settowidth{\\rowRight}{#2}%
+  \\rightskip=\\dimexpr\\rowRight+0.8em\\relax plus 1fil
+  \\parfillskip=0pt
+  \\noindent#1\\hspace{0pt plus 1fill}\\rlap{\\hspace{0.8em}#2}\\par
+  \\endgroup
+}`
+
+/** \resumeRow{left}{right}, as PLAIN_ROW's, but a row is never hyphenated, nor split between two pages. */
+export const UNBROKEN_ROW = `% A line with one part flush left and one flush right. A long left part
+% wraps short of the right one, which sits on its last line.
+\\newlength{\\resumeRightWidth}
+\\newcommand{\\resumeRow}[2]{%
+  \\par\\settowidth{\\resumeRightWidth}{#2}%
+  {\\rightskip=\\dimexpr\\resumeRightWidth+0.8em\\relax plus 1fil\\hyphenpenalty=10000\\interlinepenalty=10000
+    #1\\nobreak\\hfill\\rlap{\\hspace{0.8em}#2}\\par}%
+}`
+
+// The TeX Gyre families the templates are set in. Each was drawn from a
+// Nimbus family, whose files stand in for its own: `nimbus` names them, and
+// `bold` is what they call bold. A sans serif is made pdfLaTeX's default family.
+const TEX_GYRE = {
+  heros: { nimbus: "zhv", bold: "Bol", sans: true },
+  termes: { nimbus: "ztm", bold: "Med", sans: false },
+}
+
 /**
- * TeX Gyre Heros, as the Helvetica-style templates are set in: its Type 1
- * fonts with pdfLaTeX, its OpenType ones otherwise, after `fallbacks`, its
- * fallback fonts' set-up (HEROS_FALLBACKS), if the file has one, which loads
- * fontspec. Some TeX installs leave out TeX Gyre's OpenType files; Nimbus
- * Sans, which TeX Gyre Heros is drawn from, stands in for them.
+ * A TeX Gyre family, as Blueprint, Compact and Swiss (Heros) and zero2sudo
+ * (Termes) are set in: its Type 1 fonts with pdfLaTeX, its OpenType ones
+ * otherwise, after `fallbacks`, its fallback fonts' set-up, if the file has
+ * one, which loads fontspec. Some TeX installs leave out TeX Gyre's OpenType
+ * files; the Nimbus family it's drawn from stands in for them.
  */
-export const heros = (fallbacks: string) => `\\ifPDFTeX
-  \\usepackage{tgheros}
-  \\renewcommand*\\familydefault{\\sfdefault}
-\\else
-${fallbacks || "  \\usepackage{fontspec}\n"}  \\IfFontExistsTF{texgyreheros-regular.otf}{
-    \\setmainfont{texgyreheros}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold, ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+export function texGyre(family: keyof typeof TEX_GYRE, fallbacks: string): string {
+  const { nimbus, bold, sans } = TEX_GYRE[family]
+  return `\\ifPDFTeX
+  \\usepackage{tg${family}}
+${sans ? "  \\renewcommand*\\familydefault{\\sfdefault}\n" : ""}\\else
+${fallbacks || "  \\usepackage{fontspec}\n"}  \\IfFontExistsTF{texgyre${family}-regular.otf}{
+    \\setmainfont{texgyre${family}}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold, ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
   }{
-    \\setmainfont{zhv}[Extension=.otf, UprightFont=*-Reg, BoldFont=*-Bol, ItalicFont=*-RegIta, BoldItalicFont=*-BolIta]
+    \\setmainfont{${nimbus}}[Extension=.otf, UprightFont=*-Reg, BoldFont=*-${bold}, ItalicFont=*-RegIta, BoldItalicFont=*-${bold}Ita]
   }
 \\fi`
+}
 
 // ---------- Letters a template's fonts lack ----------
 

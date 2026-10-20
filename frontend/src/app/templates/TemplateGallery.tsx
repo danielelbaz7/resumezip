@@ -135,12 +135,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
         </div>
         <div className="dash-toolbar-chips">
           {/* One line that scrolls sideways where it's too narrow. */}
-          <div
-            ref={chips.group}
-            role="group"
-            aria-label="Filter by style"
-            className={`${BAR_SEGMENTS} overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
-          >
+          <div ref={chips.group} role="group" aria-label="Filter by style" className={`${BAR_SEGMENTS} overflow-x-auto no-scrollbar`}>
             <span ref={chips.thumb} aria-hidden="true" className={`segment-thumb ${chips.placed ? "" : "invisible"}`} />
             {STYLES.map((option) => {
               const pressed = tag === option

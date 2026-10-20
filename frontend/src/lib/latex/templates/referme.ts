@@ -10,28 +10,27 @@ import {
   dateRange,
   emailLink,
   ENGINES,
-  heros,
   HEROS_FALLBACKS,
-  href,
   italic,
   itemText,
   joinPresent,
   latex,
   links,
+  minus,
   paragraphs,
+  projectName,
   runs,
   sectionsOf,
   shownLink,
   sum,
-  web,
+  texGyre,
+  UNBROKEN_ROW,
   webLink,
   type LatexTemplate,
   type ShowLink,
   type Units,
 } from "../common"
 import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
-
-const minus = (length: string) => `-${length}`
 
 const underline = (body: string) => `\\resumeUnderline{${body}}`
 /** A link printed as its own text, underlined, as the .typ's `ul`. */
@@ -44,7 +43,7 @@ function preamble(units: Units, title: string, fallbacks: string): string {
   return `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-${heros(fallbacks)}
+${texGyre("heros", fallbacks)}
 \\usepackage[margin=${units.margin(0.5)}]{geometry}
 \\usepackage{enumitem}
 ${links(title)}
@@ -94,14 +93,7 @@ ${links(title)}
   \\nobreak\\prevdepth=${sum("0.2pt", leading, minus(units.size(4.7)))}
 }
 
-% A line with one part flush left and one flush right. A long left part
-% wraps short of the right one, which sits on its last line.
-\\newlength{\\resumeRightWidth}
-\\newcommand{\\resumeRow}[2]{%
-  \\par\\settowidth{\\resumeRightWidth}{#2}%
-  {\\rightskip=\\dimexpr\\resumeRightWidth+0.8em\\relax plus 1fil\\hyphenpenalty=10000\\interlinepenalty=10000
-    #1\\nobreak\\hfill\\rlap{\\hspace{0.8em}#2}\\par}%
-}
+${UNBROKEN_ROW}
 
 % A project's tech stack and links, under its name
 \\newcommand{\\resumeDetails}[1]{\\nobreak{\\raggedright #1\\par}}
@@ -200,7 +192,7 @@ function body(data: TemplateData, units: Units): string {
       case "projects":
         data.projects.forEach((project, index) => {
           if (index) add("  \\resumeEntryGap")
-          const name = project.name && bold(project.link ? href(web(project.link), latex(project.name)) : latex(project.name))
+          const name = project.name && bold(projectName(project))
           row(name, emph(project.date))
           const details = [emph(project.techStack), ...project.links.map((url) => webLink(url, underline))].filter(Boolean)
           if (details.length) add(`  \\resumeDetails{${details.join(" | ")}}`)

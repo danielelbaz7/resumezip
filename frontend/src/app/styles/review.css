@@ -112,12 +112,7 @@
   /* The resume being reviewed, once it's printed, taking the sample's place
      (Backdrop.tsx): it fades in over the sample, which fades out under it. */
   .review-theirs {
-    animation: review-theirs 600ms var(--ease-glide) backwards;
-  }
-  @keyframes review-theirs {
-    from {
-      opacity: 0;
-    }
+    animation: fade-in 600ms var(--ease-glide) backwards;
   }
   .review-gone {
     opacity: 0;
@@ -145,14 +140,9 @@
     }
   }
   .review-heat {
-    animation-name: review-heat;
+    animation-name: fade-in;
     animation-timing-function: linear;
     animation-fill-mode: both;
-  }
-  @keyframes review-heat {
-    from {
-      opacity: 0;
-    }
   }
 
   /* While a resume is reviewed, a band of light reads down its page. */
@@ -214,7 +204,7 @@
     animation: review-around 500ms var(--ease-glide) 350ms backwards;
   }
   .review-board[data-flight] .review-card::before {
-    animation: review-theirs 500ms var(--ease-glide) 250ms backwards;
+    animation: fade-in 500ms var(--ease-glide) 250ms backwards;
   }
   @keyframes review-around {
     from {
@@ -224,27 +214,14 @@
   }
 
   /* The resume in a frame of frosted glass with a lit rim, as the dashboard's
-     sheet is framed. The frost is on ::before, so the frame isn't the backdrop
-     root of what's in it. */
+     sheet is framed (its ::before is drawn with .paper-frame's, in sheet.css).
+     The frost is on ::before, so the frame isn't the backdrop root of what's
+     in it. */
   .review-card {
     position: relative;
     isolation: isolate;
     padding: 0 8px 8px;
     border-radius: 28px;
-  }
-  .review-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    border-radius: inherit;
-    pointer-events: none;
-    background: rgb(255 255 255 / 0.28);
-    box-shadow:
-      inset 0 0 0 1px rgb(255 255 255 / 0.82),
-      inset 0 2px 0 rgb(255 255 255 / 0.9);
-    -webkit-backdrop-filter: blur(1.5px) saturate(1.3) brightness(1.06);
-    backdrop-filter: blur(1.5px) saturate(1.3) brightness(1.06);
   }
 
   /* Beside the card where there's room, else above it: what the scribbles
@@ -364,19 +341,22 @@
     flex-direction: column;
     gap: 8px;
   }
+  .review-tile,
+  .review-flag-list {
+    border-radius: 18px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px rgb(17 19 24 / 0.05),
+      0 1px 2px rgb(17 19 24 / 0.05),
+      0 18px 40px -18px rgb(25 60 130 / 0.35);
+  }
   .review-tile {
     position: relative;
     display: block;
     width: 100%;
     height: 54px;
     overflow: hidden;
-    border-radius: 18px;
-    background: #fff;
     text-align: left;
-    box-shadow:
-      0 0 0 1px rgb(17 19 24 / 0.05),
-      0 1px 2px rgb(17 19 24 / 0.05),
-      0 18px 40px -18px rgb(25 60 130 / 0.35);
     transition:
       height 560ms var(--ease-glide),
       box-shadow 200ms;
@@ -429,15 +409,12 @@
     z-index: 2;
   }
   .review-tile-title {
+    @apply label-mono;
     display: flex;
     align-items: center;
     gap: 7px;
     color: var(--color-ink-2);
-    font-family: var(--font-mono);
-    font-size: 11px;
     line-height: 1;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
     white-space: nowrap;
   }
   .review-tile-title::before {
@@ -516,15 +493,9 @@
   /* The flags listed under the tiles, on the same solid white. */
   .review-flag-list {
     padding: 10px 12px;
-    border-radius: 18px;
-    background: #fff;
     color: #3a3e46;
     font-size: 14px;
     line-height: 1.4;
-    box-shadow:
-      0 0 0 1px rgb(17 19 24 / 0.05),
-      0 1px 2px rgb(17 19 24 / 0.05),
-      0 18px 40px -18px rgb(25 60 130 / 0.35);
   }
   .review-flag-list li {
     animation: review-flag-in 420ms var(--ease-glide) calc(120ms + var(--row) * 30ms) backwards;

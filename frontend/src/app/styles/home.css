@@ -91,7 +91,7 @@
        and its foot is lifted behind the grass (as far as the grass is sunk, short of where its blades
        meet), so the hills stand clear of the grass. The camera's push (HomeStory.tsx) scales on top. */
     scale: 1.18;
-    translate: 0 calc(var(--grass-width) * -0.085 * 941 / 1672);
+    translate: 0 calc(-1 * var(--grass-foot));
   }
 
   /* The sky's top three quarters a deeper blue, so the white words on the first screen read where
@@ -230,6 +230,9 @@
   .home-still,
   .footer-ground {
     --grass-width: 100vw;
+    /* grass.webp is 1672×941. */
+    --grass-height: calc(var(--grass-width) * 941 / 1672);
+    --grass-foot: calc(var(--grass-height) * 0.085);
   }
   @media (width < 43.75rem) {
     .home-stage,
@@ -245,7 +248,7 @@
   .home-still > .home-grass {
     left: calc((100vw - var(--grass-width)) / 2);
     top: auto;
-    bottom: calc(var(--grass-width) * -0.085 * 941 / 1672);
+    bottom: calc(-1 * var(--grass-foot));
   }
   .home-grass img {
     display: block;
@@ -328,11 +331,9 @@
      the grass, never from a strip of flat colour. The colour of its last row is only under it in
      case a rounded pixel shows. */
   .footer-ground {
-    --grass-foot: calc(var(--grass-width) * 0.085 * 941 / 1672);
     height: var(--grass-foot);
     background:
-      url("/home/grass.webp") calc((100vw - var(--grass-width)) / 2) calc(var(--grass-width) * -0.915 * 941 / 1672) / var(--grass-width)
-        auto no-repeat,
+      url("/home/grass.webp") calc((100vw - var(--grass-width)) / 2) calc(var(--grass-height) * -0.915) / var(--grass-width) auto no-repeat,
       #3c6f07;
   }
 

@@ -7,9 +7,9 @@ import { templateById } from "@/lib/templates"
 import MoreMenu from "./MoreMenu"
 import PagePicture from "./PagePicture"
 import { CopyIcon, DownloadIcon, PencilIcon, RowAction, TagIcon, TrashIcon } from "./RowActions"
-import { tagName } from "./ResumeTable"
+import { RenameInput, tagName } from "./ResumeTable"
 import { nameOf, type ListActions } from "./useListActions"
-import { morph, useOpenResume } from "./viewSwitch"
+import { morph, useOpenOnClick } from "./viewSwitch"
 
 const dayFormat = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" })
 const yearFormat = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" })
@@ -57,9 +57,9 @@ interface ResumeGridProps {
  * name. The last tile starts a new one.
  */
 export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leaving, returning, onNew }: ResumeGridProps) {
-  const { downloading, downloaded, renaming, setRenaming, finishRenaming, copied, duplicate, download } = actions
+  const { downloading, downloaded, renaming, setRenaming, copied, duplicate, download } = actions
   const now = new Date()
-  const open = useOpenResume()
+  const open = useOpenOnClick()
 
   return (
     <ul aria-label="Resumes" className="resume-grid">
@@ -91,21 +91,10 @@ export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leavi
                 {resume.resumeTag ? tagName(resume.resumeTag) : "\u00a0"}
               </span>
               {renaming?.id === resume.id ? (
-                <input
-                  aria-label="Resume name"
-                  value={renaming.draft}
-                  placeholder="Untitled resume"
-                  maxLength={200}
-                  autoFocus
-                  onFocus={(event) => event.currentTarget.select()}
-                  onChange={(event) => setRenaming({ id: resume.id, draft: event.target.value })}
-                  onBlur={() => finishRenaming(resume, true, false)}
-                  onKeyDown={(event) => {
-                    // Enter or Escape while typing with an input method (as for Japanese) picks or cancels a character.
-                    if (event.nativeEvent.isComposing) return
-                    if (event.key === "Enter") finishRenaming(resume, true, true)
-                    else if (event.key === "Escape") finishRenaming(resume, false, true)
-                  }}
+                <RenameInput
+                  resume={resume}
+                  draft={renaming.draft}
+                  actions={actions}
                   // Underlined, as a name being typed is in the list and the editor. Its line hangs 1px
                   // below, where the link's text would end, so nothing under it moves.
                   className="-mb-px w-full min-w-0 border-0 border-b border-accent bg-transparent p-0 text-[16px] font-medium leading-[1.3] tracking-[-0.02em] text-ink outline-none placeholder:text-ink-3 focus-visible:outline-none"

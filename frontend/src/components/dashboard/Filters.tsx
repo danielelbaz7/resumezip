@@ -44,12 +44,7 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
       <div className="dash-toolbar-search">{search}</div>
       <div className="dash-toolbar-chips">
         {/* One line that scrolls sideways where it's too narrow. */}
-        <div
-          ref={chips.group}
-          role="group"
-          aria-label="Show"
-          className={`${BAR_SEGMENTS} overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
-        >
+        <div ref={chips.group} role="group" aria-label="Show" className={`${BAR_SEGMENTS} overflow-x-auto no-scrollbar`}>
           <span ref={chips.thumb} aria-hidden="true" className={`segment-thumb ${chips.placed ? "" : "invisible"}`} />
           {tags.map((option) => {
             const pressed = tag === option.id

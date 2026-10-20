@@ -4,6 +4,7 @@
 // same careful way as the rest of the resume. Downloaded PDFs leave it out,
 // as they only carry what's printed (lib/resumeFile.ts).
 
+import { isObject } from "@/lib/isObject"
 import type { Resume } from "@/lib/resume"
 import type { Finding, Report } from "./engine"
 import { ruleOfKey } from "./places"
@@ -31,7 +32,7 @@ const strings = (value: unknown, max: number, longest: number) =>
 
 const savedOn = (resume: Resume): Record<string, unknown> => {
   const saved = resume[CHECK_FIELD]
-  return typeof saved === "object" && saved !== null && !Array.isArray(saved) ? saved : {}
+  return isObject(saved) ? saved : {}
 }
 
 // Far longer than any finding's key (see findingKey in places.ts).

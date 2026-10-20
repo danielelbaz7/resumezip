@@ -78,7 +78,7 @@ export default function DownloadFailed({ failure, title, doing = "download", ret
   const step = STEP[failure.reason]
   return (
     <div role="alert" className={`flex flex-wrap items-baseline gap-x-6 gap-y-2 ${className}`}>
-      <span className="label-mono shrink-0 text-[#b42318]">{LABEL[doing]}</span>
+      <span className="label-mono shrink-0 text-alert">{LABEL[doing]}</span>
       <p className="min-w-0 flex-[1_1_280px] break-words text-sm leading-relaxed text-ink">
         {failure.count > 1 ? "Still couldn't" : "Couldn't"} {step}{" "}
         {title ? <>the PDF of &ldquo;{title}&rdquo;</> : `your ${failure.of ?? "PDF"}`}

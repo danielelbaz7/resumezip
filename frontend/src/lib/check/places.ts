@@ -3,7 +3,7 @@
 // PDF's pages. Also how a finding is told apart from others, for dismissing it.
 
 import { PROFILE_FIELDS, SECTIONS, type FieldKey, type FieldKeyOf, type ProfileKey, type SectionName } from "@/components/editor/sections"
-import { entryAt, type ResumeView } from "./resume"
+import { entryAt, type Entry, type ResumeView } from "./resume"
 
 export type Place =
   // A profile field, like "email".
@@ -19,6 +19,8 @@ export type Place =
   | { kind: "extra-text"; sectionId: string; field: "text" | "bullets"; line?: number }
   // The PDF as a whole, or one of its pages (from 1).
   | { kind: "page"; page?: number }
+
+export const entryPlace = (entry: Entry, field?: FieldKey): Place => ({ kind: "entry", section: entry.section, entry: entry.index, field })
 
 /** The field a place is in: a profile field, or one of an entry's. */
 export const fieldOf = (place: Place) =>

@@ -6,6 +6,7 @@
 // when it runs out of time, and shuts down whatever it started.
 
 import type { PDFDocumentProxy } from "pdfjs-dist"
+import { PDFJS_WORKER_URL } from "@/lib/pdfjsWorker"
 import type { ResumeContent } from "@/lib/resume"
 import {
   ATTACHMENT_NAME,
@@ -59,7 +60,7 @@ let pdfjs: Promise<typeof import("pdfjs-dist")> | null = null
 export function loadPdfjs() {
   pdfjs ??= import("pdfjs-dist")
     .then((module) => {
-      module.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString()
+      module.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL
       return module
     })
     .catch((error) => {

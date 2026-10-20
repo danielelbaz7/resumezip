@@ -1,8 +1,9 @@
 "use client"
 
 import { useLayoutEffect, useRef } from "react"
+import { reducedMotion } from "@/components/editor/layout"
 import type { DrawnPage } from "./drawPages"
-import { LABEL_INK, PageMarks, useEscapeCloses, usePlaced, type Note } from "./PageMarks"
+import { LABEL_INK, PageMarks, REWRITE, useEscapeCloses, usePlaced, type Note } from "./PageMarks"
 
 /** Where the first page was on the screen before the result, as the page being read: it flies from there into place. */
 export interface Flight {
@@ -53,7 +54,7 @@ export default function MarkedPages({
   useLayoutEffect(() => {
     const page = first.current
     const start = flight.current
-    if (!page || !start || matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    if (!page || !start || reducedMotion()) return
     const end = page.getBoundingClientRect()
     const scale = start.width / end.width
     const fog = "linear-gradient(180deg, #000 30%, transparent 64%)"
@@ -105,7 +106,7 @@ export default function MarkedPages({
                 <span className="font-medium text-ink">{note.title}</span>
                 <span className="text-ink-3"> · {note.place}</span>
                 {note.body && <span className="block text-ink-2">{note.body}</span>}
-                {note.rewrite && <span className="mt-0.5 block border-l-2 border-hairline pl-2 text-ink">{note.rewrite}</span>}
+                {note.rewrite && <span className={`mt-0.5 block ${REWRITE}`}>{note.rewrite}</span>}
               </li>
             ))}
           </ul>

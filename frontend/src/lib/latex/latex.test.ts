@@ -423,7 +423,7 @@ describe.each(IDS)("a LaTeX file in %s's layout", (id) => {
   })
 
   test("starts a new paragraph 0.6em further down than a new line, as its PDF does", () => {
-    // The PDF leaves the leading plus 0.6em between paragraphs (extra-body in
+    // The PDF leaves the leading plus 0.6em between paragraphs (prose in
     // templates/common.typ). \baselineskip has the leading in it already, so
     // what a blank line adds, \parskip or a list's parsep, is the 0.6em. Text
     // size and line spacing are both off 1, so the leading can't hide in it.

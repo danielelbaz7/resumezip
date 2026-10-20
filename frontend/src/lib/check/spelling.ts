@@ -3,6 +3,7 @@
 // resume's own names and tech words aren't taken for typos. G5 and G6 are our
 // own, and read the form.
 
+import type { FieldKeyOf, ProfileKey } from "@/components/editor/sections"
 import type { GrammarLint, GrammarReading, Problem, Rule } from "./engine"
 import { fieldOf, LINK_FIELDS, type Place } from "./places"
 import { DATE_FIELDS, hasEnded } from "./readDate"
@@ -44,8 +45,8 @@ import { thirdPersonOf, verbOf } from "./verbs"
 const NOT_WORDS = new Set([
   ...LINK_FIELDS,
   ...Object.values(DATE_FIELDS).flatMap((fields) => ("single" in fields ? [fields.single] : [fields.start, fields.end])),
-  "phoneNumber",
-  "gpa",
+  "phoneNumber" satisfies ProfileKey,
+  "gpa" satisfies FieldKeyOf<"Education">,
 ])
 const NAMES: ReadonlySet<string> = new Set(NAME_FIELDS)
 const SKILLS: ReadonlySet<string> = new Set(SKILL_FIELDS)
@@ -475,10 +476,7 @@ const techNames: Rule = {
   title: "Tech names written the way their makers write them",
   why: "Using a product's usual spelling can make its name easier to recognize.",
   check: ({ resume }) => {
-    const texts = textsOf(resume).filter(({ place }) => {
-      const field = fieldOf(place) ?? ""
-      return !NOT_WORDS.has(field) && (!NAMES.has(field) || SKILLS.has(field))
-    })
+    const texts = grammarTexts(resume)
     if (texts.length === 0) return null
     return {
       checked: texts.length,

@@ -9,11 +9,12 @@
 
 import { PROFILE_FIELDS, SECTION_NAMES, SECTIONS } from "@/components/editor/sections"
 import { CHECK_FIELD, readCheckState } from "@/lib/check/state"
+import { isObject } from "@/lib/isObject"
 import { isLeftOut, printedResume } from "@/lib/leftOut"
 import { cleanTag, type Entry, type Headings, type Profile, type Resume, type ResumeContent } from "@/lib/resume"
 import { templateById } from "@/lib/templates"
 import { readTune } from "@/lib/tune"
-import { extraKey, readExtraSections, resolveSections } from "./resumeSections"
+import { isSectionRef, readExtraSections, resolveSections } from "./resumeSections"
 
 export const ATTACHMENT_NAME = "resumezip.json"
 /** Where a Word file keeps its text, and its document's relationships, which have the addresses its links go to. */
@@ -176,10 +177,9 @@ function readFormat(
 }
 
 /** A resume in a file of the given version, checked and cleaned. */
-function readContent(version: 1 | 2, saved: unknown, noun: FileNoun): ResumeContent {
-  if (!saved || typeof saved !== "object" || Array.isArray(saved)) throw damaged(noun)
-  if (entryCount(saved) > MAX_ENTRIES) throw new TooLongError()
-  const resume = saved as Record<string, unknown>
+function readContent(version: 1 | 2, resume: unknown, noun: FileNoun): ResumeContent {
+  if (!isObject(resume)) throw damaged(noun)
+  if (entryCount(resume) > MAX_ENTRIES) throw new TooLongError()
   if (version === 1) {
     const { extraSections, ...legacy } = resume
     return cleanResume(legacy)
@@ -188,21 +188,13 @@ function readContent(version: 1 | 2, saved: unknown, noun: FileNoun): ResumeCont
   if (!decoded.complete) throw new AttachmentError(`The sections in this ${noun} are damaged. Try another saved ${noun}.`)
   if (
     resume.sectionOrder !== undefined &&
-    (!Array.isArray(resume.sectionOrder) ||
-      resume.sectionOrder.some(
-        (ref: unknown) =>
-          typeof ref !== "string" ||
-          (extraKey(ref) === null
-            ? !SECTION_NAMES.includes(ref as (typeof SECTION_NAMES)[number])
-            : !Object.hasOwn(decoded.sections, extraKey(ref)!)),
-      ))
+    (!Array.isArray(resume.sectionOrder) || resume.sectionOrder.some((ref: unknown) => !isSectionRef(ref, decoded.sections)))
   )
     throw new AttachmentError(`The section order in this ${noun} is damaged. Try another saved ${noun}.`)
   return cleanResume({ ...resume, extraSections: decoded.sections })
 }
 
-const object = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+const object = (value: unknown): Record<string, unknown> => (isObject(value) ? value : {})
 
 const string = (value: unknown) => (typeof value === "string" ? value : "")
 

@@ -10,6 +10,7 @@ import { pdfLayoutOf, type PdfSectionLayout } from "@/lib/check/extraPdf"
 import { viewOf } from "@/lib/check/resume"
 import { grammarTexts } from "@/lib/check/spelling"
 import { AI_RULE } from "@/lib/review/ai/place"
+import { extraRef } from "@/lib/resumeSections"
 import { printedOf } from "@/lib/typst/compile"
 import type { ActiveSection } from "./SectionNav"
 import { MarksProvider } from "./MarksContext"
@@ -109,7 +110,7 @@ export function sectionOf(place: Place): ActiveSection | null {
     : place.kind === "page"
       ? null
       : "sectionId" in place
-        ? `extra:${place.sectionId}`
+        ? extraRef(place.sectionId)
         : place.section
 }
 

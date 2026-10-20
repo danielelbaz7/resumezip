@@ -6,6 +6,7 @@
 
 import { SECTIONS } from "@/components/editor/sections"
 import { CHECK_FIELD } from "@/lib/check/state"
+import { isObject } from "@/lib/isObject"
 import { readExtraSections } from "@/lib/resumeSections"
 import { readTune } from "@/lib/tune"
 import type { Resume } from "./resume"
@@ -250,9 +251,6 @@ function readEntry(value: unknown): { resume: Resume | null; complete: boolean }
   // Each field is in a shape the editor can show (readField), which is all a Resume promises of saved data.
   return { resume: Object.fromEntries(fields) as Resume, complete }
 }
-
-export const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
 
 // Fields the editor reads as lists of entries, and as objects of named
 // values (the checker's dismissals and added words are one, Fine-tune's

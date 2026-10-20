@@ -4,6 +4,7 @@
 // where CSL gives one string, so every field is read as either.
 
 import type { FieldKeyOf } from "@/components/editor/sections"
+import { isObject } from "@/lib/isObject"
 import { ownerMatcher } from "@/lib/typst/resumeData"
 import type { PaperId } from "./link"
 
@@ -11,7 +12,7 @@ export type PublicationFields = Record<FieldKeyOf<"Publications">, string>
 
 type Json = Record<string, unknown>
 
-const record = (value: unknown): Json => (value && typeof value === "object" && !Array.isArray(value) ? (value as Json) : {})
+const record = (value: unknown): Json => (isObject(value) ? value : {})
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : value === undefined || value === null ? [] : [value])
 const str = (value: unknown) => (typeof value === "string" ? value : typeof value === "number" ? String(value) : "")
 const first = (value: unknown) => str(list(value)[0])

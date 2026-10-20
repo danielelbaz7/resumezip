@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { cleanTag, type ResumeWithId } from "@/lib/resume"
-import Modal, { useModalClose } from "./Modal"
+import Modal, { CancelButton } from "./Modal"
 import TypePicker from "./TypePicker"
 import { BLUE_PILL, TEXT_PILL } from "@/components/pills"
 
@@ -30,22 +30,12 @@ export default function TypeModal({ resume, own, onClose, onSave }: TypeModalPro
       >
         <TypePicker value={tag} onChange={setTag} own={own} focusChosen />
         <div className="flex justify-end gap-2">
-          <CancelButton />
+          <CancelButton className={TEXT_PILL} />
           <button type="submit" className={BLUE_PILL}>
             Save
           </button>
         </div>
       </form>
     </Modal>
-  )
-}
-
-/** Cancel, which closes the dialog as Escape does, fading away. */
-function CancelButton() {
-  const close = useModalClose()
-  return (
-    <button type="button" onClick={close} className={TEXT_PILL}>
-      Cancel
-    </button>
   )
 }

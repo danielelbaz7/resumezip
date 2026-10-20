@@ -3,7 +3,8 @@
 import { useId, useState } from "react"
 import { Clock, RotateCcw } from "lucide-react"
 import { Squares } from "@/components/site/Loader"
-import type { Problem } from "@/lib/review/ai/askForNotes"
+import type { Problem } from "@/lib/review/ai/problems"
+import { TONE_NAMES } from "./notes"
 import type { Ink, Note } from "./PageMarks"
 import { STORM, SUN, type Picture } from "./weather/pictures"
 
@@ -44,8 +45,8 @@ type AiInk = Extract<Ink, "red" | "good">
 
 // prettier-ignore
 const TILES: Record<AiInk, { title: string; line: string; empty: string; picture: Picture }> = {
-  red: { title: "Red flags", line: "Lines a recruiter would trip on.", empty: "None found. Nice.", picture: STORM },
-  good: { title: "Done well", line: "Lines that land. Keep them.", empty: "None stood out.", picture: SUN },
+  red: { title: TONE_NAMES.red.many, line: "Lines a recruiter would trip on.", empty: "None found. Nice.", picture: STORM },
+  good: { title: TONE_NAMES.green.many, line: "Lines that land. Keep them.", empty: "None stood out.", picture: SUN },
 }
 
 // Each color of a picture is one layer of the whole grid, blank but for its own

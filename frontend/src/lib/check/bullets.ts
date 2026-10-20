@@ -274,10 +274,10 @@ const descriptions: Rule = {
       problems: entries.flatMap((entry): Problem[] => {
         const field = SECTIONS[entry.section].fields.find((field) => field.type === "bullets")!.key
         const place = { kind: "entry" as const, section: entry.section, entry: entry.index, field }
+        const peers = entries.filter((other) => other.section === entry.section)
         if (entry.bullets.length === 0) {
           // An older additional role can be listed briefly once another
           // role in its section describes the work.
-          const peers = entries.filter((other) => other.section === entry.section)
           const additional = peers.indexOf(entry) > 0 && hasEnded(entry, today) && peers.some((other) => other.bullets.length > 0)
           return [
             {
@@ -304,7 +304,6 @@ const descriptions: Rule = {
         // there is too thin. Older jobs can be brief (above). Generic bullets
         // that already count (above) aren't counted twice.
         const specific = entry.bullets.length - generic.length
-        const peers = entries.filter((other) => other.section === entry.section)
         const recent = entry.section === "Work" && (peers.indexOf(entry) === 0 || !hasEnded(entry, today))
         const genericCounts = generic.length * 2 >= entry.bullets.length
         if (resume.type !== "academic" && recent && !genericCounts && specific > 0 && specific < MIN_SPECIFIC_BULLETS) {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { PenLine, RotateCcw, Upload } from "lucide-react"
+import { reducedMotion } from "@/components/editor/layout"
 import { Squares } from "@/components/site/Loader"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
@@ -215,9 +216,9 @@ function Result({
     const mark = document.querySelector<HTMLElement>(`[data-note="${CSS.escape(note.key)}"]`)
     if (!mark) return
     mark.focus({ preventScroll: true })
-    mark.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
+    mark.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" })
   }
-  const withAi = units && state
+  const withAi = state
   const caveats = [
     !reading && "The printed copy couldn’t be read back, so how hiring software reads it isn’t scored.",
     !review.spelled && "Spelling wasn’t checked: the spelling checker couldn’t load.",
@@ -382,7 +383,7 @@ export default function ReviewPage() {
           first = new Promise((resolve) => (firstDrawn = resolve))
           drawing = drawPages(pdf, current.signal, (page, index) => {
             if (index > 0 || !live()) return
-            const still = matchMedia("(prefers-reduced-motion: reduce)").matches
+            const still = reducedMotion()
             const gaze = read && !still ? gazeOf(read.lines, page) : []
             const eyesFrom = gaze.length > 0 ? performance.now() + GAZE_DELAY : null
             setState((state) => (state.step === "working" ? { ...state, page, gaze, eyesFrom } : state))

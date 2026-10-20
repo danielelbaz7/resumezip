@@ -8,7 +8,7 @@ import { templateById } from "@/lib/templates"
 import { usePagePicture } from "./pagePictures"
 import { CopyIcon, DownloadIcon, PencilIcon, RowAction, TagIcon, TrashIcon } from "./RowActions"
 import { nameOf, type ListActions } from "./useListActions"
-import { morph, useOpenResume } from "./viewSwitch"
+import { morph, useOpenOnClick } from "./viewSwitch"
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" })
 const dateFormat = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" })
@@ -35,8 +35,8 @@ interface ResumeTableProps {
 }
 
 export default function ResumeTable({ resumes, actions, onDelete, onRetype, leaving, returning }: ResumeTableProps) {
-  const { downloading, downloaded, renaming, setRenaming, finishRenaming, copied, duplicate, download } = actions
-  const open = useOpenResume()
+  const { downloading, downloaded, renaming, setRenaming, copied, duplicate, download } = actions
+  const open = useOpenOnClick()
 
   const header = "label-mono border-b border-rule py-3.5 text-left font-normal text-ink-2"
   const cell = "border-b border-rule"
@@ -55,21 +55,10 @@ export default function ResumeTable({ resumes, actions, onDelete, onRetype, leav
   // when the row is pointed at, or it's focused.
   const name = (resume: ResumeWithId, index: number, className: string) =>
     renaming?.id === resume.id ? (
-      <input
-        aria-label="Resume name"
-        value={renaming.draft}
-        placeholder="Untitled resume"
-        maxLength={200}
-        autoFocus
-        onFocus={(event) => event.currentTarget.select()}
-        onChange={(event) => setRenaming({ id: resume.id, draft: event.target.value })}
-        onBlur={() => finishRenaming(resume, true, false)}
-        onKeyDown={(event) => {
-          // Enter or Escape while typing with an input method (as for Japanese) picks or cancels a character.
-          if (event.nativeEvent.isComposing) return
-          if (event.key === "Enter") finishRenaming(resume, true, true)
-          else if (event.key === "Escape") finishRenaming(resume, false, true)
-        }}
+      <RenameInput
+        resume={resume}
+        draft={renaming.draft}
+        actions={actions}
         className="w-full min-w-0 border-0 border-b border-accent bg-transparent py-0.5 font-serif text-[21px] leading-tight text-ink outline-none placeholder:text-ink-2 focus-visible:outline-none"
       />
     ) : (
@@ -200,6 +189,37 @@ export default function ResumeTable({ resumes, actions, onDelete, onRetype, leav
         </table>
       </div>
     </>
+  )
+}
+
+interface RenameInputProps {
+  resume: ResumeWithId
+  /** The name typed so far. */
+  draft: string
+  actions: ListActions
+  className: string
+}
+
+/** The box a resume's name is typed in while it's renamed, in place of its link, in the cards and the list. */
+export function RenameInput({ resume, draft, actions: { setRenaming, finishRenaming }, className }: RenameInputProps) {
+  return (
+    <input
+      aria-label="Resume name"
+      value={draft}
+      placeholder="Untitled resume"
+      maxLength={200}
+      autoFocus
+      onFocus={(event) => event.currentTarget.select()}
+      onChange={(event) => setRenaming({ id: resume.id, draft: event.target.value })}
+      onBlur={() => finishRenaming(resume, true, false)}
+      onKeyDown={(event) => {
+        // Enter or Escape while typing with an input method (as for Japanese) picks or cancels a character.
+        if (event.nativeEvent.isComposing) return
+        if (event.key === "Enter") finishRenaming(resume, true, true)
+        else if (event.key === "Escape") finishRenaming(resume, false, true)
+      }}
+      className={className}
+    />
   )
 }
 

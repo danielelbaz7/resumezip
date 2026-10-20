@@ -53,9 +53,8 @@ export function cursorWithBullets(text: string, at: number): number {
   const lines = withBullets(text).split("\n")
   const shown = lines[line]
   // How much of the line's end is as typed: the rest is its start, changed.
-  let same = 0
-  while (same < typed.length && same < shown.length && typed[typed.length - 1 - same] === shown[shown.length - 1 - same]) same++
-  const start = lines.slice(0, line).reduce((total, words) => total + words.length + 1, 0)
+  const same = sameEnd(typed, shown)
+  const start = offsetOfLine(lines, line)
   return start + (column >= typed.length - same ? column + shown.length - typed.length : Math.min(column, shown.length - same))
 }
 
@@ -108,6 +107,17 @@ export function bulletLines(text: string): BulletLine[] {
 
 /** Where the line with `at` in it starts. */
 export const lineStartOf = (text: string, at: number) => (at > 0 ? text.lastIndexOf("\n", at - 1) + 1 : 0)
+
+/** Where line `index` (from 0) starts in the text that was split into `lines`. */
+export const offsetOfLine = (lines: readonly string[], index: number) =>
+  lines.slice(0, index).reduce((total, line) => total + line.length + 1, 0)
+
+/** How many characters at the end of `a` are the same as at the end of `b`: the length of their common suffix. */
+export function sameEnd(a: string, b: string): number {
+  let same = 0
+  while (same < a.length && same < b.length && a[a.length - 1 - same] === b[b.length - 1 - same]) same++
+  return same
+}
 
 /** Text with the cursor, or a selection, in it. */
 export interface Edited {

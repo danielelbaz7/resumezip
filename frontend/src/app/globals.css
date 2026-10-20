@@ -31,6 +31,14 @@
   background-image: repeating-linear-gradient(135deg, rgb(17 19 24 / 0.05) 0 1px, transparent 1px 7px);
 }
 
+/* No scroll bar, in every browser: Safari before 18.2 ignores scrollbar-width, which is all Tailwind's own scrollbar-none sets. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* The footer's zipper (components/site/SiteFooter.tsx): the logo's key drawn at
    full width, as on the social card. It's shut, and doesn't move. */
 @layer components {
@@ -178,6 +186,16 @@
   main > :where(:not(.glass, .no-page-in)),
   .page-in {
     animation: page-in 450ms var(--ease-glide) backwards;
+  }
+}
+
+/* A fade in and no more, as the search's veil and the review page's resume
+   come in, each at its own pace. page-in above and panel-contents
+   (dashboard.css) are the same, kept by name: the browser tests look for
+   page-in, and the editor's menus name panel-contents in their classes. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
   }
 }
 
@@ -350,7 +368,7 @@
    ("03 / 08", "SAVED IN THIS BROWSER") and eyebrows over titles. Buttons and
    links say their words in sentence case instead. */
 @utility label-mono {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.08em;

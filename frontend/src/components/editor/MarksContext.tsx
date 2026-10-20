@@ -10,14 +10,17 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useOpenResume } from "@/context/ResumeContext"
 import type { Finding, PdfReading, Report } from "@/lib/check/engine"
 import type { Place } from "@/lib/check/places"
-import { keptNotesOf, notesNowOf } from "@/lib/review/ai/answer"
+import { notesNowOf } from "@/lib/review/ai/answer"
+import type { AiReviewError } from "@/lib/review/ai/askForNotes"
 import { findingOf, placeOfNote } from "@/lib/review/ai/place"
+import { PROBLEMS } from "@/lib/review/ai/problems"
 import { sentOf } from "@/lib/review/ai/request"
 import { hashOf, saveNotes, savedByHash, savedForResume, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
 import { unitsToSend } from "@/lib/review/ai/units"
 import { measurer, PageMarks, useEscapeCloses, usePlaced, type Note, type PageSize, type Placed } from "@/components/review/PageMarks"
 import { aiNotesOf, checkKeyOf, checkNotesOf } from "@/components/review/notes"
 import type { Mode } from "./CheckContext"
+import { reducedMotion } from "./layout"
 
 /** Which notes mark the preview. */
 export type Shown = "checks" | "ai"
@@ -48,8 +51,6 @@ interface MarksValue {
 }
 
 const MarksContext = createContext<MarksValue | null>(null)
-
-const PROBLEM = "Something went wrong getting AI notes. Try again in a minute."
 
 export function MarksProvider({
   report,
@@ -119,13 +120,12 @@ export function MarksProvider({
       const before = savedByHash(hash)?.notes
       let saved = before?.length ? before : null
       if (!saved) {
-        const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
+        const { askForKeptNotes } = await import("@/lib/review/ai/askForNotes")
         try {
-          saved = keptNotesOf(await askForNotes(units, current.signal), units)
+          saved = await askForKeptNotes(units, current.signal)
         } catch (error) {
           if (current.signal.aborted) return
-          if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
-          setAi({ step: "problem", message: error instanceof AiReviewError ? error.message : PROBLEM })
+          setAi({ step: "problem", message: (error as AiReviewError).message })
           return
         }
         if (current.signal.aborted) return
@@ -139,7 +139,7 @@ export function MarksProvider({
     })().catch((error) => {
       if (current.signal.aborted) return
       console.error("Couldn't get AI notes:", error)
-      setAi({ step: "problem", message: PROBLEM })
+      setAi({ step: "problem", message: PROBLEMS.other })
     })
   }, [units, id, show])
 
@@ -204,7 +204,7 @@ export function usePointAt(key: string) {
       if (box.top < seen.top || box.bottom > seen.bottom) {
         scroller.scrollBy({
           top: box.top - seen.top - seen.height / 3,
-          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          behavior: reducedMotion() ? "auto" : "smooth",
         })
       }
     },

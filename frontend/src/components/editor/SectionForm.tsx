@@ -12,7 +12,7 @@ import { useCheckActions, useCheckTarget } from "./CheckContext"
 import DeleteSection from "./DeleteSection"
 import { loadDragAndDrop, loadedDragAndDrop } from "./dragAndDrop"
 import { bulletsOf, datesOf, newestFirst } from "./entryCards"
-import { BulletsField, Field, FlagNote, SectionHeading, selectLine } from "./fields"
+import { BulletsField, Field, FlagNote, pointAt, SectionHeading } from "./fields"
 import { reducedMotion, reveal, scrollerOf } from "./layout"
 import PaperFromLink from "./PaperFromLink"
 import { FIELD_SPAN, type ChoiceDef, type ChoiceKey, type FieldKey, type SectionDef, type SectionName } from "./sections"
@@ -59,14 +59,6 @@ const CARD_GRID = "grid grid-cols-1 gap-x-7 gap-y-5 @sm:grid-cols-2"
 // A bullets box is an editable div.
 const TYPED = ':is(input:not([type="checkbox"]), [contenteditable="true"])'
 const FIRST_FIELD = `[data-field] ${TYPED}`
-
-/** Moves the cursor to what the checker points at (one bullet, if `line` is given) and scrolls it into view. */
-function pointAt(target: HTMLElement | null | undefined, line?: number, view: HTMLElement | null | undefined = target) {
-  if (!target) return
-  target.focus({ preventScroll: true })
-  if (line !== undefined) selectLine(target, line)
-  view?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" })
-}
 
 /** Stops the entries' lights, so the next move can start them afresh. */
 function stopMoving(entries: Map<number, HTMLElement>) {

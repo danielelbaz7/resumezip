@@ -7,7 +7,8 @@ import type { Place } from "@/lib/check/places"
 import type { ResumeView } from "@/lib/check/resume"
 import { findingOf } from "@/lib/review/ai/place"
 import type { SavedNote } from "@/lib/review/ai/saved"
-import { aiKeyOf } from "@/components/review/notes"
+import { aiKeyOf, TONE_NAMES } from "@/components/review/notes"
+import { REWRITE } from "@/components/review/PageMarks"
 import { useCheckActions } from "./CheckContext"
 import { useMarks, usePointAt } from "./MarksContext"
 
@@ -32,9 +33,7 @@ function Note({ note, index, place, view }: { note: SavedNote; index: number; pl
       </span>
       <span className={`text-sm leading-snug ${place ? "text-ink" : "text-ink-2"}`}>{note.title}</span>
       <span className="text-[13px] leading-snug text-ink-2">{note.why}</span>
-      {note.suggestion && (
-        <span className="mt-0.5 border-l-2 border-hairline pl-2 text-[13px] leading-snug text-ink">{note.suggestion}</span>
-      )}
+      {note.suggestion && <span className={`mt-0.5 ${REWRITE} text-[13px] leading-snug`}>{note.suggestion}</span>}
     </>
   )
   return (
@@ -92,10 +91,6 @@ export default function AiNotesBox({ view }: { view: ResumeView }) {
     )
   }
 
-  const tones = [
-    { tone: "red", title: "Red flags" },
-    { tone: "green", title: "Done well" },
-  ] as const
   return (
     <section aria-labelledby={heading} className="check-box glass flex flex-col overflow-hidden rounded-panel">
       <div className="flex items-start gap-2.5 px-3.5 pb-3 pt-3.5">
@@ -109,9 +104,10 @@ export default function AiNotesBox({ view }: { view: ResumeView }) {
           <span className="text-[12px] leading-snug text-ink-2">Read like a recruiter would. Point at one to see it on the page.</span>
         </span>
       </div>
-      {tones.map(({ tone, title }) => {
+      {(["red", "green"] as const).map((tone) => {
         const some = aiNotes.map((note, index) => ({ note, index })).filter(({ note }) => note.tone === tone)
         if (some.length === 0) return null
+        const title = TONE_NAMES[tone].many
         return (
           <section key={tone} aria-label={`${title}, ${some.length}`} className="flex flex-col">
             <h3 className="label-mono flex items-center gap-2 border-t border-rule px-3.5 pb-1.5 pt-3 text-ink-2">

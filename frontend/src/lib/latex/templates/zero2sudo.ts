@@ -17,21 +17,25 @@ import {
   EB_GARAMOND,
   emailLink,
   ENGINES,
+  fontSize,
   GREEK,
   joinPresent,
   latex,
   links,
   paragraphs,
+  PLAIN_ROW,
+  projectName,
   runs,
   sectionsOf,
-  shownLink,
   signs,
   sum,
+  texGyre,
+  underline,
+  underlined,
   web,
   webLink,
   type Fallbacks,
   type LatexTemplate,
-  type ShowLink,
   type Units,
 } from "../common"
 import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
@@ -63,42 +67,23 @@ Charis SIL.`,
   ],
 }
 
-/** A size's \fontsize: a line is its capitals' height and the gap above them. */
-const fontSize = (units: Units, size: number) =>
-  `\\fontsize{${units.size(size)}}{${sum(units.size(CAP * size), units.space(LEADING * size))}}`
-
 /** The \parskip that takes back a size's gap above its capitals, so a \vspace before a paragraph is the .typ's. */
 const parskip = (units: Units, size: number) => `\\setlength{\\parskip}{${units.space(-LEADING * size)}}`
 
-const underline = (body: string) => `\\underline{${body}}`
-/** A link printed as its own text, underlined, as the .typ's web addresses are. */
-const underlined: ShowLink = (url, text) => shownLink(url, text, underline)
-
-// TeX Gyre Termes: its Type 1 fonts with pdfLaTeX, its OpenType ones
-// otherwise. Some TeX installs leave out TeX Gyre's OpenType files; Nimbus
-// Roman, which TeX Gyre Termes is drawn from, stands in for them.
 const preamble = (units: Units, title: string, fallbacks: string) => `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-\\ifPDFTeX
-  \\usepackage{tgtermes}
-\\else
-${fallbacks || "  \\usepackage{fontspec}\n"}  \\IfFontExistsTF{texgyretermes-regular.otf}{
-    \\setmainfont{texgyretermes}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold, ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
-  }{
-    \\setmainfont{ztm}[Extension=.otf, UprightFont=*-Reg, BoldFont=*-Med, ItalicFont=*-RegIta, BoldItalicFont=*-MedIta]
-  }
-\\fi
+${texGyre("termes", fallbacks)}
 \\usepackage{enumitem}
 \\usepackage[left=${units.margin(0.45)}, right=${units.margin(0.45)}, top=${units.margin(0.45)}, bottom=${units.margin(0.4)}]{geometry}
 ${links(title)}
 
 % Text sizes and line spacing, as Fine-tune sets them: a line is its
 % capitals' height and the gap above them
-\\renewcommand{\\normalsize}{${fontSize(units, SIZE)}\\selectfont}
-\\newcommand{\\largeSize}{${fontSize(units, LARGE)}\\selectfont${parskip(units, LARGE)}}
-\\newcommand{\\titleSize}{${fontSize(units, TITLE)}\\selectfont${parskip(units, TITLE)}}
-\\newcommand{\\nameSize}{${fontSize(units, NAME)}\\selectfont${parskip(units, NAME)}}
+\\renewcommand{\\normalsize}{${fontSize(units, SIZE, CAP, LEADING)}\\selectfont}
+\\newcommand{\\largeSize}{${fontSize(units, LARGE, CAP, LEADING)}\\selectfont${parskip(units, LARGE)}}
+\\newcommand{\\titleSize}{${fontSize(units, TITLE, CAP, LEADING)}\\selectfont${parskip(units, TITLE)}}
+\\newcommand{\\nameSize}{${fontSize(units, NAME, CAP, LEADING)}\\selectfont${parskip(units, NAME)}}
 \\normalsize
 % Each \\vspace below runs from a line to the top of the next line's
 % capitals, as in the PDF, so a new paragraph takes back the gap above them
@@ -129,17 +114,7 @@ ${parskip(units, SIZE)}
   \\nobreak\\addvspace{${units.size(10)}}%
 }
 
-% A line with one part flush left and one flush right. A long left part
-% wraps, and the right one sits on its last line.
-\\newlength{\\rowRight}
-\\newcommand{\\resumeRow}[2]{%
-  \\par\\begingroup
-  \\settowidth{\\rowRight}{#2}%
-  \\rightskip=\\dimexpr\\rowRight+0.8em\\relax plus 1fil
-  \\parfillskip=0pt
-  \\noindent#1\\hspace{0pt plus 1fill}\\rlap{\\hspace{0.8em}#2}\\par
-  \\endgroup
-}
+${PLAIN_ROW}
 
 % An entry: what and where in bold, its dates in bold,
 % then a line in italics under it when there's one. After a section title
@@ -261,9 +236,8 @@ function body(data: TemplateData, units: Units): string {
         break
       case "projects":
         for (const project of data.projects) {
-          const name = project.link ? shownLink(web(project.link), project.name) : latex(project.name)
           const urls = project.links.map((url) => `\\mbox{${underlined(web(url), url)}}`).join("\\contactBar ")
-          add(`  \\resumeProject{${name}}{${latex(project.date)}}{${urls}}{${latex(project.techStack)}}`)
+          add(`  \\resumeProject{${projectName(project)}}{${latex(project.date)}}{${urls}}{${latex(project.techStack)}}`)
           items(project.bullets.map(runs))
         }
         break

@@ -15,17 +15,20 @@ import {
   dateRange,
   emailLink,
   ENGINES,
-  heros,
+  fontSize,
   HEROS_FALLBACKS,
   joinPresent,
   latex,
   links,
   paragraphs,
+  PLAIN_ROW,
   projectHeader,
   runs,
   sectionsOf,
   shownLink,
+  stretch,
   sum,
+  texGyre,
   webLink,
   type LatexTemplate,
   type ShowLink,
@@ -41,17 +44,13 @@ const CAP = 0.729
 /** The space between lines, in em, as `leading` in swiss.typ. */
 const LEADING = 0.5
 
-/** A size's \fontsize: a line is its capitals' height and the gap above them. */
-const fontSize = (units: Units, size: number) =>
-  `\\fontsize{${units.size(size)}}{${sum(units.size(CAP * size), units.space(LEADING * size))}}`
-
 /** A project's links, in grey. */
 const greyLink: ShowLink = (url, text) => `\\textcolor{grey}{${shownLink(url, text)}}`
 
 const preamble = (units: Units, title: string, fallbacks: string) => `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-${heros(fallbacks)}
+${texGyre("heros", fallbacks)}
 \\usepackage[left=${units.margin(0.55)}, right=${units.margin(0.55)}, top=${units.margin(0.48)}, bottom=${units.margin(0.42)}]{geometry}
 \\usepackage{xcolor}
 \\usepackage{tabularx}
@@ -67,9 +66,9 @@ ${links(title)}
 
 % Text sizes and line spacing, as Fine-tune sets them: a line is its
 % capitals' height and the gap above them
-\\renewcommand{\\normalsize}{${fontSize(units, SIZE)}\\selectfont}
-\\newcommand{\\titleSize}{${fontSize(units, TITLE)}\\selectfont}
-\\newcommand{\\nameSize}{${fontSize(units, NAME)}\\selectfont}
+\\renewcommand{\\normalsize}{${fontSize(units, SIZE, CAP, LEADING)}\\selectfont}
+\\newcommand{\\titleSize}{${fontSize(units, TITLE, CAP, LEADING)}\\selectfont}
+\\newcommand{\\nameSize}{${fontSize(units, NAME, CAP, LEADING)}\\selectfont}
 \\normalsize
 % Each \\vspace below runs from a line to the top of the next line's
 % capitals, as in the PDF, so a new paragraph takes back the gap above them
@@ -110,17 +109,7 @@ ${links(title)}
   \\nobreak\\addvspace{${units.size(7)}}%
 }
 
-% A line with one part flush left and one flush right. A long left part
-% wraps, and the right one sits on its last line.
-\\newlength{\\rowRight}
-\\newcommand{\\resumeRow}[2]{%
-  \\par\\begingroup
-  \\settowidth{\\rowRight}{#2}%
-  \\rightskip=\\dimexpr\\rowRight+0.8em\\relax plus 1fil
-  \\parfillskip=0pt
-  \\noindent#1\\hspace{0pt plus 1fill}\\rlap{\\hspace{0.8em}#2}\\par
-  \\endgroup
-}
+${PLAIN_ROW}
 
 % An entry: the organization in bold and its dates, then the role and the
 % place in grey, when there's either. After a section title (the space it
@@ -166,19 +155,13 @@ ${links(title)}
 % \\prevdepth puts what comes next as far below as after a line of text.
 \\newenvironment{resumeSkills}{%
   \\par\\noindent
-  \\renewcommand{\\arraystretch}{${stretch(units)}}%
+  \\renewcommand{\\arraystretch}{${stretch(units, SIZE, CAP, LEADING, 4.2)}}%
   \\tabularx{\\linewidth}[t]{@{}l@{\\hspace{1.2em}}X@{}}%
 }{%
   \\endtabularx\\par
   \\prevdepth=\\arraystretch\\dp\\strutbox
 }
 `
-
-// How far \arraystretch stretches the space between lines for skills' rows to be 4.2pt apart, as in swiss.typ.
-function stretch(units: Units): number {
-  const line = parseFloat(sum(units.size(CAP * SIZE), units.space(LEADING * SIZE)))
-  return Math.round((parseFloat(sum(units.size(CAP * SIZE), units.space(4.2))) / line) * 1000) / 1000
-}
 
 function body(data: TemplateData, units: Units): string {
   const lines: string[] = []

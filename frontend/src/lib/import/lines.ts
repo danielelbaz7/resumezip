@@ -70,7 +70,8 @@ const BULLET_ONLY = new RegExp(`^[${BULLET_CHARS}\\-\\u2013\\u2014*]$`)
 const BOLD_FONT = /bold|black|heavy|demi|cmbx|cmb\d|extrab|ultrab/i
 const ITALIC_FONT = /italic|oblique|cmti|cmsl|cmmi|-it\b/i
 
-interface Piece {
+/** A stretch of text in one style. */
+export interface Piece {
   text: string
   bold: boolean
   italic: boolean

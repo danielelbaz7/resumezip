@@ -79,11 +79,11 @@
 // ---------- Sections ----------
 
 #if data.summary.len() > 0 {
-  section("Summary", extra-body((kind: "text", paragraphs: data.summary), bullets))
+  section("Summary", prose(data.summary))
 }
 
 #for name in data.order {
-  if data.extras.at(name, default: none) != none {
+  if name in data.extras {
     let extra = data.extras.at(name)
     section(extra.heading, extra-body(extra, bullets))
   } else if name == "Education" and data.education.len() > 0 {

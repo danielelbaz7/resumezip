@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Check, X } from "lucide-react"
 import { BLUE_PILL, sheetPill } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
-import { PAPER_FRAME } from "@/components/site/sheet"
+import { CARD_SHEET, PAPER_FRAME } from "@/components/site/sheet"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import StructuredData from "@/components/site/StructuredData"
 import { pageMetadata, SHARE_IMAGE_SIZE } from "@/lib/site"
@@ -58,7 +58,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
       <StructuredData data={breadcrumbs([TEMPLATES_CRUMB, { name: titleOf(template), path: templatePath(template) }])} />
 
       <div className={PAPER_FRAME}>
-        <main className="paper paper-sky flex flex-1 flex-col px-4 pb-10 pt-4 sm:px-6 sm:pt-6 md:px-9 md:pb-12 md:pt-[30px]">
+        <main className={CARD_SHEET}>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-3 text-[15px]">
               <Link href="/templates" className="group inline-flex items-center gap-3 text-ink-3 hover:text-ink">

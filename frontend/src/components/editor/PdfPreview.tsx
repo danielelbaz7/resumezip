@@ -8,6 +8,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyn
 // meanwhile was lost, as React reset each field to the value it last rendered.
 import "react-pdf/dist/esm/Page/AnnotationLayer.css"
 import "react-pdf/dist/esm/Page/TextLayer.css"
+import { PDFJS_WORKER_URL } from "@/lib/pdfjsWorker"
 import { compilerStatus, onCompilerStatus } from "@/lib/typst/compile"
 import { scrollerOf, uncovered } from "./layout"
 import PrintingPage from "./PrintingPage"
@@ -15,11 +16,6 @@ import { OPEN_NAME } from "@/components/dashboard/viewSwitch"
 import { PreviewMarks } from "./MarksContext"
 
 type ReactPdf = typeof import("./reactPdf")
-
-// The worker is bundled with the app, like the one lib/import/open.ts uses.
-// pdfjs-dist is pinned to react-pdf's version so both share one copy and the
-// worker matches the library. reactPdf.ts points pdf.js at the same file.
-const WORKER_URL = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString()
 
 // Every preview is loaded in one pdf.js worker, started with the first. Given
 // none, pdf.js starts a worker for each PDF, which loads its script again, and
@@ -37,7 +33,7 @@ let workerFetched = false
 function fetchWorker() {
   if (workerFetched) return
   workerFetched = true
-  fetch(WORKER_URL)
+  fetch(PDFJS_WORKER_URL)
     .then((response) => response.arrayBuffer())
     .catch(() => {})
 }
@@ -511,7 +507,7 @@ function PdfPreview({ pdfUrl, error, updating, template }: PdfPreviewProps) {
       {error && (
         <p
           role="status"
-          className="border-t border-rule px-5 py-2 text-xs text-[#b42318] md:px-8 xl:absolute xl:left-1/2 xl:top-9 xl:w-max xl:max-w-[90%] xl:-translate-x-1/2 xl:rounded-full xl:border-0 xl:bg-sheet xl:px-4 xl:shadow-[0_8px_24px_-12px_rgba(17,19,24,0.35)]"
+          className="border-t border-rule px-5 py-2 text-xs text-alert md:px-8 xl:absolute xl:left-1/2 xl:top-9 xl:w-max xl:max-w-[90%] xl:-translate-x-1/2 xl:rounded-full xl:border-0 xl:bg-sheet xl:px-4 xl:shadow-[0_8px_24px_-12px_rgba(17,19,24,0.35)]"
         >
           Couldn&apos;t update the preview: {error}
         </p>

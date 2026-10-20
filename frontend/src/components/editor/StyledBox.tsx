@@ -4,7 +4,7 @@ import type React from "react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { onMac } from "@/lib/keys"
 import { drawBox, htmlOf, readBox, selectIn, selectionIn, targetIn } from "./boxDom"
-import { scrollerOf, uncovered } from "./layout"
+import { scrollerOf, visibleArea } from "./layout"
 import {
   BOLD,
   ITALIC,
@@ -111,7 +111,7 @@ function revealCursor(box: HTMLElement) {
   }
   if (!rect.height) return
   const scroller = scrollerOf(box)
-  const view = scroller === document.scrollingElement ? uncovered() : scroller.getBoundingClientRect()
+  const view = visibleArea(scroller)
   // A phone's keyboard covers the bottom of the window without making it shorter.
   const keyboard = window.visualViewport ? window.visualViewport.offsetTop + window.visualViewport.height : Infinity
   const bottom = Math.min(view.bottom, keyboard)

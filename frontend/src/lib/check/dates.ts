@@ -4,16 +4,14 @@
 import type { FieldKey, SectionName } from "@/components/editor/sections"
 import { isHighSchool, stageOf } from "./career"
 import type { Problem, Rule } from "./engine"
-import type { Place } from "./places"
-import { compareDates, datesOf, DATE_FIELDS, latestOf, monthName, type EntryDates, type ResumeDate, type Written } from "./readDate"
-import type { Entry, ResumeView } from "./resume"
+import { entryPlace } from "./places"
+import { compareDates, datesOf, DATE_FIELDS, hasEnded, monthName, type EntryDates, type ResumeDate, type Written } from "./readDate"
+import type { ResumeView } from "./resume"
 import { EXPECTED_WORDS } from "./settings"
 import { escaped, mostCommon } from "./text"
 
 // Jobs, schools and roles: what has a start and an end.
 const SPANS: SectionName[] = ["Work", "Education", "Leadership", "Volunteership"]
-
-const at = (entry: Entry, field: FieldKey): Place => ({ kind: "entry", section: entry.section, entry: entry.index, field })
 
 /** The dates of each entry with something in it, section by section, in the order they're printed. */
 const allDates = (resume: ResumeView, sections: readonly SectionName[] = resume.order) =>
@@ -39,7 +37,7 @@ const noDates: Rule = {
         .filter((dates) => dates.filled === 0)
         .map(({ entry }) => {
           const fields = DATE_FIELDS[entry.section] as { start: FieldKey }
-          return { place: at(entry, fields.start), message: "No dates", suggestion: "Add when it started and ended." }
+          return { place: entryPlace(entry, fields.start), message: "No dates", suggestion: "Add when it started and ended." }
         }),
     }
   },
@@ -61,7 +59,7 @@ const backwards: Rule = {
       checked: both.length,
       problems: both
         .filter(({ start, end }) => compareDates(end!.date, start!.date) < 0)
-        .map(({ entry, end }) => ({ place: at(entry, end!.field), message: "Ends before it starts" })),
+        .map(({ entry, end }) => ({ place: entryPlace(entry, end!.field), message: "Ends before it starts" })),
     }
   },
 }
@@ -81,7 +79,7 @@ const unreadable: Rule = {
       checked: filled,
       problems: entries.flatMap(({ entry, unreadable }) =>
         unreadable.map(({ field }) => ({
-          place: at(entry, field),
+          place: entryPlace(entry, field),
           message: "Can't read this date",
           suggestion: "Write it like “Jan 2024”, or “Present” if it hasn't ended.",
         })),
@@ -180,7 +178,7 @@ const mixedFormats: Rule = {
     const problems = new Map<string, Problem>()
     const flag = (written: Written, problem: Omit<Problem, "place" | "text">) => {
       const key = `${written.entry.section}.${written.entry.index}.${written.field}|${written.text}`
-      if (!problems.has(key)) problems.set(key, { place: at(written.entry, written.field), text: written.text, ...problem })
+      if (!problems.has(key)) problems.set(key, { place: entryPlace(written.entry, written.field), text: written.text, ...problem })
     }
     // Years on their own, or with months: one way within a section, so
     // projects can go by year while jobs have months. Jobs always need their
@@ -237,7 +235,7 @@ const presentWords: Rule = {
       problems: present
         .filter((written) => word(written).toLowerCase() !== house)
         .map((written) => ({
-          place: at(written.entry, written.field),
+          place: entryPlace(written.entry, written.field),
           text: written.text,
           message: `“${word(written)}” here, “${word(usual)}” elsewhere`,
           suggestion: `Use “${word(usual)}” everywhere.`,
@@ -268,7 +266,11 @@ const newestFirst: Rule = {
         const order = sides.map((side) => compareDates(below[side]!.date, above[side]!.date))
         if (order.some((difference) => difference > 0) && order.every((difference) => difference >= 0)) {
           const date = below.end ?? below.start!
-          problems.push({ place: at(below.entry, date.field), message: "Newer than the entry above", suggestion: "List the newest first." })
+          problems.push({
+            place: entryPlace(below.entry, date.field),
+            message: "Newer than the entry above",
+            suggestion: "List the newest first.",
+          })
         }
       }
     }
@@ -293,7 +295,7 @@ const apostropheYears: Rule = {
         if (written.date.present || !written.date.shortYear || !year) return []
         return [
           {
-            place: at(written.entry, written.field),
+            place: entryPlace(written.entry, written.field),
             text: written.text,
             message: `Year written as “${year}”`,
             suggestion: `Write the whole year: “${written.date.year}”.`,
@@ -322,7 +324,7 @@ const jobMonths: Rule = {
       problems: dates
         .filter((written) => written.date.month === undefined)
         .map((written) => ({
-          place: at(written.entry, written.field),
+          place: entryPlace(written.entry, written.field),
           text: written.text,
           message: "No month",
           suggestion: `Add the month, like “Jun ${written.date.year}”.`,
@@ -347,13 +349,6 @@ const graduationMonth: Rule = {
       .flat()
       .filter((dates) => dates.filled > 0 && !isHighSchool(dates.entry))
     if (schools.length === 0) return null
-    const now: ResumeDate = {
-      present: false,
-      year: today.getFullYear(),
-      month: today.getMonth() + 1,
-      style: { kind: "number" },
-      shortYear: false,
-    }
     // Later in a career a year is enough ("B.S., 2012"); the month matters while internships and new-grad roles do.
     const early = stageOf(resume, today) === "early"
     const endField = (DATE_FIELDS.Education as { end: FieldKey }).end
@@ -363,14 +358,14 @@ const graduationMonth: Rule = {
         return early && entry.values[endField] === ""
           ? [
               {
-                place: at(entry, endField),
+                place: entryPlace(entry, endField),
                 message: "No graduation date",
                 suggestion: "Add when you graduate, like “Expected May 2027”.",
               },
             ]
           : []
       }
-      const place = at(entry, end.field)
+      const place = entryPlace(entry, end.field)
       if (end.date.present) {
         return early
           ? [
@@ -383,7 +378,7 @@ const graduationMonth: Rule = {
             ]
           : []
       }
-      if (EXPECTED.test(end.text.trim()) && compareDates(latestOf(end.date), now) < 0) {
+      if (EXPECTED.test(end.text.trim()) && hasEnded(entry, today)) {
         return [
           {
             place,

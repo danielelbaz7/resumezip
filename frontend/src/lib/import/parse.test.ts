@@ -94,6 +94,36 @@ describe("an entry's date", () => {
   })
 })
 
+describe("a date that hasn't come yet", () => {
+  test.each([
+    ["Est. May 2027", "", "Est. May 2027"],
+    ["Estimated May 2027", "", "Estimated May 2027"],
+    ["Graduating May 2027", "", "Graduating May 2027"],
+    ["May 2027 (Est.)", "", "May 2027 (Est.)"],
+    ["May 2027 (Graduating)", "", "May 2027 (Graduating)"],
+    ["Aug 2023 – Est. May 2027", "Aug 2023", "Est. May 2027"],
+    ["Aug 2023 – Graduating May 2027", "Aug 2023", "Graduating May 2027"],
+  ])("keeps the word that says so: %s", (written, start, end) => {
+    const { resume, unplaced } = read("Education", [
+      line([["State University", 36], [written, 480]], { bold: true }),
+      line([["B.S. in Biology", 36]], { italic: true }),
+    ])
+    expect(resume.educationSection[0]).toMatchObject({ schoolName: "State University", schoolStartDate: start, schoolEndDate: end })
+    expect(unplaced).toEqual([])
+  })
+})
+
+describe("a place", () => {
+  test("can be in the District of Columbia, written out", () => {
+    const { resume, unplaced } = read("Experience", [
+      line([["Policy Analyst", 36], ["Jun 2024 – Present", 480]], { bold: true }),
+      line([["Brookings Institution", 36], ["Washington, District of Columbia", 420]], { italic: true }),
+    ])
+    expect(resume.workExperienceSection[0]).toMatchObject({ companyName: "Brookings Institution", workLocation: "Washington, District of Columbia" })
+    expect(unplaced).toEqual([])
+  })
+})
+
 describe("a detail line that wraps", () => {
   const school = [
     line([["State University", 36], ["Aug 2022 – May 2026", 480]], { bold: true }),

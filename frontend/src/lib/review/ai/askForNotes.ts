@@ -1,12 +1,11 @@
 // The review page's side of /api/review.
 
+import { keptNotesOf } from "./answer"
 import { pauseAi, resumeAi } from "./paused"
+import { NO_CONNECTION, PROBLEMS, type Problem } from "./problems"
 import { sentOf } from "./request"
 import { savedNotesOf, type SavedNote } from "./saved"
 import type { Unit } from "./units"
-
-/** Why there are no notes: "off" when the site has no AI keys, "other" for anything unexpected. */
-export type Problem = "limit" | "busy" | "off" | "lines" | "other"
 
 /** Why there are no notes, worded for the person. */
 export class AiReviewError extends Error {
@@ -16,13 +15,6 @@ export class AiReviewError extends Error {
   ) {
     super(message)
   }
-}
-
-const PROBLEMS: Record<Exclude<Problem, "other">, string> = {
-  limit: "You’ve asked for a lot of AI notes in a short time. Try again in a few minutes.",
-  busy: "The AI is busy right now. Try again in a minute.",
-  off: "AI notes aren’t switched on here.",
-  lines: "This resume is too long for AI notes.",
 }
 
 export async function askForNotes(units: readonly Unit[], signal?: AbortSignal): Promise<SavedNote[]> {
@@ -36,7 +28,7 @@ export async function askForNotes(units: readonly Unit[], signal?: AbortSignal):
     })
   } catch (error) {
     if (signal?.aborted) throw error
-    throw new AiReviewError("The AI notes couldn’t load. Check your connection and try again.")
+    throw new AiReviewError(NO_CONNECTION)
   }
   const body = (await response.json().catch(() => null)) as { notes?: unknown; error?: unknown } | null
   if (!response.ok || !body) {
@@ -48,8 +40,23 @@ export async function askForNotes(units: readonly Unit[], signal?: AbortSignal):
           ? (body.error as Problem)
           : "other"
     if (reason === "limit") pauseAi()
-    throw new AiReviewError(reason === "other" ? "Something went wrong getting AI notes. Try again in a minute." : PROBLEMS[reason], reason)
+    throw new AiReviewError(PROBLEMS[reason], reason)
   }
   resumeAi()
   return savedNotesOf(body.notes)
+}
+
+/**
+ * The AI's notes on `units`, as they're kept (keptNotesOf). It fails only with
+ * an AiReviewError, logging first what wasn't expected; or, once `signal` is
+ * aborted, with whatever stopped it.
+ */
+export async function askForKeptNotes(units: readonly Unit[], signal: AbortSignal): Promise<SavedNote[]> {
+  try {
+    return keptNotesOf(await askForNotes(units, signal), units)
+  } catch (error) {
+    if (signal.aborted || error instanceof AiReviewError) throw error
+    console.error("Couldn't get AI notes:", error)
+    throw new AiReviewError(PROBLEMS.other)
+  }
 }

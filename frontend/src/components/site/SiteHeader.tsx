@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { Menu, Star, X } from "lucide-react"
+import { reducedMotion } from "@/components/editor/layout"
 import { REPO_URL } from "@/lib/site"
 import Logo from "./Logo"
 
@@ -30,8 +31,7 @@ function toTopIfHere(pathname: string, href: string) {
   return (event: React.MouseEvent) => {
     if (pathname !== href || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     event.preventDefault()
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" })
+    window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" })
   }
 }
 

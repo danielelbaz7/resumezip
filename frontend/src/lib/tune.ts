@@ -2,6 +2,7 @@
 // Fine-tune panel): sizes and spacing as multiples of the template's own, so
 // every template keeps its proportions. Printed with the resume.
 
+import { isObject } from "@/lib/isObject"
 import type { TemplateId } from "@/lib/templates"
 
 export type Paper = "us-letter" | "a4"
@@ -68,8 +69,6 @@ export interface PrintedTune {
   paper: Paper | ""
   onePage: boolean
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value)
 
 // Multiples are kept to three decimals, so a step's float error (1 - 0.025 * 3)
 // can't print a size other than the one the panel shows.

@@ -1,5 +1,31 @@
-/** How long the page waits for the next one before letting the transition go on without it, in milliseconds. */
+import { reducedMotion } from "@/components/editor/layout"
+
+/** How long a view transition waits for the next page before it goes on without it, in milliseconds. */
 const WAIT_MS = 2500
+
+/**
+ * Whether a page can change with a typed view transition, which its CSS times
+ * and shapes: the browser has them, and the visitor hasn't asked for less
+ * motion.
+ */
+export const canTransition = () => "startViewTransition" in document && "types" in ViewTransition.prototype && !reducedMotion()
+
+/**
+ * Resolves once `found` is true, or after WAIT_MS, for a view transition
+ * waiting on the next page. Polled with timers: the browser runs no animation
+ * frames while it waits for the new page, so requestAnimationFrame would never
+ * come back.
+ */
+export function waitFor(found: () => boolean): Promise<void> {
+  const until = performance.now() + WAIT_MS
+  return new Promise((done) => {
+    const look = () => {
+      if (found() || performance.now() > until) done()
+      else setTimeout(look, 16)
+    }
+    look()
+  })
+}
 
 /**
  * Goes to the next page with the page lifting away and the next rising up
@@ -7,30 +33,13 @@ const WAIT_MS = 2500
  * transitions, or with less motion, it just goes.
  */
 export function rise(go: () => void) {
-  if (!("startViewTransition" in document) || !("types" in ViewTransition.prototype)) return go()
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return go()
+  if (!canTransition()) return go()
   const from = location.pathname
   document.startViewTransition({
     types: ["rise"],
     update: async () => {
       go()
-      await nextPage(from)
+      await waitFor(() => location.pathname !== from && document.querySelector("main") !== null)
     },
-  })
-}
-
-/**
- * Resolves once the address has changed and the new page has its main part,
- * or after WAIT_MS. Polled with timers: the browser runs no animation frames
- * while it waits for the new page.
- */
-function nextPage(from: string): Promise<void> {
-  const until = performance.now() + WAIT_MS
-  return new Promise((done) => {
-    const look = () => {
-      if ((location.pathname !== from && document.querySelector("main")) || performance.now() > until) done()
-      else setTimeout(look, 16)
-    }
-    look()
   })
 }

@@ -6,6 +6,7 @@
 
 import {
   bold,
+  bp,
   CHARIS,
   citations,
   dateRange,
@@ -18,20 +19,17 @@ import {
   ROW,
   runs,
   sectionsOf,
-  shownLink,
   signs,
+  underline,
+  underlined,
   unlessPdfLatex,
   webLink,
   type Fallbacks,
   type LatexTemplate,
-  type ShowLink,
   type Units,
 } from "../common"
 import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 
-const underline = (body: string) => `\\underline{${body}}`
-/** A link printed as its own text, underlined. */
-const underlined: ShowLink = (url, text) => shownLink(url, text, underline)
 const BAR = " | "
 
 // Typst measures a space from one line's baseline down to the next line's cap
@@ -54,29 +52,27 @@ const FALLBACKS: Fallbacks = {
   letters: [[signs("₽₿"), CHARIS]],
 }
 
-/** The spaces that differ between Typst and TeX, as lengths in `units`' own unit. */
+/** The spaces that differ between Typst and TeX. */
 function spacing(units: Units) {
-  const unit = units.size(1).replace(/^[\d.]+/, "")
   const points = (length: string) => parseFloat(length)
-  const length = (value: number) => `${Math.round(value * 100) / 100}${unit}`
   const leading = (size: number) => points(units.space(size * LEADING))
   const line = (size: number) => points(units.size(size * CAP)) + leading(size)
   /** A space the .typ puts above a line of text `size` points tall. */
-  const above = (space: string, size: number) => length(points(space) - leading(size))
+  const above = (space: string, size: number) => bp(points(space) - leading(size))
   return {
-    line: (size: number) => length(line(size)),
+    line: (size: number) => bp(line(size)),
     above,
     // \resumeSubheading's second line is small, but both are lines of one
     // paragraph at the normal size, so its \baselineskip is the normal one.
-    rows: length(points(units.space(6.5)) + points(units.size(10 * CAP)) - line(11)),
+    rows: bp(points(units.space(6.5)) + points(units.size(10 * CAP)) - line(11)),
     // titlesec ends a title with a strut, 0.3 of its line deep.
-    titleToRule: length(points(units.size(5)) - 0.3 * line(12) - RULE / 2),
+    titleToRule: bp(points(units.size(5)) - 0.3 * line(12) - RULE / 2),
     // What follows the rule is set as if after a line this deep, so it lands
     // where it does in the PDF, whatever its letters.
-    afterRule: length(leading(11) - points(units.size(5.5)) + RULE / 2),
+    afterRule: bp(leading(11) - points(units.size(5.5)) + RULE / 2),
     // A list section's bullets, right under the rule, where `afterRule` has
     // already taken off the normal size's leading rather than the small size's.
-    bulletsAfterRule: length(points(units.space(7.5)) - leading(10) + leading(11)),
+    bulletsAfterRule: bp(points(units.space(7.5)) - leading(10) + leading(11)),
   }
 }
 

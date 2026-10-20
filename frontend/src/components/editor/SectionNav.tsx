@@ -11,7 +11,7 @@ import { extraHeading, extraKey, type ExtraKind, type ExtraSections, type Sectio
 import { resumeOf } from "@/lib/resumeStore"
 import AddSectionMenu from "./AddSectionMenu"
 import { loadDragAndDrop, type DragAndDrop } from "./dragAndDrop"
-import { WIDE_SCREEN } from "./layout"
+import { reducedMotion, useWideScreen } from "./layout"
 import { EXTRA_ICONS, PROFILE_ICON, SECTION_ICONS } from "./sectionIcons"
 import { SECTION_NAMES, SECTIONS, type SectionName } from "./sections"
 
@@ -38,7 +38,7 @@ export default function SectionNav({ sections, headings, extras, active, onSelec
   const tabRef = useRef<HTMLSpanElement>(null)
   // The section the white tab was last put behind, so choosing another slides it there.
   const tabAt = useRef<ActiveSection | null>(null)
-  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(WIDE_SCREEN).matches)
+  const wide = useWideScreen()
   const [dnd, setDnd] = useState<DragAndDrop | null>(null)
   const [dragging, setDragging] = useState(false)
   const entries = useEntryCounts()
@@ -72,14 +72,6 @@ export default function SectionNav({ sections, headings, extras, active, onSelec
     }
   }, [])
 
-  useEffect(() => {
-    const query = window.matchMedia(WIDE_SCREEN)
-    const sync = () => setWide(query.matches)
-    sync()
-    query.addEventListener("change", sync)
-    return () => query.removeEventListener("change", sync)
-  }, [])
-
   // Keep the chosen tab in view in the row.
   useEffect(() => {
     const nav = navRef.current
@@ -88,8 +80,7 @@ export default function SectionNav({ sections, headings, extras, active, onSelec
     const box = (tab.parentElement === nav ? tab : tab.parentElement!).getBoundingClientRect()
     const view = nav.getBoundingClientRect()
     const by = box.left < view.left + 16 ? box.left - view.left - 16 : box.right > view.right - 16 ? box.right - view.right + 16 : 0
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    if (by) nav.scrollBy({ left: by, behavior: reduced ? "auto" : "smooth" })
+    if (by) nav.scrollBy({ left: by, behavior: reducedMotion() ? "auto" : "smooth" })
   }, [active, wide])
 
   const onDragEnd = ({ source, destination }: DropResult) => {
@@ -263,7 +254,7 @@ export default function SectionNav({ sections, headings, extras, active, onSelec
       ref={navRef}
       onKeyDown={onArrowKey}
       aria-label="Sections"
-      className="relative isolate flex gap-1 overflow-x-auto px-2 py-2 [scrollbar-width:none] xl:flex-col xl:overflow-visible xl:p-0 [&::-webkit-scrollbar]:hidden"
+      className="relative isolate flex gap-1 overflow-x-auto px-2 py-2 no-scrollbar xl:flex-col xl:overflow-visible xl:p-0"
     >
       <span
         ref={tabRef}

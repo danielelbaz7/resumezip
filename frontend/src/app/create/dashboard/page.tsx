@@ -22,11 +22,13 @@ import SearchBar, { matches } from "@/components/dashboard/SearchBar"
 import UnreadableData from "@/components/dashboard/UnreadableData"
 import { focusShown, nameOf, useListActions } from "@/components/dashboard/useListActions"
 import { switchView } from "@/components/dashboard/viewSwitch"
+import { reducedMotion } from "@/components/editor/layout"
 import { BLUE_PILL, sheetPill, WHITE_PILL } from "@/components/pills"
 import DownloadFailed from "@/components/site/DownloadFailed"
 import NotSaved from "@/components/site/NotSaved"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
+import { count } from "@/lib/count"
 import type { OpenedFile } from "@/lib/import/open"
 import { hasLeftOut } from "@/lib/leftOut"
 import { RESUME_TAGS, type ResumeWithId } from "@/lib/resume"
@@ -37,7 +39,7 @@ import { loadCompiler, savingData } from "@/lib/typst/compile"
 import { templateIdOf } from "@/lib/typst/resumeData"
 import type { TemplateId } from "@/lib/templates"
 import type { Paper } from "@/lib/tune"
-import { PAPER_FRAME } from "@/components/site/sheet"
+import { CARD_SHEET, COUNT_BADGE, PAPER_FRAME } from "@/components/site/sheet"
 
 // Only loaded when someone opens a file that isn't a resumezip PDF.
 const ImportReview = dynamic(() => import("@/components/dashboard/ImportReview"))
@@ -51,8 +53,6 @@ type Opening =
   | { step: "conflict"; file: Extract<OpenedFile, { kind: "resumezip" }>; existing: ResumeWithId }
   | { step: "all"; resumes: FileResume[]; differing: Differing[] }
   | { step: "review"; file: Extract<OpenedFile, { kind: "parsed" }> }
-
-const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 /** What opening a file of them all did, said once it's done. */
 function openedAll(total: number, { added, replaced }: { added: number; replaced: number }) {
@@ -84,8 +84,6 @@ function savedView(): View {
  * page lifts off toward the Undo message, before the rest slide into the gap.
  */
 const LEAVING_MS = 160
-
-const lessMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
 /** Today, as "2026-10-09", for the name of a file of every resume. */
 function today() {
@@ -248,7 +246,7 @@ export default function DashboardPage() {
     const pending = { resume, key: ++deletions.current }
     deletingRef.current = pending
     announce(`“${nameOf(resume)}” deleted`)
-    if (lessMotion()) {
+    if (reducedMotion()) {
       setDeleting(pending)
       return
     }
@@ -280,7 +278,7 @@ export default function DashboardPage() {
       setDeleting(null)
       forgetLeaving(id)
     }
-    if (lessMotion()) return restore()
+    if (reducedMotion()) return restore()
     // Its page flies back out of the message, which is measured before it goes,
     // and the resumes after it slide out of its way. It shows once the page lands.
     const slot = document.querySelector<HTMLElement>("[data-toast-page]")?.getBoundingClientRect()
@@ -487,13 +485,12 @@ export default function DashboardPage() {
     <div className="desk desk-bright flex min-h-screen flex-col">
       <SiteHeader />
 
-      {/* One sheet in a frosted frame over the sky, holding the greeting, the toolbar and the resumes. The
-          sky shows through it a little (paper-sky), so the white cards on it stand out. */}
+      {/* One sheet in a frosted frame over the sky, holding the greeting, the toolbar and the resumes. */}
       <div className={PAPER_FRAME}>
-        <main className="paper paper-sky flex flex-1 flex-col px-4 pb-10 pt-4 sm:px-6 sm:pt-6 md:px-9 md:pb-12 md:pt-[30px]">
+        <main className={CARD_SHEET}>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <p className="inline-flex h-[34px] min-w-0 items-center gap-2 rounded-full bg-white/70 px-4 text-[14px] text-[#3a3e46] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.9),0_1px_2px_rgb(17_19_24/0.06)]">
+              <p className={COUNT_BADGE}>
                 <HardDrive className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="truncate">
                   {loaded

@@ -8,6 +8,7 @@
 // the PDF (lib/leftOut.ts) aren't, so the checks don't flag them.
 
 import { PROFILE_FIELDS, SECTION_NAMES, SECTIONS, type FieldKey, type ProfileKey, type SectionName } from "@/components/editor/sections"
+import { isObject } from "@/lib/isObject"
 import { isLeftOut, isLeftOutLine } from "@/lib/leftOut"
 import { firstColumnOf, templateById } from "@/lib/templates"
 import type { Resume } from "@/lib/resume"
@@ -72,7 +73,7 @@ export interface ResumeView {
   sections: Record<SectionName, Entry[]>
   /** Each section's own title if the person renamed it, or "" for the template's. */
   headings: Record<SectionName, string>
-  /** Shared editor/template defaults, used only for physical PDF occurrence anchors. */
+  /** Each section's title as printed: the person's own, or else the one the editor and templates share. */
   printedHeadings: Record<SectionName, string>
   /** The sections in the order they're printed. */
   order: SectionName[]
@@ -90,8 +91,6 @@ export interface ExtraView {
   bullets: Bullet<"bullets">[]
   blank: boolean
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value)
 
 const text = (value: unknown) => (typeof value === "string" ? value.trim() : "")
 

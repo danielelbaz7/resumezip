@@ -1,30 +1,30 @@
 "use client"
 import React, { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { keepSavedData } from "@/lib/keepSavedData"
-import type { Resume, ResumeContent, ResumeField } from "@/lib/resume"
+import type { Resume, ResumeField } from "@/lib/resume"
 import { getStorage } from "@/lib/resumeKeys"
 import { createResumeStore, INITIAL_STATE, resumeOf, type ResumeState, type ResumeStore } from "@/lib/resumeStore"
 
 /** What changes the resumes. Each keeps the same identity until the page leaves the dashboard and editor. */
 interface ResumeActions extends Pick<ResumeStore, "addSection" | "editSection" | "removeSection" | "deleteSection" | "reorderSections"> {
   createNewResume: ResumeStore["create"]
-  importResume: (content: ResumeContent, title: string, options?: { keepId?: boolean; tag?: string }) => string
+  importResume: ResumeStore["importResume"]
   /** Adds the resumes from a JSON file of them all. */
   importAll: ResumeStore["importAll"]
   replaceResume: ResumeStore["replace"]
-  undoReplace: (id: string) => void
+  undoReplace: ResumeStore["undoReplace"]
   /** Adds a copy of a resume, and returns its id. */
   duplicateResume: ResumeStore["duplicate"]
   /** Renames a resume, numbering the name if it's taken. */
-  renameResume: (id: string, title: string) => void
+  renameResume: ResumeStore["rename"]
   /** Changes one field of a resume. */
-  editResume: <Field extends ResumeField>(id: string, field: Field, value: Resume[Field]) => void
-  deleteResume: (id: string) => void
-  deleteUnreadable: () => void
+  editResume: ResumeStore["edit"]
+  deleteResume: ResumeStore["remove"]
+  deleteUnreadable: ResumeStore["deleteUnreadable"]
   /** The resumes as they are now, for event handlers that don't need to re-render with every change. */
-  getState: () => ResumeState
+  getState: ResumeStore["getState"]
   /** Calls `listener` after every change, until the function it gives back is called. */
-  subscribe: (listener: () => void) => () => void
+  subscribe: ResumeStore["subscribe"]
 }
 
 type ResumeContextValue = ResumeState & ResumeActions

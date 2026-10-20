@@ -3,7 +3,7 @@
 import type React from "react"
 import { useEffect, useId, useRef, useState } from "react"
 import { Check, ChevronDown, Loader2, X } from "lucide-react"
-import { reducedMotion } from "./layout"
+import { useMenu } from "./useMenu"
 
 /** A way to take the resume out of resumezip other than Download PDF. */
 export interface DownloadChoice {
@@ -86,42 +86,15 @@ interface DownloadMenuProps {
  */
 export default function DownloadMenu({ choices, busy, onOpen, notice, onNoticeClose }: DownloadMenuProps) {
   const menuId = useId()
-  const button = useRef<HTMLButtonElement>(null)
-  const menu = useRef<HTMLDivElement>(null)
-  // Where the menu is while it's there, or null.
-  const [place, setPlace] = useState<{ left: number; width: number } | null>(null)
-  const [closing, setClosing] = useState(false)
-  const timer = useRef(0)
+  const { button, menu, place, closing, open, show, close, onMenuKeyDown } = useMenu(placeBy, { closeMs: CLOSE_MS })
   // Opened with the up arrow, which starts on the last choice.
   const fromEnd = useRef(false)
-  const open = place !== null && !closing
 
-  const show = (last = false) => {
-    if (!button.current) return
-    window.clearTimeout(timer.current)
+  const openMenu = (last = false) => {
     fromEnd.current = last
-    setClosing(false)
-    setPlace(placeBy(button.current))
+    show()
     onOpen()
   }
-
-  // It fades away, then goes. `refocus` puts the keyboard back on the ▾.
-  const close = (refocus = false) => {
-    if (refocus) button.current?.focus()
-    setClosing(true)
-    window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(
-      () => {
-        setPlace(null)
-        setClosing(false)
-      },
-      reducedMotion() ? 0 : CLOSE_MS,
-    )
-  }
-  const latestClose = useRef(close)
-  latestClose.current = close
-
-  useEffect(() => () => window.clearTimeout(timer.current), [])
 
   // Where the notice is while there's one. It stays by the ▾ as the window is resized.
   const [noticePlace, setNoticePlace] = useState<{ left: number; width: number } | null>(null)
@@ -134,7 +107,7 @@ export default function DownloadMenu({ choices, busy, onOpen, notice, onNoticeCl
     follow()
     window.addEventListener("resize", follow)
     return () => window.removeEventListener("resize", follow)
-  }, [noticed])
+  }, [noticed, button])
 
   // A notice that's done goes after a while, unless the pointer or the keyboard is on it.
   const [holding, setHolding] = useState(false)
@@ -161,50 +134,12 @@ export default function DownloadMenu({ choices, busy, onOpen, notice, onNoticeCl
     if (!open) return
     const items = menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]')
     items?.[fromEnd.current ? items.length - 1 : 0]?.focus({ preventScroll: true })
-  }, [open])
-
-  // A click elsewhere closes it, and what was clicked keeps the focus. It
-  // stays by the ▾ as the window is resized.
-  const shown = place !== null
-  useEffect(() => {
-    if (!shown) return
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node
-      if (menu.current?.contains(target) || button.current?.contains(target)) return
-      latestClose.current()
-    }
-    // Only a menu that's still there moves, so a resize in the moment it goes can't put it back.
-    const follow = () => setPlace((current) => (current && button.current ? placeBy(button.current) : current))
-    document.addEventListener("pointerdown", onPointerDown)
-    window.addEventListener("resize", follow)
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown)
-      window.removeEventListener("resize", follow)
-    }
-  }, [shown])
+  }, [open, menu])
 
   const onButtonKeyDown = (event: React.KeyboardEvent) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return
     event.preventDefault()
-    show(event.key === "ArrowUp")
-  }
-
-  const onMenuKeyDown = (event: React.KeyboardEvent) => {
-    const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
-    const index = items.indexOf(document.activeElement as HTMLElement)
-    const moveTo = (next: number) => {
-      event.preventDefault()
-      items[(next + items.length) % items.length]?.focus()
-    }
-    if (event.key === "ArrowDown") moveTo(index + 1)
-    else if (event.key === "ArrowUp") moveTo(index - 1)
-    else if (event.key === "Home") moveTo(0)
-    else if (event.key === "End") moveTo(items.length - 1)
-    else if (event.key === "Escape" || event.key === "Tab") {
-      event.preventDefault()
-      event.stopPropagation()
-      close(true)
-    }
+    openMenu(event.key === "ArrowUp")
   }
 
   return (
@@ -217,7 +152,7 @@ export default function DownloadMenu({ choices, busy, onOpen, notice, onNoticeCl
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         aria-busy={busy || undefined}
-        onClick={() => (open ? close() : show())}
+        onClick={() => (open ? close() : openMenu())}
         onKeyDown={onButtonKeyDown}
         // The right half of Download PDF's blue pill (the editor's top bar), past a line.
         className="relative inline-flex h-10 w-10 items-center justify-center rounded-r-full pr-1 text-white transition-colors before:absolute before:inset-y-[9px] before:left-0 before:w-px before:bg-white/30 hover:bg-white/[0.08] focus-visible:bg-white/[0.14] aria-expanded:bg-black/[0.08]"

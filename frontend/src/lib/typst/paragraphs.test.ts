@@ -1,6 +1,6 @@
 // A blank line in the summary or a text section starts a new paragraph, and
 // each template has to show it: paragraphs set as close as lines read as one.
-// It adds 0.6em to the space between two lines (extra-body in
+// It adds 0.6em to the space between two lines (prose in
 // templates/common.typ), whatever paragraph spacing the template sets.
 
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"

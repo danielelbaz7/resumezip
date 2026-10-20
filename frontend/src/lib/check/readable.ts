@@ -4,9 +4,11 @@
 // links that don't print.
 
 import { SECTIONS, type FieldKey, type FieldKeyOf, type ProfileKey, type SectionName } from "@/components/editor/sections"
+import { count } from "@/lib/count"
 import { BULLET_CHARS } from "@/lib/import/lines"
 import { noFontHas } from "@/lib/typst/fontFiles"
 import type { PdfReading, Problem, Rule } from "./engine"
+import { labelOf } from "./labels"
 import type { Place } from "./places"
 import { comparable, wordsOf } from "./pdf"
 import { readDate, readDateRange } from "./readDate"
@@ -147,7 +149,7 @@ const headings: Rule = {
         .filter((section) => !found.has(section))
         .map((section) => ({
           place: { kind: "heading", section },
-          message: `Hiring software may not know “${resume.headings[section] || SECTIONS[section].title}” as a heading`,
+          message: `Hiring software may not know “${resume.printedHeadings[section]}” as a heading`,
           suggestion: `Use a usual one, like “${SECTIONS[section].title}”.`,
         })),
     }
@@ -167,9 +169,6 @@ const KEY_FIELDS: { [Section in SectionName]: FieldKeyOf<Section>[] } = {
   Awards: ["awardName", "awardDate"],
 }
 
-const labelOf = (section: SectionName, field: FieldKey) =>
-  SECTIONS[section].fields.find((def) => def.key === field)?.label.toLowerCase() ?? field
-
 // A year, or a month and a year, as in "2024" or "Jan 2024".
 const HAS_DATE = /\b(?:19|20)\d{2}\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+'?\d/i
 // Where hiring software can split one value into two: a comma, a bar, a dot or a spaced dash.
@@ -177,7 +176,7 @@ const SPLITS = /[,|•·;]|\s[-–—]\s/
 
 /** Why a value may not be read with its entry, from what's in it, and what to do. */
 function entryAdvice(section: SectionName, field: FieldKey, value: string): Pick<Problem, "message" | "suggestion"> {
-  const label = labelOf(section, field)
+  const label = labelOf(section, field).toLowerCase()
   const unread = (suggestion: string) => ({ message: `Hiring software doesn't read the ${label} with this entry`, suggestion })
   if (field.endsWith("Date")) {
     // A date written the usual way has nothing to change.
@@ -222,7 +221,7 @@ const entriesRead: Rule = {
         checked++
         problems.push({
           place: { kind: "section", section },
-          message: `Hiring software reads ${found.entries.length} ${found.entries.length === 1 ? "entry" : "entries"} here, not ${typed.length}`,
+          message: `Hiring software reads ${count(found.entries.length, "entry", "entries")} here, not ${typed.length}`,
           suggestion: "An entry may be running into the next one. Check each has its own role, place and dates.",
         })
         continue

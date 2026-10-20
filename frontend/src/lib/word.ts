@@ -19,11 +19,11 @@
 //
 // The editor downloads this module when Word is first chosen.
 
-import { SECTIONS, type SectionName } from "@/components/editor/sections"
+import { dateRange, linkTarget, web } from "@/lib/latex/common"
 import type { Resume } from "@/lib/resume"
 import { ATTACHMENT_NAME, toAttachment, WORD_DOCUMENT, WORD_RELATIONSHIPS } from "@/lib/resumeFile"
 import { TEMPLATE_SETTINGS, type Paper } from "@/lib/tune"
-import { templateIdOf, toTemplateData, type Paragraph, type TemplateData } from "@/lib/typst/resumeData"
+import { printedSections, templateIdOf, toTemplateData, type Paragraph, type TemplateData } from "@/lib/typst/resumeData"
 import { crc32, zip } from "@/lib/zip"
 
 /** A Word file's type, for a download. */
@@ -102,21 +102,6 @@ function run({ text, bold, italic }: Piece, link: boolean): string {
 
 const TAB = "<w:r><w:tab/></w:r>"
 
-// Profile and project links are stored without "https://" (see resumeData.ts).
-const web = (url: string) => `https://${url}`
-
-/** The address a link goes to, or null for one that isn't an address, which is printed without a link. */
-function linkTarget(url: string): string | null {
-  try {
-    return new URL(url).href
-  } catch {
-    return null
-  }
-}
-
-/** "Start - End", or whichever of the two is present, as the templates print dates. */
-const dateRange = (start: string, end: string) => (start && end ? `${start} - ${end}` : start + end)
-
 /** Groups of pieces, with `separator` between them. */
 const joined = (groups: Piece[][], separator: string): Piece[] =>
   groups.flatMap((group, i) => (i ? [{ text: separator }, ...group] : group))
@@ -149,18 +134,6 @@ function citation(publication: TemplateData["publications"][number]): Piece[] {
     if (!rest.at(-1)!.at(-1)!.text.endsWith(".")) out.push({ text: "." })
   }
   return out
-}
-
-/** Where each section's entries and heading are in TemplateData. */
-const SECTION_KEYS: Record<SectionName, keyof TemplateData["headings"]> = {
-  Education: "education",
-  Work: "work",
-  Projects: "projects",
-  Publications: "publications",
-  Skills: "skills",
-  Leadership: "leadership",
-  Volunteership: "volunteer",
-  Awards: "awards",
 }
 
 /** The text of the Word file, and where each of its links goes, in order. */
@@ -229,7 +202,7 @@ function documentOf(data: TemplateData, page: Page): { xml: string; links: strin
       items,
     )
 
-  const { profile, headings } = data
+  const { profile } = data
   if (profile.name) add("Title", [{ text: profile.name }])
   const contacts: Piece[][] = [
     [{ text: profile.location }],
@@ -246,19 +219,15 @@ function documentOf(data: TemplateData, page: Page): { xml: string; links: strin
     prose(data.summary)
   }
 
-  for (const name of data.order) {
-    const extra = data.extras[name]
-    if (extra) {
-      heading(extra.heading)
-      if (extra.kind === "text") prose(extra.paragraphs)
-      else bullets(extra.bullets)
-      continue
-    }
-    const key = SECTION_KEYS[name as SectionName]
-    if (!key || data[key].length === 0) continue
-    // The heading the person wrote, or the one every template prints.
-    heading(headings[key] || SECTIONS[name as SectionName].title)
-    switch (key) {
+  for (const section of printedSections(data)) {
+    heading(section.heading)
+    switch (section.kind) {
+      case "extra": {
+        const { extra } = section
+        if (extra.kind === "text") prose(extra.paragraphs)
+        else bullets(extra.bullets)
+        break
+      }
       case "education":
         for (const school of data.education) {
           const gpa = school.gpa && `(GPA: ${school.gpa})`
@@ -281,7 +250,7 @@ function documentOf(data: TemplateData, page: Page): { xml: string; links: strin
         break
       case "leadership":
       case "volunteer":
-        for (const role of data[key]) experience(role.organization, role.start, role.end, role.role, role.location, role.bullets)
+        for (const role of data[section.kind]) experience(role.organization, role.start, role.end, role.role, role.location, role.bullets)
         break
       case "projects":
         for (const project of data.projects) {

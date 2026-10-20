@@ -5,6 +5,7 @@
 import type { Finding, Report } from "@/lib/check/engine"
 import { bandOf } from "@/lib/check/score"
 import type { SCORE_BANDS } from "@/lib/check/settings"
+import { count } from "@/lib/count"
 
 export type Verdict = "ready" | "almost" | "drafts"
 
@@ -37,8 +38,6 @@ export function countsOf(report: Report): Counts {
   const findings = [...new Map(report.findings.map((finding) => [finding.key, finding])).values()]
   return { notes: findings.length, mustFixes: findings.filter(isMustFix).length }
 }
-
-const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 /** The counts on the frame round the reviewed resume: "4 notes, 2 must-fixes". */
 export function countsLabel({ notes, mustFixes }: Counts): string {

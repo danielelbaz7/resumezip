@@ -1,6 +1,7 @@
 import type React from "react"
 import Link from "next/link"
-import PromisePage, { PromiseSection, TEXT_LINK } from "@/components/site/PromisePage"
+import PromisePage, { PromiseSection } from "@/components/site/PromisePage"
+import { TEXT_LINK } from "@/components/site/sheet"
 import { pageMetadata, REPO_URL } from "@/lib/site"
 import { CODE, onGitHub } from "./code"
 

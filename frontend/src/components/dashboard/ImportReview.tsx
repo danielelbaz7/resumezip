@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, type RefObject } from "react"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import { ArrowLeftRight, Check, ChevronDown, CircleAlert, Copy, Download } from "lucide-react"
+import { reducedMotion } from "@/components/editor/layout"
 import { SECTIONS, type FieldKey, type FieldKeyOf, type SectionName } from "@/components/editor/sections"
+import { count } from "@/lib/count"
 import type { Line, PageSize } from "@/lib/import/lines"
 import type { OpenedFile } from "@/lib/import/open"
 import {
@@ -18,6 +20,7 @@ import {
   type ParsedResume,
 } from "@/lib/import/parse"
 import type { ResumeContent } from "@/lib/resume"
+import { saveFile } from "@/lib/saveFile"
 import Modal from "./Modal"
 import { BLUE_PILL, TEXT_PILL, WHITE_PILL } from "@/components/pills"
 
@@ -30,7 +33,6 @@ interface ImportReviewProps {
 }
 
 const range = (start?: string, end?: string) => [start, end].filter(Boolean).join(" – ")
-const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`
 
 // How each kind of entry is summed up, and which two fields "Swap" exchanges.
 const SHOWN: {
@@ -181,8 +183,7 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
   })
 
   const showUnplaced = () => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    unplacedRef.current?.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" })
+    unplacedRef.current?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" })
     unplacedRef.current?.focus({ preventScroll: true })
   }
 
@@ -196,17 +197,10 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
     }
   }
 
-  const downloadLeftovers = () => {
-    const url = URL.createObjectURL(new Blob([reviewText], { type: "text/plain;charset=utf-8" }))
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `${file.title || "resume"}-review-text.txt`
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
+  const downloadLeftovers = () => saveFile(reviewText, `${file.title || "resume"}-review-text.txt`, "text/plain;charset=utf-8")
 
   const review = (
-    <Modal title="Here's what we found" onClose={close} wide>
+    <Modal onClose={close} wide>
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         {/* Focusable, so the file can be scrolled from the keyboard. */}
         <section
@@ -320,7 +314,7 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
                               {dates && <span className="label-mono shrink-0 text-ink-2">{dates}</span>}
                             </div>
                             {secondary && <p className="mt-0.5 break-words text-sm text-ink-2">{secondary}</p>}
-                            {bullets > 0 && <p className="mt-0.5 text-xs text-ink-2">{plural(bullets, "bullet")}</p>}
+                            {bullets > 0 && <p className="mt-0.5 text-xs text-ink-2">{count(bullets, "bullet")}</p>}
                           </div>
                           {shown.swap && (
                             <button
@@ -346,7 +340,7 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
               <section ref={unplacedRef} tabIndex={-1} aria-labelledby="couldnt-place" className="mt-8 scroll-mt-4 outline-none">
                 <div className="flex items-baseline justify-between gap-4 border-b border-ink pb-2">
                   <h3 id="couldnt-place" className="label-mono text-ink-2">
-                    {leftovers > 0 ? <>Couldn&apos;t place · {plural(leftovers, "line")}</> : <>Unticked · {plural(unticked, "line")}</>}
+                    {leftovers > 0 ? <>Couldn&apos;t place · {count(leftovers, "line")}</> : <>Unticked · {count(unticked, "line")}</>}
                   </h3>
                   <div className="flex gap-2">
                     <button
@@ -468,8 +462,7 @@ function useScrollToHighlight(container: RefObject<HTMLElement | null>, highligh
   useEffect(() => {
     const first = container.current?.querySelector("[data-highlight]")
     if (!first) return
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    first.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" })
+    first.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" })
   }, [container, highlight])
 }
 

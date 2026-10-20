@@ -47,8 +47,8 @@
 
 #let entries(gap: 7.78pt, items) = items.join(v(sized(gap)))
 
-// "Start – End" with an en dash, or whichever of the two is present.
-#let dates(start, end) = if has(start) and has(end) { start + " – " + end } else { start + end }
+// "Start – End", with an en dash.
+#let dates = date-range.with(sep: " – ")
 
 // A blue heading over a thin blue rule. `after` is the space below the rule,
 // which differs with what comes next. Sticky so a heading is never left
@@ -87,11 +87,11 @@
 
 // The profile's summary, above the sections, set as a text section is.
 #if data.summary.len() > 0 {
-  section("Summary", entries((extra-body((kind: "text", paragraphs: data.summary), bullets),)))
+  section("Summary", entries((prose(data.summary),)))
 }
 
 #for name in data.order {
-  if data.extras.at(name, default: none) != none {
+  if name in data.extras {
     let extra = data.extras.at(name)
     section(extra.heading, entries((extra-body(extra, bullets),)))
   } else if name == "Education" and data.education.len() > 0 {

@@ -27,7 +27,7 @@ export default function NotSaved({ className = "", onDownload, downloading = fal
   if (saveStatus === "saved") return null
   return (
     <div role="alert" className={`flex flex-wrap items-baseline gap-x-6 gap-y-2 ${className}`}>
-      <span className="label-mono shrink-0 text-[#b42318]">Not saved</span>
+      <span className="label-mono shrink-0 text-alert">Not saved</span>
       <p className="min-w-0 flex-[1_1_280px] text-sm leading-relaxed text-ink">
         {WHY[saveStatus]}
         {/* A PDF holds only what it prints (lib/leftOut.ts). */}

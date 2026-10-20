@@ -3,7 +3,7 @@
 import { memo, useEffect, useRef } from "react"
 import { useOpenResume, useResumeField } from "@/context/ResumeContext"
 import { useCheckActions, useCheckTarget } from "./CheckContext"
-import { Field, SectionHeading } from "./fields"
+import { Field, pointAt, SectionHeading } from "./fields"
 import { FIELD_GRID, FIELD_SPAN, PROFILE_FIELDS } from "./sections"
 
 function ProfileForm() {
@@ -22,12 +22,7 @@ function ProfileForm() {
     if (!target || place?.kind !== "profile" || !pending(target.request)) return
     const timer = setTimeout(() => {
       if (!claim(target.request)) return
-      const input = form.current?.querySelector<HTMLElement>(`[data-field="${place.field}"] :is(input, [contenteditable="true"])`)
-      input?.focus({ preventScroll: true })
-      input?.scrollIntoView({
-        block: "center",
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      })
+      pointAt(form.current?.querySelector<HTMLElement>(`[data-field="${place.field}"] :is(input, [contenteditable="true"])`))
     })
     return () => clearTimeout(timer)
   }, [target, pending, claim])
