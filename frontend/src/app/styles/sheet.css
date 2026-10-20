@@ -101,7 +101,8 @@
     z-index: 45;
   }
   @media (prefers-reduced-transparency: reduce) {
-    .paper-frame::before {
+    .paper-frame::before,
+    .review-card::before {
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
       background: rgb(255 255 255 / 0.78);

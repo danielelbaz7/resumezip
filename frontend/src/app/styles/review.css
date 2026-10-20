@@ -748,7 +748,6 @@
     .review-haze,
     .review-sheet,
     .review-fog > span,
-    .review-card::before,
     .review-dock::before {
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
