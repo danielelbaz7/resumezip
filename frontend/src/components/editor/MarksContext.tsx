@@ -114,10 +114,11 @@ export function MarksProvider({
     asking.current = current
     setAi({ step: "asking" })
     void (async () => {
-      const hash = await hashOf(sentOf(units))
+      // Without a hash (no crypto.subtle, on a page that isn't served securely) the notes are still asked for, just not kept.
+      const hash = await hashOf(sentOf(units)).catch(() => null)
       // This version of the resume was reviewed before, on the review page or here: no need to ask again,
       // unless that review found nothing, which would only show this prompt again.
-      const before = savedByHash(hash)?.notes
+      const before = hash ? savedByHash(hash)?.notes : undefined
       let saved = before?.length ? before : null
       if (!saved) {
         const { askForKeptNotes } = await import("@/lib/review/ai/askForNotes")
@@ -129,10 +130,10 @@ export function MarksProvider({
           return
         }
         if (current.signal.aborted) return
-        saveNotes(hash, saved)
+        if (hash) saveNotes(hash, saved)
       }
       if (current.signal.aborted) return
-      tieToResume(hash, id)
+      if (hash) tieToResume(hash, id)
       setAiNotes(saved)
       setAi({ step: "idle" })
       show("ai")

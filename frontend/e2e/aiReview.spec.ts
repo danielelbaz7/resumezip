@@ -299,18 +299,46 @@ test("a page that never finishes drawing doesn't hold the result: after the wait
   expect(errors).toEqual([])
 })
 
-test("where the lines can't be hashed, the AI is still asked and its notes shown, just not kept", async ({ page }) => {
-  const errors = pageErrors(page)
-  // Only the lines' hash fails: Next.js hashes with it too, as it prefetches links.
-  await page.addInitScript(() => {
+/**
+ * Makes hashing the lines fail, as it does where the page isn't served
+ * securely and has no crypto.subtle. Only the lines' hash fails: Next.js
+ * hashes with it too, as it prefetches links.
+ */
+const linesCantBeHashed = (page: Page) =>
+  page.addInitScript(() => {
     const digest = crypto.subtle.digest.bind(crypto.subtle)
     crypto.subtle.digest = (algorithm: AlgorithmIdentifier, data: BufferSource) =>
       new TextDecoder().decode(data).startsWith('[["u1"') ? Promise.reject(new Error("No digest for the lines")) : digest(algorithm, data)
   })
+
+test("where the lines can't be hashed, the AI is still asked and its notes shown, just not kept", async ({ page }) => {
+  const errors = pageErrors(page)
+  await linesCantBeHashed(page)
   await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
   await reviewed(page)
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toBeAttached()
+  expect(errors).toEqual([])
+})
+
+test("where the lines can't be hashed, the editor still asks the AI and shows its notes", async ({ page }) => {
+  const errors = pageErrors(page)
+  await linesCantBeHashed(page)
+  let calls = 0
+  await page.route("**/api/review", async (route) => {
+    calls++
+    await route.fulfill({ json: { notes: NOTES } })
+  })
+  await reviewed(page)
+  await page.getByRole("button", { name: "Fix it in the editor" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  // The review's notes weren't kept without a hash, so the editor asks again.
+  await page.getByRole("button", { name: "AI notes", pressed: false }).click()
+  const ask = page.getByRole("button", { name: "Get AI notes" })
+  await expect(ask).toBeEnabled({ timeout: 60_000 })
+  await ask.click()
+  await expect(page.getByRole("region", { name: "AI notes" }).getByRole("region", { name: "Red flags, 2" })).toBeVisible()
+  expect(calls).toBe(2)
   expect(errors).toEqual([])
 })
 
