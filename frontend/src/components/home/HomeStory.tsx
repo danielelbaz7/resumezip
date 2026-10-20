@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation"
 import { ArrowUpRight } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
 import { INK_GLASS_PILL } from "@/components/pills"
-import EmailContact from "@/components/site/EmailContact"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import FloatingStart from "./FloatingStart"
 import { BEATS, CLICK, STORY_LENGTH, clamp, glide, inOut, lerp, out3, smooth, span, storyAt } from "./motion"
@@ -158,7 +157,7 @@ interface WayInProps {
   onFocus?: () => void
 }
 
-/** The way in, at the end: over the editor, in the site's frosted glass, with the address to write to. */
+/** The way in, at the end: over the editor, in the site's frosted glass. */
 function WayIn({ ref, copyRef, onFocus }: WayInProps) {
   return (
     <section ref={ref} aria-labelledby="way-in" className="home-cta glass glass-float" onFocus={onFocus}>
@@ -179,11 +178,6 @@ function WayIn({ ref, copyRef, onFocus }: WayInProps) {
         <StartWritingLink className={`${INK_GLASS_PILL} mt-6`} preloadOnHover>
           Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </StartWritingLink>
-        <div className="mt-6 border-t border-ink/10 pt-5">
-          <h3 className="sr-only">Get in touch</h3>
-          <p className="mb-3 text-sm text-ink-2">Found a bug or have an idea? I read every message.</p>
-          <EmailContact />
-        </div>
       </div>
     </section>
   )

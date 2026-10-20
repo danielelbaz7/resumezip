@@ -200,7 +200,7 @@ test("on a wide screen each note is over what it's about, left to right across t
   for (const { y } of notes) expect(Math.abs(y - notes[0].y)).toBeLessThan(12)
 })
 
-test("the story ends on the way in, with Start writing and the address to write to", async ({ page }) => {
+test("the story ends on the way in, with Start writing and not the address to write to", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/")
   await page.mouse.move(400, 400)
@@ -209,7 +209,8 @@ test("the story ends on the way in, with Start writing and the address to write 
   // It only takes a click once it has arrived.
   await start.click({ trial: true })
   await expect(start).toHaveAttribute("href", "/create/dashboard")
-  await expect(wayIn(page).getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toBeInViewport()
+  // That's on the contact page, which the footer links to.
+  await expect(page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
@@ -257,7 +258,7 @@ test("Start writing stays on screen when the way in's words reflow taller", asyn
 
 // The stage is 100svh, the height a phone shows with its toolbar out. Scrolled down, the toolbar
 // tucks away and the window is taller than the stage, and the way in has to stay on the stage then.
-test("on a phone with its toolbar tucked away, Start writing and the address stay on the stage", async ({ page }) => {
+test("on a phone with its toolbar tucked away, Start writing stays on the stage", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   // The window as a phone's is then: 120px taller than the stage, which is all that shows.
   await page.addInitScript(() => {
@@ -268,20 +269,17 @@ test("on a phone with its toolbar tucked away, Start writing and the address sta
   await page.goto("/")
   await page.mouse.move(200, 300)
   await playStoryTo(page, STORY_LENGTH)
-  // What's under the middle of each is it: the stage clips what's past its foot.
-  for (const link of [
-    wayIn(page).getByRole("link", { name: "Start writing" }),
-    wayIn(page).getByRole("link", { name: "hello@tryresumezip.com", exact: true }),
-  ]) {
-    await expect
-      .poll(() =>
-        link.evaluate((link) => {
+  // What's under its middle is it: the stage clips what's past its foot.
+  await expect
+    .poll(() =>
+      wayIn(page)
+        .getByRole("link", { name: "Start writing" })
+        .evaluate((link) => {
           const box = link.getBoundingClientRect()
           return link.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2))
         }),
-      )
-      .toBe(true)
-  }
+    )
+    .toBe(true)
 })
 
 // The page ends with the story, then the footer: nothing slides over the story's last screen.
