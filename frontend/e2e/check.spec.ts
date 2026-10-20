@@ -478,6 +478,53 @@ test("a name in a script no font has is a must-fix that says it doesn't print, n
   expect(errors).toEqual([])
 })
 
+test("each finding's mark on the preview is drawn in its dot's color: must fix red, worth a look yellow, optional blue", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  // The sample with a typo (must fix), a vague word (worth a look), and a job
+  // that has ended written in the present tense (optional advice).
+  const sample = JSON.parse(readFileSync("src/lib/typst/preview-samples/jake.json", "utf8"))
+  const [google, ford] = sample.workExperienceSection
+  google.workDescription += "\n• Helped teh team with various tasks"
+  ford.workDescription += "\n• Builds a nightly report of failed sensor checks for the release team"
+  const id = "marks-in-tier-colors"
+  await page.addInitScript(
+    ({ key, value }) => {
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
+    },
+    { key: `resume:${id}`, value: JSON.stringify({ ...sample, id, resumeTitle: "Marcus" }) },
+  )
+  await page.goto(`/create/new/${id}`)
+  await page
+    .getByRole("tablist", { name: "Write, check or style" })
+    .getByRole("tab", { name: /^Check/ })
+    .click()
+  const panel = page.getByRole("tabpanel", { name: /^Check/ })
+  const preview = page.getByRole("region", { name: "Live preview" })
+
+  for (const [tier, message] of [
+    ["Must fix", "“teh” may be misspelled"],
+    ["Worth a look", "“various” is vague"],
+    ["Optional", "“Builds” is present tense, but this has ended"],
+  ]) {
+    const finding = panel.getByRole("button", { name: new RegExp(`^Experience → .*${message}$`) })
+    await expect(finding).toHaveAccessibleDescription(tier)
+    // The mark, found by the button laid over it, which is named for the finding.
+    const mark = preview.getByRole("button", { name: new RegExp(`^(${tier}: )?${message}$`) })
+    await expect(mark).toBeVisible()
+    const note = await mark.getAttribute("data-note")
+    const pen = await preview.locator(`[data-scribble="${note}"]`).evaluate((scribble) => getComputedStyle(scribble).color)
+    const dot = await finding
+      .locator("[aria-hidden=true]")
+      .first()
+      .evaluate((span) => getComputedStyle(span).backgroundColor)
+    expect(pen, tier).toBe(dot)
+  }
+
+  expect(errors).toEqual([])
+})
+
 test("when the preview can't be built, the checker says its PDF checks are left out", async ({ page }) => {
   const errors = pageErrors(page)
   // The compiler's worker fails each resume it's given, as in download.spec.ts.

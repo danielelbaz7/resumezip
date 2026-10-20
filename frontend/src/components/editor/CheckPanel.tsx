@@ -503,8 +503,9 @@ function CheckRow({
 const keepNumbers = (place: string) => place.replace(/ (?=\d)/g, " ")
 
 /**
- * A finding, under its category's line, with its tier's dot: it opens its
- * field, and a suggestion can be dismissed.
+ * A finding, under its category's line: it opens its field, and a suggestion
+ * can be dismissed. Its tier's dot is the color its mark on the preview is
+ * drawn in (inkOf in components/review/notes.ts).
  */
 function FindingItem({ finding, view }: { finding: Finding; view: ResumeView }) {
   const { open, dismiss, addWord } = useCheckActions()

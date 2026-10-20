@@ -48,7 +48,7 @@ export const tierOf = (finding: Pick<Finding, "level" | "advisory">): Tier => (f
 
 export const TIER_NAMES: Record<Tier, string> = { fix: "Must fix", look: "Worth a look", optional: "Optional" }
 
-/** Each tier's color, as the dot by a finding in the Check panel. */
+/** Each tier's color, as the dot by a finding in the Check panel; its mark on the preview is drawn in the same color (styles/review.css). */
 export const TIER_BG: Record<Tier, string> = { fix: "bg-alert", look: "bg-caution", optional: "bg-accent" }
 
 /**
