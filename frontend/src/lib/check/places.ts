@@ -149,9 +149,9 @@ function fingerprint(text: string): string {
   return (hash >>> 0).toString(36)
 }
 
-/** Tells places apart as `pathOf` does, and an entry's bullets by their line too; an added list's bullets share one id. */
+/** Tells places apart as `pathOf` does, and bullets by their line too: equal ids mean the same place. */
 export const placeId = (place: Place) =>
-  place.kind === "entry" && place.line !== undefined ? `${pathOf(place)}.${place.line}` : pathOf(place)
+  (place.kind === "entry" || place.kind === "extra-text") && place.line !== undefined ? `${pathOf(place)}.${place.line}` : pathOf(place)
 
 /** What tells a finding apart: its rule, the field it's in, and the text it flagged. */
 export const findingKey = (rule: string, place: Place, text: string) => `${rule}|${pathOf(place)}|${fingerprint(text)}`

@@ -117,6 +117,23 @@ describe("running the rules", () => {
     expect(runChecks(ada, { rules: [typos] }).results[0]).toMatchObject({ status: "failed", checked: 3, scoring: { credit: 1 / 3 } })
   })
 
+  test("counts each bullet of an added list as a thing of its own", () => {
+    const list = "11111111-1111-4111-8111-111111111111"
+    const talks: Resume = {
+      ...ada,
+      extraSections: { [list]: { kind: "list", heading: "Talks", bullets: "• Spoke on engines\n• Spoke on looms\n• Spoke on notes" } },
+      sectionOrder: ["Work", `extra:${list}`],
+    }
+    const typos = formRule("G1", () => ({
+      checked: 3,
+      problems: [0, 1].map((line) => ({
+        place: { kind: "extra-text", sectionId: list, field: "bullets", line } as const,
+        message: "Typo",
+      })),
+    }))
+    expect(runChecks(talks, { rules: [typos] }).results[0]).toMatchObject({ status: "failed", checked: 3, scoring: { credit: 1 / 3 } })
+  })
+
   test("takes a rule's own credit when it gives one, kept between 0 and 1", () => {
     const credit = (value: number) =>
       runChecks(ada, {

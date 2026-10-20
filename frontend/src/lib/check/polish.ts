@@ -3,7 +3,7 @@
 
 import type { FieldKey, SectionName } from "@/components/editor/sections"
 import type { Problem, Rule } from "./engine"
-import { fieldOf, LINK_FIELDS, LOCATION_FIELDS, type Place } from "./places"
+import { fieldOf, LINK_FIELDS, LOCATION_FIELDS, placeId, type Place } from "./places"
 import { textsOf, type ResumeView } from "./resume"
 import {
   ACRONYMS,
@@ -391,8 +391,8 @@ const numbersOneWay: Rule = {
         .filter(({ digit, word }) => !digit !== !word)
         .map(({ digit }) => (digit ? ("digit" as const) : ("word" as const)))
       const usual = mostCommon(oneWay) ?? ways.usually
-      for (const { place, bullet, digit, word } of written) {
-        const key = `${fieldOf(place)}|${bullet.line}|${place.kind === "entry" ? `${place.section}.${place.entry}` : ""}`
+      for (const { place, digit, word } of written) {
+        const key = placeId(place)
         if (problems.has(key)) continue
         if (digit && word) {
           const rewrite = usual === "digit" ? ways.asDigit(word) : ways.asWord(digit)

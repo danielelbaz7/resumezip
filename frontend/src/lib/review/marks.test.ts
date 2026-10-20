@@ -56,6 +56,36 @@ test("marks a bullet on its lines, a role's bullets on all of theirs, a field on
   expect(section).toBeNull()
 })
 
+test("marks a bullet of an added list on its own lines, not on another's", async () => {
+  const list = "11111111-1111-4111-8111-111111111111"
+  const talks = {
+    ...sample,
+    extraSections: {
+      [list]: {
+        kind: "list",
+        heading: "Talks",
+        bullets: "• Spoke on the analytical engine at the Royal Society\n• Spoke on the Jacquard loom at the Mechanics' Institute",
+      },
+    },
+    sectionOrder: [...sample.sectionOrder, `extra:${list}`],
+  }
+  const firstTalk: Rule = {
+    ...notes,
+    check: () => ({
+      checked: 2,
+      problems: [{ place: { kind: "extra-text", sectionId: list, field: "bullets", line: 0 } as const, message: "A talk" }],
+    }),
+  }
+  const { parsed, pages } = await readBack(await render(talks))
+  const read = readForChecks(parsed.lines, pdfLayoutOf(viewOf(talks)))
+  const pdf = { lines: read.parsed.lines, pages, ...read }
+  const report = runChecks(talks, { rules: [firstTalk], pdf })
+  const [mark] = marksOf(report.view, report.findings, pdf)
+  const marked = mark!.lines.map((line) => line.text).join(" ")
+  expect(marked).toContain("Royal Society")
+  expect(marked).not.toContain("Jacquard")
+})
+
 test("nothing is marked without a reading of the PDF", () => {
   const report = runChecks(weak, { rules: [notes] })
   expect(marksOf(report.view, report.findings, null)).toEqual([null, null, null, null])
