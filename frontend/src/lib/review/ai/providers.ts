@@ -191,13 +191,17 @@ export const BUDGET_MS = 55_000
 const LEAST_MS = 10_000
 // How long a provider that failed is passed over, so a visitor doesn't wait on one that's busy or down.
 const REST_MS = 60_000
+// How long one whose credit or spend limit has run out is passed over: it
+// won't answer again until the credit is renewed or the limit raised.
+const SPENT_MS = 60 * 60_000
+const spent = (error: ProviderError) => /credit balance is too low|usage limits|insufficient_quota/i.test(error.message)
 const resting = new Map<Provider["name"], number>()
 
 /**
  * Asks each provider in turn until one answers: the next when one is busy,
  * failing or slower than PATIENCE_MS, passing over one that failed in the
- * last minute unless every one has. All of them share BUDGET_MS. Throws the
- * last ProviderError when none answers.
+ * last minute (or ran out of credit in the last hour) unless every one has.
+ * All of them share BUDGET_MS. Throws the last ProviderError when none answers.
  */
 export async function askAny(providers: readonly Provider[], system: string, user: string, options: AskOptions = {}): Promise<Asked> {
   const now = Date.now()
@@ -216,7 +220,7 @@ export async function askAny(providers: readonly Provider[], system: string, use
     } catch (error) {
       if (options.signal?.aborted) throw error
       last = error instanceof ProviderError ? error : new ProviderError(provider.name, null, timeout.aborted ? "too slow" : String(error))
-      resting.set(provider.name, Date.now() + REST_MS)
+      resting.set(provider.name, Date.now() + (spent(last) ? SPENT_MS : REST_MS))
       // Never the body: it can quote the request, and the request is someone's resume.
       console.warn(`AI review: ${provider.name} didn't answer (${last.status ?? "no status"})`)
     }

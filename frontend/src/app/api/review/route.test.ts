@@ -101,6 +101,31 @@ test("asks OpenAI and then Azure when the ones before are busy, and passes a bus
   expect(asked().slice(3)).toEqual([AZURE])
 })
 
+test("passes a service whose credit has run out over for an hour", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] })
+  fetched
+    .mockResolvedValueOnce(
+      Response.json(
+        { type: "error", error: { type: "invalid_request_error", message: "Your credit balance is too low to access the Anthropic API." } },
+        { status: 400 },
+      ),
+    )
+    .mockResolvedValueOnce(
+      Response.json(
+        { error: { message: "You exceeded your current quota.", type: "insufficient_quota", code: "insufficient_quota" } },
+        { status: 429 },
+      ),
+    )
+    .mockImplementation(answering())
+  expect((await post()).status).toBe(200)
+  vi.setSystemTime(Date.now() + 30 * 60_000)
+  expect((await post()).status).toBe(200)
+  expect(asked()).toEqual([CLAUDE, OPENAI, AZURE, AZURE])
+  vi.setSystemTime(Date.now() + 31 * 60_000)
+  expect((await post()).status).toBe(200)
+  expect(asked().slice(4)).toEqual([CLAUDE])
+})
+
 // The first service answers with an error once `ms` have gone by.
 const slowFailure = (ms: number) => async () => {
   vi.setSystemTime(Date.now() + ms)
