@@ -1,6 +1,15 @@
-import { readFileSync } from "node:fs"
-import { expect, test, type Locator, type Page } from "./test"
-import { holdablePreviews, holdPreviews, pageErrors, previewsBuilt, seriousAccessibilityProblems } from "./helpers"
+import { expect, test, type Page } from "./test"
+import {
+  downloadText,
+  holdablePreviews,
+  holdPreviews,
+  newResume,
+  pageErrors,
+  preview,
+  previewsBuilt,
+  saveResumes,
+  seriousAccessibilityProblems,
+} from "./helpers"
 
 declare global {
   interface Window {
@@ -20,20 +29,12 @@ declare global {
 /** What the editor and dashboard show while the latest changes aren't saved. */
 const notSaved = (page: Page) => page.getByRole("alert").filter({ hasText: "Not saved" })
 
-/** Starts a new resume, and returns the localStorage key it's saved under. */
-async function startWriting(page: Page) {
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  return `resume:${new URL(page.url()).pathname.split("/").pop()}`
-}
-
 /**
  * The preview showing some text. Tests wait for this before leaving the
  * editor: Safari reports leaving while the editor still downloads its PDF
  * compiler as an error.
  */
-const previewShows = (preview: Locator, text: RegExp) => preview.getByText(text).first()
+const previewShows = (page: Page, text: RegExp) => preview(page).getByText(text).first()
 
 /** The text saved under a localStorage key, as one page sees it. */
 const savedAt = (page: Page, key: string) => () => page.evaluate((key) => localStorage.getItem(key) ?? "", key)
@@ -56,17 +57,12 @@ test("when the browser won't let the site save anything, it still works and says
       },
     })
   })
-  await startWriting(page)
+  await newResume(page)
   await expect(notSaved(page)).toContainText("isn't letting resumezip save anything")
 
   // Editing and downloading still work, so a PDF can keep a copy: the warning has a button for it.
   await page.getByLabel("Full name").fill("Ada Lovelace")
-  await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
-      .getByText(/Ada Lovelace/i)
-      .first(),
-  ).toBeVisible()
+  await expect(previewShows(page, /Ada Lovelace/i)).toBeVisible()
   const downloading = page.waitForEvent("download")
   await notSaved(page).getByRole("button", { name: "Download PDF" }).click()
   expect((await downloading).suggestedFilename()).toMatch(/\.pdf$/)
@@ -92,16 +88,15 @@ test("the home page doesn't read saved resumes, and Start writing goes to them",
   const errors = pageErrors(page)
   const ada = { id: "ada", resumeTitle: "Ada's resume", resumeTag: "personal", updatedAt: "2026-10-06T12:00:00.000Z" }
   // A resume saved on an earlier visit, and where the page is each time it reads saved resumes.
-  await page.addInitScript((resume) => {
-    const key = `resume:${resume.id}`
-    if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(resume))
+  await saveResumes(page, [ada])
+  await page.addInitScript(() => {
     window.reads = []
     const getItem = Storage.prototype.getItem
     Storage.prototype.getItem = function (key: string) {
       if (/^(resume:|allResumes)/.test(key)) window.reads?.push(location.pathname)
       return getItem.call(this, key)
     }
-  }, ada)
+  })
   await page.goto("/")
   await page.evaluate(() => (window.marked = true))
   await page.getByRole("link", { name: "Start writing" }).first().click()
@@ -125,7 +120,7 @@ test("when storage is full, the editor says the changes aren't saved until they 
       setItem.call(this, key, value)
     }
   })
-  await startWriting(page)
+  await newResume(page)
   const name = page.getByLabel("Full name")
   const saved = page.getByText("Saved", { exact: true })
 
@@ -158,7 +153,7 @@ test("when storage is full, the editor says the changes aren't saved until they 
   await name.fill("Ada King")
   await expect(notSaved(page)).toHaveCount(0)
   await expect(saved).toHaveCount(1)
-  await expect(previewShows(page.getByRole("region", { name: "Live preview" }), /Ada King/i)).toBeVisible()
+  await expect(previewShows(page, /Ada King/i)).toBeVisible()
 
   // Leaving doesn't ask any more: the reload goes ahead without a question.
   const asked: string[] = []
@@ -206,7 +201,7 @@ test("saved data that can't be read is kept instead of being saved over", async 
   await expect(note).toBeVisible()
   const downloading = page.waitForEvent("download")
   await page.getByRole("button", { name: "Download the copy" }).click()
-  expect(readFileSync(await (await downloading).path(), "utf8")).toBe(unreadable)
+  expect(await downloadText(await downloading)).toBe(unreadable)
 
   // Deleting it removes it from the browser.
   await page.getByRole("button", { name: "Delete it" }).click()
@@ -219,7 +214,7 @@ test("saved data that can't be read is kept instead of being saved over", async 
 
 test("when another tab saves something unreadable, the open resume stays and is saved again", async ({ page, context }) => {
   const errors = pageErrors(page)
-  const key = await startWriting(page)
+  const key = `resume:${await newResume(page)}`
   await page.getByLabel("Full name").fill("Ada Lovelace")
   const saved = savedAt(page, key)
   await expect.poll(saved).toContain("Ada Lovelace")
@@ -249,9 +244,8 @@ test("typing is saved once it pauses, and just opening a page saves nothing", as
       setItem.call(this, key, value)
     }
   })
-  const key = await startWriting(page)
+  const key = `resume:${await newResume(page)}`
   const editor = new URL(page.url()).pathname
-  const preview = page.getByRole("region", { name: "Live preview" })
   const saves = () => page.evaluate(() => window.saves ?? [])
   await page.evaluate(() => (window.saves = []))
 
@@ -261,7 +255,7 @@ test("typing is saved once it pauses, and just opening a page saves nothing", as
   const made = await saves()
   expect(made.every((saved) => saved === key)).toBe(true)
   expect(made.length).toBeLessThanOrEqual(3)
-  await expect(previewShows(preview, /Ada Lovelace/i)).toBeVisible()
+  await expect(previewShows(page, /Ada Lovelace/i)).toBeVisible()
 
   // Opening the dashboard, or the editor again, saves nothing.
   await page.goto("/create/dashboard")
@@ -270,7 +264,7 @@ test("typing is saved once it pauses, and just opening a page saves nothing", as
   await page.waitForTimeout(1_000)
   expect(await saves()).toEqual([])
   await page.goto(editor)
-  await expect(previewShows(preview, /Ada Lovelace/i)).toBeVisible()
+  await expect(previewShows(page, /Ada Lovelace/i)).toBeVisible()
   // A fixed wait: proving nothing is saved once the page has settled.
   await page.waitForTimeout(1_000)
   expect(await saves()).toEqual([])
@@ -281,10 +275,10 @@ test("typing is saved once it pauses, and just opening a page saves nothing", as
 test("a change made just before the page closes is saved", async ({ page }) => {
   const errors = pageErrors(page)
   await page.clock.install()
-  const key = await startWriting(page)
+  const key = `resume:${await newResume(page)}`
   const name = page.getByLabel("Full name")
   await name.fill("Ada")
-  await expect(previewShows(page.getByRole("region", { name: "Live preview" }), /Ada/i)).toBeVisible()
+  await expect(previewShows(page, /Ada/i)).toBeVisible()
 
   // With the page's clock stopped, typing never pauses long enough to be
   // saved, so only the save as the page closes can save it.
@@ -301,12 +295,12 @@ test("a change made just before the page closes is saved", async ({ page }) => {
 test("the editor says Saving… while typing, and Saved once typing has stopped for a moment", async ({ page }) => {
   const errors = pageErrors(page)
   await page.clock.install()
-  const key = await startWriting(page)
+  const key = `resume:${await newResume(page)}`
   const name = page.getByLabel("Full name")
   const saving = page.getByText("Saving…")
   const saved = page.getByText("Saved", { exact: true })
   await name.fill("Ada")
-  await expect(previewShows(page.getByRole("region", { name: "Live preview" }), /Ada/i)).toBeVisible()
+  await expect(previewShows(page, /Ada/i)).toBeVisible()
   await expect(saved).toBeVisible()
 
   // From here the page's clock only moves when the test moves it.
@@ -336,10 +330,7 @@ test("the editor says Saving… while typing, and Saved once typing has stopped 
 test("a resume deleted in another tab leaves no preview behind, so it's built afresh if it comes back", async ({ page, context }) => {
   const errors = pageErrors(page)
   await holdablePreviews(page)
-  const key = await startWriting(page)
-  const preview = page.getByRole("region", { name: "Live preview" })
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  await expect(previewShows(preview, /Ada Lovelace/i)).toBeVisible()
+  const key = `resume:${await newResume(page, { name: "Ada Lovelace" })}`
 
   // A change is saved while its preview is held on the way to the compiler.
   await holdPreviews(page, true)
@@ -361,19 +352,19 @@ test("a resume deleted in another tab leaves no preview behind, so it's built af
   await holdPreviews(page, true)
   await other.evaluate(([key, text]) => localStorage.setItem(key, text), [key, saved.replaceAll("Ada Byron", "Grace Hopper")])
   await expect(page.getByLabel("Full name")).toHaveValue("Grace Hopper")
-  await expect(preview.getByRole("status", { name: "Loading preview" })).toBeVisible()
+  await expect(preview(page).getByRole("status", { name: "Loading preview" })).toBeVisible()
   // A fixed wait: proving nothing of it is drawn.
   await page.waitForTimeout(2_000)
-  await expect(preview.getByText(/Ada/)).toHaveCount(0)
+  await expect(preview(page).getByText(/Ada/)).toHaveCount(0)
   await holdPreviews(page, false)
-  await expect(previewShows(preview, /Grace Hopper/i)).toBeVisible()
+  await expect(previewShows(page, /Grace Hopper/i)).toBeVisible()
 
   expect(errors).toEqual([])
 })
 
 test("two tabs editing different resumes at once keep both edits", async ({ page, context }) => {
   const errors = pageErrors(page)
-  await startWriting(page)
+  await newResume(page)
   const other = await context.newPage()
   const otherErrors = pageErrors(other)
   await other.goto("/create/dashboard")
@@ -415,7 +406,7 @@ test("an open dialog keeps focus where it is when another tab saves", async ({ p
 
   // Another tab saves a resume, so the dashboard behind the dialog shows it.
   const other = await context.newPage()
-  await startWriting(other)
+  await newResume(other)
   await other.getByLabel("Full name").fill("Grace Hopper")
   await expect(page.getByText(/^1 resume\W+saved in this browser$/i)).toBeVisible()
 
@@ -453,15 +444,10 @@ test("the browser is asked to keep saved resumes once there is one, and only onc
   await expect(page.getByText("No resumes yet")).toBeVisible()
   expect(await requests()).toBe(0)
 
-  await startWriting(page)
+  await newResume(page)
   await expect.poll(requests).toBe(1)
   await page.getByLabel("Full name").fill("Ada Lovelace")
-  await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
-      .getByText(/Ada Lovelace/i)
-      .first(),
-  ).toBeVisible()
+  await expect(previewShows(page, /Ada Lovelace/i)).toBeVisible()
   expect(await requests()).toBe(1)
   // After a no, it waits a week before asking again.
   await expect.poll(() => page.evaluate(() => localStorage.getItem("storage-persist-asked"))).not.toBeNull()

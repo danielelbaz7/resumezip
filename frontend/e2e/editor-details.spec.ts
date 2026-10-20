@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "./test"
-import { pageErrors } from "./helpers"
+import { newResume, pageErrors } from "./helpers"
 
 // Small things in the editor's form and checker: the glow on the field being
 // typed in (components/editor/fields.tsx), the score's rolling digits
@@ -9,16 +9,7 @@ import { pageErrors } from "./helpers"
 /** Starts a resume with a name, in a 1440 × 900 window, and waits for its preview. */
 async function startWriting(page: Page) {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
-      .getByText(/Ada Lovelace/i)
-      .first(),
-  ).toBeVisible()
+  await newResume(page, { name: "Ada Lovelace" })
 }
 
 const boxOf = async (locator: Locator) => (await locator.boundingBox())!

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "./test"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { newResume, openFile, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 declare global {
   interface Window {
@@ -79,21 +79,6 @@ async function sharesFiles(page: Page, answers: string[] = []) {
   }, answers)
 }
 
-/** Starts a resume called "Ada's resume", and waits for its preview, so the compiler is ready. */
-async function readyToShare(page: Page) {
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Resume name").fill("Ada's resume")
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
-      .getByText(/Ada Lovelace/i)
-      .first(),
-  ).toBeVisible()
-}
-
 const sharedSoFar = (page: Page) => page.evaluate(() => window.shared!)
 const attachedPdfs = (page: Page) => page.evaluate(() => window.attachedPdfs)
 
@@ -103,7 +88,7 @@ test("Share PDF hands the share sheet the PDF, made as the menu opened, in the p
 }) => {
   const errors = pageErrors(page)
   await sharesFiles(page)
-  await readyToShare(page)
+  await newResume(page, { title: "Ada's resume", name: "Ada Lovelace" })
 
   // Opening the menu starts making the PDF, so it's ready when Share PDF is
   // pressed: Safari only opens the share sheet straight after a press.
@@ -127,9 +112,11 @@ test("Share PDF hands the share sheet the PDF, made as the menu opened, in the p
   const other = await elsewhere.newPage()
   const otherErrors = pageErrors(other)
   await other.goto("/create/dashboard")
-  await other
-    .locator('input[type="file"]')
-    .setInputFiles({ name: shared.name, mimeType: shared.type, buffer: Buffer.from(shared.base64, "base64") })
+  await openFile(other.getByRole("button", { name: "Open a file" }).first(), {
+    name: shared.name,
+    mimeType: shared.type,
+    buffer: Buffer.from(shared.base64, "base64"),
+  })
   await expect(other).toHaveURL(/\/create\/new\//)
   await expect(other.getByLabel("Full name")).toHaveValue("Ada Lovelace")
   await elsewhere.close()
@@ -147,7 +134,7 @@ test("Share PDF hands the share sheet the PDF, made as the menu opened, in the p
 test("Share PDF pressed before its PDF is made shows it's being made, then shares it", async ({ page }) => {
   const errors = pageErrors(page)
   await sharesFiles(page)
-  await readyToShare(page)
+  await newResume(page, { title: "Ada's resume", name: "Ada Lovelace" })
 
   await page.evaluate(() => (window.holdAttached = true))
   const more = page.getByRole("button", { name: "More formats" })
@@ -165,7 +152,7 @@ test("Share PDF pressed before its PDF is made shows it's being made, then share
 test("closing the share sheet says nothing, and a share that fails says so and can be tried again", async ({ page }) => {
   const errors = pageErrors(page)
   await sharesFiles(page, ["AbortError", "NotAllowedError"])
-  await readyToShare(page)
+  await newResume(page, { title: "Ada's resume", name: "Ada Lovelace" })
   const more = page.getByRole("button", { name: "More formats" })
   const share = page.getByRole("menuitem", { name: /^Share PDF/ })
   const failed = page.getByRole("alert").filter({ hasText: "Share failed" })
@@ -204,7 +191,7 @@ for (const [what, browserThat] of Object.entries(CANT_SHARE_FILES)) {
   test(`a browser that ${what} has no Share PDF`, async ({ page }) => {
     const errors = pageErrors(page)
     await page.addInitScript(browserThat)
-    await readyToShare(page)
+    await newResume(page, { title: "Ada's resume", name: "Ada Lovelace" })
     await page.getByRole("button", { name: "More formats" }).click()
     await expect(page.getByRole("menuitem", { name: /^JSON/ })).toBeVisible()
     await expect(page.getByRole("menuitem", { name: /^Share PDF/ })).toHaveCount(0)

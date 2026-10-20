@@ -1,6 +1,6 @@
-import { expect, test } from "./test"
+import { expect, test, type Page } from "./test"
 import { wordFile, textPdf } from "../src/lib/import/testFiles"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { openFile, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 const WORDS = [
   "Mara Lin",
@@ -14,12 +14,20 @@ const WORDS = [
   "Second talk",
 ]
 
+/** Every resume saved in this browser. */
+const savedResumes = (page: Page) =>
+  page.evaluate(() =>
+    Object.entries(localStorage)
+      .filter(([key]) => key.startsWith("resume:"))
+      .map(([, value]) => JSON.parse(value)),
+  )
+
 test("the review joins a file's two summaries, and keeps two groups under a heading it doesn't know as two added sections", async ({
   page,
 }) => {
   const errors = pageErrors(page)
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles({
+  await openFile(page.getByRole("button", { name: "Open a file" }), {
     name: "Flexible.docx",
     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     buffer: wordFile(WORDS),
@@ -35,21 +43,8 @@ test("the review joins a file's two summaries, and keeps two groups under a head
   expect(await seriousAccessibilityProblems(page)).toEqual([])
   await review.getByRole("button", { name: "Create resume", exact: true }).click()
   await expect(review).toBeHidden()
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        Object.entries(localStorage)
-          .filter(([key]) => key.startsWith("resume:"))
-          .map(([, value]) => JSON.parse(value)),
-      ),
-    )
-    .toHaveLength(1)
-  const saved = await page.evaluate(
-    () =>
-      Object.entries(localStorage)
-        .filter(([key]) => key.startsWith("resume:"))
-        .map(([, value]) => JSON.parse(value))[0],
-  )
+  await expect.poll(() => savedResumes(page)).toHaveLength(1)
+  const [saved] = await savedResumes(page)
   expect(saved.profileSection.summary).toBe("First paragraph.\n\nSecond paragraph.")
   const custom = Object.entries(saved.extraSections)
   expect(custom.map(([, value]) => value)).toEqual([
@@ -63,7 +58,7 @@ test("the review joins a file's two summaries, and keeps two groups under a head
 test("a group that couldn't be placed has its choice beside its heading, not under a label repeating it", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles({
+  await openFile(page.getByRole("button", { name: "Open a file" }), {
     name: "Flexible.docx",
     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     buffer: wordFile(WORDS),
@@ -86,7 +81,7 @@ test("on a phone, a PDF's review downloads the text left out and the text it cou
   const errors = pageErrors(page)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles({
+  await openFile(page.getByRole("button", { name: "Open a file" }), {
     name: "Flexible.pdf",
     mimeType: "application/pdf",
     buffer: textPdf([["Mara Lin", "SUMMARY", "Private draft paragraph.", "PRESENTATIONS", "Talk on accessible software"]]),
@@ -106,12 +101,7 @@ test("on a phone, a PDF's review downloads the text left out and the text it cou
   expect(text).toContain("Talk on accessible software")
   await review.getByRole("button", { name: "Create resume", exact: true }).click()
   await expect(review).toBeHidden()
-  const saved = await page.evaluate(
-    () =>
-      Object.entries(localStorage)
-        .filter(([key]) => key.startsWith("resume:"))
-        .map(([, value]) => JSON.parse(value))[0],
-  )
+  const [saved] = await savedResumes(page)
   expect(saved.extraSections ?? {}).toEqual({})
   expect(saved.profileSection.summary).toBe("")
   expect(errors).toEqual([])

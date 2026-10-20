@@ -1,14 +1,12 @@
 import { readFileSync } from "node:fs"
 import { expect, test } from "./test"
-import { boxText, pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { expectText, newResume, openFile, pageErrors, preview, saveResumes, savedResume, seriousAccessibilityProblems } from "./helpers"
 
 test("a new visitor writes a resume, sees it, downloads it and opens it again", async ({ page, browser }, testInfo) => {
   const errors = pageErrors(page)
 
   // A first visit goes straight to a new resume.
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
+  await newResume(page)
 
   // The preview shows what's typed. Jake's prints the name in small caps.
   await page.getByLabel("Full name").fill("Ada Lovelace")
@@ -24,9 +22,12 @@ test("a new visitor writes a resume, sees it, downloads it and opens it again", 
     await expect(field).toHaveAttribute("spellcheck", "false")
     await expect(field).toHaveAttribute("autocapitalize", "off")
   }
-  const preview = page.getByRole("region", { name: "Live preview" })
-  await expect(preview.getByText(/Ada Lovelace/i).first()).toBeVisible()
-  await expect(preview.getByText("ada@example.com").first()).toBeVisible()
+  await expect(
+    preview(page)
+      .getByText(/Ada Lovelace/i)
+      .first(),
+  ).toBeVisible()
+  await expect(preview(page).getByText("ada@example.com").first()).toBeVisible()
 
   // The editor passes the same accessibility checks as the other pages. The
   // preview's pages are left out: pdf.js draws the PDF's email link with no
@@ -52,7 +53,7 @@ test("a new visitor writes a resume, sees it, downloads it and opens it again", 
   const other = await elsewhere.newPage()
   const otherErrors = pageErrors(other)
   await other.goto("/create/dashboard")
-  await other.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(other.getByRole("button", { name: "Open a file" }), pdf)
   await expect(other).toHaveURL(/\/create\/new\//)
   await expect(other.getByLabel("Full name")).toHaveValue("Ada Lovelace")
   await expect(other.getByLabel("Email")).toHaveValue("ada@example.com")
@@ -96,16 +97,10 @@ test("a long resume's PDF opens again with nothing cut off", async ({ page, brow
     leadershipExperienceSection: [],
     awardsSection: [],
   }
-  await page.addInitScript(
-    ({ key, value }) => {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
-    },
-    { key: "resume:long-cv", value: JSON.stringify(resume) },
-  )
+  await saveResumes(page, [resume])
   await page.goto("/create/new/long-cv")
   await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
+    preview(page)
       .getByText(/Ada Lovelace/i)
       .first(),
   ).toBeVisible()
@@ -120,15 +115,14 @@ test("a long resume's PDF opens again with nothing cut off", async ({ page, brow
   const other = await elsewhere.newPage()
   const otherErrors = pageErrors(other)
   await other.goto("/create/dashboard")
-  await other.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(other.getByRole("button", { name: "Open a file" }), pdf)
   await expect(other).toHaveURL(/\/create\/new\/long-cv$/)
   await expect(
-    other
-      .getByRole("region", { name: "Live preview" })
+    preview(other)
       .getByText(/Ada Lovelace/i)
       .first(),
   ).toBeVisible()
-  const restored = await other.evaluate(() => JSON.parse(localStorage.getItem("resume:long-cv") ?? "{}"))
+  const restored = await savedResume(other, "long-cv")
   expect(restored.publicationsSection.map((entry: { publicationTitle: string }) => entry.publicationTitle)).toEqual(titles)
   expect(restored.workExperienceSection[0].workDescription).toBe(description)
   await elsewhere.close()
@@ -159,14 +153,7 @@ test("an older PDF of a resume in this browser says it's older, and replacing th
     leadershipExperienceSection: [],
     awardsSection: [],
   }
-  await page.addInitScript(
-    ({ key, value }) => {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
-    },
-    { key: "resume:ada", value: JSON.stringify(resume) },
-  )
-  const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem("resume:ada") ?? "{}"))
-  const preview = page.getByRole("region", { name: "Live preview" })
+  await saveResumes(page, [resume])
   const openExperience = () =>
     page
       .getByRole("navigation", { name: "Sections" })
@@ -177,7 +164,11 @@ test("an older PDF of a resume in this browser says it's older, and replacing th
 
   // The PDF is downloaded, then the resume changes: a new role, and a new bullet.
   await page.goto("/create/new/ada")
-  await expect(preview.getByText(/Ada Lovelace/i).first()).toBeVisible()
+  await expect(
+    preview(page)
+      .getByText(/Ada Lovelace/i)
+      .first(),
+  ).toBeVisible()
   const downloading = page.waitForEvent("download")
   await page.getByRole("button", { name: "Download PDF" }).click()
   const pdf = testInfo.outputPath("ada.pdf")
@@ -185,12 +176,14 @@ test("an older PDF of a resume in this browser says it's older, and replacing th
   await openExperience()
   await role.fill("Senior Engineer")
   await bullets.fill("• Built the search index\n• Shipped the new ranking")
-  await expect.poll(async () => (await saved()).workExperienceSection[0]).toMatchObject({ workRole: "Senior Engineer" })
-  await expect.poll(async () => (await saved()).workExperienceSection[0].workDescription).toContain("Shipped the new ranking")
+  await expect.poll(async () => (await savedResume(page, "ada")).workExperienceSection[0]).toMatchObject({ workRole: "Senior Engineer" })
+  await expect
+    .poll(async () => (await savedResume(page, "ada")).workExperienceSection[0].workDescription)
+    .toContain("Shipped the new ranking")
 
   // Opening the PDF says it's older, and the main choice is to keep both.
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf)
   const conflict = page.getByRole("dialog", { name: "You already have this resume" })
   await expect(conflict).toContainText("The PDF is older")
   await expect(conflict).toContainText("Replacing loses your changes since then.")
@@ -204,13 +197,13 @@ test("an older PDF of a resume in this browser says it's older, and replacing th
   await expect(page.getByText("This resume now has what's in the PDF.")).toBeVisible()
   await openExperience()
   await expect(role).toHaveValue("Engineer")
-  await expect.poll(() => boxText(bullets)).toBe("• Built the search index")
-  expect(await saved()).toMatchObject({ updatedAt: resume.updatedAt, workExperienceSection: [{ workRole: "Engineer" }] })
+  await expectText(bullets, "• Built the search index")
+  expect(await savedResume(page, "ada")).toMatchObject({ updatedAt: resume.updatedAt, workExperienceSection: [{ workRole: "Engineer" }] })
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
 
   // So the same PDF opened again is nothing new, and opens without asking. The undo is still there.
   await page.getByRole("link", { name: "Dashboard" }).click()
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf)
   await expect(page).toHaveURL(/\/create\/new\/ada$/)
   await expect(page.getByRole("dialog")).toHaveCount(0)
 
@@ -219,8 +212,8 @@ test("an older PDF of a resume in this browser says it's older, and replacing th
   await expect(page.getByText("It's back as it was before you opened the PDF.")).toBeFocused()
   await openExperience()
   await expect(role).toHaveValue("Senior Engineer")
-  await expect.poll(() => boxText(bullets)).toBe("• Built the search index\n• Shipped the new ranking")
-  await expect.poll(async () => (await saved()).workExperienceSection[0]).toMatchObject({ workRole: "Senior Engineer" })
+  await expectText(bullets, "• Built the search index\n• Shipped the new ranking")
+  await expect.poll(async () => (await savedResume(page, "ada")).workExperienceSection[0]).toMatchObject({ workRole: "Senior Engineer" })
 
   // Kept after a reload, where there's nothing left to undo.
   await page.reload()

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "./test"
-import { pageErrors } from "./helpers"
+import { newResume, pageErrors } from "./helpers"
 
 declare global {
   interface Window {
@@ -47,17 +47,7 @@ test("a failed download says so, and trying again downloads the PDF", async ({ p
     }
   })
 
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Resume name").fill("Ada's resume")
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
-      .getByText(/Ada Lovelace/i)
-      .first(),
-  ).toBeVisible()
+  await newResume(page, { title: "Ada's resume", name: "Ada Lovelace" })
 
   // The editor.
   await page.evaluate(() => (window.brokenCompiler = true))
@@ -93,18 +83,7 @@ test("a failed download says so, and trying again downloads the PDF", async ({ p
 })
 
 /** Starts a resume with a name, and waits for its preview, so the compiler is ready and a PDF is made in a moment. */
-async function readyToDownload(page: Page) {
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
-      .getByText(/Ada Lovelace/i)
-      .first(),
-  ).toBeVisible()
-}
+const readyToDownload = (page: Page) => newResume(page, { name: "Ada Lovelace" })
 
 test("Download PDF shows the PDF being made, however quick, and saves it as that ends", async ({ page }) => {
   const errors = pageErrors(page)

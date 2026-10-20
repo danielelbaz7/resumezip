@@ -1,15 +1,19 @@
 import { readFileSync } from "node:fs"
 import { expect, test, type Locator, type Page } from "./test"
-import { editorHeading, holdablePreviews, holdPreviews, pageErrors, seriousAccessibilityProblems } from "./helpers"
+import {
+  editorHeading,
+  holdablePreviews,
+  holdPreviews,
+  newResume,
+  pageErrors,
+  preview,
+  previewShown,
+  saveResumes,
+  seriousAccessibilityProblems,
+} from "./helpers"
 
 // The editor's left bar switches between the sections (Write), what the
 // checker found (Check) and Fine-tune (Style), and remembers which for the visit.
-
-async function newResume(page: Page) {
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-}
 
 /** A new resume with a name and an entry, so there's something to check, and its preview on screen. */
 async function resumeToCheck(page: Page) {
@@ -21,19 +25,14 @@ async function resumeToCheck(page: Page) {
     .click()
   await page.getByRole("button", { name: "Add experience" }).click()
   await page.getByLabel("Company").fill("Analytical Engines")
-  await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
+  await previewShown(page)
 }
 
 /** The Jake template's sample resume, which passes every check, saved with these changes to its profile, and opened. */
 async function openSample(page: Page, id: string, profile: Record<string, string> = {}) {
   const sample = JSON.parse(readFileSync("src/lib/typst/preview-samples/jake.json", "utf8"))
   const resume = { ...sample, id, resumeTitle: "Marcus", profileSection: { ...sample.profileSection, ...profile } }
-  await page.addInitScript(
-    ({ key, value }) => {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
-    },
-    { key: `resume:${id}`, value: JSON.stringify(resume) },
-  )
+  await saveResumes(page, [resume])
   await page.goto(`/create/new/${id}`)
 }
 
@@ -109,19 +108,18 @@ test("the left bar switches between writing and checking, and remembers which", 
   // waits for the preview, so the PDF compiler's download isn't cut off,
   // which Safari logs as an error, and in Check for the score, so the
   // checker's reader isn't either.
-  const preview = page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()
   const score = page
     .getByRole("tabpanel", { name: /^Check/ })
     .getByRole("region", { name: "ATS score" })
     .locator("[aria-live=polite]")
   const checked = () => expect(score).toContainText(/^\d+\s*\/ 100\s*out of 100$/)
-  await expect(preview).toBeVisible()
+  await previewShown(page)
   await checked()
   await page.reload()
   await expect(check).toHaveAttribute("aria-selected", "true")
   await checked()
   await write.click()
-  await expect(preview).toBeVisible()
+  await previewShown(page)
   await page.reload()
   await expect(write).toHaveAttribute("aria-selected", "true")
   await expect(sections).toBeVisible()
@@ -132,7 +130,7 @@ test("the left bar switches between writing and checking, and remembers which", 
   const later = await page.context().newPage()
   await later.goto(page.url())
   await expect(later.getByRole("tab", { name: "Write" })).toHaveAttribute("aria-selected", "true")
-  await expect(later.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
+  await previewShown(later)
   await later.close()
 
   // In this tab Check is still remembered, so the resume opens on Check from
@@ -141,14 +139,14 @@ test("the left bar switches between writing and checking, and remembers which", 
   await page.goto("/create/dashboard")
   await page.getByRole("list", { name: "Resumes" }).getByRole("link").first().click()
   await expect(check).toHaveAttribute("aria-selected", "true")
-  await expect(preview).toBeVisible()
+  await previewShown(page)
   await checked()
   await page.getByRole("link", { name: "Dashboard" }).click()
   await page.getByRole("button", { name: "New resume" }).first().click()
   await page.getByRole("dialog").getByRole("button", { name: "Create" }).click()
   await expect(page).toHaveURL(/\/create\/new\//)
   await expect(write).toHaveAttribute("aria-selected", "true")
-  await expect(preview).toBeVisible()
+  await previewShown(page)
 
   expect(errors).toEqual([])
 })
@@ -273,8 +271,8 @@ test("the resume is checked again once typing pauses, not at every key, and a di
   await panel.getByRole("button", { name: "Dismiss: Consider adding a LinkedIn profile" }).click()
   await expect(advice).toBeHidden()
 
-  // What's typed isn't checked yet: a fixed wait, to show nothing changes.
   await email.pressSequentially("ada@example.com")
+  // A fixed wait: proving what's typed isn't checked yet.
   await page.waitForTimeout(1_000)
   await expect(missing).toBeVisible()
 
@@ -569,7 +567,7 @@ test.describe("on a phone", () => {
 
     // Preview hides the left bar, and Edit brings it back as it was.
     await page.getByRole("button", { name: "Preview", exact: true }).tap()
-    await expect(page.getByRole("region", { name: "Live preview" })).toBeVisible()
+    await expect(preview(page)).toBeVisible()
     await expect(modes).toBeHidden()
     await page.getByRole("button", { name: "Edit", exact: true }).tap()
     await expect(check).toHaveAttribute("aria-selected", "true")

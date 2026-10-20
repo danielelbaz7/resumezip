@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "./test"
-import { chooseTemplate, pageErrors, seriousAccessibilityProblems, templateShown } from "./helpers"
+import { chooseTemplate, newResume, pageErrors, preview, seriousAccessibilityProblems, templateShown } from "./helpers"
 
 // From 1280px wide the editor is three columns on one sheet, under a top bar
 // (app/create/editor/page.tsx): the sections, Check or Style on the left, the
@@ -16,13 +16,7 @@ interface Box {
 /** Starts a resume with a name, in a `width` × `height` window, and waits for its preview. */
 async function startWriting(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height })
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  const preview = page.getByRole("region", { name: "Live preview" })
-  await expect(preview.getByText(/Ada Lovelace/i).first()).toBeVisible()
-  return preview
+  await newResume(page, { name: "Ada Lovelace" })
 }
 
 const boxOf = async (locator: Locator): Promise<Box> => (await locator.boundingBox())!
@@ -53,18 +47,18 @@ for (const [width, height] of [
 ] as const) {
   test(`at ${width}px wide, the top bar, the three panels and the zoom each have their own place`, async ({ page }) => {
     const errors = pageErrors(page)
-    const preview = await startWriting(page, width, height)
+    await startWriting(page, width, height)
 
     const top = await boxOf(page.getByRole("banner"))
     const left = await boxOf(page.getByRole("complementary"))
     const form = await boxOf(page.getByRole("main").locator("xpath=.."))
-    const right = await boxOf(preview)
+    const right = await boxOf(preview(page))
     const parts: Record<string, Box> = {
       "the top bar": top,
       "the left panel": left,
       "the form": form,
-      "the page": await pageShown(preview),
-      "the zoom pill": await boxOf(preview.getByRole("button", { name: "Fit" }).locator("xpath=..")),
+      "the page": await pageShown(preview(page)),
+      "the zoom pill": await boxOf(preview(page).getByRole("button", { name: "Fit" }).locator("xpath=..")),
     }
     const names = Object.keys(parts)
     for (const [index, a] of names.entries()) {
@@ -107,7 +101,7 @@ test("the Style tab holds Fine-tune beside the form, and the header's Template b
   page,
 }) => {
   const errors = pageErrors(page)
-  const preview = await startWriting(page, 1440, 900)
+  await startWriting(page, 1440, 900)
   const style = page.getByRole("region", { name: "Style" })
   const sections = page.getByRole("navigation", { name: "Sections" })
   await expect(style).toBeHidden()
@@ -121,12 +115,12 @@ test("the Style tab holds Fine-tune beside the form, and the header's Template b
 
   await chooseTemplate(page, "Harvard")
   // Harvard prints the name in capitals.
-  await expect(preview.getByText("ADA LOVELACE", { exact: true })).toBeAttached()
+  await expect(preview(page).getByText("ADA LOVELACE", { exact: true })).toBeAttached()
   await expect(templateShown(page)).toContainText("Harvard")
 
   // The form stays beside it, to keep writing in.
   await page.getByLabel("Full name").fill("Ada King")
-  await expect(preview.getByText("ADA KING", { exact: true })).toBeAttached()
+  await expect(preview(page).getByText("ADA KING", { exact: true })).toBeAttached()
 
   // The arrow keys go round the three tabs.
   await styleTab(page).focus()
@@ -172,17 +166,17 @@ test("each Fine-tune slider has a mark for the template's own setting, which put
 
 test("Keep it to one page moves the sliders it tightens, and says which", async ({ page }) => {
   const errors = pageErrors(page)
-  const preview = await startWriting(page, 1440, 900)
+  await startWriting(page, 1440, 900)
   const words = "Built and shipped distributed systems that moved millions of events a day while mentoring four engineers. "
   await page.getByLabel("Summary").fill(words.repeat(60))
-  await expect(preview.locator(".react-pdf__Page")).toHaveCount(2)
+  await expect(preview(page).locator(".react-pdf__Page")).toHaveCount(2)
 
   await styleTab(page).click()
   const size = page.getByRole("slider", { name: "Text size" })
   const switchOn = page.getByRole("switch", { name: "Keep it to one page" })
   await expect(size).toHaveJSProperty("value", "1")
   await switchOn.click()
-  await expect(preview.locator(".react-pdf__Page")).toHaveCount(1)
+  await expect(preview(page).locator(".react-pdf__Page")).toHaveCount(1)
   await expect(page.getByRole("status").filter({ hasText: /^Tightened / })).toBeVisible()
   // What it tightened shows on the sliders, and the saved settings aren't changed.
   await expect(page.getByRole("slider", { name: "Space between sections" })).not.toHaveJSProperty("value", "1")
@@ -197,12 +191,12 @@ test("Keep it to one page moves the sliders it tightens, and says which", async 
 
 test("A4, chosen in the Style tab, prints the page on A4, and Download PDF still says only what it does", async ({ page }) => {
   const errors = pageErrors(page)
-  const preview = await startWriting(page, 1440, 900)
+  await startWriting(page, 1440, 900)
   const button = download(page)
   // The first page's height over its width: 11 / 8.5 on Letter, 297 / 210 on A4. A drawing
   // replaced as it's read, as the page is drawn again, has no box: NaN, and the poll reads again.
   const shape = async () => {
-    const box = await preview.locator(".react-pdf__Page__canvas").first().boundingBox()
+    const box = await preview(page).locator(".react-pdf__Page__canvas").first().boundingBox()
     return box ? box.height / box.width : NaN
   }
   await expect.poll(shape).toBeCloseTo(11 / 8.5, 1)
@@ -221,19 +215,19 @@ for (const height of [800, 400]) {
   test(`Fit shows the whole page, from its top, ${height}px tall`, async ({ page }) => {
     const errors = pageErrors(page)
     // Wide enough for the page to be taller than the room for it at first.
-    const preview = await startWriting(page, 1440, height)
+    await startWriting(page, 1440, height)
     // At first the page fills the canvas's width, taller than what shows of it.
-    const panel = preview.locator("[tabindex='0']").first()
+    const panel = preview(page).locator("[tabindex='0']").first()
     // The first page on screen: a new drawing of it waits out of sight until it's ready.
     const firstPage = () =>
-      preview.evaluate((region) => {
+      preview(page).evaluate((region) => {
         const canvas = [...region.querySelectorAll("canvas")].find((canvas) => getComputedStyle(canvas).visibility === "visible")
         return canvas ? canvas.getBoundingClientRect().toJSON() : null
       })
     expect((await firstPage())!.height).toBeGreaterThan((await boxOf(panel)).height)
 
-    await preview.getByRole("button", { name: "Fit" }).click()
-    const zoom = preview.getByRole("button", { name: /^\d+%$/ })
+    await preview(page).getByRole("button", { name: "Fit" }).click()
+    const zoom = preview(page).getByRole("button", { name: /^\d+%$/ })
     await expect(zoom).not.toHaveText("100%")
     await expect
       .poll(async () => {
@@ -245,7 +239,7 @@ for (const height of [800, 400]) {
     if (height === 400) {
       // Below the buttons' least, where Zoom out has nothing further to go.
       expect(parseInt((await zoom.textContent())!)).toBeLessThan(50)
-      await expect(preview.getByRole("button", { name: "Zoom out" })).toHaveAttribute("aria-disabled", "true")
+      await expect(preview(page).getByRole("button", { name: "Zoom out" })).toHaveAttribute("aria-disabled", "true")
     }
 
     expect(errors).toEqual([])
@@ -257,8 +251,7 @@ test.describe("on a phone", () => {
 
   test("Style takes the form's place, the Template button still picks the template, and Write brings the form back", async ({ page }) => {
     const errors = pageErrors(page)
-    await page.goto("/")
-    await page.getByRole("link", { name: "Start writing" }).first().click()
+    await newResume(page)
     await page.getByLabel("Full name").fill("Ada Lovelace")
     const style = page.getByRole("region", { name: "Style" })
 
@@ -276,7 +269,7 @@ test.describe("on a phone", () => {
 
     // Let the preview finish, so the compiler's download isn't cut off as the page closes.
     await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Preview" }).tap()
-    await expect(page.getByRole("region", { name: "Live preview" }).getByText("ADA LOVELACE", { exact: true })).toBeAttached()
+    await expect(preview(page).getByText("ADA LOVELACE", { exact: true })).toBeAttached()
     expect(errors).toEqual([])
   })
 })

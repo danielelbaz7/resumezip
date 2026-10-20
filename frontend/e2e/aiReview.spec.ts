@@ -1,22 +1,11 @@
 import { expect, test, type Page } from "./test"
 import { textPdf } from "../src/lib/import/testFiles"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { openFile, pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { FROM_ELSEWHERE } from "./resumes"
 
 // The AI's notes, with /api/review answered here: tests never ask a real AI.
 
-const RESUME = [
-  "Mara Lin",
-  "mara@example.com | (555) 010-2020 | Seattle, WA",
-  "EXPERIENCE",
-  "Software Engineer, Acme Corp",
-  "Jan 2024 - Present",
-  "- Responsible for testing the checkout service",
-  "- Built a deploy tool that cut release time from two hours to ten minutes for 40 engineers",
-  "EDUCATION",
-  "State University",
-  "B.S. in Computer Science, 2019 - 2023",
-]
-const pdf = { name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf([RESUME]) }
+const pdf = { name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf([FROM_ELSEWHERE]) }
 
 // The line ids are left wrong on purpose: the page places a note by its quote.
 const NOTES = [
@@ -48,7 +37,7 @@ const NOTES = [
 
 async function reviewed(page: Page) {
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
 }
@@ -138,7 +127,10 @@ test("when the AI turns a review away, the page shows the checks and says why, a
   // Back on the drop zone in this tab, the pause is said before a file is chosen, and another resume doesn't ask.
   await page.reload()
   await expect(page.getByRole("status").filter({ hasText: "AI notes are paused for a few minutes" })).toBeVisible()
-  await page.locator('input[type="file"]').setInputFiles({ ...pdf, buffer: textPdf([[...RESUME, "Volunteer tutor, 2022"]]) })
+  await openFile(page.getByRole("button", { name: "Review my resume" }), {
+    ...pdf,
+    buffer: textPdf([[...FROM_ELSEWHERE, "Volunteer tutor, 2022"]]),
+  })
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByText("Give it a few minutes.")).toBeVisible()
   expect(calls).toBe(1)
@@ -168,7 +160,7 @@ test("AI notes are kept in the browser: the same resume shows them again without
 
   // Reviewed again, as a file with another name: the same notes, with no call.
   await page.reload()
-  await page.locator('input[type="file"]').setInputFiles({ ...pdf, name: "Mara Lin (2).pdf" })
+  await openFile(page.getByRole("button", { name: "Review my resume" }), { ...pdf, name: "Mara Lin (2).pdf" })
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
   expect(calls).toBe(1)
 
@@ -250,7 +242,7 @@ test("the AI is asked as soon as the resume's pages are read, and the result wai
   const errors = pageErrors(page)
   const { asked, answer } = await heldAnswer(page)
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
   await asked
   // Asked before there's a result: the page is still being read, its own page counting a recruiter's seven seconds.
   await expect(page.getByRole("heading", { level: 1, name: "Reading it like a recruiter…" })).toBeVisible()
@@ -272,7 +264,7 @@ test("when the AI is long coming, the result opens without its notes, and a view
   await page.clock.install()
   const { asked, answer } = await heldAnswer(page)
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
   await asked
   await page.clock.fastForward(26_000)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
@@ -299,7 +291,7 @@ test("a page that never finishes drawing doesn't hold the result: after the wait
     await route.fulfill({ json: { notes: NOTES } })
   })
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
   await asked
   await page.clock.fastForward(26_000)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
@@ -323,6 +315,7 @@ test("where the lines can't be hashed, the AI is still asked and its notes shown
 })
 
 test("the drop zone's note that AI notes are paused goes when the pause is over", async ({ page }) => {
+  const errors = pageErrors(page)
   await page.clock.install()
   await page.goto("/review")
   await page.evaluate(() => sessionStorage.setItem("resumezip.aiPausedUntil", String(Date.now() + 60_000)))
@@ -331,4 +324,5 @@ test("the drop zone's note that AI notes are paused goes when the pause is over"
   await expect(note).toBeVisible()
   await page.clock.fastForward(61_000)
   await expect(note).toHaveCount(0)
+  expect(errors).toEqual([])
 })

@@ -1,5 +1,5 @@
 import { expect, test } from "./test"
-import { editorHeading, pageErrors, templateShown } from "./helpers"
+import { editorHeading, pageErrors, previewShown, saveResumes, templateShown } from "./helpers"
 
 // The editor is one page, built once, that next.config.js serves at every
 // resume's address, /create/new/<id>. The page reads the id from the address.
@@ -35,23 +35,16 @@ test("a resume whose id has a slash, a space and an accent opens from the dashbo
     selectedTemplate: "jake",
     profileSection: { fullName: "Ada Lovelace" },
   }
-  await page.addInitScript(
-    ({ key, value }) => {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
-    },
-    { key: `resume:${id}`, value: JSON.stringify(resume) },
-  )
+  await saveResumes(page, [resume])
 
-  // Let the preview finish before the page is left, each time, so the compiler's download and pdf.js's worker aren't cut off.
-  const previewShown = () =>
-    expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
   await page.goto("/create/dashboard")
   await page.getByRole("link", { name: "Accented", exact: true }).click()
   await expect(page.getByLabel("Full name")).toHaveValue("Ada Lovelace")
-  await previewShown()
+  // Let the preview finish before the page is left, each time, so the compiler's download and pdf.js's worker aren't cut off.
+  await previewShown(page)
   await page.reload()
   await expect(page.getByLabel("Full name")).toHaveValue("Ada Lovelace")
-  await previewShown()
+  await previewShown(page)
   expect(errors).toEqual([])
 })
 
@@ -97,6 +90,6 @@ test("resumes open in the page from links and the history, each one afresh", asy
 
   expect(await page.evaluate(() => window.marked)).toBe(true)
   // Let the preview finish, so the compiler's download isn't cut off as the page closes.
-  await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
+  await previewShown(page)
   expect(errors).toEqual([])
 })

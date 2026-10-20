@@ -1,13 +1,10 @@
 import { expect, test, type Page } from "./test"
-import { pageErrors, settled } from "./helpers"
+import { newResume, pageErrors, settled } from "./helpers"
 import { TEMPLATES } from "../src/lib/templates"
 
 /** Starts a new resume with a name in it, then makes the window `width` × `height`. */
 async function startWriting(page: Page, width?: number, height?: number) {
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Full name").fill("Ada Lovelace")
+  await newResume(page, { name: "Ada Lovelace" })
   if (width && height) await page.setViewportSize({ width, height })
 }
 

@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "./test"
 import { WIDE_SCREEN } from "../src/components/editor/layout"
-import { editorHeading, pageErrors, settled } from "./helpers"
+import { editorHeading, newResume, pageErrors, preview, settled } from "./helpers"
 
 // The editor puts the form beside the preview only where both have room
 // (components/editor/layout.ts). Narrower, an Edit / Preview switch shows one
@@ -23,9 +23,7 @@ const LONG_BULLETS = [
 /** Starts a resume in a `width` × `height` window, with one Experience entry filled in. */
 async function writeExperience(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height })
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
+  await newResume(page)
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await experience(page).click()
   await page.getByRole("button", { name: "Add experience" }).click()
@@ -37,7 +35,6 @@ async function writeExperience(page: Page, width: number, height: number) {
 }
 
 const experience = (page: Page) => page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: /^Experience$/ })
-const preview = (page: Page) => page.getByRole("region", { name: "Live preview" })
 const views = (page: Page) => page.getByRole("group", { name: "View" })
 /** Whether the page's own check for a wide screen passes, which some scrolling depends on. */
 const wideByScript = (page: Page) => page.evaluate((query) => matchMedia(query).matches, WIDE_SCREEN)
@@ -195,9 +192,7 @@ test("crossing 1280px keeps the form where it was scrolled to", async ({ page })
 
 test("a field chosen while a new entry slides open keeps the cursor", async ({ page }) => {
   const errors = pageErrors(page)
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
+  await newResume(page)
   await experience(page).click()
   await page.getByRole("button", { name: "Add experience" }).click()
   // Into Role straight away, before the entry has finished sliding open.
@@ -215,9 +210,7 @@ test("a field chosen while a new entry slides open keeps the cursor", async ({ p
 test("on a wide screen, the section list says how many entries each section has", async ({ page }) => {
   const errors = pageErrors(page)
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
+  await newResume(page)
   // The number isn't part of the button's name, as the form lists the entries.
   await expect(experience(page)).toHaveText(/Experience$/)
 

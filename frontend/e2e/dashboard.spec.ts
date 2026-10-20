@@ -1,5 +1,15 @@
 import { expect, test, type Locator, type Page } from "./test"
-import { countThumbSlides, pageErrors, seriousAccessibilityProblems, settled, thumbCovers } from "./helpers"
+import {
+  countThumbSlides,
+  pageErrors,
+  pixelsOf,
+  previewShown,
+  saveResumes,
+  savedResume,
+  seriousAccessibilityProblems,
+  settled,
+  thumbCovers,
+} from "./helpers"
 
 declare global {
   interface Window {
@@ -29,14 +39,7 @@ const resume = (id: string, resumeTitle: string, more: { resumeTag?: string; sel
  * visit would have. Saved once a tab, so one deleted stays deleted.
  */
 async function dashboardWith(page: Page, resumes: (ReturnType<typeof resume> & Record<string, unknown>)[]) {
-  await page.addInitScript((resumes) => {
-    if (sessionStorage.getItem("seeded")) return
-    sessionStorage.setItem("seeded", "yes")
-    for (const resume of resumes) {
-      const key = `resume:${resume.id}`
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(resume))
-    }
-  }, resumes)
+  await saveResumes(page, resumes, { once: true })
   await page.goto("/create/dashboard")
 }
 
@@ -133,6 +136,7 @@ test("a long resume name wraps in the table, and every resume's buttons stay on 
 })
 
 test("in the list, each resume's small page has its edge on all four sides", async ({ page }) => {
+  const errors = pageErrors(page)
   await page.setViewportSize({ width: 1280, height: 800 })
   await dashboardWith(page, [resume("a", "Ada")])
   await page.getByRole("button", { name: "List" }).click()
@@ -150,20 +154,11 @@ test("in the list, each resume's small page has its edge on all four sides", asy
 
   // Its left-most column of pixels, halfway down, as drawn: the grey edge, not the white page inside.
   const shot = await page.screenshot({ clip: { x: Math.round(box.x), y: Math.round(box.y + box.height / 2) - 4, width: 1, height: 8 } })
-  const pixels = await page.evaluate(async (png) => {
-    const image = new Image()
-    image.src = `data:image/png;base64,${png}`
-    await image.decode()
-    const canvas = document.createElement("canvas")
-    canvas.width = image.width
-    canvas.height = image.height
-    const context = canvas.getContext("2d")!
-    context.drawImage(image, 0, 0)
-    return Array.from(context.getImageData(0, 0, image.width, image.height).data)
-  }, shot.toString("base64"))
+  const { data } = await pixelsOf(page, shot)
   // Red, green and blue of each pixel; white would be the page, with its edge cut off.
-  const reds = pixels.filter((_, index) => index % 4 === 0)
+  const reds = data.filter((_, index) => index % 4 === 0)
   expect(Math.max(...reds)).toBeLessThan(240)
+  expect(errors).toEqual([])
 })
 
 test("on a tablet, two resumes whose names differ only by a number both show it", async ({ page }) => {
@@ -210,7 +205,7 @@ test("New resume starts one blank in the template and paper chosen, copies one h
   const newResume = page.getByRole("main").getByRole("button", { name: "New resume" }).first()
   const dialog = page.getByRole("dialog", { name: "New resume" })
   // The resume the editor has open, as saved.
-  const opened = () => page.evaluate(() => JSON.parse(localStorage.getItem(`resume:${location.pathname.split("/").pop()}`) ?? "null"))
+  const opened = () => savedResume(page, new URL(page.url()).pathname.split("/").pop()!)
 
   // Blank, in Harvard, on A4 rather than its own Letter.
   await newResume.click()
@@ -388,8 +383,11 @@ for (const [layout, width] of [
     await expect(copy).toBeFocused()
     const id = (await copy.getAttribute("href"))!.split("/").pop()!
     expect(id).not.toBe("a")
-    const saved = await page.evaluate((id) => JSON.parse(localStorage.getItem(`resume:${id}`)!), id)
-    expect(saved).toMatchObject({ resumeTitle: "Ada copy", selectedTemplate: "jake", headings: { skills: "Toolbox" } })
+    expect(await savedResume(page, id)).toMatchObject({
+      resumeTitle: "Ada copy",
+      selectedTemplate: "jake",
+      headings: { skills: "Toolbox" },
+    })
 
     // Escape keeps the old name.
     await row("Ada copy").getByRole("button", { name: "Rename" }).click()
@@ -436,6 +434,7 @@ test("resumes show as their pages, and the list is a click away, remembered afte
 })
 
 test("the switch's white pill slides to the view picked", async ({ page }) => {
+  const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Ada")])
   const view = page.getByRole("group", { name: "View" })
   await expect.poll(() => thumbCovers(view, view.getByRole("button", { name: "Pages" }))).toBe(true)
@@ -445,6 +444,7 @@ test("the switch's white pill slides to the view picked", async ({ page }) => {
   await list.click()
   await expect.poll(() => thumbCovers(view, list)).toBe(true)
   expect(await slides()).toBe(1)
+  expect(errors).toEqual([])
 })
 
 test("switching to the list moves each resume's page and name to its row, with focus kept on the switch", async ({ page }) => {
@@ -625,7 +625,7 @@ test("the search finds resumes by name or template, and opens one from the keybo
   await expect(page).toHaveURL(/\/create\/new\/c$/)
   await expect(page.getByLabel("Resume name")).toHaveValue("For Kestrel Health")
   // Let the preview finish, so the compiler's download isn't cut off as the page closes.
-  await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
+  await previewShown(page)
   expect(errors).toEqual([])
 })
 
@@ -669,25 +669,15 @@ test("in use, the search lifts into the middle of the screen, and Escape or a pr
       ),
     )
     const shot = await page.screenshot({ clip: { x: 0, y: 1000, width: 1280, height: 200 } })
-    const sharpest = await page.evaluate(async (png) => {
-      const image = new Image()
-      image.src = `data:image/png;base64,${png}`
-      await image.decode()
-      const canvas = document.createElement("canvas")
-      canvas.width = image.width
-      canvas.height = image.height
-      const context = canvas.getContext("2d")!
-      context.drawImage(image, 0, 0)
-      const { data, width, height } = context.getImageData(0, 0, image.width, image.height)
-      // Chromium leaves a hard edge (steps of 70 or more) in the first and last few pixels of a
-      // clipped screenshot, where the backdrop blur meets the crop. It moves with the clip, so it's
-      // from taking the picture, not in the page: those pixels are left out.
-      const edge = 16
-      let most = 0
-      for (let y = 0; y < height; y++)
-        for (let x = edge; x < width - edge; x++) most = Math.max(most, Math.abs(data[(y * width + x) * 4] - data[(y * width + x - 1) * 4]))
-      return most
-    }, shot.toString("base64"))
+    const { data, width, height } = await pixelsOf(page, shot)
+    // Chromium leaves a hard edge (steps of 70 or more) in the first and last few pixels of a
+    // clipped screenshot, where the backdrop blur meets the crop. It moves with the clip, so it's
+    // from taking the picture, not in the page: those pixels are left out.
+    const edge = 16
+    let sharpest = 0
+    for (let y = 0; y < height; y++)
+      for (let x = edge; x < width - edge; x++)
+        sharpest = Math.max(sharpest, Math.abs(data[(y * width + x) * 4] - data[(y * width + x - 1) * 4]))
     expect(sharpest).toBeLessThan(60)
   }
 

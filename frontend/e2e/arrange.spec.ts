@@ -1,7 +1,18 @@
-import { readFileSync } from "node:fs"
 import { expect, test, type Locator, type Page } from "./test"
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import { boxText, cursorInBox, editorTitle, pageErrors, selectInBox, seriousAccessibilityProblems } from "./helpers"
+import {
+  cursorInBox,
+  editorTitle,
+  expectText,
+  openFile,
+  pageErrors,
+  pdfText,
+  previewShown,
+  printed,
+  saveResumes,
+  savedResume,
+  selectInBox,
+  seriousAccessibilityProblems,
+} from "./helpers"
 
 // Entries and bullets can be moved, and left out of the PDF without being
 // deleted, to tailor one resume to a job.
@@ -35,51 +46,14 @@ const RESUME = {
   awardsSection: [],
 }
 
-const preview = (page: Page) => page.getByRole("region", { name: "Live preview" })
-
-/**
- * The text of the preview's pages, in the order it's printed, or "" while a
- * page's text is still being laid out (it ends with an "endOfContent" mark),
- * so that what isn't printed is never missing just because it isn't there yet.
- */
-const printed = (page: Page) =>
-  preview(page)
-    .locator(".react-pdf__Page__textContent")
-    .evaluateAll((layers) =>
-      layers.every((layer) => layer.querySelector(".endOfContent")) ? layers.map((layer) => layer.textContent ?? "").join(" ") : "",
-    )
-
 /** Which of `names` the preview prints, in the order it prints them. */
 const printedOrder = async (page: Page, names: string[]) => {
   const text = await printed(page)
   return names.filter((name) => text.includes(name)).sort((a, b) => text.indexOf(a) - text.indexOf(b))
 }
 
-/** The text of a downloaded PDF. */
-async function pdfText(file: string): Promise<string> {
-  const doc = await getDocument({ data: new Uint8Array(readFileSync(file)), isEvalSupported: false }).promise
-  try {
-    const pages = await Promise.all(Array.from({ length: doc.numPages }, (_, index) => doc.getPage(index + 1)))
-    const contents = await Promise.all(pages.map((page) => page.getTextContent()))
-    return contents.flatMap((content) => content.items.map((item) => ("str" in item ? item.str : ""))).join(" ")
-  } finally {
-    await doc.destroy()
-  }
-}
-
-/** The resume as saved in this browser. */
-const saved = (page: Page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "{}"), `resume:${RESUME.id}`)
-
-// Waits for the preview, so the PDF compiler's download isn't cut off by a reload, which Safari logs as an error.
-const previewShown = (page: Page) => expect(preview(page).locator(".react-pdf__Page__canvas").first()).toBeVisible()
-
 async function openSection(page: Page, section: string, resume: { id: string } & Record<string, unknown> = RESUME) {
-  await page.addInitScript(
-    ({ key, value }) => {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
-    },
-    { key: `resume:${resume.id}`, value: JSON.stringify(resume) },
-  )
+  await saveResumes(page, [resume])
   await page.goto(`/create/new/${resume.id}`)
   await previewShown(page)
   await page
@@ -106,7 +80,7 @@ test("an entry is a card, folded to its name and what's in it, opened with a cli
   await expect(more).toBeVisible()
   await box.click()
   await expect(more).toBeHidden()
-  await expect.poll(() => boxText(box)).toBe("• Built the search index\n• Cut serving costs by 30%\n• Mentored four interns")
+  await expectText(box, "• Built the search index\n• Cut serving costs by 30%\n• Mentored four interns")
 
   await done.click()
   await expect(done).toHaveCount(0)
@@ -126,6 +100,7 @@ test("an entry is a card, folded to its name and what's in it, opened with a cli
 })
 
 test("an entry's card has room round it for its shadow, open or folded", async ({ page }) => {
+  const errors = pageErrors(page)
   await openSection(page, "Experience")
   await expect(page.getByRole("button", { name: "Done editing entry 1" })).toBeVisible()
   // What's between each card and the form that scrolls clips nothing near it: an open card's
@@ -146,6 +121,7 @@ test("an entry's card has room round it for its shadow, open or folded", async (
     }),
   )
   expect(clipped).toEqual([])
+  expect(errors).toEqual([])
 })
 
 test("a project's card is named by the project alone, without its tech stack", async ({ page }) => {
@@ -270,19 +246,19 @@ test("an entry left out isn't printed, or in the PDF's copy of the resume, and c
   const other = await elsewhere.newPage()
   const otherErrors = pageErrors(other)
   await other.goto("/create/dashboard")
-  await other.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(other.getByRole("button", { name: "Open a file" }).first(), pdf)
   await expect(other).toHaveURL(/\/create\/new\/tailored$/)
   await previewShown(other)
-  const restored = await other.evaluate(() => JSON.parse(localStorage.getItem("resume:tailored") ?? "{}"))
+  const restored = await savedResume(other, RESUME.id)
   expect(restored.workExperienceSection.map((entry: { companyName: string }) => entry.companyName)).toEqual(["Google", "Hooli"])
   expect(JSON.stringify(restored)).not.toContain("Initech")
   await elsewhere.close()
 
   // Changed here since, and with something left out, the resume has what the PDF doesn't, so opening the PDF here says so.
   await page.getByRole("checkbox", { name: "Include entry 3 in the PDF" }).uncheck()
-  await expect.poll(async () => (await saved(page)).workExperienceSection[2].leftOut).toBe(true)
+  await expect.poll(async () => (await savedResume(page, RESUME.id)).workExperienceSection[2].leftOut).toBe(true)
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Open a file" }).first(), pdf)
   const conflict = page.getByRole("dialog", { name: "You already have this resume" })
   await expect(conflict).toContainText("What you left out of the PDF isn't in the file, so replacing deletes it.")
   await conflict.getByRole("button", { name: "Cancel" }).click()
@@ -322,16 +298,16 @@ test("a bullet starting with ○ is left out, and Alt and the arrow keys move a 
   await box.focus()
   await selectInBox(box, 0)
   await page.keyboard.press("Alt+ArrowDown")
-  await expect.poll(() => boxText(box)).toBe("• Built the search index\n• Cut serving costs by 30%\n○ Mentored four interns")
+  await expectText(box, "• Built the search index\n• Cut serving costs by 30%\n○ Mentored four interns")
   await expect
-    .poll(async () => (await saved(page)).workExperienceSection[0].workDescription)
+    .poll(async () => (await savedResume(page, RESUME.id)).workExperienceSection[0].workDescription)
     .toBe("• Built the search index\n• Cut serving costs by 30%\n○ Mentored four interns")
 
   // Enter in a left-out bullet: the words moved to the new line stay left out.
   const split = "• Built the search index\n• Cut serving costs by 30%\n○ Mentored four".length
   await selectInBox(box, split)
   await page.keyboard.press("Enter")
-  await expect.poll(() => boxText(box)).toBe("• Built the search index\n• Cut serving costs by 30%\n○ Mentored four\n○ interns")
+  await expectText(box, "• Built the search index\n• Cut serving costs by 30%\n○ Mentored four\n○ interns")
   expect(await cursorInBox(box)).toBe(split + 3)
 
   expect(errors).toEqual([])
@@ -370,12 +346,13 @@ test("a section is dragged to a new place from the keyboard, and printed and sav
   await expect(order.nth(1)).toHaveAccessibleName("Skills")
   await expect(order.nth(2)).toHaveAccessibleName("Experience")
   await expect.poll(() => printedOrder(page, ["Google", "Python"])).toEqual(["Python", "Google"])
-  await expect.poll(async () => (await saved(page)).sectionOrder.slice(0, 2)).toEqual(["Skills", "Work"])
+  await expect.poll(async () => (await savedResume(page, RESUME.id)).sectionOrder.slice(0, 2)).toEqual(["Skills", "Work"])
 
   expect(errors).toEqual([])
 })
 
-const companies = async (page: Page) => (await saved(page)).workExperienceSection.map((entry: { companyName: string }) => entry.companyName)
+const companies = async (page: Page) =>
+  (await savedResume(page, RESUME.id)).workExperienceSection.map((entry: { companyName: string }) => entry.companyName)
 
 /** Waits for what `control` is in to light up: the app's own animation on it, paused at its start, puts it on white. */
 const lightsUp = (control: Locator) =>
@@ -521,7 +498,7 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
   const errors = pageErrors(page)
   await page.clock.install()
   await openSection(page, "Experience")
-  const before = (await saved(page)).workExperienceSection
+  const before = (await savedResume(page, RESUME.id)).workExperienceSection
   // The open entry's Company box, its name, typed in where it's shown.
   const company = page.getByRole("textbox", { name: "Company" })
   const deleteEntry2 = async () => {
@@ -542,7 +519,7 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
   await expect(page.getByRole("status").filter({ hasText: "back" })).toHaveText("“Initech” is back")
   await expect(company).toBeFocused()
   await expect(company).toHaveValue("Initech")
-  await expect.poll(async () => (await saved(page)).workExperienceSection).toEqual(before)
+  await expect.poll(async () => (await savedResume(page, RESUME.id)).workExperienceSection).toEqual(before)
 
   // In a field, the shortcut takes back typing and leaves the entry deleted.
   // Time stands still from the delete to the last shortcut, so Undo is still
@@ -569,6 +546,6 @@ test("a deleted entry comes back with Undo, or ⌘Z (Ctrl+Z) outside a field, in
   await expect(editorTitle(page)).toHaveText(/Experience/)
   await expect(page.getByRole("button", { name: "Done editing entry 2" })).toBeVisible()
   await expect(undo).toHaveCount(0)
-  await expect.poll(async () => (await saved(page)).workExperienceSection).toEqual(before)
+  await expect.poll(async () => (await savedResume(page, RESUME.id)).workExperienceSection).toEqual(before)
   expect(errors).toEqual([])
 })

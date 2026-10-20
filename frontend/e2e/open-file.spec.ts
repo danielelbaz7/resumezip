@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "./test"
 import { MAX_PAGES, MAX_UNZIPPED_BYTES } from "../src/lib/import/limits"
 import { textPdf, wordFile } from "../src/lib/import/testFiles"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { openFile, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 const RESUME = ["Mara Lin", "mara@example.com", "EDUCATION", "State University"]
 const pdf = (pages: string[][]) => ({ name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf(pages) })
@@ -63,8 +63,8 @@ test("opening a PDF works after pdf.js failed to download once", async ({ page }
   const errors = pageErrors(page)
   const file = pdf([["Mara Lin", "mara@example.com"]])
 
-  // pdf.js downloads when the first PDF is opened. Its chunk's name changes
-  // with every build, so it's found by a message only pdf.js has.
+  // pdf.js downloads when the first PDF is opened. Found as holdPdfjs finds it,
+  // but cut off the first time rather than held, as if the connection dropped.
   let failed = false
   await page.route("**/_next/static/chunks/**", async (route) => {
     if (failed) return route.continue()
@@ -77,15 +77,13 @@ test("opening a PDF works after pdf.js failed to download once", async ({ page }
   })
 
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles(file)
+  await openFile(page.getByRole("button", { name: "Open a file" }), file)
   const error = page.getByRole("dialog", { name: "Couldn't open that file" })
   await expect(error).toContainText("Something went wrong reading this file.")
   expect(failed).toBe(true)
 
   // The connection is back. Trying again opens the PDF, without reloading the page.
-  const choosing = page.waitForEvent("filechooser")
-  await error.getByRole("button", { name: "Choose another file" }).click()
-  await (await choosing).setFiles(file)
+  await openFile(error.getByRole("button", { name: "Choose another file" }), file)
   await expect(page.getByRole("dialog", { name: "Here's what we found" })).toBeVisible()
 
   // Only the failed download, and the dashboard logging it.
@@ -108,15 +106,13 @@ test("when the code that reads files can't download, it says so, and works once 
   })
 
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles(pdf([RESUME]))
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf([RESUME]))
   const error = page.getByRole("dialog", { name: "Couldn't open that file" })
   await expect(error).toContainText("Something went wrong reading this file.")
   expect(failed).toBeGreaterThan(0)
 
   offline = false
-  const choosing = page.waitForEvent("filechooser")
-  await error.getByRole("button", { name: "Choose another file" }).click()
-  await (await choosing).setFiles(pdf([RESUME]))
+  await openFile(error.getByRole("button", { name: "Choose another file" }), pdf([RESUME]))
   await expect(page.getByRole("dialog", { name: "Here's what we found" })).toContainText("Mara Lin")
 
   // Only the failed downloads, and the dashboard logging one.
@@ -130,7 +126,7 @@ test("Cancel stops reading a file, and the next one opens as usual", async ({ pa
 
   // Cancelled while pdf.js downloads, so the file is still being read.
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles(pdf([RESUME]))
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf([RESUME]))
   const reading = page.getByRole("dialog", { name: "Opening your file" })
   await expect(reading).toBeVisible()
   await expect.poll(() => pdfjs.held).toBe(true)
@@ -146,7 +142,7 @@ test("Cancel stops reading a file, and the next one opens as usual", async ({ pa
 
   // The next file opens. The worker that sorted its text has ended; pdf.js's
   // stays while the review shows the PDF, and ends when it closes.
-  await page.locator('input[type="file"]').setInputFiles(pdf([RESUME]))
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf([RESUME]))
   const review = page.getByRole("dialog", { name: "Here's what we found" })
   await expect(review).toContainText("Mara Lin")
   await expect.poll(workers).toEqual(["import ended", "pdf.js running"])
@@ -161,7 +157,7 @@ test("a file read mostly wrong says so up front, and shows what couldn't be plac
   const review = page.getByRole("dialog", { name: "Here's what we found" })
 
   // Read right: nothing to warn about.
-  await page.locator('input[type="file"]').setInputFiles(pdf([RESUME]))
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf([RESUME]))
   await expect(review).toContainText("State University")
   await expect(review).not.toContainText("We couldn't place")
   // Unticked, the school is text to copy or download, but it was placed.
@@ -181,7 +177,7 @@ test("a file read mostly wrong says so up front, and shows what couldn't be plac
     "Escorted outpatients to imaging appointments and answered their questions",
     "Cleaned wheelchairs and kept the waiting areas tidy, following hospital rules",
   ]
-  await page.locator('input[type="file"]').setInputFiles(pdf([lost]))
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf([lost]))
   await expect(review).toContainText("We couldn't place most of this file.")
   expect(await seriousAccessibilityProblems(page)).toEqual([])
   // The dialog's buttons along its bottom aren't a second footer for the page.
@@ -198,7 +194,7 @@ test("leaving the page stops reading the file", async ({ page }) => {
 
   await page.goto("/terms")
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Dashboard" }).click()
-  await page.locator('input[type="file"]').setInputFiles(pdf([RESUME]))
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf([RESUME]))
   await expect.poll(() => pdfjs.held).toBe(true)
   await page.goBack()
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Terms & privacy")
@@ -214,15 +210,13 @@ test(`a PDF of ${MAX_PAGES} pages opens, and a longer one says why it can't`, as
   const errors = pageErrors(page)
   const pages = (count: number) => Array.from({ length: count }, () => RESUME)
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles(pdf(pages(MAX_PAGES + 1)))
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf(pages(MAX_PAGES + 1)))
   const error = page.getByRole("dialog", { name: "Couldn't open that file" })
   await expect(error).toContainText(
     `This PDF has ${MAX_PAGES + 1} pages, too many for a resume. Open one with ${MAX_PAGES} pages or fewer.`,
   )
 
-  const choosing = page.waitForEvent("filechooser")
-  await error.getByRole("button", { name: "Choose another file" }).click()
-  await (await choosing).setFiles(pdf(pages(MAX_PAGES)))
+  await openFile(error.getByRole("button", { name: "Choose another file" }), pdf(pages(MAX_PAGES)))
   await expect(page.getByRole("dialog", { name: "Here's what we found" })).toContainText("Mara Lin")
   expect(errors).toEqual([])
 })
@@ -231,7 +225,7 @@ test("a Word file is read in a worker, which then ends", async ({ page }) => {
   const errors = pageErrors(page)
   const workers = watchWorkers(page)
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles(docx(wordFile(RESUME)))
+  await openFile(page.getByRole("button", { name: "Open a file" }), docx(wordFile(RESUME)))
   const review = page.getByRole("dialog", { name: "Here's what we found" })
   await expect(review).toContainText("Mara Lin")
   await expect(review).toContainText("mara@example.com")
@@ -246,7 +240,7 @@ test("a Word file's page header gives its name and contact details, and its foot
     header: { default: ["Jordan Lee", "jordan@example.com | (555) 010-2299 | Austin, TX"] },
     footer: { default: ["References available upon request"] },
   })
-  await page.locator('input[type="file"]').setInputFiles(docx(file))
+  await openFile(page.getByRole("button", { name: "Open a file" }), docx(file))
   const review = page.getByRole("dialog", { name: "Here's what we found" })
   await expect(review).toContainText("Jordan Lee")
   await expect(review).toContainText("Austin, TX · jordan@example.com · (555) 010-2299")
@@ -257,15 +251,16 @@ test("a Word file's page header gives its name and contact details, and its foot
 })
 
 test("a Word file that unzips to too much text says so", async ({ page }) => {
+  const errors = pageErrors(page)
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles(docx(wordFile(RESUME, { padding: MAX_UNZIPPED_BYTES })))
+  await openFile(page.getByRole("button", { name: "Open a file" }), docx(wordFile(RESUME, { padding: MAX_UNZIPPED_BYTES })))
   await expect(page.getByRole("dialog", { name: "Couldn't open that file" })).toContainText("This file has too much text to be a resume.")
+  expect(errors).toEqual([])
 })
 
 test("closing the review after unticking or swapping asks first", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/create/dashboard")
-  const file = page.locator('input[type="file"]')
   const review = page.getByRole("dialog", { name: "Here's what we found" })
   const discard = page.getByRole("dialog", { name: "Discard your changes?" })
   const keepReviewing = discard.getByRole("button", { name: "Keep reviewing" })
@@ -273,14 +268,14 @@ test("closing the review after unticking or swapping asks first", async ({ page 
   const swap = review.getByRole("button", { name: /^Swap school and degree/ })
 
   // Unchanged, Escape closes it at once.
-  await file.setInputFiles(pdf([RESUME]))
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf([RESUME]))
   await expect(entry).toBeChecked()
   await page.keyboard.press("Escape")
   await expect(review).toBeHidden()
 
   // Unticked, Escape asks first. Escaping the question goes back to the
   // review, with the entry still unticked and focus where it was.
-  await file.setInputFiles(pdf([RESUME]))
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf([RESUME]))
   await entry.press("Space")
   await expect(entry).not.toBeChecked()
   await page.keyboard.press("Escape")
@@ -311,7 +306,7 @@ test("closing the review after unticking or swapping asks first", async ({ page 
 test("Create resume needs something ticked", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/create/dashboard")
-  await page.locator('input[type="file"]').setInputFiles(pdf([RESUME]))
+  await openFile(page.getByRole("button", { name: "Open a file" }), pdf([RESUME]))
   const review = page.getByRole("dialog", { name: "Here's what we found" })
   const entry = review.getByRole("checkbox", { name: "Include State University" })
   const create = review.getByRole("button", { name: "Create resume" })
