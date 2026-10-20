@@ -1,17 +1,29 @@
 // The AI services the review can ask, tried in order: the next one only when
-// one is busy, failing or slow. Azure OpenAI and OpenAI run the same model
-// behind the same chat completions API, so one prompt and one answer schema
-// serve both, and a visitor can't tell which one answered.
+// one is busy, failing or slow. Claude goes first because its API credit is
+// renewed each month and lost if it isn't spent; OpenAI's credit expires
+// before Azure's, so OpenAI comes next. Azure OpenAI and OpenAI run the same
+// model behind the same chat completions API. All three take one prompt and
+// one answer schema.
 
+import Anthropic from "@anthropic-ai/sdk"
 import { ANSWER_SCHEMA } from "./prompt"
 
-export interface Provider {
-  name: "azure" | "openai"
+interface ClaudeProvider {
+  name: "claude"
+  apiKey: string
+  model: string
+}
+
+/** A service behind OpenAI's chat completions API. */
+interface ChatProvider {
+  name: "openai" | "azure"
   url: string
   headers: Record<string, string>
   /** What the request names as the model: Azure takes its deployment's name. */
   deployment: string
 }
+
+export type Provider = ClaudeProvider | ChatProvider
 
 export interface Asked {
   provider: Provider["name"]
@@ -30,21 +42,16 @@ export class ProviderError extends Error {
   }
 }
 
+const CLAUDE_MODEL = "claude-sonnet-5-5"
 // Azure's deployment runs the same model (AZURE_OPENAI_DEPLOYMENT), so either one's notes read alike.
 const OPENAI_MODEL = "gpt-5.4-mini"
 
 /** The providers that have keys in `env`, in the order they're tried. */
 export function providersOf(env: Record<string, string | undefined>): Provider[] {
   const providers: Provider[] = []
-  const { AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT, OPENAI_API_KEY } = env
-  if (AZURE_OPENAI_API_KEY && AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_DEPLOYMENT) {
-    providers.push({
-      name: "azure",
-      url: `${new URL(AZURE_OPENAI_ENDPOINT).origin}/openai/v1/chat/completions`,
-      headers: { "api-key": AZURE_OPENAI_API_KEY },
-      deployment: AZURE_OPENAI_DEPLOYMENT,
-    })
-  }
+  const { ANTHROPIC_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT } = env
+  // A key made in a workspace: Anthropic turns away an organization-wide key unless the request names a workspace.
+  if (ANTHROPIC_API_KEY) providers.push({ name: "claude", apiKey: ANTHROPIC_API_KEY, model: CLAUDE_MODEL })
   if (OPENAI_API_KEY) {
     providers.push({
       name: "openai",
@@ -53,17 +60,71 @@ export function providersOf(env: Record<string, string | undefined>): Provider[]
       deployment: OPENAI_MODEL,
     })
   }
+  if (AZURE_OPENAI_API_KEY && AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_DEPLOYMENT) {
+    providers.push({
+      name: "azure",
+      url: `${new URL(AZURE_OPENAI_ENDPOINT).origin}/openai/v1/chat/completions`,
+      headers: { "api-key": AZURE_OPENAI_API_KEY },
+      deployment: AZURE_OPENAI_DEPLOYMENT,
+    })
+  }
   return providers
 }
 
 export interface AskOptions {
   signal?: AbortSignal
-  /** gpt-5.4-mini thinks before it answers; more is slower and costs more. */
+  /** How much the model thinks before it answers; more is slower and costs more. Claude has no "none" and is asked for "low". */
   effort?: "none" | "low" | "medium" | "high"
 }
 
 /** Asks one provider for the notes; throws a ProviderError when it can't answer. */
-export async function ask(provider: Provider, system: string, user: string, { signal, effort = "low" }: AskOptions = {}): Promise<Asked> {
+export function ask(provider: Provider, system: string, user: string, options: AskOptions = {}): Promise<Asked> {
+  return provider.name === "claude" ? askClaude(provider, system, user, options) : askChat(provider, system, user, options)
+}
+
+async function askClaude(provider: ClaudeProvider, system: string, user: string, { signal, effort = "low" }: AskOptions): Promise<Asked> {
+  const started = Date.now()
+  // Made per request so it takes the fetch in place now. No retries: askAny moves on to the next provider instead.
+  const client = new Anthropic({ apiKey: provider.apiKey, maxRetries: 0 })
+  let message: Anthropic.Message
+  try {
+    message = await client.messages.create(
+      {
+        model: provider.model,
+        // Thinking counts toward this too.
+        max_tokens: 12_000,
+        system,
+        messages: [{ role: "user", content: user }],
+        output_config: { effort: effort === "none" ? "low" : effort, format: { type: "json_schema", schema: ANSWER_SCHEMA } },
+      },
+      { signal },
+    )
+  } catch (error) {
+    if (signal?.aborted) throw error
+    // The error's message is the API's reason (credit, rate limit, bad request); it never holds the key.
+    if (error instanceof Anthropic.APIError) throw new ProviderError(provider.name, error.status ?? null, error.message)
+    throw new ProviderError(provider.name, null, `couldn't reach it: ${String(error)}`)
+  }
+  const text = message.content.find((block) => block.type === "text")?.text
+  // A refusal or a cut-off answer doesn't follow the schema.
+  if (message.stop_reason !== "end_turn" || !text)
+    throw new ProviderError(provider.name, 200, `no answer (${message.stop_reason ?? "unknown"})`)
+  let answer: unknown
+  try {
+    answer = JSON.parse(text)
+  } catch {
+    throw new ProviderError(provider.name, 200, "the answer isn't JSON")
+  }
+  const { usage } = message
+  return {
+    provider: provider.name,
+    answer,
+    ms: Date.now() - started,
+    usage: { input: usage.input_tokens, output: usage.output_tokens, reasoning: usage.output_tokens_details?.thinking_tokens ?? 0 },
+  }
+}
+
+async function askChat(provider: ChatProvider, system: string, user: string, { signal, effort = "low" }: AskOptions): Promise<Asked> {
   const started = Date.now()
   let response: Response
   try {
