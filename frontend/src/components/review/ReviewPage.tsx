@@ -260,6 +260,11 @@ function Result({
                 retried.current = true
                 retry()
               }}
+              showing={shown === "ai"}
+              onShow={() => {
+                chose.current = true
+                show("ai")
+              }}
               open={open}
               onOpen={setOpen}
               onPick={pick}

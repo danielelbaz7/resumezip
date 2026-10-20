@@ -97,11 +97,16 @@ function Tile({ tone, count, pressed, onPress }: { tone: Tone; count: number; pr
  */
 function Flags({
   notes,
+  showing,
+  onShow,
   open,
   onOpen,
   onPick,
 }: {
   notes: Note[]
+  /** Whether the page is marked with the AI's notes: with the checks' instead, both tiles are shut and nothing is listed. */
+  showing: boolean
+  onShow: () => void
   open: string | null
   onOpen: (key: string | null) => void
   onPick: (note: Note) => void
@@ -113,57 +118,72 @@ function Flags({
     <div className="review-flags">
       <div role="group" aria-label="AI notes" className="flex flex-col gap-2">
         {(["red", "good"] as const).map((tone) => (
-          <Tile key={tone} tone={tone} count={of(tone).length} pressed={shown === tone} onPress={() => setShown(tone)} />
+          <Tile
+            key={tone}
+            tone={tone}
+            count={of(tone).length}
+            pressed={showing && shown === tone}
+            onPress={() => {
+              setShown(tone)
+              onShow()
+            }}
+          />
         ))}
       </div>
       {/* Keyed by the tile, so a new list comes in row by row. */}
-
-      <div key={shown} className="review-flag-list">
-        {listed.length === 0 ? (
-          <p className="text-ink-2">{TILES[shown].empty}</p>
-        ) : (
-          <ul aria-label={TILES[shown].title} className="flex flex-col">
-            {listed.map((note, index) => (
-              <li key={note.key} style={{ "--row": index } as React.CSSProperties}>
-                <button
-                  type="button"
-                  className="review-flag"
-                  data-ink={note.ink}
-                  data-open={open === note.key ? "" : undefined}
-                  onMouseEnter={() => note.drawn && onOpen(note.key)}
-                  onMouseLeave={() => open === note.key && onOpen(null)}
-                  onClick={() => onPick(note)}
-                >
-                  {note.title}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {showing && (
+        <div key={shown} className="review-flag-list">
+          {listed.length === 0 ? (
+            <p className="text-ink-2">{TILES[shown].empty}</p>
+          ) : (
+            <ul aria-label={TILES[shown].title} className="flex flex-col">
+              {listed.map((note, index) => (
+                <li key={note.key} style={{ "--row": index } as React.CSSProperties}>
+                  <button
+                    type="button"
+                    className="review-flag"
+                    data-ink={note.ink}
+                    data-open={open === note.key ? "" : undefined}
+                    onMouseEnter={() => note.drawn && onOpen(note.key)}
+                    onMouseLeave={() => open === note.key && onOpen(null)}
+                    onClick={() => onPick(note)}
+                  >
+                    {note.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 /**
  * The AI's notes, beside the page: its red flags and what's done well, each
- * pointing at its mark. They're asked for as soon as the resume is printed, and the page
+ * pointing at its mark. A tile pressed marks the page with them. They're asked for as soon as the resume is printed, and the page
  * opens with them; "asking" shows only when they were long coming, or asked again.
  */
 export default function AiNotes({
   state,
   onAsk,
+  showing,
+  onShow,
   open,
   onOpen,
   onPick,
 }: {
   state: AiState
   onAsk: () => void
+  showing: boolean
+  onShow: () => void
   open: string | null
   onOpen: (key: string | null) => void
   onPick: (note: Note) => void
 }) {
-  if (state.step === "done") return <Flags notes={state.notes} open={open} onOpen={onOpen} onPick={onPick} />
+  if (state.step === "done")
+    return <Flags notes={state.notes} showing={showing} onShow={onShow} open={open} onOpen={onOpen} onPick={onPick} />
   if (state.step === "asking") {
     return (
       <div role="status" className="review-ai">

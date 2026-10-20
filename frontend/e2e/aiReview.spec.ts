@@ -81,6 +81,14 @@ test("AI notes are asked for once the resume is read, sent as the printed lines,
   await page.getByRole("button", { name: "ATS checks" }).click()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
   await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toHaveCount(0)
+  // With the checks drawn, both tiles are shut and nothing is listed; pressing one goes back to the AI's notes.
+  await expect(page.getByRole("button", { name: "Red flags, 2", pressed: false })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Done well, 1", pressed: false })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Says what you did, not what changed", exact: true })).toHaveCount(0)
+  await page.getByRole("button", { name: "Red flags, 2" }).click()
+  await expect(page.getByRole("button", { name: "AI Reviews", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flags, 2", pressed: true })).toBeVisible()
+  await page.getByRole("button", { name: "ATS checks" }).click()
   await page.getByRole("button", { name: "AI Reviews" }).click()
 
   // Each flag is drawn on its line, and pointing at it in the list shows its note there.
