@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useEffect, useId, useRef, useState } from "react"
 import { ArrowUpRight, Search } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
-import { SEGMENT, SEGMENTS, sheetPill, WHITE_PILL } from "@/components/pills"
+import { BAR_SEGMENTS, SEGMENT, sheetPill, WHITE_PILL } from "@/components/pills"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import { useThumb } from "@/components/useThumb"
 import { typingIn } from "@/lib/keys"
@@ -87,7 +87,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
       {/* The dashboard's bar (styles/dashboard.css), with nothing after the chips. Straight in the page's
           main, not in a block with the templates, which fades in (page-in in globals.css): glass in a fading
           block can't blur what's behind it, so the bar would change color as the fade ended. */}
-      <div className="dash-toolbar dash-toolbar-plain glass glass-liquid mt-8 md:mt-[34px]">
+      <div className="dash-toolbar dash-toolbar-plain glass glass-liquid mt-8 md:mt-5">
         <LiquidLens bevel={26} strength={1.25} />
         <div className="dash-toolbar-search">
           {/* A press anywhere on the field goes to its box. */}
@@ -97,7 +97,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
               event.preventDefault()
               searchRef.current?.focus()
             }}
-            className="search-field flex h-11 cursor-text items-center gap-2.5 pl-[18px] pr-3"
+            className="search-field flex h-10 cursor-text items-center gap-2.5 pl-[18px] pr-3"
           >
             <Search className="h-4 w-4 shrink-0 text-[#8b9099]" aria-hidden="true" />
             <label htmlFor={searchId} className="sr-only">
@@ -139,7 +139,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
             ref={chips.group}
             role="group"
             aria-label="Filter by style"
-            className={`${SEGMENTS} overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+            className={`${BAR_SEGMENTS} overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
           >
             <span ref={chips.thumb} aria-hidden="true" className={`segment-thumb ${chips.placed ? "" : "invisible"}`} />
             {STYLES.map((option) => {
@@ -163,7 +163,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col md:mt-[22px]">
+      <div className="mt-5 flex flex-col">
         <p role="status" className="sr-only">
           {announcement}
         </p>
@@ -198,16 +198,16 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
                       <StartWritingLink
                         template={template.id}
                         // Without a pointer to point with, the button under the name is Use instead.
-                        className="template-use search-field group/use absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-[18px] py-2.5 pl-4 pr-2.5 [--search-blur:14px] [@media(hover:none)]:hidden"
+                        className="template-use search-field group/use absolute inset-x-2.5 bottom-2.5 flex items-center gap-2.5 rounded-[16px] py-2 pl-3.5 pr-2 [--search-blur:14px] [@media(hover:none)]:hidden"
                       >
                         <span className="sr-only">Use {template.name}</span>
                         <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col gap-1">
-                          <span className="truncate font-serif text-[21px] leading-none tracking-[-0.015em]">{template.name}</span>
+                          <span className="truncate font-serif text-[18px] leading-none tracking-[-0.015em]">{template.name}</span>
                           <span className="label-mono truncate text-ink-2">{[template.font, ...tags].join(" · ")}</span>
                         </span>
                         <span
                           aria-hidden="true"
-                          className="blue-button pointer-events-none inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium tracking-[-0.01em] transition-[filter,scale] duration-200 group-hover/use:scale-[1.04] group-hover/use:brightness-[1.06] group-active/use:scale-[0.97] motion-reduce:group-hover/use:scale-100"
+                          className="blue-button pointer-events-none inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3.5 text-[14px] font-medium tracking-[-0.01em] transition-[filter,scale] duration-200 group-hover/use:scale-[1.04] group-hover/use:brightness-[1.06] group-active/use:scale-[0.97] motion-reduce:group-hover/use:scale-100"
                         >
                           Use{" "}
                           <ArrowUpRight className="h-4 w-4 transition-transform duration-200 ease-glide group-hover/use:-translate-y-[3px] group-hover/use:translate-x-[3px] motion-reduce:transition-none motion-reduce:group-hover/use:translate-x-0 motion-reduce:group-hover/use:translate-y-0" />
@@ -216,7 +216,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
                     </div>
                   </div>
 
-                  <div className="tile-text flex min-w-0 flex-col gap-1 px-4 pb-3.5 pt-3 max-sm:px-3 max-sm:pb-1.5 max-sm:pt-2.5">
+                  <div className="tile-text flex min-w-0 flex-col gap-1 px-3.5 pb-3 pt-2.5 max-sm:px-3 max-sm:pb-1.5">
                     {/* Its styles, over its name. One without a style keeps the line, so the names in a row line up. */}
                     <span className="label-mono mb-[3px] truncate leading-[14px] text-ink-3">{tags.join(" · ") || " "}</span>
                     {/* The picture's link is the one announced, so this one's skipped. */}
@@ -224,11 +224,11 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
                       href={templatePath(template)}
                       tabIndex={-1}
                       aria-hidden="true"
-                      className="truncate text-[16px] font-medium leading-[1.3] tracking-[-0.02em] hover:underline hover:underline-offset-4 sm:text-[18px]"
+                      className="truncate text-[16px] font-medium leading-[1.3] tracking-[-0.02em] hover:underline hover:underline-offset-4"
                     >
                       {template.name}
                     </Link>
-                    <p className="truncate text-[13px] leading-5 text-ink-3 sm:text-[14px]">{template.font}</p>
+                    <p className="truncate text-[13px] leading-5 text-ink-3">{template.font}</p>
                   </div>
 
                   {/* With nothing to point with, Use is a button here instead of the plate, which leaves the

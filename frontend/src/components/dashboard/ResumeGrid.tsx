@@ -85,7 +85,7 @@ export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leavi
               </div>
             </div>
 
-            <div className="tile-text flex min-w-0 flex-col gap-1 px-4 pb-3.5 pt-3 max-sm:px-3 max-sm:pb-1.5 max-sm:pt-2.5">
+            <div className="tile-text flex min-w-0 flex-col gap-1 px-3.5 pb-3 pt-2.5 max-sm:px-3 max-sm:pb-1.5">
               {/* Its type, over its name. One without a type keeps the line, so the names in a row line up. */}
               <span aria-hidden={!resume.resumeTag || undefined} className="label-mono mb-[3px] truncate leading-[14px] text-ink-3">
                 {resume.resumeTag ? tagName(resume.resumeTag) : "\u00a0"}
@@ -108,7 +108,7 @@ export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leavi
                   }}
                   // Underlined, as a name being typed is in the list and the editor. Its line hangs 1px
                   // below, where the link's text would end, so nothing under it moves.
-                  className="-mb-px w-full min-w-0 border-0 border-b border-accent bg-transparent p-0 text-[16px] font-medium leading-[1.3] tracking-[-0.02em] text-ink outline-none placeholder:text-ink-3 focus-visible:outline-none sm:text-[18px]"
+                  className="-mb-px w-full min-w-0 border-0 border-b border-accent bg-transparent p-0 text-[16px] font-medium leading-[1.3] tracking-[-0.02em] text-ink outline-none placeholder:text-ink-3 focus-visible:outline-none"
                 />
               ) : (
                 <Link
@@ -117,12 +117,12 @@ export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leavi
                   title={name}
                   data-resume-link={resume.id}
                   style={morph("name", index)}
-                  className="truncate text-[16px] font-medium leading-[1.3] tracking-[-0.02em] hover:underline hover:underline-offset-4 sm:text-[18px]"
+                  className="truncate text-[16px] font-medium leading-[1.3] tracking-[-0.02em] hover:underline hover:underline-offset-4"
                 >
                   {name}
                 </Link>
               )}
-              <p className="truncate text-[13px] leading-5 text-ink-3 sm:text-[14px]">
+              <p className="truncate text-[13px] leading-5 text-ink-3">
                 {[templateById(resume.selectedTemplate).name, edited].filter(Boolean).join(" · ")}
               </p>
             </div>

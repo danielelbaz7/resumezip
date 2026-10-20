@@ -168,13 +168,13 @@ export default function SearchBar({ resumes, query, onQuery }: SearchBarProps) {
 
   return (
     // The toolbar's place for it, which keeps its height while the search is lifted out of it.
-    <div className="relative h-11">
+    <div className="relative h-10">
       {lifted && (
         <>
           {/* What stays in the toolbar, under the softened page. */}
           <div
             aria-hidden="true"
-            className="search-field flex h-11 items-center gap-2.5 pl-[18px] pr-2 text-[16px] text-[#8b9099] md:text-[15px]"
+            className="search-field flex h-10 items-center gap-2.5 pl-[18px] pr-2 text-[16px] text-[#8b9099] md:text-[15px]"
           >
             <Search className="h-4 w-4 shrink-0" />
             <span className="truncate">{query || "Search resumes"}</span>
@@ -204,7 +204,7 @@ export default function SearchBar({ resumes, query, onQuery }: SearchBarProps) {
               input.current?.focus()
             }
           }}
-          className="search-field flex h-11 cursor-text items-center gap-2.5 pl-[18px] pr-3 group-data-[lifted]/spot:h-[60px] group-data-[landing]/spot:h-[60px] group-data-[lifted]/spot:gap-3.5 group-data-[landing]/spot:gap-3.5 group-data-[lifted]/spot:pl-6 group-data-[landing]/spot:pl-6 group-data-[lifted]/spot:pr-3 group-data-[landing]/spot:pr-3"
+          className="search-field flex h-10 cursor-text items-center gap-2.5 pl-[18px] pr-3 group-data-[lifted]/spot:h-[60px] group-data-[landing]/spot:h-[60px] group-data-[lifted]/spot:gap-3.5 group-data-[landing]/spot:gap-3.5 group-data-[lifted]/spot:pl-6 group-data-[landing]/spot:pl-6 group-data-[lifted]/spot:pr-3 group-data-[landing]/spot:pr-3"
         >
           <Search
             className="h-4 w-4 shrink-0 text-[#8b9099] group-data-[landing]/spot:h-5 group-data-[landing]/spot:w-5 group-data-[landing]/spot:text-ink-2 group-data-[lifted]/spot:h-5 group-data-[lifted]/spot:w-5 group-data-[lifted]/spot:text-ink-2"

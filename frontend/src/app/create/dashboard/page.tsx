@@ -564,7 +564,7 @@ export default function DashboardPage() {
           {loaded && (
             <>
               <Filters
-                className="mt-8 md:mt-[34px]"
+                className="mt-8 md:mt-5"
                 search={<SearchBar resumes={kept} query={query} onQuery={setQuery} />}
                 tags={tags}
                 tag={tag}
@@ -574,7 +574,7 @@ export default function DashboardPage() {
                 view={view}
                 onView={chooseView}
               />
-              <div className="mt-5 flex flex-col md:mt-[22px]">
+              <div className="mt-5 flex flex-col">
                 {showing.length === 0 ? (
                   <EmptyShelf onNew={() => setCreating(true)} onChooseFile={chooseFile} dragging={dragging} />
                 ) : shown.length === 0 ? (

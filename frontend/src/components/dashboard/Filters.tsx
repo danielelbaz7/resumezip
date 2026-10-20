@@ -4,7 +4,7 @@ import { ArrowDownWideNarrow, Check, ChevronDown, LayoutGrid, List } from "lucid
 import { useId, type ReactNode } from "react"
 import { MENU_ITEM, MENU_PANEL, useMenu } from "./MoreMenu"
 import LiquidLens from "@/components/LiquidLens"
-import { SEGMENT, SEGMENTS } from "@/components/pills"
+import { BAR_SEGMENTS, SEGMENT } from "@/components/pills"
 import { useThumb } from "@/components/useThumb"
 
 export type View = "pages" | "list"
@@ -48,7 +48,7 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
           ref={chips.group}
           role="group"
           aria-label="Show"
-          className={`${SEGMENTS} overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+          className={`${BAR_SEGMENTS} overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
         >
           <span ref={chips.thumb} aria-hidden="true" className={`segment-thumb ${chips.placed ? "" : "invisible"}`} />
           {tags.map((option) => {
@@ -83,7 +83,7 @@ export default function Filters({ search, tags, tag, onTag, sort, onSort, view, 
             onView(next)
             event.currentTarget.querySelector<HTMLElement>(`[data-view="${next}"]`)?.focus()
           }}
-          className="segment-track h-[46px] p-[5px]"
+          className="segment-track h-10 p-0.5"
         >
           <span ref={views.thumb} aria-hidden="true" className={`segment-thumb ${views.placed ? "" : "invisible"}`} />
           <ViewButton

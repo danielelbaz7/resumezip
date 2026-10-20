@@ -17,7 +17,7 @@
     grid-template-areas: "search" "chips" "controls";
     align-items: center;
     gap: 12px;
-    padding: 7px;
+    padding: 6px;
     border-radius: 26px;
   }
   /* The tag chips and the view switch have no track of their own in it: the glass is theirs. */
@@ -302,8 +302,10 @@
     }
   }
 
-  /* The resumes as cards (ResumeGrid.tsx): two to a row on phones, then as
-     many as fit, up to 300px wide, so four fill the widest sheet. */
+  /* The resumes as cards (ResumeGrid.tsx), and the templates page's: two to
+     a row on phones, then as many as fit at 220px or more, so five fill the
+     widest sheet. The cards widen to share what's left, so a row ends where
+     the toolbar above it does, with no gap at the right that the left hasn't. */
   .resume-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -311,7 +313,7 @@
   }
   @media (min-width: 40rem) {
     .resume-grid {
-      grid-template-columns: repeat(auto-fill, minmax(260px, 300px));
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       gap: 20px;
     }
   }
