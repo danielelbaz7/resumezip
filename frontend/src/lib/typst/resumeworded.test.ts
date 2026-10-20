@@ -61,7 +61,7 @@ test.each<Tune>([{ gap: 0.3, size: 0.85, leading: 0.8, margin: 0.6 }, { gap: 0.3
   },
 )
 
-test("sets the first heading where it always has at the template's own spacing", async () => {
+test("takes 3.5 pt off the space above the first heading, at the template's own spacing", async () => {
   const { contact, heading } = await header()
   // The space above every heading, less 3.5 pt, then the heading's 12 pt capitals.
   expect(contact - heading).toBeCloseTo(17.85 - 3.5 + CAP_HEIGHT * 12, 2)

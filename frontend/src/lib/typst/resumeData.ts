@@ -30,7 +30,7 @@ export interface TemplateData {
     awards: string
   }
   order: string[]
-  /** New section kinds only; built-in data and rendering keep their existing shapes. */
+  /** Text and list sections the person added, by their `extra:<id>` in `order`. */
   extras: Record<string, ExtraTemplateSection>
   education: {
     school: string

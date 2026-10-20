@@ -4,8 +4,8 @@
 // read its words without its marks too (textsOf). It's built once per run, so
 // rules don't each pick the saved data apart, and none of them has to guard
 // against older or broken shapes.
-// Only what's printed is here: entries and bullets the person left out of
-// the PDF (lib/leftOut.ts) aren't, so the checks don't flag them.
+// Only what's printed is here: sections, entries and bullets the person left
+// out of the PDF (lib/leftOut.ts) aren't, so the checks don't flag them.
 
 import { PROFILE_FIELDS, SECTION_NAMES, SECTIONS, type FieldKey, type ProfileKey, type SectionName } from "@/components/editor/sections"
 import { isObject } from "@/lib/isObject"
@@ -75,20 +75,26 @@ export interface ResumeView {
   headings: Record<SectionName, string>
   /** Each section's title as printed: the person's own, or else the one the editor and templates share. */
   printedHeadings: Record<SectionName, string>
-  /** The sections in the order they're printed. */
+  /** The editor's sections, in the order they're printed. */
   order: SectionName[]
-  /** Mixed print order; semantic rules continue to use the builtin-only order above. */
+  /** Every section in print order, the added ones too. The rules about jobs, dates and skills go by `order`. */
   allOrder: SectionRef[]
+  /** The sections the person added, by their id, without those left out of the PDF. */
   extras: Record<string, ExtraView>
   /** How projects' links print: as text, or only behind the project's name (the Projects section's Links choice). */
   projectLinks: "show" | "title"
 }
 
+/** A section the person added, as the rules read it. */
 export interface ExtraView {
   id: string
+  /** Its title as printed. */
   heading: string
+  /** As saved, but a list's left-out bullets are blank lines. */
   section: ExtraSection
+  /** A list's bullets, in order; none for a text section. */
   bullets: Bullet<"bullets">[]
+  /** Nothing in it prints, as when it was added but never filled in. */
   blank: boolean
 }
 

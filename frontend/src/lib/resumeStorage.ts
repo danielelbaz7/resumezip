@@ -1,8 +1,10 @@
 // Resumes are saved in the browser's localStorage, each under a key of its
 // own ("resume:<id>"); earlier versions saved them all under one. That's the
-// only copy there is, so nothing here throws: the browser can block storage
-// or run out of room, and what's saved can be unreadable. None of that may
-// crash the app or get saved over. lib/resumeStore.ts decides when to save.
+// only copy there is. The browser can block storage or run out of room, and
+// what's saved can be unreadable; none of that may crash the app or get
+// saved over. So nothing here throws but readSaved and migrateLegacy, when
+// storage can't be read, and their callers catch that. lib/resumeStore.ts
+// decides when to save.
 
 import { SECTIONS } from "@/components/editor/sections"
 import { CHECK_FIELD } from "@/lib/check/state"

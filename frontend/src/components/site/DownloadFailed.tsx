@@ -71,8 +71,8 @@ interface DownloadFailedProps {
 
 /**
  * Says a download, share or save to Google Drive didn't work and what to do,
- * with a button to try again. Give it `key={failure.count}`, so a screen
- * reader announces each new failure.
+ * with a button to try again. With `key={failure.count}`, a screen reader
+ * announces each new failure.
  */
 export default function DownloadFailed({ failure, title, doing = "download", retrying, onRetry, className = "" }: DownloadFailedProps) {
   const step = STEP[failure.reason]

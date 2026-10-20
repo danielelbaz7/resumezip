@@ -13,7 +13,7 @@ import type { Place } from "./places"
 import { comparable, wordsOf } from "./pdf"
 import { readDate, readDateRange } from "./readDate"
 import { entryAt, textsOf, type ResumeView } from "./resume"
-import { FINE_SYMBOLS, ODD_SYMBOLS } from "./settings"
+import { FINE_SYMBOLS, MIN_PHONE_MATCH, ODD_SYMBOLS } from "./settings"
 import { layoutBulletsIn } from "./text"
 
 // What the resume reader reads in place of each character no font had, as pdf.js reads it.
@@ -56,9 +56,9 @@ const sectionsPrint = (resume: ResumeView) =>
     ({ place, text }) => (place.kind === "profile" && place.field !== "summary") || ![...text.normalize("NFC")].some(unprintable),
   )
 
-// An unresolved custom occurrence sharing a builtin heading can contaminate
-// the heuristic semantic parse. Do not turn that uncertainty into invented
-// jobs, missing fields or an ATS heading accusation against the builtin.
+// The titles of the added sections not found for sure (extraPdf.ts). One
+// that shares its title with one of the editor's sections may have been read
+// as that section, so R2–R4 leave that section alone and are `partial`.
 function unresolvedExtraHeadings(resume: ResumeView, pdf: PdfReading): Set<string> {
   return new Set(
     Object.values(resume.extras)
@@ -67,11 +67,12 @@ function unresolvedExtraHeadings(resume: ResumeView, pdf: PdfReading): Set<strin
   )
 }
 
-function uncertainBuiltinSections(resume: ResumeView, pdf: PdfReading): Set<SectionName> {
+// The editor's sections an added section not found for sure may have been read as.
+function sectionsInDoubt(resume: ResumeView, pdf: PdfReading): Set<SectionName> {
   const headings = unresolvedExtraHeadings(resume, pdf)
   const sections = new Set(resume.order.filter((section) => headings.has(comparable(resume.printedHeadings[section]))))
-  // Parser provenance covers aliases such as 'Work Experience', not merely
-  // the exact default heading printed by our own templates.
+  // The reader also knows other titles (“Work Experience”), so go by where it
+  // found each section too.
   for (const occurrence of pdf.parsed.occurrences)
     if (occurrence.section && headings.has(comparable(occurrence.heading))) sections.add(occurrence.section)
   return sections
@@ -86,9 +87,6 @@ const CONTACT: { field: ProfileKey; label: string }[] = [
 
 const digits = (text: string) => text.replace(/\D/g, "")
 
-// The fewest digits a phone number has anywhere: 7, as in "555-0134".
-const PHONE_DIGITS = 7
-
 // Whether the PDF has the phone number. The resume reader only knows how
 // North American numbers are usually written, and hiring software reads
 // numbers from everywhere else too ("07911 123456", "06 12 34 56 78"), so a
@@ -96,7 +94,7 @@ const PHONE_DIGITS = 7
 function phoneFound(pdf: PdfReading, value: string): boolean {
   const typed = digits(value)
   if (digits(pdf.parsed.profile.phoneNumber ?? "") === typed) return true
-  return typed.length >= PHONE_DIGITS && pdf.lines.some((line) => digits(line.text).includes(typed))
+  return typed.length >= MIN_PHONE_MATCH && pdf.lines.some((line) => digits(line.text).includes(typed))
 }
 
 const contactRead: Rule = {
@@ -139,7 +137,7 @@ const headings: Rule = {
     const printed = resume.order.filter((section) => resume.sections[section].some((entry) => !entry.blank))
     if (printed.length === 0) return null
     if (!sectionsPrint(resume)) return { checked: 0, problems: [], partial: true }
-    const uncertain = uncertainBuiltinSections(resume, pdf)
+    const uncertain = sectionsInDoubt(resume, pdf)
     const reliable = printed.filter((section) => !uncertain.has(section))
     const found = new Set(pdf.parsed.sections.map(({ name }) => name))
     return {
@@ -205,7 +203,7 @@ const entriesRead: Rule = {
     let checked = 0
     let partial = false
     const problems: Problem[] = []
-    const uncertain = uncertainBuiltinSections(resume, pdf)
+    const uncertain = sectionsInDoubt(resume, pdf)
     for (const section of resume.order) {
       const keys = KEY_FIELDS[section]
       const typed = resume.sections[section].filter((entry) => !entry.blank)
@@ -257,11 +255,11 @@ const entriesRead: Rule = {
       if (match.status === "matched") continue
       problems.push({
         place: { kind: "extra-heading", sectionId: extra.id },
-        message: `The checker couldn't verify all the text in “${extra.heading}” in the PDF`,
-        suggestion: "Check the section in the preview; the extracted text did not match completely.",
+        message: `Hiring software doesn't read “${extra.heading}” as typed`,
+        suggestion: "Check the section in the preview.",
       })
     }
-    // Only uncertain sections is still partial, not a rule that doesn't apply.
+    // With only sections it can't be sure of, it's partial, not a rule that doesn't apply.
     return checked || partial ? { checked, problems, ...(partial && { partial }) } : null
   },
 }

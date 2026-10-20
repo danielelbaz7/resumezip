@@ -85,7 +85,7 @@ export const MAX_WORD_LENGTH = 60
 /** A metro area or region where a city would be: "Bay Area", "Greater Boston", "DC Metro" (C4). */
 export const METRO_AREA = /\b(?:greater\s+\p{L}+|\p{L}+\s+area|metro(?:politan)?(?:\s+area)?|tri-?state)\b/iu
 
-/** Plausibility bounds, not validation against every country's numbering plan. */
+/** How many digits a phone number and its extension can have (C3): loose bounds that fit every country, not each one's own rules. */
 export const MIN_PHONE_DIGITS = 6
 export const MAX_PHONE_DIGITS = 15
 export const MAX_PHONE_EXTENSION_DIGITS = 10
@@ -308,6 +308,9 @@ export const NOT_ACTION_VERBS = [
   "self-motivated", "hardworking", "outstanding", "willing",
 ]
 
+/** Adverbs a bullet can start with before its verb: “Successfully launched…”. */
+export const BULLET_INTRO_ADVERBS = ["successfully", "independently", "jointly", "collaboratively", "consistently", "proactively"]
+
 /** Other verbs to suggest when one starts too many bullets. */
 export const VERB_SYNONYMS: Record<string, string[]> = {
   analyze: ["assess", "evaluate", "investigate"],
@@ -352,6 +355,49 @@ export const VAGUE_WORDS = ["various", "numerous", "a variety of", "etc.", "etc"
 export const NUMBER_WORDS = [
   "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "dozen", "dozens",
   "hundred", "hundreds", "thousand", "thousands", "million", "millions", "billion", "billions", "doubled", "tripled", "halved",
+]
+
+/** What a count can be of, to show how far the work reached: “1,500 users”, “30 retail locations” (B3). */
+export const BULLET_SCOPE_NOUNS = [
+  "users", "customers", "clients", "patients", "students", "engineers", "employees", "volunteers", "teams", "partners",
+  "locations", "sites", "branches", "countries", "departments", "records", "requests", "transactions", "orders", "applications",
+  "attendees", "participants", "people", "members", "reports", "tools", "tests", "services", "servers", "devices",
+  "files", "documents", "events", "projects",
+]
+
+/** Plurals a count before says how busy someone was, not how far the work reached: "Attended 5 meetings" (B3). */
+export const BULLET_FILLER_COUNTS = [
+  "meetings", "tasks", "things", "times", "items", "duties", "activities", "ways", "aspects", "areas", "stuff",
+]
+
+/**
+ * Words after a change or a result that don't say what changed, so "Improved
+ * the code" or "Used by people" isn't a result (bulletEvidence.ts). Generic
+ * words (BULLET_GENERIC_WORDS) don't count either.
+ */
+export const BULLET_VAGUE_RESULTS = [
+  "code", "quality", "performance", "efficiency", "productivity", "effectiveness", "experience", "workflow", "workflows",
+  "operations", "results", "outcomes", "bugs", "issues", "problems", "people", "others", "everyone", "users", "it",
+  "them", "this", "that", "better", "greater", "higher", "lower", "overall", "significantly", "greatly", "drastically",
+  "substantially", "considerably", "morale", "satisfaction", "engagement", "value", "growth",
+]
+
+/** How many words after a change or a result are read for what it was about. */
+export const OUTCOME_WORDS = 6
+
+/**
+ * Words that name work without saying which: a bullet that's only a verb and
+ * these (“Built internal tools for the team”) is generic (B8), and shows no
+ * scope or result (B3).
+ */
+export const BULLET_GENERIC_WORDS = [
+  "a", "an", "the", "and", "or", "for", "of", "on", "in", "to", "with", "by", "at", "from", "our", "their", "my", "some",
+  "various", "several", "multiple", "many", "different", "new", "useful", "important", "daily", "weekly", "monthly", "other",
+  "related", "assigned", "work", "task", "tasks", "thing", "things", "stuff", "tool", "tools", "report", "reports", "process",
+  "processes", "project", "projects", "system", "systems", "service", "services", "activity", "activities", "duty", "duties",
+  "team", "teams", "area", "areas", "business",
+  "internal", "engineering", "using", "established", "methods", "implement", "requested", "features", "complete",
+  "software", "code", "bugs", "applications", "apps", "programs", "websites",
 ]
 
 /** The share of a role's bullets, rounded up, that should show a scope or result (B3). */
@@ -447,7 +493,15 @@ export const SHORTHAND: [string, string][] = [
   ["yrs", "years"], ["yr", "year"], ["hrs", "hours"], ["hr", "hour"],
 ]
 
-// Readable by hiring software (R1–R6).
+// Readable by hiring software (R1–R8).
+
+/**
+ * The fewest digits of a phone number R1 looks for on any line of the PDF,
+ * when the resume reader didn't read it as the phone number: fewer could turn
+ * up by chance in other numbers. Shorter ones, down to MIN_PHONE_DIGITS, are
+ * found only when the reader reads them.
+ */
+export const MIN_PHONE_MATCH = 7
 
 /**
  * Characters that may not come through hiring software: emoji, arrows,
@@ -496,8 +550,8 @@ export const NAME_FIELDS: readonly (ProfileKey | FieldKey)[] = [
 
 /**
  * Fields that list skills: names the grammar checker mostly doesn't know
- * ("Redux", "Kanban"), and words it does ("Communication"). G1 checks them
- * for slips in typing those words (MIN_SKILL_SLIP), and in tech names.
+ * ("Redux", "Kanban"), and words it does ("Communication"). In them G1 flags
+ * only common misspellings (COMMON_MISSPELLINGS) and slips in a tech name.
  */
 export const SKILL_FIELDS: readonly FieldKey[] = ["skillName", "skillDetails", "techStack"]
 
@@ -519,12 +573,17 @@ export const TECH_NAMES = [
 ]
 
 /**
+ * Tech names that are also everyday words (“java” is coffee), which G6 corrects
+ * outside the skills only where they're the language: “in python”, “java developer”.
+ */
+export const AMBIGUOUS_TECH_NAMES = ["Java", "Python"]
+
+/**
  * Tech and work words that aren't in the dictionary but are spelled right
  * (G1). Names with capitals inside ("DuckDB", "eBPF") and words with digits
- * are usually names too. Clear known errors still count in all capitals.
+ * are usually names too. Common misspellings still count in all capitals.
  */
 export const TECH_WORDS = [
-  "magento",
   "async", "autograd", "autograder", "autoscaling", "backend", "backends", "backtest", "backtester", "backtesting",
   "changelog", "chatbot", "chatbots", "codebase", "codebases", "config", "configs", "cron", "dashboarding", "dataset",
   "datasets", "debugger", "dedupe", "devops", "e-commerce", "ecommerce", "edtech", "embeddings", "failover",
@@ -536,8 +595,8 @@ export const TECH_WORDS = [
   "backfill", "backfilled", "backfilling", "backfills", "codegen", "dashboarded", "dockerized", "finetuned", "hotfix",
   "hotfixes", "metagenomics", "multithreaded", "offboarding", "protobuf", "protobufs", "runbook", "runbooks",
   "wireframe", "wireframed", "wireframes", "wireframing",
-  "avro", "datadog", "fivetran", "flink", "istio", "kanban", "kibana", "plotly", "prisma", "pydantic", "redux",
-  "snowpipe", "splunk", "trino", "vitest", "zod",
+  "avro", "datadog", "fivetran", "flink", "istio", "kanban", "kibana", "magento", "plotly", "prisma", "pydantic",
+  "redux", "snowpipe", "splunk", "trino", "vitest", "zod",
   // Names one slip from a tech name above, which aren't slips of it (G1, G6).
   "openapi", "graphiql", "mssql", "mysqli", "youtuber", "youtubers",
 ]
@@ -545,8 +604,34 @@ export const TECH_WORDS = [
 /** Other words resumes use that aren't in the dictionary (G1): Latin honors, and kinds of work. */
 export const RESUME_WORDS = ["cum", "laude", "magna", "summa", "externship", "externships"]
 
+/**
+ * Misspellings common enough to be sure of, and the word meant (G1): a
+ * must-fix in any field, the skills too, where other words the grammar
+ * checker doesn't know are mostly names.
+ */
+export const COMMON_MISSPELLINGS: Readonly<Record<string, string>> = {
+  recieved: "received", recieve: "receive", recieves: "receives", recieving: "receiving",
+  acheived: "achieved", acheive: "achieve", acheiving: "achieving",
+  controled: "controlled", identifys: "identifies", simplifys: "simplifies", verifys: "verifies",
+  langauges: "languages", comunication: "communication", teamwrok: "teamwork", marketting: "marketing",
+  adaptibility: "adaptability", programing: "programming", finace: "finance", writng: "writing", excell: "excel",
+  childrn: "children", prototypd: "prototyped", occuring: "occurring", begining: "beginning",
+  transfered: "transferred", comitted: "committed", managment: "management", experiance: "experience",
+  developement: "development", enviroment: "environment", seperated: "separated", seperately: "separately",
+  maintainance: "maintenance", succesful: "successful", sucessful: "successful", responsibilites: "responsibilities",
+}
+
 /** Words that are right twice in a row (G2): "what it had had". */
 export const FINE_TWICE = ["had", "that"]
+
+/** Names that are a word twice, which stay names in capitals too: “WALLA WALLA” (G2). */
+export const REPEATED_NAMES = ["bora bora", "walla walla", "pago pago", "baden baden", "duran duran"]
+
+/** Acronyms said as a word, not letter by letter, so “a” or “an” goes by how the word sounds: “a NASA grant” (G3). */
+export const WORD_ACRONYMS = ["NASA", "NATO", "NAFTA", "NOAA", "UNESCO", "UNICEF", "ASCII", "SCUBA", "RADAR", "LASER", "AIDS", "OPEC"]
+
+/** Acronyms said either as a word or letter by letter (“sequel” or “S-Q-L”), so “a” and “an” are both right (G3). */
+export const VARIABLE_ACRONYMS = ["SQL", "FAQ"]
 
 /**
  * Harper's rules behind each of our rules, by Harper's names for them. Any
@@ -584,6 +669,18 @@ export const GRAMMAR_KINDS_OFF = ["Readability", "Style", "Enhancement", "Format
 export const LOOSE_FOR_LOSE = /\b(?:not|never|will|would|could|can|might|don't|didn't|won't|wouldn't|can't|couldn't)\s+(loose)\b/gi
 
 /**
+ * What's usually lost: “loose” before one of these is a must-fix for “lose”
+ * (“never loose data”), and before other words at most advice (G4).
+ */
+export const LOST_OBJECTS = [
+  "data", "work", "file", "files", "access", "time", "money", "customer", "customers", "revenue", "business", "sale",
+  "sales", "job", "jobs", "record", "records", "progress",
+]
+
+/** What “loose” is right before, as a verb for letting go: “loose an arrow”, “loose the hounds” (G4). */
+export const LOOSE_VERB_OBJECTS = ["arrow", "arrows", "bolt", "bolts", "hounds", "dogs", "bonds", "ties", "grip", "restraints", "prisoners"]
+
+/**
  * Words that start what was led, after "lead" as a verb (G5): "and lead the
  * migration", "and lead 4 engineers", "and lead weekly reviews". Without one,
  * "lead" may be the metal or a sales lead ("arsenic and lead", "conversion
@@ -606,60 +703,7 @@ export const TYPO_COST = 0.2
 export const MIN_TECH_SLIP = 6
 
 /**
- * Minimum length for recovering a known misspelling written in all capitals
- * ("RECIEVED"), so short unfamiliar acronyms stay exempt.
+ * How many letters a common misspelling written in capitals ("RECIEVED")
+ * needs to count as a typo (G1): a shorter word in capitals may be an acronym.
  */
-export const MIN_SKILL_SLIP = 6
-
-export const BULLET_INTRO_ADVERBS = ["successfully", "independently", "jointly", "collaboratively", "consistently", "proactively"]
-export const BULLET_SCOPE_NOUNS = [
-  "users", "customers", "clients", "patients", "students", "engineers", "employees", "volunteers", "teams", "partners",
-  "locations", "sites", "branches", "countries", "departments", "records", "requests", "transactions", "orders", "applications",
-  "attendees", "participants", "people", "members", "reports", "tools", "tests", "services", "servers", "devices",
-  "files", "documents", "events", "projects",
-]
-/** Plurals a count before says how busy someone was, not how far the work reached: "Attended 5 meetings". */
-export const BULLET_FILLER_COUNTS = [
-  "meetings", "tasks", "things", "times", "items", "duties", "activities", "ways", "aspects", "areas", "stuff",
-]
-/**
- * Words after a change or a result that don't say what changed, so "Improved
- * the code" or "Used by people" isn't a result (bulletEvidence.ts). Generic
- * words (BULLET_GENERIC_WORDS) don't count either.
- */
-export const BULLET_VAGUE_RESULTS = [
-  "code", "quality", "performance", "efficiency", "productivity", "effectiveness", "experience", "workflow", "workflows",
-  "operations", "results", "outcomes", "bugs", "issues", "problems", "people", "others", "everyone", "users", "it",
-  "them", "this", "that", "better", "greater", "higher", "lower", "overall", "significantly", "greatly", "drastically",
-  "substantially", "considerably", "morale", "satisfaction", "engagement", "value", "growth",
-]
-/** How many words after a change or a result are read for what it was about. */
-export const OUTCOME_WORDS = 6
-export const BULLET_GENERIC_WORDS = [
-  "a", "an", "the", "and", "or", "for", "of", "on", "in", "to", "with", "by", "at", "from", "our", "their", "my", "some",
-  "various", "several", "multiple", "many", "different", "new", "useful", "important", "daily", "weekly", "monthly", "other",
-  "related", "assigned", "work", "task", "tasks", "thing", "things", "stuff", "tool", "tools", "report", "reports", "process",
-  "processes", "project", "projects", "system", "systems", "service", "services", "activity", "activities", "duty", "duties",
-  "team", "teams", "area", "areas", "business",
-  "internal", "engineering", "using", "established", "methods", "implement", "requested", "features", "complete",
-  "software", "code", "bugs", "applications", "apps", "programs", "websites",
-]
-export const WORD_ACRONYMS = ["NASA", "NATO", "NAFTA", "NOAA", "UNESCO", "UNICEF", "ASCII", "SCUBA", "RADAR", "LASER", "AIDS", "OPEC"]
-/** Repeated names stay names when written in capitals too. */
-export const REPEATED_NAMES = ["bora bora", "walla walla", "pago pago", "baden baden", "duran duran"]
-/** Clear spelling slips used by G1; dictionary similarity alone is only advice. */
-export const COMMON_MISSPELLINGS: Readonly<Record<string, string>> = {
-  recieved: "received", recieve: "receive", recieves: "receives", recieving: "receiving",
-  acheived: "achieved", acheive: "achieve", acheiving: "achieving",
-  controled: "controlled", identifys: "identifies", simplifys: "simplifies", verifys: "verifies",
-  langauges: "languages", comunication: "communication", teamwrok: "teamwork", marketting: "marketing",
-  adaptibility: "adaptability", programing: "programming", finace: "finance", writng: "writing", excell: "excel",
-  childrn: "children", prototypd: "prototyped", occuring: "occurring", begining: "beginning",
-  transfered: "transferred", comitted: "committed", managment: "management", experiance: "experience",
-  developement: "development", enviroment: "environment", seperated: "separated", seperately: "separately",
-  maintainance: "maintenance", succesful: "successful", sucessful: "successful", responsibilites: "responsibilities",
-}
-export const VARIABLE_ACRONYMS = ["SQL", "FAQ"]
-export const AMBIGUOUS_TECH_NAMES = ["Java", "Python"]
-export const LOOSE_VERB_OBJECTS = ["arrow", "arrows", "bolt", "bolts", "hounds", "dogs", "bonds", "ties", "grip", "restraints", "prisoners"]
-export const LOST_OBJECTS = ["data", "work", "file", "files", "access", "time", "money", "customer", "customers", "revenue", "business", "sale", "sales", "job", "jobs", "record", "records", "progress"]
+export const MIN_CAPITALS_SLIP = 6

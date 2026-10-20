@@ -1,14 +1,14 @@
 // Reviews a resume file in the browser, as the editor's Check would: it's
 // opened as "Open a file" opens it, its pages are read the way hiring software
 // reads them (lib/check/preview.ts), its words are checked by the grammar
-// checker, then every rule runs over it. A PDF is reviewed as it is, its own
-// pages read, shown and marked, so it's judged as the person would send it.
-// A Word or JSON file has no pages of its own, so it's printed with its
-// template, which for a Word file from elsewhere is the default one; so is a
-// PDF whose pages it turns itself (/Rotate), as they're read unturned and
-// their marks wouldn't land on their words. Opened in
-// the editor, a resume is printed in its template, so a PDF from elsewhere
-// can score differently there.
+// checker, then the review's rules (rules.ts) run over it. A PDF is reviewed
+// as it is, its own pages read, shown and marked, so it's judged as the
+// person would send it. A Word or JSON file has no pages of its own, so it's
+// printed with its template, which for a Word file from elsewhere is the
+// default one; so is a PDF whose pages it turns itself (/Rotate), as they're
+// read unturned and their marks wouldn't land on their words. Opened in the
+// editor, a resume is printed in its template, so a PDF from elsewhere can
+// score differently there.
 // None of this leaves the browser: the PDF engine and the grammar checker are
 // downloaded, not called. The AI's notes on the same resume are asked for
 // apart from this (components/review/useAiNotes.ts).

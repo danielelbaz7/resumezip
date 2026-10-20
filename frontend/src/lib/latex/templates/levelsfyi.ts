@@ -108,7 +108,8 @@ ${links(title)}
 %-------------------------
 % Custom commands
 ${ROW}
-% A long left part wraps, and the right one sits on its last line.
+% A job's columns are bottom-aligned too: a long role or organization wraps,
+% and the others sit on its last line.
 \\renewcommand{\\tabularxcolumn}[1]{b{#1}}
 
 % The name, its capitals a little above the margin, and the space under it

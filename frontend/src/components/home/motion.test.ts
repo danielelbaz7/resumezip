@@ -24,7 +24,7 @@ describe("the story's beats", () => {
     expect(BEATS.notes[0][0]).toBeGreaterThanOrEqual(BEATS.editor[1])
   })
 
-  // Each note gets close to half a screen of scrolling to itself, so a flick of the wheel doesn't skip one.
+  // Each note gets a screen of scrolling to itself, so a flick of the wheel doesn't skip one.
   it("bring the notes in one after another, each a while after the last", () => {
     BEATS.notes.slice(1).forEach((note, i) => {
       expect(note[0]).toBeGreaterThanOrEqual(BEATS.notes[i][1])
@@ -54,8 +54,8 @@ describe("where the story is", () => {
     expect(glide(99.99, 100, 16)).toBe(100)
   })
 
-  // The first screen's words move with the scroll; the pictures used to take a fifth of a second
-  // to catch up, and the story felt slow to answer.
+  // The first screen's words move with the scroll, and pictures that take a fifth of a second to
+  // catch up make the story feel slow to answer.
   it("catches up with the scroll within a tenth of a second", () => {
     let shown = 0
     for (let frame = 0; frame < 6; frame++) shown = glide(shown, 100, 1000 / 60)

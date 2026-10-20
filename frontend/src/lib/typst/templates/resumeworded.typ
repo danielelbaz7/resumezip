@@ -1,4 +1,4 @@
-// "Harvard": EB Garamond with gray small-caps-style headings, in the format
+// "Harvard": EB Garamond with headings in dark gray capitals, in the format
 // Harvard's career office recommends. Contact details are plain text, without
 // icons, so applicant tracking systems read them cleanly.
 #import "common.typ": *

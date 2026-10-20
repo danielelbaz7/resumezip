@@ -52,18 +52,18 @@ export type Resume = {
   /** When it last changed, as an ISO date. */
   updatedAt?: string
   selectedTemplate?: string
-  /** Section names in print order. Older resumes can lack some, or list unknown ones. */
+  /** Section names in print order, and `extra:<key>` for each the person added. Older resumes can lack some, or list unknown ones. */
   sectionOrder?: string[] | null
   /**
-   * Set once sectionOrder holds only the optional sections the person added
-   * from the list (see resolveSections). Resumes and PDFs from before then
-   * listed every section, so their empty optional ones aren't shown, and the
-   * first change to one keeps only what it shows, and sets this.
+   * Set once sectionOrder holds only the sections the person has, not every
+   * one (see resolveSections). Resumes and PDFs from before then listed every
+   * section, so their empty optional ones aren't shown, and the first change
+   * to one keeps only what it shows, and sets this.
    */
   sectionsChosen?: true | null
   headings?: Headings | null
   profileSection?: Profile | null
-  /** Sections beyond the built-in ones, by key, read with extrasOf (lib/resumeSections.ts). */
+  /** The sections the person added, by key, read with extrasOf (lib/resumeSections.ts). */
   extraSections?: ExtraSections
   /** Adjustments to the template's sizes and page, from Fine-tune (lib/tune.ts). */
   tune?: Tune | null

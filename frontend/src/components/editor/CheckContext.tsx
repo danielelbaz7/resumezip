@@ -16,7 +16,7 @@ import type { ActiveSection } from "./SectionNav"
 import { MarksProvider } from "./MarksContext"
 import { usePausedResume, useResumeCheck } from "./useResumeCheck"
 
-/** What the left bar shows: the sections to write in, what the checker found, or the template and Fine-tune. */
+/** What the left bar shows: the sections to write in, what the checker found, or Fine-tune. */
 export type Mode = "write" | "check" | "style"
 
 const MODES: readonly Mode[] = ["write", "check", "style"]
@@ -71,7 +71,7 @@ interface CheckValue {
 
 /** What changes the checker's state. Each keeps the same identity for as long as the resume is open. */
 type CheckActions = ReturnType<typeof useResumeCheck>["actions"] & {
-  /** Switches the left bar, and remembers it in this browser. */
+  /** Switches the left bar, and remembers it for this visit. */
   chooseMode: (mode: Mode) => void
   /** Opens a finding's section, and asks its form to point at the field. */
   open: (finding: Finding) => void
@@ -134,8 +134,8 @@ function whenIdle(callback: () => void): () => void {
   return () => clearTimeout(timer)
 }
 
-// How many previews to remember as read, by what they print, so going back
-// to one, as with undo, or a change that's put back, doesn't read it again.
+// How many previews to remember as read, so going back to one, as with undo,
+// or a change that's put back, doesn't read it again.
 const READINGS_KEPT = 4
 
 // How many pieces of text to remember the grammar checker's findings for.
@@ -196,8 +196,8 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
   )
   const previewUrl = preview?.url
   const previewPrinted = preview?.printed
-  // Private omitted-line edits can keep the PDF identical while moving an
-  // editor target. Include source addresses in the reading cache key.
+  // Readings are kept by the layout as well as by what's printed: as above, a
+  // change that doesn't print can still move text in the editor.
   const readingKey = previewPrinted ? `${previewPrinted}\n${layoutJSON}` : ""
   // The latest preview as read, and what it prints; null if it couldn't be read.
   const [read, setRead] = useState<{ printed: string; key: string; url: string; pdf: PdfReading | null } | null>(null)
@@ -310,8 +310,8 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
 
   // The same finding while it's there, or else the same problem as its text
   // changes while it's being fixed: one rule can find more than one thing at
-  // a place, as two typos in a bullet. An AI note from the review isn't the
-  // checker's: it's opened where it was found.
+  // a place, as two typos in a bullet. An AI note isn't the checker's: it's
+  // opened where it was found.
   const live =
     chosen && report
       ? chosen.finding.rule === AI_RULE
@@ -367,7 +367,7 @@ export function useCheckActions(): CheckActions {
 
 /**
  * The finding being fixed, which the forms show on its field. Null once it's
- * fixed or dismissed, and in Write mode, where it would only be noise.
+ * fixed or dismissed, and outside Check mode, where it would only be noise.
  */
 export function useCheckTarget(): Target | null {
   const target = useContext(CheckTargetContext)

@@ -28,7 +28,7 @@ export const PILL_WORDS: Record<Exclude<Problem, "off">, string> = {
   other: "AI notes didn’t load, so here are the ATS checks",
 }
 
-/** A short note in a dark pill, over the dock or under the drop zone, that the person can put away. */
+/** A short note in a dark pill, over the dock or under the header on the drop zone, that the person can put away. */
 export function Pill({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div role="status" className="review-pill">
@@ -162,8 +162,9 @@ function Flags({
 
 /**
  * The AI's notes, beside the page: its red flags and what's done well, each
- * pointing at its mark. A tile pressed marks the page with them. They're asked for as soon as the resume is printed, and the page
- * opens with them; "asking" shows only when they were long coming, or asked again.
+ * pointing at its mark. A tile pressed marks the page with them. They're
+ * asked for as soon as the resume's pages are read, and the page opens with
+ * them; "asking" shows only when they were long coming, or asked again.
  */
 export default function AiNotes({
   state,

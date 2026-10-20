@@ -1,5 +1,4 @@
-// Jake's Resume (https://github.com/jakegut/resume), ported from the LaTeX
-// template that used to live in backend/templates/overleaf2.tex.
+// Jake's Resume (https://github.com/jakegut/resume), ported from its LaTeX.
 #import "common.typ": *
 
 #let p = data.profile

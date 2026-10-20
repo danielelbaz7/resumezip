@@ -5,7 +5,7 @@ import type { Resume, ResumeField } from "@/lib/resume"
 import { getStorage } from "@/lib/resumeKeys"
 import { createResumeStore, INITIAL_STATE, resumeOf, type ResumeState, type ResumeStore } from "@/lib/resumeStore"
 
-/** What changes the resumes. Each keeps the same identity until the page leaves the dashboard and editor. */
+/** What changes the resumes. Each keeps the same identity until the page is closed, as the page has one store. */
 interface ResumeActions extends Pick<ResumeStore, "addSection" | "editSection" | "removeSection" | "deleteSection" | "reorderSections"> {
   createNewResume: ResumeStore["create"]
   importResume: ResumeStore["importResume"]
@@ -44,8 +44,8 @@ const storeOfPage = () => (typeof window === "undefined" ? createResumeStore() :
 
 /**
  * The page's resumes, read from storage the first time they're needed: by
- * the dashboard or the editor, or by a link that starts a new resume. Only in
- * the browser.
+ * the dashboard or the editor, by the review page adding the resume it
+ * reviewed, or by a link that starts a new resume. Only in the browser.
  */
 export function openResumes(): ResumeStore {
   const store = storeOfPage()

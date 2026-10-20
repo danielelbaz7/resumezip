@@ -1,7 +1,7 @@
 /* Glass: a pane that blurs and brightens what passes behind it, with a lit
-   top edge and a thin rim. For the few things that float over content (the
-   header over the hero, the editor's panels over the page); over flat paper
-   there's nothing behind it to see, so it reads as a plain card.
+   top edge and a thin rim. For what floats over content (the header, menus,
+   the Undo message, the home page's pills); over flat paper there's nothing
+   behind it to see, so it reads as a plain card.
 
    Its blur sits on ::before, under the pane's own content, so text on the
    pane stays sharp. Tints set --glass-fill, --glass-blur and --glass-saturate. */
@@ -57,9 +57,8 @@
     --glass-blur: 24px;
     --glass-fill: linear-gradient(180deg, rgb(255 255 255 / 0.74), rgb(255 255 255 / 0.6));
   }
-  /* Nearly clear, for a small control floating over the page (the
-     dashboard's Undo bar, the phone's Edit / Preview switch): what's behind
-     shows through, only softened. */
+  /* Nearly clear, for the Undo message floating over the page
+     (DeletedToast.tsx): what's behind shows through, only softened. */
   .glass-clear {
     --glass-blur: 3px;
     --glass-fill: linear-gradient(180deg, rgb(255 255 255 / 0.42), rgb(255 255 255 / 0.16));
@@ -88,7 +87,8 @@
     pointer-events: none;
   }
   /* Heavily frosted and nearly white, for floating controls and menus with
-     words on them (the zoom pill, the ▾ menu, the home page's Start writing). */
+     words on them: the ▾ menu, a dashboard card's bar, and on the home page
+     the Microsoft for Startups pill, the small Start writing and the way in. */
   .glass-float {
     --glass-blur: 22px;
     --glass-fill: linear-gradient(180deg, rgb(255 255 255 / 0.82), rgb(255 255 255 / 0.68));

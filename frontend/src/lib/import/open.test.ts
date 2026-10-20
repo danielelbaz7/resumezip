@@ -170,7 +170,7 @@ describe("a resumezip PDF", () => {
     ['{"format":"resumezip","version":99,"resume":{}}', "newer version"],
     ['{"format":"resumezip","version":2,"resume":{"extraSections":{"summary":{"kind":"summary","text":"secret"}}}}', "damaged"],
     ['{"format":"resumezip",', "damaged"],
-  ])("a recognized unusable attachment stops opening without a heuristic fallback", async (content, message) => {
+  ])("with its resume damaged or from a newer resumezip says so, without reading its text", async (content, message) => {
     attachment = content
     await expect(openResumeFile(pdf())).rejects.toThrow(OpenFileError)
     await expect(openResumeFile(pdf())).rejects.toThrow(message)

@@ -9,7 +9,7 @@ type ModalProps = (
   | { title: string; wide?: false }
   | {
       title?: never
-      /** A large dialog that lays out its own content, title included (give the title id="modal-title", which names the dialog). */
+      /** A large dialog that lays out its own content, title included: the title with id="modal-title" names the dialog. */
       wide: true
     }
 ) & {

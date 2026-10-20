@@ -20,8 +20,8 @@ const line = (text: string, heading = false, bullet = false): Line => ({
 const parse = (...rows: (string | [string, boolean, boolean?])[]) =>
   parseResume(rows.map((row) => (typeof row === "string" ? line(row) : line(...row))))
 
-describe("flexible section import review", () => {
-  test("parsing gives stable heading occurrence addresses without generating editor UUIDs", () => {
+describe("sections from a file", () => {
+  test("a file reads the same each time, each summary named by its heading's line, not a random ID", () => {
     const uuid = vi.spyOn(crypto, "randomUUID")
     try {
       const rows: Line[] = [
@@ -102,7 +102,7 @@ describe("flexible section import review", () => {
     expect(toResumeContent(parsed).profileSection.summary).toBe("First paragraph.\n\nSecond paragraph.")
   })
 
-  test("summary prose keeps a literal circle and bullet summaries remain reviewable", () => {
+  test("a summary keeps a ○ it starts with, and one in bullets goes to Couldn't place", () => {
     const prose = parse("Mara Lin", ["Summary", true], "○ This is literal prose.")
     expect(toResumeContent(prose).profileSection.summary).toBe("○ This is literal prose.")
     const bullets = parse("Mara Lin", ["Summary", true], ["Strong collaborator", false, true])
@@ -157,7 +157,7 @@ describe("flexible section import review", () => {
     expect(top.unplaced[0]).toMatchObject({ heading: "Top of the resume", text: ["Open-source maintainer"] })
   })
 
-  test("repeated unsupported headings remain independently selectable with durable UUIDs only at confirmation", () => {
+  test("two groups under the same heading stay apart, and each becomes a section only when it's kept, as text or a list", () => {
     const parsed = parse("Mara Lin", ["Presentations", true], "First talk", ["Presentations", true], "Second talk")
     expect(parsed.unplaced.map((group) => group.heading)).toEqual(["Presentations", "Presentations"])
     expect(parsed.unplaced[0].id).not.toBe(parsed.unplaced[1].id)
@@ -174,7 +174,7 @@ describe("flexible section import review", () => {
     expect(content.sectionOrder.slice(0, 2)).toEqual(Object.keys(content.extraSections ?? {}).map((key) => `extra:${key}`))
   })
 
-  test("Word parsing preserves recognized groups and uncertain leftover words for review", async () => {
+  test("a Word file's summary is read as one, and a section it doesn't know goes to Couldn't place", async () => {
     const paragraphs = ["Mara Lin", "SUMMARY", "Engineer building useful tools.", "PRESENTATIONS", "Talk on accessible software"]
     const result = await readFile({ kind: "docx", data: new Uint8Array(wordFile(paragraphs)).buffer })
     expect("parsed" in result).toBe(true)

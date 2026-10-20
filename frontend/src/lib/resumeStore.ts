@@ -220,8 +220,9 @@ export function createResumeStore() {
     saveSoon()
   }
 
-  // Commands read the latest snapshot, preserve untouched member references and
-  // publish one update. A section is one merge unit.
+  // Changes fields in one update, saved like an edit. `paths` name what
+  // changed, as mergeResume takes them: an added section is one path, so a
+  // change in another tab to a different section is kept.
   function commit(id: string, changes: Partial<Resume>, paths: string[]) {
     const [migration, migrationPaths] = migrated(state.resumes[id])
     markChanged(id, ...paths, ...migrationPaths, "updatedAt")
@@ -232,8 +233,8 @@ export function createResumeStore() {
   }
 
   /**
-   * Adds a section at the end, and gives back where it is: an optional one by
-   * its name (where it is already, if it's there), or a new text or bullet list.
+   * Adds a section at the end, and gives back where it is: one of the editor's
+   * by its name (where it is already, if it's there), or a new text or bullet list.
    */
   function addSection(id: string, kind: ExtraKind | SectionName): SectionRef | null {
     if (!has(id)) return null

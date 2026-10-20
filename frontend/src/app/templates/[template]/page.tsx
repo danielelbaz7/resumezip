@@ -190,7 +190,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
             <h2 id="other-templates" className="label-mono text-ink-3">
               Other templates
             </h2>
-            {/* Names only: a picture of every other template drew the eye away from this one's. */}
+            {/* Names only: a picture of every other template would draw the eye away from this one's. */}
             <ul className="flex flex-wrap items-baseline gap-y-1 font-serif text-[28px] leading-[1.25] tracking-[-0.03em] sm:text-[36px]">
               {TEMPLATES.filter((other) => other.id !== template.id).map((other, i, others) => (
                 <li key={other.id} className="whitespace-nowrap">

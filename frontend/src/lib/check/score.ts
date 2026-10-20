@@ -2,7 +2,7 @@
 // rules, out of 100. It says nothing about whether a resume gets anyone
 // hired. Each category is worth its points (CATEGORIES) and starts with all
 // of them. Each rule that finds something takes some away: a must-fix up to
-// half of them, a suggestion up to a fifth (LEVELS), at least half of that
+// half of them, a suggestion up to 35% (LEVELS), at least half of that
 // for finding anything (LEAST_PENALTY), and the rest by how much of the
 // resume fails it, with dismissed suggestions counting as passing
 // (engine.ts). Rules that pass earn nothing, so easy passes can't make up for
@@ -42,7 +42,7 @@ export interface CategoryScore {
 }
 
 export interface Score {
-  /** From 0 to 100, or null until there's a name and an entry to check. */
+  /** From 0 to 100, or null until there's a name, and an entry or an added section, to check. */
   total: number | null
   /** Each category, in CATEGORIES' order. */
   categories: CategoryScore[]
@@ -75,8 +75,9 @@ function penaltyOf({ scoring }: Scored): number {
  */
 export const wholePoints = (points: number) => Math.floor(points + 1e-9)
 
-// Coverage weights stay fixed when a contextual finding is resolved. Otherwise
-// fixing an issue can lower the passing share by shrinking its denominator.
+// A rule weighs as much as its own level, not what it found: a must-fix that a
+// suggestion rule finds (S2, S3) would otherwise weigh less once fixed, and
+// fixing it could lower the share that passes.
 const weight = (result: RuleResult) => LEVELS[result.rule.level].penalty
 
 /**
@@ -171,10 +172,11 @@ export type KeptScores = Map<CategoryId, CategoryScore>
 
 /**
  * Keeps the points of each category that isn't being checked, while the
- * resume can be scored. Before it has a name and an entry most rules don't
- * apply, which would look like a category with nothing to score, and once it
- * loses them the points it had are let go, so they aren't shown again when
- * it gets them back before it has been checked anew.
+ * resume can be scored. Before it has a name, and an entry or an added
+ * section, most rules don't apply, which would look like a category with
+ * nothing to score, and once it loses them the points it had are let go, so
+ * they aren't shown again when it gets them back before it has been checked
+ * anew.
  */
 export function keepScores(kept: KeptScores, now: Score, checking: ReadonlyMap<CategoryId, unknown>): void {
   if (now.total === null) {

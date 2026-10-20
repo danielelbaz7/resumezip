@@ -33,9 +33,9 @@ type State =
   | {
       step: "working"
       done: ReadonlySet<ReviewStep>
-      /** Its own pages are read (a PDF), rather than printed first. */
+      /** Its own pages are read (a PDF), rather than printed first, unless it turns them (reviewedAsIs). */
       asIs: boolean
-      /** Page 1 of the resume as printed, once it's drawn, which takes the sample's place. */
+      /** Page 1 of the resume, once it's drawn, which takes the sample's place. */
       page: DrawnPage | null
       gaze: readonly Stop[] | null
       /** When the eyes start on the page (performance.now()), or null when there are none to show. */
@@ -53,7 +53,8 @@ type State =
     }
   | { step: "problem"; message: string }
 
-// The result waits this long for the AI's notes, from when it's asked, before it shows the checks' and lets the notes join it.
+// The result waits this long for the AI's notes, from when it's asked. Past that, it opens on them all the same,
+// saying they're on their way, with nothing marked until they come.
 // The AI usually answers in 4 to 12 seconds; the route gives up after 55.
 const AI_PATIENCE_MS = 25_000
 
@@ -323,9 +324,9 @@ function Result({
 
 /**
  * The review page: drop a resume, and see what a recruiter would skip, marked
- * on the page, with the score the editor's Check gives it. While it's read,
- * its own page takes the sample's place and a recruiter's eyes go over it; the
- * AI is asked as soon as it's printed, and the result opens with its notes.
+ * on the page, with a score from the editor's checks. While it's read, its own
+ * page takes the sample's place and a recruiter's eyes go over it; the AI is
+ * asked as soon as its pages are read, and the result opens with its notes.
  * "Fix it in the editor" adds it to this browser's resumes and opens it in Check.
  */
 export default function ReviewPage() {
@@ -544,7 +545,7 @@ export default function ReviewPage() {
         ) : (
           <section className="no-page-in relative flex min-h-[calc(100svh-84px)] flex-col items-center px-4 pb-24 pt-[calc(var(--sheet)*0.62)] text-center">
             <Backdrop
-              // The scan reads the page while it's printed, and again once the eyes are done with it.
+              // The scan reads the page until the eyes take over, and again once they're done with it.
               scanning={!!working && (working.eyesFrom === null || working.rest)}
               page={working?.page}
               gaze={working?.gaze}

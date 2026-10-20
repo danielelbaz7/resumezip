@@ -95,7 +95,7 @@ interface RuleInfo {
   id: string
   category: CategoryId
   level: Level
-  /** Optional coaching, shown with findings but excluded from grading. */
+  /** All it finds is advice, shown but not counted in the score. */
   advisory?: boolean
   /**
    * The share of the rule's credit each open finding takes, for a rule where

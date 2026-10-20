@@ -30,7 +30,7 @@ const OPENAI = "api.openai.com"
 const AZURE = "example.openai.azure.com"
 const GEMINI = "generativelanguage.googleapis.com"
 
-// Each service's answer: Claude's Messages API, or the chat completions API OpenAI and Azure share.
+// Each service's answer: Claude's Messages API, or the chat completions API that OpenAI and Azure share and Gemini copies.
 const answered = (url: string, content: unknown) =>
   new URL(url).host === CLAUDE
     ? Response.json({

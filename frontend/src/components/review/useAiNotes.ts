@@ -27,9 +27,9 @@ export interface AiSide {
 }
 
 /**
- * The AI's side of a review. The review page asks as soon as the resume is
- * printed, while its spelling is still being checked, and shows the result
- * once the notes are back; the result can ask again.
+ * The AI's side of a review. The review page asks as soon as the resume's
+ * pages are read, while its spelling is still being checked, and shows the
+ * result once the notes are back; the result can ask again.
  */
 export function useAiNotes(): AiSide {
   const [units, setUnits] = useState<Unit[] | null>(null)

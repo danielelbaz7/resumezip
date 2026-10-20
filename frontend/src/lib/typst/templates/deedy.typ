@@ -151,8 +151,9 @@
 // ---------- Sections ----------
 
 // Education and skills go on the left; everything else on the right, each in
-// the resume's order. The resume checker reads this list as `firstColumn` in
-// src/lib/templates.ts.
+// the resume's order. The resume checker reads its own copy of this list
+// (`firstColumn` in src/lib/templates.ts), and the LaTeX file has a third
+// (src/lib/latex/templates/deedy.ts), so a change here goes in both.
 #let on-left = ("Education", "Skills")
 
 #let left-section(name) = {

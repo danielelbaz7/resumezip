@@ -168,13 +168,13 @@ function Editor({ id }: { id: string }) {
     return forgetPreviewFit
   }, [id])
 
-  // The saved order, plus any sections missing from older resumes.
-  // The optional sections with entries, which show even when the saved order lacks them. As
-  // text, so typing in one doesn't re-render the editor.
+  // The sections with entries, as text, so typing in one doesn't re-render the editor.
   const filled = useResumeState((state) => {
     const resume = resumeOf(state, id)
     return resume ? filledSections(resume).join(" ") : ""
   })
+  // The sections the editor shows, in order: the saved order's, then any it
+  // lacks that have entries or that the person added (resolveSections).
   const sections = useMemo(
     () => resolveSections({ sectionOrder: savedOrder, sectionsChosen, extraSections }, filled ? (filled.split(" ") as SectionName[]) : []),
     [savedOrder, sectionsChosen, extraSections, filled],

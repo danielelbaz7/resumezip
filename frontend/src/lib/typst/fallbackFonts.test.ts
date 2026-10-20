@@ -1,10 +1,9 @@
 // Letters a template's fonts lack, printed in the fallback it names rather
-// than in whatever font Typst finds: Cyrillic in Source Sans 3 where TeX Gyre
-// Heros has none, Cyrillic and Greek in EB Garamond where TeX Gyre Termes has
-// none or only some, and Greek in Source Sans 3, Lato or EB Garamond where IBM
-// Plex Mono, Raleway and Charis SIL have only a few Greek letters. Before,
-// these came from a serif (Charis SIL, EB Garamond), then from Lato, a few
-// letters of a word from one font and the rest from another.
+// than in whatever font Typst finds, often a serif, and all of a word in one
+// font: Cyrillic in Source Sans 3 where TeX Gyre Heros has none, Cyrillic and
+// Greek in EB Garamond where TeX Gyre Termes has none or only some, and Greek
+// in Source Sans 3, Lato or EB Garamond where IBM Plex Mono, Raleway and
+// Charis SIL have only a few Greek letters.
 
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"

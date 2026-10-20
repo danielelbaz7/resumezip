@@ -22,7 +22,7 @@ import {
   LOOSE_VERB_OBJECTS,
   LOST_OBJECTS,
   LOWERCASE_NAMES,
-  MIN_SKILL_SLIP,
+  MIN_CAPITALS_SLIP,
   MIN_TECH_SLIP,
   NAME_FIELDS,
   NUMBER_UNITS,
@@ -172,8 +172,9 @@ function linted(resume: ResumeView, grammar: GrammarReading, skills: boolean) {
 
 const quoted = (text: string) => text.replace(/`([^`]*)`/g, "“$1”")
 
-// Literal names and instructions keep their spelling and tense. An apostrophe
-// inside a word does not open a quotation.
+// Text in quotes or backticks is written that way on purpose, so G5 and G6
+// leave its spelling and tense alone. An apostrophe inside a word ("don't")
+// doesn't start a quote.
 const LITERAL = /`[^`\n]*`|"[^"\n]*"|“[^”\n]*”|(?<![\p{L}\p{N}])'[^'\n]+'(?![\p{L}\p{N}])|‘[^’\n]*’/gu
 const literalRanges = (text: string) => [...text.matchAll(LITERAL)].map((match) => [match.index, match.index + match[0].length] as const)
 const inLiteral = (at: number, ranges: readonly (readonly [number, number])[]) => ranges.some(([start, end]) => start <= at && at < end)
@@ -236,11 +237,12 @@ const typos = grammarRule(
     // A slip in a tech name ("TypeScirpt") is a typo, though capitals inside make it look like a name.
     const name = slipOfTechName(lint.text, (word) => known().has(word))
     const slip = spellingSlip(lint)
-    // An ordinary misspelling does not become an acronym just by capitalizing it.
-    const capitals = lint.text.length >= MIN_SKILL_SLIP && /^\p{Lu}+$/u.test(lint.text) && !known().has(lint.text.toLowerCase()) && slip
+    // A common misspelling in capitals ("RECIEVED") is a typo too, though isTypo takes words in capitals for acronyms.
+    const capitals = lint.text.length >= MIN_CAPITALS_SLIP && /^\p{Lu}+$/u.test(lint.text) && !known().has(lint.text.toLowerCase()) && slip
     if (!name && !capitals && !isTypo(lint.text, known())) return []
-    // The skills are mostly names Harper doesn't know ("Redux", "Kanban"), so
-    // unfamiliar names there do not need a dictionary warning.
+    // A slip in a tech name, a common misspelling or a likely typing slip
+    // (likelyTypo) is a must-fix. The skills are mostly names Harper doesn't
+    // know ("Redux", "Kanban"), so there only the first two are flagged at all.
     const instead = name ?? slip ?? (inSkills ? undefined : likelyTypo(lint, text))
     if (inSkills && !instead) return []
     if (instead) {
@@ -252,10 +254,12 @@ const typos = grammarRule(
         },
       ]
     }
-    // Any other unknown word may be a typo ("Sofware") or a name the
-    // dictionary lacks ("Pydantic"). It counts as a suggestion, not a
-    // must-fix, so a real name costs a little until it's added or dismissed,
-    // and Harper's guess is offered as a question rather than a correction.
+    // Any other unknown word may be a typo ("Sofware") or a name or term the
+    // dictionary lacks ("Pydantic", "spintronics"), even one close to a
+    // dictionary word, as "Polars" is to "Polaris". It counts as a suggestion,
+    // not a must-fix, so a real name costs a little until it's added or
+    // dismissed, and Harper's guess is offered as a question rather than a
+    // correction.
     const guess = lint.suggestions[0]
     return [
       {
@@ -294,10 +298,7 @@ function likelyTypo(lint: GrammarLint, text: string): string | undefined {
     : undefined
 }
 
-// Similar dictionary words are not proof: Pydantic/Pedantic and Polars/Polaris
-// are legitimate names. Reviewed common errors and likely typing slips
-// (likelyTypo) are must-fixes; other unknown words, including terms such as
-// spintronics, are suggestions.
+// The word a common misspelling (COMMON_MISSPELLINGS) is meant to be, in the same capitals.
 const spellingSlip = (lint: GrammarLint) => {
   const correction = COMMON_MISSPELLINGS[lint.text.toLowerCase()]
   if (!correction) return undefined
@@ -511,7 +512,7 @@ const otherGrammar = grammarRule(
     category: "spelling",
     level: "look",
     title: "Other English grammar to review",
-    why: "The English grammar checker found something to review in context.",
+    why: "The grammar checker found this; read it in its sentence to be sure.",
   },
   (lint) => {
     if (OURS.has(lint.rule) || KINDS_OFF.has(lint.kind)) return []

@@ -16,7 +16,7 @@ const EASE_GLIDE = "cubic-bezier(0.16, 1, 0.3, 1)"
 // The copy fades out over the flight's last moment, as the message's own small page fades in (dashboard.css).
 const HAND_OVER_MS = 60
 
-/** Where each of a list's resumes (and the tile for opening a file) is, before a change. */
+/** Where each of a list's resumes (and the New resume tile) is, before a change. */
 export function placesIn(list: Element | null): Map<Element, DOMRect> {
   return new Map([...(list?.querySelectorAll("[data-glide]") ?? [])].map((element) => [element, element.getBoundingClientRect()]))
 }

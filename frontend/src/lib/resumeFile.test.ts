@@ -103,7 +103,7 @@ describe("the attachment in a downloaded PDF", () => {
     expect(() => fromAttachment(toAttachment(resume))).toThrow(TooLongError)
   })
 
-  test("ignores other JSON and explains recognized unsupported versions", () => {
+  test("ignores an attachment that isn't resumezip's, and says when one needs a newer resumezip", () => {
     expect(fromAttachment("not json")).toBeNull()
     expect(fromAttachment(JSON.stringify({ format: "something-else", version: 1, resume: {} }))).toBeNull()
     expect(() => fromAttachment(JSON.stringify({ format: "resumezip", version: 3, resume: {} }))).toThrow(AttachmentError)

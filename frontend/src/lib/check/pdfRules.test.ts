@@ -78,8 +78,8 @@ test.each(["jake", "resumeworded"])(
 )
 
 // Characters no font has print as nothing, or as boxes, in every template.
-// The checker used to say hiring software couldn't find the name or read the
-// role, as if they were typed wrong.
+// The checker says so, not that hiring software can't find the name or read
+// the role, as if they were typed wrong.
 describe.each(TEMPLATES.map((template) => [template.name, template.id]))("%s, with text no font has", (_name, template) => {
   const what = (report: Report) => report.findings.map(({ rule, place, message }) => ({ rule, place, message }))
 
@@ -105,7 +105,7 @@ describe.each(TEMPLATES.map((template) => [template.name, template.id]))("%s, wi
     ])
   })
 
-  test("in a name, leaves the rest of the resume read as before", async () => {
+  test("in a name, is all that's found, and the rest of the resume is still read in full", async () => {
     const sample = samples.find((resume) => resume.selectedTemplate === template)
     const resume = { ...sample, profileSection: { ...sample.profileSection, fullName: `${sample.profileSection.fullName} 王小明` } }
     const report = check(resume, await readingOf(resume))

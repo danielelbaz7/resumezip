@@ -332,9 +332,9 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
 
   const add = () => addEntries([{}])
 
-  // The others keep their ids, so React doesn't give the next entry what was
-  // the deleted one's: its place in the slide, or a bullets field's mode.
-  // Focus that was in it goes to Undo (DeletedToast).
+  // The others keep their ids, so React doesn't give the next entry the
+  // deleted one's place in the slide. Focus that was in it goes to Undo
+  // (DeletedToast).
   const remove = (id: number) => {
     setRemovingId(null)
     const current = latest.current

@@ -1,7 +1,7 @@
 import type React from "react"
 
 interface PageIntroProps {
-  /** Small mono label above the title, e.g. "Templates". */
+  /** Small mono label above the title, as "Why resumezip". */
   label: string
   title: React.ReactNode
   children: React.ReactNode

@@ -75,7 +75,7 @@ describe("what the box shows", () => {
     expect(styledOf(saved, "bullets")).toEqual(styled(saved))
   })
 
-  test("a bullet on every line, as the text box did", () => {
+  test("a bullet on every line, even one saved without it", () => {
     expect(styledOf("Built a **loom**", "bullets").text).toBe("• Built a loom")
     expect(styledOf("", "bullets").text).toBe("")
   })
@@ -180,7 +180,7 @@ describe("typing", () => {
     const bold = typeAtEnd("• Wrote ", "**Rust**")
     expect(bold.saved).toBe("• Wrote **Rust**")
     expect(tagged(bold.styled)).toBe("• Wrote <b>Rust</b>")
-    // Past a closing mark, the words are plain again, as they were in a text box.
+    // Past a closing mark, the words are plain again.
     expect(typeAtEnd("• Wrote ", "*fast* code").saved).toBe("• Wrote *fast* code")
     expect(typeAtEnd("• Wrote ", "**Rust** too").saved).toBe("• Wrote **Rust** too")
     expect(typeAtEnd("• Wrote **Rust** in ", "*no* time").saved).toBe("• Wrote **Rust** in *no* time")

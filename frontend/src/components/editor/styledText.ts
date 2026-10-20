@@ -180,10 +180,9 @@ export interface Settled {
  * An edit as the box shows it and as it's saved: every line starts with a
  * bullet (withBullets), and shows what it prints, so marks typed as words,
  * like "**Rust**", turn bold. The cursor moves with the words, and after a
- * closing mark typed there, what's typed next is outside it, as it was in a
- * text box. Lines that are the same as in `previous`, the saved text before
- * the edit, are saved as they were typed, so an edit only rewrites the lines
- * it changes.
+ * closing mark typed there, what's typed next is outside it. Lines that are
+ * the same as in `previous`, the saved text before the edit, are saved as
+ * they were typed, so an edit only rewrites the lines it changes.
  */
 export function settled(edit: StyledEdit, previous: string, kind: Kind): Settled {
   const kept = new Map<string, string>()

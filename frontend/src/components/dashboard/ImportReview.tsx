@@ -91,7 +91,7 @@ const swapFields = (entry: FoundEntry, [a, b]: [FieldKey, FieldKey]): FoundEntry
   fields: { ...entry.fields, [a]: entry.fields[b], [b]: entry.fields[a] },
 })
 
-/** The parsed resume with the user's swaps applied. */
+/** The parsed resume with the person's swaps applied. */
 function withSwaps(parsed: ParsedResume, swapped: Set<string>): ParsedResume {
   return {
     ...parsed,

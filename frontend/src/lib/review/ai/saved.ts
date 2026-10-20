@@ -1,7 +1,9 @@
 // AI notes are kept in this browser, never on a server: the site doesn't
-// store resumes, and the notes quote them. Reviewing the same resume again
-// shows the notes it got before instead of asking the AI again, and a
-// resume opened in the editor from the review finds its notes by its id.
+// store resumes, and the notes quote them. Reviewing the same resume again,
+// on the review page or in the editor, shows the notes it got before instead
+// of asking the AI again, and a resume in the editor finds its notes by its
+// id, whether they came from the review it was opened from or were asked for
+// there.
 //
 // Kept by a hash of the printed lines that were sent, so the same resume
 // (as printed) finds them whatever its file is called. What's read back is
@@ -28,7 +30,7 @@ export interface SavedNote {
 export interface SavedReview {
   /** SHA-256 of the lines sent, as hex. */
   hash: string
-  /** The resume the review was opened in the editor as, once it was. */
+  /** The resume the notes are tied to (tieToResume), once they are. */
   resumeId?: string
   savedAt: number
   notes: SavedNote[]
@@ -97,7 +99,7 @@ export function savedByHash(hash: string, storage = storageOf()): SavedReview | 
   return (storage && readAll(storage).find((review) => review.hash === hash)) || null
 }
 
-/** The notes saved for a resume opened in the editor from the review. */
+/** The notes tied to a resume (tieToResume). */
 export function savedForResume(resumeId: string, storage = storageOf()): SavedReview | null {
   if (!storage) return null
   return readAll(storage).find((review) => review.resumeId === resumeId) ?? null
@@ -111,7 +113,10 @@ export function saveNotes(hash: string, notes: SavedNote[], storage = storageOf(
   writeAll(storage, [...others, { hash, ...(before?.resumeId && { resumeId: before.resumeId }), savedAt: now, notes }])
 }
 
-/** Ties the notes for these lines to the resume they were opened in the editor as. */
+/**
+ * Ties the notes for these lines to a resume in this browser: the one the
+ * review was opened in the editor as, or the one the editor asked them for.
+ */
 export function tieToResume(hash: string, resumeId: string, storage = storageOf()) {
   if (!storage) return
   const reviews = readAll(storage)

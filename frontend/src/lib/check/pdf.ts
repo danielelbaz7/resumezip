@@ -59,9 +59,9 @@ export function printedBullets(resume: ResumeView, pdf: PdfReading): (PlacedBull
   })
 }
 
-/** Custom lists participate in physical layout checks, without role-specific bullet advice. */
+/** Each bullet with the lines it's printed on, the added lists' too. */
 export function printedLayoutBullets(resume: ResumeView, pdf: PdfReading): { place: Place; printed: PrintedBullet }[] {
-  const custom = (pdf.extras?.sections ?? [])
+  const added = (pdf.extras?.sections ?? [])
     .filter((section) => section.status === "matched")
     .flatMap((section) =>
       section.parts.flatMap(({ place, lines }) =>
@@ -70,5 +70,5 @@ export function printedLayoutBullets(resume: ResumeView, pdf: PdfReading): { pla
           : [],
       ),
     )
-  return [...printedBullets(resume, pdf), ...custom]
+  return [...printedBullets(resume, pdf), ...added]
 }

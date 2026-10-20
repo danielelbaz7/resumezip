@@ -1,7 +1,7 @@
 "use client"
 
-// The pen marks on the editor's preview, in Check mode: the ATS checks' (blue
-// and red) or the AI's notes (red and green), never both, as on the review
+// The pen marks on the editor's preview, in Check mode: the ATS checks' (red
+// and yellow) or the AI's notes (red and blue), never both, as on the review
 // page. Which note is showing is shared, so pointing at a mark on the page or
 // at its row in the Check panel shows the same note on the page.
 
@@ -75,7 +75,7 @@ export function MarksProvider({
   const [open, setOpen] = useState<string | null>(null)
   const [ai, setAi] = useState<AiAsk>({ step: "idle" })
 
-  // A resume opened from the review brings its AI notes, kept in this browser, and opens on them.
+  // A resume opened from the review, or asked about here before, brings its AI notes, kept in this browser, and opens on them.
   useEffect(() => {
     const saved = savedForResume(id)?.notes ?? null
     setAiNotes(saved)
@@ -115,7 +115,7 @@ export function MarksProvider({
     setAi({ step: "asking" })
     void (async () => {
       const hash = await hashOf(sentOf(units))
-      // This version of the resume was reviewed before, here or in the editor: no need to ask again,
+      // This version of the resume was reviewed before, on the review page or here: no need to ask again,
       // unless that review found nothing, which would only show this prompt again.
       const before = savedByHash(hash)?.notes
       let saved = before?.length ? before : null

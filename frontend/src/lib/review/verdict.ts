@@ -1,6 +1,6 @@
 // What the review page says about a resume: a verdict from its score, in the
-// editor's own bands (SCORE_BANDS), so the page and the editor's Check never
-// disagree, and how many notes it found.
+// editor's own bands (SCORE_BANDS), so a score reads the same on the page as
+// in the editor's Check, and how many notes it found.
 
 import type { Finding, Report } from "@/lib/check/engine"
 import { bandOf } from "@/lib/check/score"

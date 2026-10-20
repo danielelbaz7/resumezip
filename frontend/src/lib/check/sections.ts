@@ -83,8 +83,8 @@ const experience: Rule = {
   why: "It's what a recruiter reads most closely: what you've done.",
   check: ({ resume }) => {
     const entries = EXPERIENCE.flatMap((section) => filled(resume.sections[section]))
-    // Titles, tools and links identify an entry, but don't describe what the
-    // person did. Only printed descriptions can satisfy this essential check.
+    // A title, tools and links say what an entry is, not what the person did,
+    // so only a printed bullet with words in it passes.
     if (entries.some((entry) => entry.bullets.some((bullet) => /\p{L}/u.test(bullet.text)))) return { checked: 1, problems: [] }
     const first = entries[0]
     const description = first && SECTIONS[first.section].fields.find((field) => field.type === "bullets")?.key
@@ -155,8 +155,8 @@ const named: Rule = {
       for (const entry of filled(resume.sections[section])) {
         checked += fields.length
         for (const field of fields.filter((key) => !entry.values[key])) {
-          // An explicitly independent role already explains why there is no
-          // single employer. Ordinary job titles still need an organization.
+          // A freelance or self-employed role has no employer to name; any
+          // other job needs its company.
           if (
             section === "Work" &&
             field === "companyName" &&

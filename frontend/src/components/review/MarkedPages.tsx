@@ -14,14 +14,16 @@ export interface Flight {
   radius: number
 }
 
-// As long as the marks wait to be drawn (--review-marks-wait on the board, in review.css).
+// How long the first page takes to fly into place. The marks wait a little less (--review-marks-wait on
+// the board, in review.css), as the flight eases out: by then the page has all but landed.
 const FLIGHT_MS = 900
 
 /**
- * The resume's pages as its template prints them, scribbled on in pen where
- * each note is, as crackedresume does. Pointing at a scribble, or tabbing to
- * it, shows its note; the notes that aren't on a line are listed below, and
- * so is every note on a page that couldn't be drawn (all of them, with `pages` null).
+ * The resume's pages, the PDF as it came or as its template prints it,
+ * scribbled on in pen where each note is, as crackedresume does. Pointing at
+ * a scribble, or tabbing to it, shows its note; the notes that aren't on a
+ * line are listed below, and so is every note on a page that couldn't be
+ * drawn (all of them, with `pages` null).
  */
 export default function MarkedPages({
   pages,

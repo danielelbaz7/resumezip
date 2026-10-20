@@ -49,7 +49,11 @@ export const MAX_RESUMES = 1_000
 
 /** An attachment with more than MAX_LENGTH characters or MAX_ENTRIES entries, or a JSON file with more than MAX_RESUMES resumes. */
 export class TooLongError extends Error {}
-/** A recognized save file must never silently fall back to guessed PDF text. */
+/**
+ * A resumezip file that's damaged or from a newer version, so it isn't
+ * opened; the message says which. Reading its text instead, as for any other
+ * PDF or Word file, would quietly bring back less than was saved.
+ */
 export class AttachmentError extends Error {}
 
 /** What a file is called in the messages about it. */
@@ -198,7 +202,7 @@ const object = (value: unknown): Record<string, unknown> => (isObject(value) ? v
 
 const string = (value: unknown) => (typeof value === "string" ? value : "")
 
-/** How many entries a resume's sections have together. */
+/** How many entries a resume's sections have together, each section the person added counting as one. */
 const entryCount = (resume: unknown) => {
   const extras = object(object(resume).extraSections)
   return (
@@ -266,8 +270,8 @@ export function cleanResume(input: unknown): ResumeContent {
     clean.updatedAt = resume.updatedAt
   }
   if (resume.extraSections !== undefined) clean.extraSections = readExtraSections(resume.extraSections).sections
-  // The saved order's known sections, then the core ones it lacks and any optional one with entries.
-  // That's then only the sections it shows, so it's marked as chosen (see Resume.sectionsChosen).
+  // The sections it shows, in order (see resolveSections). That's then only the
+  // sections it has, not every one, so it's marked as chosen (see Resume.sectionsChosen).
   clean.sectionOrder = resolveSections({ ...clean, sectionOrder: resume.sectionOrder, sectionsChosen: resume.sectionsChosen })
   clean.sectionsChosen = true
   return clean

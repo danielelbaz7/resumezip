@@ -36,7 +36,7 @@ export default function RootLayout({
     <html lang="en" className={`scroll-smooth ${newsreader.variable} ${geist.variable} ${geistMono.variable} ${outfit.variable}`}>
       <head>
         {/* The sky every page sits on (.desk in styles/glass.css), asked for with the stylesheet rather than once
-            it's read, which on a slow connection showed its stand-in for a second or two longer. */}
+            it's read, which on a slow connection shows its stand-in for a second or two longer. */}
         <link rel="preload" as="image" href="/backgrounds/sky-wide.webp" media="not all and (max-aspect-ratio: 4/5)" fetchPriority="high" />
         <link rel="preload" as="image" href="/backgrounds/sky-tall.webp" media="(max-aspect-ratio: 4/5)" fetchPriority="high" />
         <link rel="icon" href="/logo.svg" type="image/svg+xml" />

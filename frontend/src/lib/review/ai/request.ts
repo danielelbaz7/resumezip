@@ -1,6 +1,6 @@
-// What the review page sends /api/review: the printed lines, numbered, and
-// nothing else (no file, no name of it). Checked by the server as it's read,
-// since anyone can send anything there.
+// What the review page and the editor send /api/review: the printed lines,
+// numbered, and nothing else (no file, no name of it). Checked by the server
+// as it's read, since anyone can send anything there.
 
 import type { Unit } from "./units"
 

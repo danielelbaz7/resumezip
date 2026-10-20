@@ -1,5 +1,5 @@
-// "Blueprint": Helvetica-style with blue headings, ported from the LaTeX
-// template that used to live in backend/templates/overleaf3.tex.
+// "Blueprint": Helvetica-style with blue headings, ported from a LaTeX
+// template.
 #import "common.typ": *
 
 #let p = data.profile
@@ -89,8 +89,9 @@
 
 // ---------- Heading ----------
 
-// Ragged and never hyphenated: justified, a name too long for its line was
-// stretched across it, and hyphenated, broken with a hyphen that isn't in it.
+// Ragged and never hyphenated: justified, a name too long for its line
+// would be stretched across it, and hyphenated, broken with a hyphen that
+// isn't in it.
 #{
   set par(justify: false)
   set text(hyphenate: false)

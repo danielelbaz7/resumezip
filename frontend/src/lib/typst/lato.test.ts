@@ -1,7 +1,7 @@
 // Names in Vietnamese, Central European, Turkish, Cyrillic and Greek letters,
-// printed by the templates set in Lato. The Lato bundled before lacked these
-// letters, so Typst drew them from a serif (Charis SIL or EB Garamond) in the
-// middle of a word, even in the bold name at the top.
+// printed by the templates set in Lato, all in Lato: a letter it lacked would
+// come from a serif (Charis SIL or EB Garamond) in the middle of a word, even
+// in the bold name at the top.
 
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"

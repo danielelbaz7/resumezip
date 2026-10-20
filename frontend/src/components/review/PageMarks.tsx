@@ -153,7 +153,7 @@ export function PageMarks({
   const here = placed.filter((scribble) => scribble.page === page)
   const showing = here.find(({ note }) => note.key === open)
   // The others fade behind the open note's mark, on any page; a note with no
-  // mark (an AI flag pointed at in its list while the checks are drawn) fades nothing.
+  // mark (a row pointed at in the Check panel whose finding isn't drawn) fades nothing.
   const fading = open !== null && placed.some(({ note }) => note.key === open)
   const leave = (key: string) => {
     if (open === key) onOpen(null)

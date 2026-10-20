@@ -41,7 +41,7 @@ import type { TemplateId } from "@/lib/templates"
 import type { Paper } from "@/lib/tune"
 import { CARD_SHEET, COUNT_BADGE, PAPER_FRAME } from "@/components/site/sheet"
 
-// Only loaded when someone opens a file that isn't a resumezip PDF.
+// Only loaded when someone opens a PDF or Word file that resumezip didn't make.
 const ImportReview = dynamic(() => import("@/components/dashboard/ImportReview"))
 
 const ACCEPTED_FILES =
@@ -116,7 +116,7 @@ export default function DashboardPage() {
   const [opening, setOpening] = useState<Opening | null>(null)
   // What opening a file of them all did, until another file is opened.
   const [allOpened, setAllOpened] = useState("")
-  // What's said aloud about the last file opened or downloaded, or resume deleted.
+  // What's said aloud about the last thing done here, as a file opened or a resume deleted.
   const [announcement, setAnnouncement] = useState("")
   const [dragging, setDragging] = useState(false)
   const [view, setView] = useState<View>("pages")
@@ -127,8 +127,8 @@ export default function DashboardPage() {
   const [query, setQuery] = useState("")
   // The resume deleted last, while it can still be put back. It's only
   // hidden until then, so Undo puts back exactly what was there; it's
-  // deleted from the browser when the time's up, another is deleted, or the
-  // page is left.
+  // deleted from the browser when the time's up, another is deleted, a file
+  // is opened, or the page is left.
   const [deleting, setDeleting] = useState<{ resume: ResumeWithId; key: number } | null>(null)
   const deletingRef = useRef(deleting)
   const deletions = useRef(0)
@@ -349,7 +349,7 @@ export default function DashboardPage() {
         else addAll(opened.resumes)
         return
       }
-      // A resumezip PDF or JSON file: it restores exactly, unless this browser already has that resume.
+      // A resumezip PDF, Word or JSON file: it restores exactly, unless this browser already has that resume.
       const here = copyHere(saved, opened.resume)
       if (!here) edit(importResume(opened.resume, opened.title, { tag: opened.tag }))
       else if (here.unchanged) edit(opened.resume.id!)

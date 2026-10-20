@@ -33,7 +33,7 @@ interface FieldProps {
   hint?: string
   /** A few lines of prose, as the summary: a box that grows with them, where Enter starts a new line, with bold and italic words. */
   multiline?: boolean
-  /** A multiline box's least height, as a class: as tall as three lines unless given, as the text box it replaced was. */
+  /** A multiline box's least height, as a class: as tall as three lines unless given. */
   boxHeight?: string
 }
 
@@ -48,7 +48,7 @@ export const tierOf = (finding: Pick<Finding, "level" | "advisory">): Tier => (f
 
 export const TIER_NAMES: Record<Tier, string> = { fix: "Must fix", look: "Worth a look", optional: "Optional" }
 
-/** Each tier's color, as a dot, a pill and the line down a finding's side. */
+/** Each tier's color, as a dot and a pill; TIER_LINE (CheckPanel.tsx) draws the line down a finding's side in it. */
 export const TIER_BG: Record<Tier, string> = { fix: "bg-alert", look: "bg-caution", optional: "bg-accent" }
 
 /** A small pill for a finding's tier, in its color. */

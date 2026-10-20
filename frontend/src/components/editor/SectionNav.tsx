@@ -155,7 +155,7 @@ export default function SectionNav({ sections, headings, extras, active, onSelec
     return () => observer.disconnect()
   }, [active, sections, allTitles, wide, dnd, dragging])
 
-  // Keyboard focus shows as a soft shade and dark text rather than the site's blue ring, which boxed the row in.
+  // Keyboard focus shows as a soft shade and dark text rather than the site's blue ring, which would box the row in.
   // The chosen section has the grey tab behind it already, so a shade there would draw a second one inside it.
   const item = (isActive: boolean) =>
     `flex h-9 w-full min-w-0 shrink-0 items-center gap-3 whitespace-nowrap rounded-full pl-9 pr-3.5 text-left text-[15px] tracking-[-0.01em] transition-colors focus-visible:outline-none xl:h-10 xl:shrink xl:rounded-[12px] xl:pl-[41px] xl:pr-[15px] ${

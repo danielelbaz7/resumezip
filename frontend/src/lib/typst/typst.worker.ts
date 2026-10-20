@@ -45,7 +45,7 @@ const SOURCES: Record<string, string> = {
 
 // Downloads wrap the template in a file that also attaches a copy of the
 // resume, so templates don't need to know about it. Checked to leave every
-// template's layout exactly as it was.
+// template's layout exactly as a preview's.
 const withAttachment = (template: string) =>
   `#include "/${template}.typ"
 #pdf.attach("/${ATTACHMENT_NAME}", relationship: "source", mime-type: "application/json", description: "This resume's content, so resumezip can open the PDF for editing again")

@@ -11,12 +11,12 @@ const second = "22222222-2222-4222-8222-222222222222"
 const third = "33333333-3333-4333-8333-333333333333"
 
 test.each(samples.map((sample) => [sample.selectedTemplate as string, sample]))(
-  "%s verifies actual new-section text without assigning it to builtin semantic sections",
+  "finds every section the person added in the %s template, and reads none of them as a job",
   async (_template, sample) => {
     const resume = {
       ...sample,
-      // Upstream shares builtin defaults across templates. Exercise those actual
-      // headings as occurrence anchors rather than the samples' custom headings.
+      // The editor's own titles, which every template prints, rather than the
+      // samples' renamed ones, so an added “Experience” shares Work's title.
       headings: {},
       profileSection: { ...sample.profileSection, summary: "Curious engineer who builds reliable software.\n\nEnjoys **literal** prose." },
       extraSections: {

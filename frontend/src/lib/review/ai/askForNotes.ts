@@ -1,4 +1,4 @@
-// The review page's side of /api/review.
+// The browser's side of /api/review, which the review page and the editor ask for AI notes.
 
 import { keptNotesOf } from "./answer"
 import { pauseAi, resumeAi } from "./paused"

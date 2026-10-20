@@ -34,7 +34,7 @@ export interface FoundSection {
   entries: FoundEntry[]
 }
 
-/** A heading occurrence is an address in this file, never a durable editor ID. */
+/** A heading in the file, and which of the editor's sections it starts, if any. */
 export interface FoundOccurrence {
   heading: string
   headingLine: number
@@ -52,7 +52,7 @@ export interface FoundSummary {
 }
 
 export interface ParsedResume {
-  /** The lines that entries' `lines` index into: the file's, with side headings split off. */
+  /** The lines that entries' `lines` index into: the file's, without page numbers and with side headings split off. */
   lines: SourceLine[]
   profile: Partial<Record<ProfileKey, string>>
   profileLines: number[]
@@ -2264,8 +2264,9 @@ export function parseResume(file: Line[]): ParsedResume {
   followOtherEntries(experience)
   followCommas(experience)
 
-  // With no headings at all, firstHeading falls back to the 4th line: what's
-  // below the top of the resume couldn't be sorted, so it's listed as it is.
+  // With no headings at all, the first four lines are the top of the resume
+  // (`firstHeading`), and what's below them couldn't be sorted, so it's
+  // listed as it is.
   if (starts.length === 0) {
     const rest = lines.filter((line) => line.index >= firstHeading && content(line))
     addUnplaced(
@@ -2286,9 +2287,8 @@ export function parseResume(file: Line[]): ParsedResume {
   return { lines: input, profile, profileLines, sections, unplaced, occurrences, summaries }
 }
 
-/** Builds a resume for the editor from what was found, leaving out entries the user unticked. */
 export interface ImportChoices {
-  /** Deliberate promotions, initially absent from the review. */
+  /** Groups of "Couldn't place" the person chose to keep, by `unplacedKey`: as a text section or a bullet list. */
   keepAs?: Record<string, ExtraKind>
 }
 
@@ -2298,6 +2298,7 @@ const NAMED_FOR_PLACE = new Set(["Top of the resume", "Everything else", "Page f
 export const summaryKey = (id: string) => `summary:${id}`
 export const unplacedKey = (group: ParsedResume["unplaced"][number]) => group.id
 
+/** Builds a resume for the editor from what was found, leaving out the entries and summaries the person unticked. */
 export function toResumeContent(parsed: ParsedResume, skip: Set<string> = new Set(), choices: ImportChoices = {}): CompleteContent {
   const resume: ResumeContent = {
     profileSection: { ...parsed.profile },

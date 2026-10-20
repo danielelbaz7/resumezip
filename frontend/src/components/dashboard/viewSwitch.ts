@@ -45,7 +45,7 @@ export const morph = (part: "page" | "name", index: number): CSSProperties => ({
   viewTransitionClass: `resume-${part}`,
 })
 
-/** The view transition type for opening a resume from the dashboard (dashboard.css). */
+/** The view transition type for opening a resume from the dashboard (globals.css). */
 const OPEN_TYPE = "resume-open"
 /** What a resume's page on the dashboard and the editor's page are both called while one becomes the other. */
 export const OPEN_NAME = "resume-open-page"

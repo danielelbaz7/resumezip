@@ -8,7 +8,7 @@ const first = "11111111-1111-4111-8111-111111111111"
 const second = "22222222-2222-4222-8222-222222222222"
 const normal = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase()
 
-test("heuristic PDFs retain optional content and repeated unsupported groups across every template", async () => {
+test("the summary, and two added sections with the same heading, read back from every template, each once", async () => {
   for (const sample of samples) {
     const input: Resume = {
       selectedTemplate: sample.selectedTemplate,

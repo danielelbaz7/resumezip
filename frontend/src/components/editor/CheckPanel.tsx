@@ -88,7 +88,7 @@ export default function CheckPanel() {
       <div className="flex flex-col gap-4 px-3 py-4 xl:p-0">
         <ScoreHeader total={null} />
         <p className="px-2 text-sm leading-relaxed text-ink-2">
-          {/* The checker reads only what's printed, so entries that are all left out don't count. */}
+          {/* The checker reads only what's printed, so what's left out of the PDF doesn't count. */}
           {view.profile.fullName && hasLeftOut(checked)
             ? "Include some section content in the PDF to check this resume."
             : "Add your name and some section content to check this resume."}
@@ -226,8 +226,8 @@ function useShownCategories(findings: readonly Finding[], checking: ReadonlyMap<
 /**
  * The resume score as a big number, a word for how it reads, a scale with
  * where each word starts, in a line what it measures, and whether a must-fix
- * is holding it down. A perfect score's number glows (`.score-perfect` in
- * styles/editor.css).
+ * is holding it down. A perfect score's number glows
+ * (`[data-perfect] .score-number` in styles/editor.css).
  */
 function ScoreHeader({
   total,

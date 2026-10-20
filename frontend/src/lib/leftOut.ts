@@ -1,8 +1,8 @@
-// What's left out of a resume: entries and bullets kept in the editor but not
-// printed, so one resume can be tailored to a job without deleting anything.
-// A left-out entry has `leftOut: true`; a left-out bullet starts with "○"
-// where a printed one has "•". Older resumes have neither, so they print as
-// they always have.
+// What's left out of a resume: entries, bullets and sections the person added,
+// kept in the editor but not printed, so one resume can be tailored to a job
+// without deleting anything. A left-out entry or section has `leftOut: true`;
+// a left-out bullet starts with "○" where a printed one has "•". Older
+// resumes have neither, so they print as they always have.
 
 import { SECTIONS } from "@/components/editor/sections"
 import type { Resume } from "@/lib/resume"
@@ -32,7 +32,7 @@ const printedBullets = (value: unknown) =>
           .join("\n")
       : value
 
-/** Whether anything in the resume is left out: an entry, or a bullet. */
+/** Whether anything in the resume is left out: an entry, a bullet, or a section the person added. */
 export function hasLeftOut(resume: Resume): boolean {
   const extraLeftOut = Object.values(extrasOf(resume)).some(
     (section) => !sectionIncluded(section) || (section.kind === "list" && section.bullets.split("\n").some(isLeftOutLine)),
@@ -58,9 +58,9 @@ export function hasLeftOut(resume: Resume): boolean {
 }
 
 /**
- * The resume as it's printed: without left-out entries and bullets. It's
- * what the PDF shows, and all the copy of the resume inside the PDF holds,
- * since anyone who gets the PDF can read that copy.
+ * The resume as it's printed: without left-out entries, bullets and added
+ * sections. It's what the PDF shows, and all the copy of the resume inside
+ * the PDF holds, since anyone who gets the PDF can read that copy.
  */
 export function printedResume(resume: Resume): Resume {
   // Saved entries are only checked for shape, so they're read as unknown here.

@@ -1,7 +1,7 @@
-/* The white sheet the dashboard and the editor are on, and the controls drawn
-   on it: one opaque sheet of paper over the sky, in a frosted frame. What's on
-   the sheet is calm (white, cool greys, ink and the one blue); the sky round it
-   brings the color. */
+/* The white sheet the editor, the dashboard and most other pages are on, and
+   the controls drawn on it: one sheet of paper over the sky, in a frosted
+   frame. What's on the sheet is calm (white, cool greys, ink and the one
+   blue); the sky round it brings the color. */
 
 @layer components {
   /* The sky at full color, with no wash (nothing is read straight off it: the
@@ -63,11 +63,11 @@
       0 1px 2px rgb(17 19 24 / 0.05),
       0 10px 24px -14px rgb(17 19 24 / 0.22);
   }
-  /* The dashboard's sheet lets a little of the sky through, so the white
-     cards on it stand out: three quarters white, over a slight blur. It's
-     drawn on ::before, as the frame's frost is, so the sheet isn't the
-     backdrop root of the glass in it. Its secondary text is a shade darker
-     than on white, to keep 4.5:1 over the sky's bluest part. */
+  /* Every sheet but the editor's (components/site/sheet.ts) lets a little of
+     the sky through, so white cards on it stand out: three quarters white,
+     over a slight blur. It's drawn on ::before, as the frame's frost is, so
+     the sheet isn't the backdrop root of the glass in it. Its secondary text
+     is a shade darker than on white, to keep 4.5:1 over the sky's bluest part. */
   .paper.paper-sky {
     --color-ink-3: #5b6070;
     position: relative;
@@ -95,8 +95,8 @@
       border-radius: 21px;
     }
   }
-  /* While the search is lifted, its veil covers the whole screen: the frame
-     it's in rises over the header and the footer (dashboard.css). */
+  /* While the search is lifted, its veil (dashboard.css) covers the whole
+     screen: the frame it's in rises over the header and the footer. */
   [data-spotlight] .paper-frame {
     z-index: 45;
   }

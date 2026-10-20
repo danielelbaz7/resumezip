@@ -1,6 +1,7 @@
-// Compiles resumes to PDF in the browser. The Typst compiler (and its large
-// WebAssembly download) is only loaded once a resume is about to be compiled
-// (loadCompiler), or the first time one is.
+// Compiles resumes to PDF in the browser. The Typst compiler, a large
+// WebAssembly download, is only built once a resume is about to be compiled
+// (loadCompiler), or the first time one is. It can be downloaded before that,
+// without being built (prefetchCompiler).
 
 import type { Resume } from "@/lib/resume"
 import { toAttachment } from "@/lib/resumeFile"

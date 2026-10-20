@@ -5,8 +5,8 @@
 // Crossref has most journal and conference papers, and its own API keeps a
 // chapter's book title, which doi.org's CSL JSON drops. arXiv's DOIs are
 // DataCite's, and doi.org answers for those and for every other registry.
-// Crossref answers one request at a time from each visitor, so look papers up
-// one after another.
+// Crossref answers one request at a time from each visitor, so PaperFromLink
+// looks papers up one after another.
 
 import type { PaperId } from "./link"
 

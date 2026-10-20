@@ -1,7 +1,6 @@
-// Renders resumes to PDF with the real Typst templates and reads them back
-// the way "Open a file" does for PDFs from elsewhere, for tests. Used by the
-// import round-trip and test set tests, the checker's PDF rule tests, the
-// templates' layout tests, and the plain-text reading and heading tag tests.
+// Renders resumes to PDF with the real Typst templates, and reads PDFs back
+// the way "Open a file" does for PDFs from elsewhere, for any test that needs
+// a resume printed, or a PDF read, as the site does it.
 
 import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"

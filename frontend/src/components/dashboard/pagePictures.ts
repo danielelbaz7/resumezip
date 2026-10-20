@@ -14,7 +14,7 @@ import type { PDFWorker } from "pdfjs-dist"
 import type { Resume } from "@/lib/resume"
 import { compileResume, failureOf, printedOf } from "@/lib/typst/compile"
 
-/** How wide the page is drawn, in pixels: twice the widest card's, so it's sharp on high-density screens. */
+/** How wide the page is drawn, in pixels: nearly twice the widest card's (340px), so it's sharp on high-density screens. */
 const DRAWN_WIDTH = 600
 
 export interface Picture {
@@ -27,7 +27,8 @@ export interface Picture {
 // old picture stands in better than the template's while the new one is drawn.
 const pictures = new Map<string, Picture>()
 // The resumes whose pictures are on screen, by id, in the order they came
-// into view, and how many places show each (a tile, and the Recent list).
+// into view, and how many places show each: its card or row, a search match,
+// New resume's list to copy from, the Undo message.
 const wanted = new Map<string, { resume: Resume; places: number }>()
 // What printed resumes couldn't be laid out by their template; not tried again until they change.
 const unprintable = new Set<string>()
@@ -38,7 +39,7 @@ const listeners = new Set<() => void>()
 // Every resume the dashboard has, as it last said (keepPictures); null until it has.
 let known: Set<string> | null = null
 let started = false
-// Set when the compiler can't be downloaded or keeps breaking: the template pictures stay for this visit.
+// Set when the compiler can't be downloaded or breaks: the template pictures stay for this visit.
 let stopped = false
 let drawing = false
 let pdfWorker: PDFWorker | null = null

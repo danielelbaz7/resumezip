@@ -6,9 +6,10 @@ import { FormProvider } from "@/context/ResumeContext"
 // or an empty editor to a crawler. Every page under /create inherits this.
 export const metadata: Metadata = { robots: { index: false } }
 
-// Only the dashboard and the editor read the saved resumes. Other pages'
-// links to them check that there are some by their keys alone
-// (components/site/StartWriting.tsx).
+// The dashboard and the editor read the saved resumes as they load. Other
+// pages read them only when one may be added, by the review's "Fix it in the
+// editor" or a link that starts a new resume (components/site/StartWriting.tsx);
+// until then, such a link checks that there are some by their keys alone.
 export default function CreateLayout({ children }: { children: React.ReactNode }) {
   return <FormProvider>{children}</FormProvider>
 }

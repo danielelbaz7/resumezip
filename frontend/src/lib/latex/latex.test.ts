@@ -156,7 +156,7 @@ const FIELDS = [
   ...["Talks", "Talk", "Notes", "Note"],
 ]
 
-/** A resume with something in every section: links, bold and italic, extra sections and publications. */
+/** A resume with something in every section: links, bold and italic, added sections and publications. */
 const EVERYTHING = {
   sectionOrder: [
     "Education",
@@ -467,7 +467,7 @@ describe.each(IDS)("a LaTeX file in %s's layout", (id) => {
     expect(balanced(text)).toBe(true)
   })
 
-  test("with links, bold and italic, extra sections and publications is laid out as its template is", async () => {
+  test("with links, bold and italic, added sections and publications is laid out as its template is", async () => {
     await expect(toLatexFile(asSaved({ ...EVERYTHING, selectedTemplate: id })).text).toMatchFileSnapshot(`__snapshots__/${id}.tex`)
   })
 })
@@ -679,7 +679,7 @@ describe("signs pdfLaTeX prints, but a template's font lacks", () => {
   })
 
   test("get no fallbacks where the template's fonts have them", () => {
-    // TeX Gyre Heros has the arrow, so Swiss's file is as it was.
+    // TeX Gyre Heros has the arrow, so Swiss's file needs no fallback for it.
     const text = latexOf({ selectedTemplate: "swiss", workExperienceSection: [{ id: 1, workRole: "Intern → Software Engineer" }] })
     expect(text).toContain("Intern → Software Engineer")
     expect(text).not.toContain("\\resumeLetters")

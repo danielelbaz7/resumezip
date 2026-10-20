@@ -284,10 +284,10 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     function render(v: number) {
       const { height: vh } = screen
 
-      // A part that's out of the story is faded to nothing, never hidden: see .home-stage in home.css.
+      // A part that's out of the story is faded to nothing, not hidden (see .home-stage in home.css),
+      // except the first screen, which is hidden too once it's gone, to take its links out of the Tab order.
 
-      // The first screen lifts away, softening, as the editor comes up. Once it's gone, its links
-      // are out of the keyboard's way too.
+      // The first screen lifts away, softening, as the editor comes up.
       const gone = smooth(span(v, BEATS.hero))
       el.heroBox.style.opacity = String(1 - gone)
       el.heroBox.style.transform = `translate3d(0, ${-gone * vh * 0.12}px, 0) scale(${1 - 0.04 * gone})`

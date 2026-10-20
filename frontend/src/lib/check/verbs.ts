@@ -70,7 +70,10 @@ export function verbOf(word: string): Verb | null {
   return null
 }
 
-/** A likely opening action, allowing a short introductory adverb. Null means uncertain, not ungrammatical. */
+/**
+ * The action a bullet starts with, after an adverb like “Successfully” if it
+ * has one. Null when it may not start with one, which isn't wrong in itself.
+ */
 export function verbAtStart(text: string): { word: string; verb: Verb } | null {
   let start = opening(text)
   let word = firstWord(start)

@@ -1,7 +1,7 @@
 // How long the person has worked, and where they are in a career, read from
 // the resume's own dates, for rules whose advice depends on it: how many
-// pages a resume can run to (L1), and whether a graduation date needs its
-// month (D9).
+// pages a resume can run to (L1), whether a graduation date needs its month
+// (D9, which D4 leaves it to), and whether coursework still helps (S8).
 
 import { datesOf, latestOf, type ResumeDate } from "./readDate"
 import type { Entry, ResumeView } from "./resume"

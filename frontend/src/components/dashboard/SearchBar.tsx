@@ -59,9 +59,10 @@ interface SearchBarProps {
  *
  * In use, it lifts out of the toolbar into the middle of the screen, over a
  * softened page, as Spotlight does on a Mac; a copy of it stays in the toolbar
- * underneath. Not on a phone, where it stays where it is. Escape with nothing typed, a click on the page, or Tab out puts
- * it back, and lets go of the focus. It stays one input throughout, so focus
- * and typing carry over as it lifts.
+ * underneath. Not on a phone, where it stays where it is. Escape with nothing
+ * typed, a click on the page, or Tab out puts it back, and lets go of the
+ * focus. It stays one input throughout, so focus and typing carry over as it
+ * lifts.
  */
 export default function SearchBar({ resumes, query, onQuery }: SearchBarProps) {
   const router = useRouter()
@@ -119,8 +120,8 @@ export default function SearchBar({ resumes, query, onQuery }: SearchBarProps) {
   useEffect(() => () => window.clearTimeout(landing.current), [])
 
   // Said on the page while the search is lifted or landing: the header, a pill the same
-  // shape, tucks away above the screen while it's up (home.css), and the page's main part
-  // rises over the footer so the veil covers it too (dashboard.css).
+  // shape, tucks away above the screen while it's up (home.css), and the frame round the
+  // page's main part rises over the footer so the veil covers it too (sheet.css).
   useEffect(() => {
     if (place === "down") return
     const page = document.documentElement

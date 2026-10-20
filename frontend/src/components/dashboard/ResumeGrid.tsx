@@ -157,7 +157,7 @@ export default function ResumeGrid({ resumes, actions, onDelete, onRetype, leavi
   )
 }
 
-/** A dashed card that starts a new resume, last in the grid. */
+/** A dashed card that starts a new resume: last in the grid, or first while there are none (EmptyShelf). */
 export function NewTile({ onNew }: { onNew: () => void }) {
   return (
     <button type="button" onClick={onNew} className="new-tile">

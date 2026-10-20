@@ -1,6 +1,8 @@
 /* The review page (/review): a resume floating on the sky, going soft into a
    fog the words stand on, as if seen for seven seconds; then the verdict in
-   cloud, and the reviewed resume in a frosted frame, scribbled on in pen. */
+   cloud, and the reviewed resume in a frosted frame, scribbled on in pen. The
+   editor's Check mode draws the same pen marks on its preview, with the same
+   switch (MarksContext.tsx, CheckPanel.tsx). */
 @layer components {
   :root {
     /* The pens the notes are drawn in, besides the accent's blue (done well) and the caution yellow (worth a look). */
@@ -193,7 +195,8 @@
     }
   }
   /* Arriving with the page that was being read flying into the card (MarkedPages.tsx), the board
-     stays put, what's round the page fades in as it lands, and the marks wait for it to land. */
+     stays put, what's round the page fades in as it lands, and the marks wait until it has all but
+     landed: a little less than its flight (FLIGHT_MS), which eases out. */
   .review-board[data-flight] {
     --review-marks-wait: 850ms;
   }
@@ -224,8 +227,8 @@
     border-radius: 28px;
   }
 
-  /* Beside the card where there's room, else above it: what the scribbles
-     are, and the AI's notes, each on white glass. */
+  /* Beside the card where there's room, else above it: a note on how the
+     page was read, when it needs one, and the AI's notes, each on white. */
   .review-side {
     display: flex;
     flex-direction: column;
@@ -656,7 +659,7 @@
     height: 16px;
   }
 
-  /* Why the AI notes aren't there: a dark pill over the dock, or under the drop zone. */
+  /* Why the AI notes aren't there: a dark pill over the dock, or under the header on the drop zone. */
   .review-pill {
     display: inline-flex;
     align-items: center;

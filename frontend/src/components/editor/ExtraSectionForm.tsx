@@ -7,7 +7,7 @@ import { useCheckActions, useCheckTarget } from "./CheckContext"
 import DeleteSection from "./DeleteSection"
 import { BulletsField, Field, pointAt, SectionHeading } from "./fields"
 
-/** A section the person added, found by its key rather than its title, which can be anyone's. */
+/** A section the person added, found by its key rather than its title, as two sections can have the same title. */
 export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: string; onDelete: () => void }) {
   const { editSection } = useResumeActions()
   const { id } = useOpenResume()
@@ -64,7 +64,7 @@ export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: s
           onChange={(text) => editSection(id, sectionId, { text })}
           flag={flagAt("text")}
           hint="Paragraph breaks are kept."
-          // As tall as eight lines, as the text box it replaced was.
+          // As tall as eight and a half lines.
           boxHeight="min-h-[238px]"
         />
       )}

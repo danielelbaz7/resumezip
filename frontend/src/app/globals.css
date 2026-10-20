@@ -1,5 +1,7 @@
 @import "tailwindcss";
-/* Each part of the site keeps its own styles in a file of its own. */
+/* Each part of the site has a file of its own, which other parts borrow from
+   where they look the same. The rest is here: the tokens and utilities, the
+   footer's lift, zipper and wordmark, the loader, the row actions and more. */
 @import "./styles/glass.css";
 @import "./styles/sheet.css";
 @import "./styles/home.css";
@@ -18,7 +20,7 @@
   --color-accent: #2e5be6;
   --color-accent-soft: #a8b9f2;
   --color-alert: #b42318; /* must-fix findings (6.6:1 against white) */
-  --color-caution: #e5a50a; /* worth-a-look findings: a dot and a pill under ink text, not text itself */
+  --color-caution: #e5a50a; /* worth-a-look findings: a dot, a line, a pen mark or a pill under ink text, not text itself */
   /* On the white sheet (styles/sheet.css): cool greys. */
   --color-ink-3: #686d76; /* quiet text: dates, counts, notes (4.6:1 on fill, 5.2:1 on white) */
   --color-fill: #f2f3f6; /* grey tracks, chips and the search */
@@ -40,7 +42,7 @@
 }
 
 /* The footer's zipper (components/site/SiteFooter.tsx): the logo's key drawn at
-   full width, as on the social card. It's shut, and doesn't move. */
+   full width. It's shut, and doesn't move. */
 @layer components {
   /* --u is the logo's unit: its key is 56 across and its ring 26. From the ring
      at the page's margin to the right edge, it's the logo. */
@@ -151,10 +153,12 @@
   }
 }
 
-/* Fonts are loaded by next/font in app/layout.tsx. Every page, the home page
-   included, uses Newsreader for titles (font-serif), Geist for everything read
-   or pressed (font-sans, the default), Geist Mono for label-mono, and Outfit
-   for the wordmark. */
+/* Fonts are loaded by next/font. Every page has the four in app/layout.tsx:
+   Newsreader for titles (font-serif), Geist for everything read or pressed
+   (font-sans, the default), Geist Mono for label-mono, and Outfit for the
+   wordmark. The big headlines on the home page's first screen and on the
+   review page are Instrument Serif (components/site/headlineFont.ts), and the
+   home page's handwritten notes are Caveat (app/page.tsx). */
 @theme inline {
   --font-serif: var(--font-newsreader), Georgia, serif;
   --font-sans: var(--font-geist), system-ui, sans-serif;
@@ -199,8 +203,9 @@
   }
 }
 
-/* Three shapes: paper is square, controls are pills (rounded-full), and what
-   floats over the desk (panels, menus, dialogs, cards) is rounded-panel. */
+/* rounded-panel: the corners of a menu, and of a panel or box made like one
+   (the search's matches, the template gallery, the Check tab's boxes, the
+   Undo message). */
 @theme {
   --radius-panel: 20px;
   /* A row inside a panel, as a menu's items: the panel's corner less its
@@ -315,8 +320,8 @@
   transition:
     filter 150ms,
     scale 120ms ease-out;
-  /* The gloss takes the button's own top corners, so where a button is half
-     of a pair (Download PDF and its ▾), its inner edge stays square. */
+  /* The gloss has the button's own top corners, square or round, and a
+     straight foot across the button's middle. */
   &::before {
     content: "";
     position: absolute;
@@ -365,8 +370,8 @@
 }
 
 /* Small monospace caps, the site's one label style: for facts about things
-   ("03 / 08", "SAVED IN THIS BROWSER") and eyebrows over titles. Buttons and
-   links say their words in sentence case instead. */
+   ("/ 100", "NOT SAVED") and eyebrows over titles. Buttons and links say
+   their words in sentence case instead. */
 @utility label-mono {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -598,8 +603,7 @@
 }
 
 /* Opening a resume from the dashboard (openResume in components/dashboard/viewSwitch.ts):
-   its page grows into the editor's page while the rest crossfades. Here rather
-   than in dashboard.css, as the editor's styles replace the dashboard's mid-way. */
+   its page grows into the editor's page while the rest crossfades. */
 :root:active-view-transition-type(resume-open)::view-transition-group(*),
 :root:active-view-transition-type(resume-open)::view-transition-old(*),
 :root:active-view-transition-type(resume-open)::view-transition-new(*) {

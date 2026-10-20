@@ -22,7 +22,7 @@ const loadResumes = () => import("@/context/ResumeContext")
 const opensNew = (template?: TemplateId) => template !== undefined || !hasSavedResumes(getStorage())
 
 /**
- * Starts the user writing. First-time visitors get a new resume straight away;
+ * Starts the visitor writing. First-time visitors get a new resume straight away;
  * returning visitors go to their resumes. Picking a specific template always
  * starts a new resume with it. `prepare`, for a moment before, starts the
  * downloads a new resume's editor needs.

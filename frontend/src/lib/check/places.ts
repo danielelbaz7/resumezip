@@ -149,7 +149,7 @@ function fingerprint(text: string): string {
   return (hash >>> 0).toString(36)
 }
 
-/** Identifies a place exactly, bullet line included: equal ids mean the same place. */
+/** Tells places apart as `pathOf` does, and an entry's bullets by their line too; an added list's bullets share one id. */
 export const placeId = (place: Place) =>
   place.kind === "entry" && place.line !== undefined ? `${pathOf(place)}.${place.line}` : pathOf(place)
 

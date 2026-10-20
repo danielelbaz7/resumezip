@@ -32,7 +32,7 @@ test("a bullet rewritten after its first words isn't found by them", () => {
   expect(placeOfQuote(view, `${start} for customer support teams`)).toBeNull()
 })
 
-test("finds words in a custom section's text, which has no bullets", () => {
+test("finds words in a text section the person added, which has no bullets", () => {
   const id = "11111111-1111-4111-8111-111111111111"
   const custom = viewOf({
     ...sample,

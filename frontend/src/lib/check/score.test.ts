@@ -457,8 +457,8 @@ describe("on real resumes", () => {
         },
       ],
     }
-    // Optional wording and cosmetic advice no longer subtract points. The
-    // substantive failures must still keep this resume in Needs work.
+    // Wording and polish advice costs nothing, but its real problems still
+    // keep this resume in Needs work.
     expect(bandOf((await scoreOfResume(sloppy))!).name).toBe("Needs work")
 
     // A name, a broken email and a company, and nothing else: no role, dates, bullets, education or skills.

@@ -13,9 +13,9 @@
     }
   }
 
-  /* A Check tab category's box (CheckPanel.tsx): frosted glass (.glass in
-     glass.css), a little clearer than a panel's, with a lighter shadow, as
-     several sit stacked in the panel. */
+  /* A box in the Check tab, for a category or the AI's notes (CheckPanel.tsx,
+     AiNotesBox.tsx): frosted glass (.glass in glass.css), a little clearer
+     than a panel's, with a lighter shadow, as several sit stacked in the panel. */
   .check-box {
     --glass-blur: 14px;
     --glass-fill: linear-gradient(180deg, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.5));
@@ -25,8 +25,8 @@
   }
 
   /* On wide screens (Tailwind's `xl`, WIDE_SCREEN in components/editor/layout.ts)
-     the pages scroll between the preview's label and its zoom pill, under soft
-     edges rather than being cut off (components/editor/PdfPreview.tsx). */
+     the pages scroll between the top of the preview's panel and its zoom pill,
+     under soft edges rather than being cut off (components/editor/PdfPreview.tsx). */
   @media (min-width: 80rem) {
     .preview-canvas {
       -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 20px), transparent);
@@ -34,8 +34,9 @@
     }
   }
 
-  /* Narrower, Style takes the form's place: the left bar shows the templates
-     and Fine-tune where the form would be (components/editor/LeftBar.tsx). */
+  /* Narrower, Style takes the form's place: the left bar shows Fine-tune where
+     the form would be (components/editor/LeftBar.tsx). The template is picked
+     with the header's Template button. */
   @media (width < 80rem) {
     aside[data-mode="style"] ~ .editor-form {
       display: none;

@@ -245,7 +245,7 @@ describe("printing with only the fonts a resume needs", () => {
     }
   })
 
-  // Every font loaded up front, as before, or each read only when it's printed with.
+  // Every font loaded up front, or each read only when it's printed with.
   async function useFonts(fonts: "all" | ((file: string) => Uint8Array)) {
     const builder = createTypstFontBuilder()
     await builder.init({ getModule: () => readFileSync(WASM) })

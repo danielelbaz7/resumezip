@@ -211,9 +211,9 @@ const KNOWN_GAPS: Record<string, string[]> = {
 
 /**
  * What a resume prints, in a form that's easy to compare: bullets and
- * authors as plain text, GPAs without spaces. Headings and the order of
- * sections are left out: the reader keeps neither, and a layout can print
- * sections in its own order, like a sidebar.
+ * authors as plain text, GPAs without spaces. Headings are left out, as the
+ * reader doesn't keep them, and so is the order of sections, as a layout can
+ * print them in its own order, like a sidebar.
  */
 function printed(resume: Record<string, unknown>) {
   // The sections a person adds aren't in the corpus, and the summary is checked on its own, below.

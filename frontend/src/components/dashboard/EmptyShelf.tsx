@@ -22,7 +22,7 @@ export default function EmptyShelf({ onNew, onChooseFile, dragging }: EmptyShelf
       <li className={`aspect-[4/5] min-w-0 ${dragging ? "relative z-[45]" : ""}`}>
         <DropTile onChooseFile={onChooseFile} dragging={dragging} />
       </li>
-      {/* Where later resumes go: outlines only, fading out, as many as fit on the row. */}
+      {/* Where later resumes go: two outlines, fading out, one from lg and both from xl, where the row has room for them. */}
       {[0.7, 0.4].map((opacity, index) => (
         <li
           key={opacity}

@@ -1,5 +1,5 @@
 /* Styles for the home page (src/components/home), the site-wide header and footer (src/components/site)
-   and the templates page (src/app/templates). */
+   and the templates page (src/app/templates). The footer's lift, zipper and wordmark are in globals.css. */
 @layer components {
   /* The site's glass header. On every page, while the dashboard's search is lifted into the middle
      of the screen (SearchBar.tsx), it slides up out of the way; with the keyboard in it, it's always in sight. */
@@ -24,9 +24,10 @@
   }
 
   /* The home page's story (components/home/HomeStory.tsx): a stage pinned to the screen that
-     the scroll plays. The first screen lifts away as the editor rises out of the grass, and its
-     notes slide in beside it one by one. Positions are set from script (stage.ts); these are the
-     looks. The story starts behind the header's strip, so the meadow runs to the top of the screen. */
+     the scroll plays. The first screen lifts away as the editor rises out of the grass, and what
+     it does is marked on it by hand, a note at a time. Positions are set from script (stage.ts);
+     these are the looks. The story starts behind the header's strip, so the meadow runs to the top
+     of the screen. */
   .home-story,
   .home-still {
     position: relative;
@@ -61,10 +62,11 @@
     pointer-events: none;
     background: #7fbff7;
   }
-  /* Each part is a layer of its own from the start, and is faded, never hidden: Chrome rebuilt
-     the stage's layers whenever a part was hidden or shown, and drew a frame before they were
-     painted again, so pictures flickered out as the story played. What the first screen shows
-     is there before the script runs. */
+  /* Each part is a layer of its own from the start, and is faded, not hidden: Chrome rebuilt the
+     stage's layers whenever a part was hidden or shown, and drew a frame before they were painted
+     again, so pictures flickered out as the story played. The first screen is hidden too once it's
+     gone, to take its links out of the Tab order. What the first screen shows is there before the
+     script runs. */
   .home-stage > * {
     position: absolute;
     left: 0;
@@ -105,8 +107,8 @@
     background: linear-gradient(rgb(10 70 200 / 0.5), rgb(10 70 200 / 0.42) 62%, rgb(10 70 200 / 0));
   }
 
-  /* The first screen: the name, what it is, the way in, and Microsoft for Startups. Clear of the
-     grass at the screen's foot. */
+  /* The first screen: what it gets you, what it is, the way in, and Microsoft for Startups. Clear
+     of the grass at the screen's foot. */
   .home-hero {
     position: relative;
     z-index: 2;
@@ -258,7 +260,7 @@
     animation: home-sway 7s ease-in-out infinite alternate;
   }
 
-  /* The marker: loops, lines and arrows, and the notes written by hand, in the one blue. */
+  /* The marker: loops and arrows, and the notes written by hand, in the one blue. */
   .home-stage > .home-ink-layer {
     inset: 0;
   }

@@ -252,12 +252,11 @@ export default function PaperFromLink({ entries, owner, onAdd }: PaperFromLinkPr
           )}
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {/* One button that turns into Stop, so it keeps the keyboard's focus. */}
+            {/* One button that turns into Stop, so it keeps the keyboard's focus. A click
+                focuses it too, as Safari doesn't focus a button that's clicked. */}
             <button
               type="button"
               onClick={(event) => {
-                // Safari does not focus buttons on pointer clicks. Keep focus
-                // on this action as it changes between Add papers and Stop.
                 event.currentTarget.focus({ preventScroll: true })
                 if (progress) stopper.current?.abort()
                 else void run()

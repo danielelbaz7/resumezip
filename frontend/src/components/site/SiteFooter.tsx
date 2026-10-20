@@ -9,9 +9,9 @@ const LINKS = [
 /**
  * The page's end: a strip of the sky, then the page lifts off the footer, its
  * bottom corners rounded over a shadow (`zip-footer` in globals.css). Under
- * it, the links, the wordmark, and the logo's key at full width, as on the
- * social card. It sits shut and doesn't move. The strip is the sky itself
- * (desk), so it's the same on every page, whatever's above; the home page,
+ * it, the links, the wordmark, and the logo's key at full width. It sits shut
+ * and doesn't move. The strip is the sky itself (desk), so it's the same on
+ * every page, whatever's above; the home page,
  * whose story ends on the ground in its meadow, ends on its grass instead
  * (`ground`, .footer-ground in home.css), rather than sky under grass. The
  * review page, which comes down into a fog, runs on into the footer with no

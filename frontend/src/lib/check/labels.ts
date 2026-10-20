@@ -7,8 +7,9 @@ import { entryPlace, textAt, type Place } from "./places"
 import { entryAt, type Entry, type ResumeView } from "./resume"
 
 /**
- * A name and at least one entry with something in it. Until then the
- * checker would only list what's missing, so the panel asks for that instead.
+ * A name, and an entry or an added section with something in it. Until then
+ * the checker would only list what's missing, so the panel asks for that
+ * instead.
  */
 export function hasEnoughToCheck(view: ResumeView): boolean {
   return (

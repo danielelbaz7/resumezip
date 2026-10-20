@@ -34,7 +34,7 @@ interface Placement {
   bottom?: number
   maxHeight: number
   above: boolean
-  /** As narrow as the left bar, so the optional sections are in one column rather than two. */
+  /** As narrow as the left bar, so the sections to add are in one column rather than two. */
   narrow: boolean
 }
 
@@ -66,8 +66,8 @@ interface AddSectionMenuProps {
 /**
  * The Add section button, and the menu it opens over the page: the sections
  * the resume doesn't have, then Custom section, which slides over to a text or a bullet list.
- * It's in the page's top layer (a portal), so the left bar's scrolling, and the
- * row of tabs on smaller screens, neither cut it off nor move for it.
+ * It's a portal to document.body, fixed above the page, so the left bar's scrolling,
+ * and the row of tabs on smaller screens, neither cut it off nor move for it.
  */
 export default function AddSectionMenu({ sections, onAdd }: AddSectionMenuProps) {
   const menuId = useId()

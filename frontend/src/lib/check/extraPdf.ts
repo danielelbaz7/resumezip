@@ -1,7 +1,7 @@
-// Serializable expectations sent to the import worker with a preview. Heading
-// names alone cannot identify custom sections: two can share a name, including
-// a builtin name. Only a complete, ordered text occurrence is removed before
-// the builtin semantic reader runs.
+// Finds the sections the person added in the preview's text, in the import
+// worker, so the reader doesn't take their lines for jobs. A title can't tell
+// them apart (two can share one, or share the editor's “Experience”), so a
+// section counts as found only where its title is followed by exactly its text.
 import type { SectionName } from "@/components/editor/sections"
 import type { Line } from "@/lib/import/lines"
 import { extraKey } from "@/lib/resumeSections"
@@ -28,7 +28,11 @@ export interface ExtraPdfReading {
   excludedLines: number[]
 }
 
-/** Builtin headings anchor occurrences, but their fields keep their existing semantic rules. */
+/**
+ * The sections the preview prints, in order, each with its title, and for one
+ * the person added, its text in parts, with where each part is in the editor.
+ * The editor's sections need only their titles, which end the text before them.
+ */
 export function pdfLayoutOf(view: ResumeView): PdfSectionLayout[] {
   return view.allOrder.flatMap((ref) => {
     const id = extraKey(ref)
@@ -44,18 +48,19 @@ export function pdfLayoutOf(view: ResumeView): PdfSectionLayout[] {
 }
 
 /**
- * Match repeated headings one-to-one in source order. An unexpected duplicate
- * or changed/missing body is deliberately unresolved, rather than attributed
- * to whichever custom ID happens to be first. Exact normalized body equality
- * prevents hiding unrelated extracted text from R4.
+ * Matches each added section's title, in order, to one printed with exactly
+ * its text. When a title is printed more or fewer times than expected, the
+ * text differs or the order is wrong, it says so rather than guess which is
+ * which. Only exact matches are taken out of what the reader reads, so no
+ * other text is hidden from R4.
  */
 export function matchExtraPdf(lines: Line[], layout: readonly PdfSectionLayout[]): ExtraPdfReading {
   const headings = new Set(layout.map((section) => comparable(section.heading)))
   const normalized = lines.map((line) => comparable(line.text))
+  // The lines that read as one of the titles.
   const allStarts = lines.flatMap((_, index) => (headings.has(normalized[index]) ? [index] : []))
-  // Prose can literally contain another section's heading on a line of its
-  // own. Recognize a full expected body before deciding which heading-shaped
-  // lines are boundaries; matching bodies own their interior lines.
+  // An added section's text can hold another section's title on a line of its
+  // own, so first find where each one's title is followed by its whole text.
   const bodies = new Map<PdfSectionLayout, { want: string; found: { start: number; end: number }[] }>()
   for (const section of layout) {
     if (extraKey(section.ref) === null) continue
@@ -69,36 +74,37 @@ export function matchExtraPdf(lines: Line[], layout: readonly PdfSectionLayout[]
     }
     bodies.set(section, { want, found })
   }
-  const interiorsOf = (skip: ReadonlySet<PdfSectionLayout>) => {
-    const interiors = new Set<number>()
+  // The lines that read as a title but are inside a section's text as found,
+  // leaving out the texts of the sections in `skip`.
+  const titlesInText = (skip: ReadonlySet<PdfSectionLayout>) => {
+    const inText = new Set<number>()
     for (const [section, { found }] of bodies)
       if (!skip.has(section))
-        for (const range of found) for (const index of allStarts) if (index > range.start && index < range.end) interiors.add(index)
-    return interiors
+        for (const range of found) for (const index of allStarts) if (index > range.start && index < range.end) inText.add(index)
+    return inText
   }
-  const interiors = interiorsOf(new Set())
+  const inText = titlesInText(new Set())
   const expected = new Map<string, PdfSectionLayout[]>()
   for (const section of layout) {
     const heading = comparable(section.heading)
     expected.set(heading, [...(expected.get(heading) ?? []), section])
   }
-  const deficient = new Set(
+  // A title inside a section's text doesn't start a section, unless that text
+  // holds a title printed too few times without it: “Awards” then “Prize” may
+  // end the text, or be the Awards section after text that didn't print. Then
+  // that section isn't found for sure, and the titles in its text start
+  // sections as usual.
+  const tooFew = new Set(
     [...expected]
-      .filter(
-        ([heading, peers]) => allStarts.filter((index) => normalized[index] === heading && !interiors.has(index)).length < peers.length,
-      )
+      .filter(([heading, peers]) => allStarts.filter((index) => normalized[index] === heading && !inText.has(index)).length < peers.length)
       .map(([heading]) => heading),
   )
-  const ambiguousOwnership = new Set<PdfSectionLayout>()
+  const mayHoldTitle = new Set<PdfSectionLayout>()
   for (const [section, { found }] of bodies)
-    if (found.some((range) => allStarts.some((index) => index > range.start && index < range.end && deficient.has(normalized[index]))))
-      ambiguousOwnership.add(section)
-  // A matching prose suffix must not swallow the only heading occurrence
-  // needed by another expected section. Missing custom text followed by a
-  // real builtin 'Awards / Prize' is otherwise indistinguishable from prose
-  // that literally ends with those words.
-  const owned = interiorsOf(ambiguousOwnership)
-  const starts = allStarts.filter((index) => !owned.has(index))
+    if (found.some((range) => allStarts.some((index) => index > range.start && index < range.end && tooFew.has(normalized[index]))))
+      mayHoldTitle.add(section)
+  const notStarts = titlesInText(mayHoldTitle)
+  const starts = allStarts.filter((index) => !notStarts.has(index))
   const ranges = starts.map((start, index) => ({ start, end: starts[index + 1] ?? lines.length, heading: normalized[start] }))
   const sections: ExtraPdfMatch[] = []
   const excludedLines: number[] = []
@@ -108,6 +114,9 @@ export function matchExtraPdf(lines: Line[], layout: readonly PdfSectionLayout[]
     const peers = expected.get(heading)!
     return { candidates, range: candidates.length === peers.length ? candidates[peers.indexOf(section)] : undefined }
   })
+  // Where the sections printed before and after each one start, as its title
+  // must come between them. Found out of order, the text wasn't read in the
+  // order it's printed, so which title is whose would be a guess.
   const before: number[] = []
   let maximum = -Infinity
   for (const { range } of assigned) {
@@ -126,7 +135,7 @@ export function matchExtraPdf(lines: Line[], layout: readonly PdfSectionLayout[]
     if (sectionId === null) continue
     const { candidates, range } = assigned[sectionIndex]
     const empty = { sectionId, parts: [] }
-    if (ambiguousOwnership.has(section)) {
+    if (mayHoldTitle.has(section)) {
       sections.push({ ...empty, status: "ambiguous" })
       continue
     }

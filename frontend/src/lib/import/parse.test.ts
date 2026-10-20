@@ -883,7 +883,7 @@ describe("a role and organization that are hard to tell apart", () => {
     expect(toResumeContent(parsed).workExperienceSection[0]).toMatchObject({ workRole: "Software Engineer, Backend", companyName: "Google" })
   })
 
-  test("are read as before when nothing else on the resume says which comes first", () => {
+  test("are read by their own words alone when nothing else on the resume says which comes first", () => {
     const { resume } = read("Experience", companyFirst("Seminole Heart & Vascular Clinic", "Physician Shadowing – Cardiology", "August 2026 – Present"))
     expect(resume.workExperienceSection[0]).toMatchObject({ workRole: "Seminole Heart & Vascular Clinic", companyName: "Physician Shadowing – Cardiology" })
   })

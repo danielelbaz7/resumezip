@@ -157,7 +157,7 @@ export const href = (url: string, body: string) => {
 export const shownLink = (url: string, text: string, style = (body: string) => body) =>
   linkTarget(url) ? href(url, style(latex(text))) : latex(text)
 
-/** How a template prints a link: its address, and the words it shows, already LaTeX. */
+/** How a template prints a link, from its address and the words it shows, as typed (shownLink escapes them). */
 export type ShowLink = (url: string, text: string) => string
 
 export const underline = (body: string) => `\\underline{${body}}`

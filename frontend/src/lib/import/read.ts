@@ -33,7 +33,10 @@ export async function readFile(request: ReadRequest): Promise<ReadResult> {
   }
 }
 
-/** Keep the physical source addresses even after excluding verified custom occurrences. */
+/**
+ * Parses a preview without the sections the person added that matchExtraPdf
+ * finds in it. Every index still points into the whole file's lines.
+ */
 export function readForChecks(lines: Line[], layout: PdfSectionLayout[]): { parsed: ParsedResume; extras: ExtraPdfReading } {
   // The lines as the parser prepares them, where a heading beside a section's
   // first entry has a line of its own in every template, to match the added

@@ -4,8 +4,8 @@ import type { PDFDocumentProxy, PDFWorker } from "pdfjs-dist"
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ClipboardEvent } from "react"
 // react-pdf's styles are in the page's first download, though its code isn't
 // (see below). Next loads a later chunk's CSS as a React stylesheet resource,
-// and React suspends renders until it's in: what was typed into the form
-// meanwhile was lost, as React reset each field to the value it last rendered.
+// and React suspends renders until it's in, so what's typed into the form
+// meanwhile would be lost: React resets each field to the value it last rendered.
 import "react-pdf/dist/esm/Page/AnnotationLayer.css"
 import "react-pdf/dist/esm/Page/TextLayer.css"
 import { PDFJS_WORKER_URL } from "@/lib/pdfjsWorker"
