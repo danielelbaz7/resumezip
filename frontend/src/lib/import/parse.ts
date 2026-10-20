@@ -34,22 +34,16 @@ export interface FoundSection {
 
 /** A heading occurrence is an address in this file, never a durable editor ID. */
 export interface FoundOccurrence {
-  id: string
   heading: string
   headingLine: number
-  lines: number[]
-  sourceLines: number[]
   section: SectionName | null
-  kind: "builtin" | "summary" | "unsupported"
 }
 
-export interface FoundExtraGroup {
+export interface FoundSummary {
   id: string
-  kind: "summary"
   heading: string
   headingLine: number
   lines: number[]
-  sourceLines: number[]
   text: string[]
   /** The same lines with words set in bold or italic in the editor's marks, for the profile's summary. */
   marked: string[]
@@ -57,15 +51,15 @@ export interface FoundExtraGroup {
 
 export interface ParsedResume {
   /** The lines that entries' `lines` index into: the file's, with side headings split off. */
-  lines: Line[]
+  lines: SourceLine[]
   profile: Partial<Record<ProfileKey, string>>
   profileLines: number[]
   /** In the order they appear in the file. */
   sections: FoundSection[]
   /** Text that didn't fit anywhere, grouped under the heading it was found under. */
-  unplaced: { id?: string; heading: string; headingLine?: number; lines: number[]; sourceLines?: number[]; text: string[] }[]
-  occurrences?: FoundOccurrence[]
-  extraGroups?: FoundExtraGroup[]
+  unplaced: { id: string; heading: string; headingLine: number; lines: number[]; text: string[] }[]
+  occurrences: FoundOccurrence[]
+  summaries: FoundSummary[]
 }
 
 /** A line being parsed: its place in the file, and lines joined onto it. */
@@ -1440,7 +1434,7 @@ function venueAndDetails(after: string): { venue: string; details: string } {
  * "[1] A. Smith and B. Lee, “Title,” Venue, City, 2025, doi: 10.1/x."
  * `italics` is the citation's italic text, which in IEEE style is the venue.
  */
-function readCitation(text: string, italics: string[] = []): Fields {
+function readCitation(text: string, italics: string[]): Fields {
   const fields = blankEntry("Publications")
   let rest = text.replace(NUMBERED, "")
   // Links come out before the date, since DOIs and URLs often hold a year
@@ -2188,9 +2182,6 @@ export function parseResume(file: Line[]): ParsedResume {
   }
 
   const unplaced: ParsedResume["unplaced"] = []
-  const provenance = (indexes: number[]) => [
-    ...new Set(indexes.map((index) => input[index]?.sourceIndex).filter((index): index is number => index !== undefined)),
-  ]
   const addUnplaced = (heading: string, lineIndexes: number[], text: string[], headingLine = lineIndexes[0] ?? -1) => {
     const kept = text.map(tidy).filter(Boolean)
     if (kept.length === 0) return
@@ -2199,7 +2190,6 @@ export function parseResume(file: Line[]): ParsedResume {
       heading,
       headingLine,
       lines: lineIndexes,
-      sourceLines: provenance(lineIndexes),
       text: kept,
     })
   }
@@ -2226,7 +2216,7 @@ export function parseResume(file: Line[]): ParsedResume {
 
   const starts = lines.filter((line) => headings.has(line.index))
   const occurrences: FoundOccurrence[] = []
-  const extraGroups: FoundExtraGroup[] = []
+  const summaries: FoundSummary[] = []
   const experience: { name: ExperienceName; calls: Map<FoundEntry, RoleCall>; splits: Map<FoundEntry, SplitCall> }[] = []
   starts.forEach((start, i) => {
     const { meaning, label } = headings.get(start.index)!
@@ -2244,22 +2234,18 @@ export function parseResume(file: Line[]): ParsedResume {
     const normalized = normalizeHeading(label)
     // A summary is prose: one in bullets isn't read as one.
     const summary = SUMMARY_HEADINGS.has(normalized) && !sectionLines.some((line) => line.bullet)
-    const kind: FoundOccurrence["kind"] = summary ? "summary" : meaning.section === null ? "unsupported" : "builtin"
     const indexes = sectionLines.flatMap(lineIndexes)
-    const occurrence: FoundOccurrence = {
-      id: `heading:${start.index}`,
-      heading: label,
-      headingLine: start.index,
-      lines: indexes,
-      sourceLines: provenance([start.index, ...indexes]),
-      section: kind === "builtin" ? meaning.section : null,
-      kind,
-    }
-    occurrences.push(occurrence)
+    occurrences.push({ heading: label, headingLine: start.index, section: summary ? null : meaning.section })
     if (sectionLines.length === 0) return
 
-    if (kind === "summary") {
-      extraGroups.push({ ...occurrence, kind, ...summaryLines(sectionLines) })
+    if (summary) {
+      summaries.push({
+        id: `heading:${start.index}`,
+        heading: label,
+        headingLine: start.index,
+        lines: indexes,
+        ...summaryLines(sectionLines),
+      })
       return
     }
 
@@ -2316,7 +2302,7 @@ export function parseResume(file: Line[]): ParsedResume {
     footer.map(textOf),
   )
 
-  return { lines: input, profile, profileLines, sections, unplaced, occurrences, extraGroups }
+  return { lines: input, profile, profileLines, sections, unplaced, occurrences, summaries }
 }
 
 /** Builds a resume for the editor from what was found, leaving out entries the user unticked. */
@@ -2328,8 +2314,8 @@ export interface ImportChoices {
 /** Groups of "Couldn't place" named for where they are in the file, which has no heading for them. */
 const NAMED_FOR_PLACE = new Set(["Top of the resume", "Everything else", "Page footer"])
 
-export const extraGroupKey = (id: string) => `extra-group:${id}`
-export const unplacedKey = (group: ParsedResume["unplaced"][number], index: number) => group.id ?? `unplaced:${index}`
+export const summaryKey = (id: string) => `summary:${id}`
+export const unplacedKey = (group: ParsedResume["unplaced"][number]) => group.id
 
 export function toResumeContent(parsed: ParsedResume, skip: Set<string> = new Set(), choices: ImportChoices = {}): CompleteContent {
   const resume: ResumeContent = {
@@ -2344,23 +2330,23 @@ export function toResumeContent(parsed: ParsedResume, skip: Set<string> = new Se
   }
   const extras: ExtraSections = {}
   const positions = new Map<SectionRef, number>()
-  for (const occurrence of parsed.occurrences ?? []) {
+  for (const occurrence of parsed.occurrences) {
     if (occurrence.section && !positions.has(occurrence.section)) positions.set(occurrence.section, occurrence.headingLine)
   }
   // The summaries ticked go in the profile's summary, a paragraph each, in the file's order, with their bold and italic words.
-  const summaries = (parsed.extraGroups ?? []).filter((group) => group.kind === "summary" && !skip.has(extraGroupKey(group.id)))
+  const summaries = parsed.summaries.filter((summary) => !skip.has(summaryKey(summary.id)))
   if (summaries.length)
-    resume.profileSection = { ...resume.profileSection, summary: summaries.map((group) => group.marked.join("\n")).join("\n\n") }
-  parsed.unplaced.forEach((group, index) => {
-    const kind = choices.keepAs?.[unplacedKey(group, index)]
+    resume.profileSection = { ...resume.profileSection, summary: summaries.map((summary) => summary.marked.join("\n")).join("\n\n") }
+  parsed.unplaced.forEach((group) => {
+    const kind = choices.keepAs?.[unplacedKey(group)]
     if (!kind) return
     const key = crypto.randomUUID()
     const common = { kind, heading: NAMED_FOR_PLACE.has(group.heading) ? "New section" : group.heading }
     extras[key] =
       kind === "text"
         ? { ...common, kind, text: group.text.join("\n") }
-        : { ...common, kind, bullets: group.text.map((line) => `• ${line.replace(/^[•○]\s*/, "")}`).join("\n") }
-    positions.set(`extra:${key}`, group.headingLine ?? group.lines[0] ?? Number.MAX_SAFE_INTEGER)
+        : { ...common, kind, bullets: group.text.map((line) => `• ${line.replace(/^○\s*/, "")}`).join("\n") }
+    positions.set(`extra:${key}`, group.headingLine)
   })
   if (Object.keys(extras).length) resume.extraSections = extras
   // The sections found, in the file's order, but an optional one only with an

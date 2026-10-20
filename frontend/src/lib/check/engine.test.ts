@@ -72,7 +72,7 @@ const dismissed = (resume: Resume, finding: Finding): Resume => withCheck(resume
 const reading = (pages = 1): PdfReading => ({
   lines: [],
   pages: Array.from({ length: pages }, () => ({ width: 612, height: 792 })),
-  parsed: { lines: [], profile: {}, profileLines: [], sections: [], unplaced: [] },
+  parsed: { lines: [], profile: {}, profileLines: [], sections: [], unplaced: [], occurrences: [], summaries: [] },
 })
 
 afterEach(() => {
@@ -103,10 +103,10 @@ describe("running the rules", () => {
 
   test("gives a rule credit for the share of what it checked that had no problem", () => {
     const [bullets, email] = runChecks(ada, { rules: [weakStarts, realEmail] }).results
-    expect(bullets).toMatchObject({ status: "failed", checked: 3, credit: 1 / 3 })
-    expect(email).toMatchObject({ status: "failed", checked: 1, credit: 0 })
+    expect(bullets).toMatchObject({ status: "failed", checked: 3, scoring: { credit: 1 / 3 } })
+    expect(email).toMatchObject({ status: "failed", checked: 1, scoring: { credit: 0 } })
     const fixed = { ...ada, profileSection: { ...ada.profileSection, email: "ada@example.com" } }
-    expect(runChecks(fixed, { rules: [realEmail] }).results[0]).toMatchObject({ status: "passed", credit: 1, findings: [] })
+    expect(runChecks(fixed, { rules: [realEmail] }).results[0]).toMatchObject({ status: "passed", scoring: { credit: 1 }, findings: [] })
   })
 
   test("counts a place with several problems as one thing that failed", () => {
@@ -118,14 +118,14 @@ describe("running the rules", () => {
         { place: bulletPlace(0, 3), message: "Typo", text: "Helpd" },
       ],
     }))
-    expect(runChecks(ada, { rules: [typos] }).results[0]).toMatchObject({ status: "failed", checked: 3, credit: 1 / 3 })
+    expect(runChecks(ada, { rules: [typos] }).results[0]).toMatchObject({ status: "failed", checked: 3, scoring: { credit: 1 / 3 } })
   })
 
   test("takes a rule's own credit when it gives one, kept between 0 and 1", () => {
     const credit = (value: number) =>
       runChecks(ada, {
         rules: [formRule("B3", () => ({ checked: 4, credit: value, problems: [{ place: bulletPlace(0, 1), message: "Few numbers" }] }))],
-      }).results[0].credit
+      }).results[0].scoring?.credit
     expect(credit(0.25)).toBe(0.25)
     expect(credit(1.5)).toBe(1)
     expect(credit(-1)).toBe(0)
@@ -134,7 +134,7 @@ describe("running the rules", () => {
 
   test("skips a rule that doesn't apply, which counts neither for nor against the resume", () => {
     const report = runChecks(ada, { rules: [formRule("S6", () => null, { category: "sections" })] })
-    expect(report.results[0]).toMatchObject({ status: "skipped", checked: 0, credit: 1, findings: [] })
+    expect(report.results[0]).toMatchObject({ status: "skipped", checked: 0, findings: [] })
   })
 
   test("has PDF rules wait for the preview to be read, then runs them", () => {
@@ -150,7 +150,7 @@ describe("running the rules", () => {
         problems: pdf.pages.length > 1 ? [{ place: { kind: "page", page: 2 }, message: "Two pages", text: "2 pages" }] : [],
       }),
     }
-    expect(runChecks(ada, { rules: [pages] }).results[0]).toMatchObject({ status: "waiting", credit: 1 })
+    expect(runChecks(ada, { rules: [pages] }).results[0].status).toBe("waiting")
     expect(runChecks(ada, { rules: [pages], pdf: reading(1) }).results[0].status).toBe("passed")
     const report = runChecks(ada, { rules: [pages], pdf: reading(2) })
     expect(report.findings).toEqual([expect.objectContaining({ rule: "L1", place: { kind: "page", page: 2 }, text: "2 pages" })])
@@ -163,7 +163,7 @@ describe("running the rules", () => {
     })
     const report = runChecks(ada, { rules: [broken, weakStarts] })
     expect(report.results.map((result) => result.status)).toEqual(["error", "failed"])
-    expect(report.results[0]).toMatchObject({ checked: 0, credit: 1, findings: [] })
+    expect(report.results[0]).toMatchObject({ checked: 0, findings: [] })
     expect(report.findings).toHaveLength(2)
     expect(warn).toHaveBeenCalledTimes(1)
   })
@@ -280,7 +280,7 @@ describe("dismissing", () => {
     const report = runChecks(dismissed(ada, first), { rules: [weakStarts] })
     expect(report.findings.map((finding) => finding.text)).toEqual(["Helped with the notes"])
     expect(report.dismissed).toEqual([{ ...first, dismissed: true }])
-    expect(report.results[0]).toMatchObject({ status: "failed", credit: 2 / 3 })
+    expect(report.results[0]).toMatchObject({ status: "failed", scoring: { credit: 2 / 3 } })
   })
 
   test("lasts until the text changes", () => {
@@ -308,13 +308,16 @@ describe("dismissing", () => {
     expect(dismiss(state, fix)).toBe(state)
     const report = runChecks(withCheck(ada, { dismissed: [fix.key] }), { rules: [realEmail] })
     expect(report.findings).toEqual([fix])
-    expect(report.results[0].credit).toBe(0)
+    expect(report.results[0].scoring?.credit).toBe(0)
   })
 
   test("of everything a rule found counts as passing, even when the rule gives its own credit", () => {
     const fewNumbers = formRule("B3", () => ({ checked: 3, credit: 0.2, problems: [{ place: bulletPlace(0, 0), message: "Few numbers" }] }))
     const [finding] = runChecks(ada, { rules: [fewNumbers] }).findings
-    expect(runChecks(dismissed(ada, finding), { rules: [fewNumbers] }).results[0]).toMatchObject({ status: "passed", credit: 1 })
+    expect(runChecks(dismissed(ada, finding), { rules: [fewNumbers] }).results[0]).toMatchObject({
+      status: "passed",
+      scoring: { credit: 1 },
+    })
   })
 })
 

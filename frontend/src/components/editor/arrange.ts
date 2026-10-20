@@ -1,7 +1,7 @@
 // Editing a bullets field's text, where each bullet is a line starting with
-// "•", or "○" when it's left out (see lib/leftOut.ts): moving lines, and what
-// Enter, typing and pasting do. Blank lines stay where they
-// are. The bullets box (styledText.ts) does the same with bold and italic words.
+// "•", or "○" when it's left out (see lib/leftOut.ts): what Enter, typing and
+// pasting do. Blank lines stay where they are. The bullets box (styledText.ts)
+// does the same with bold and italic words.
 
 import { BULLET_CHARS } from "@/lib/import/lines"
 import { isLeftOutLine, LEFT_OUT_BULLET } from "@/lib/leftOut"
@@ -104,15 +104,6 @@ export function bulletLines(text: string): BulletLine[] {
     const words = wordsOf(line)
     return words ? [{ line: index, words, leftOut: isLeftOutLine(line) }] : []
   })
-}
-
-/** Swaps a line with the one above (-1) or below (1), blank or not, as Alt+↑ and Alt+↓ do in the text box. */
-export function moveLine(text: string, line: number, by: -1 | 1): string {
-  const lines = text.split("\n")
-  const other = line + by
-  if (line < 0 || line >= lines.length || other < 0 || other >= lines.length) return text
-  ;[lines[line], lines[other]] = [lines[other], lines[line]]
-  return lines.join("\n")
 }
 
 /** Where the line with `at` in it starts. */

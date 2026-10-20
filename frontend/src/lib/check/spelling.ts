@@ -195,7 +195,6 @@ function grammarRule(
     ...info,
     reads: "grammar",
     check: ({ resume, grammar, words }) => {
-      if (resume.grammarLanguage === "other") return null
       const { read, partial } = linted(resume, grammar, readsSkills)
       if (read.length === 0) return null
       let known: ReadonlySet<string> | undefined
@@ -429,7 +428,6 @@ const ledNotLead: Rule = {
   title: "“Led”, not “lead”, for what's done",
   why: "The past tense of “lead” is “led”; “lead” is the metal, or the present.",
   check: ({ resume, today }) => {
-    if (resume.grammarLanguage === "other") return null
     // Bullets about the past: in an entry that has ended, or starting with a verb in the past tense.
     const past = bulletsIn(resume).filter(({ entry, bullet }) => hasEnded(entry, today) || verbOf(firstWord(bullet.text))?.tense === "past")
     if (past.length === 0) return null
@@ -477,7 +475,6 @@ const techNames: Rule = {
   title: "Tech names written the way their makers write them",
   why: "Using a product's usual spelling can make its name easier to recognize.",
   check: ({ resume }) => {
-    if (resume.grammarLanguage === "other") return null
     const texts = textsOf(resume).filter(({ place }) => {
       const field = fieldOf(place) ?? ""
       return !NOT_WORDS.has(field) && (!NAMES.has(field) || SKILLS.has(field))

@@ -24,20 +24,20 @@ const FLIGHT_MS = 900
  */
 export default function MarkedPages({
   pages,
-  drawing = false,
+  drawing,
   notes,
   open,
   onOpen,
-  from = null,
+  from,
 }: {
   pages: readonly DrawnPage[] | null
   /** Later pages are still being drawn: their notes wait for them, rather than being listed. */
-  drawing?: boolean
+  drawing: boolean
   notes: readonly Note[]
   /** The key of the note that's showing. */
   open: string | null
   onOpen: (key: string | null) => void
-  from?: Flight | null
+  from: Flight | null
 }) {
   const placed = usePlaced(notes)
   const first = useRef<HTMLDivElement>(null)

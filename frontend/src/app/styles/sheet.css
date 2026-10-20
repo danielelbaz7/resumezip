@@ -11,7 +11,6 @@
      the same sky, so there's no seam where it starts. */
   .desk.desk-bright,
   .desk-bright .desk {
-    --desk-wash: 0;
     background-image:
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect x='1' y='1' width='2' height='2' fill='%23fff' fill-opacity='.32'/%3E%3C/svg%3E"),
       var(--desk-sky), var(--desk-sky-soon);
@@ -24,7 +23,6 @@
       center bottom,
       center bottom;
     background-repeat: repeat, no-repeat, no-repeat;
-    background-attachment: fixed;
   }
 
   /* The frame round the sheet: a band of frosted glass with a lit rim. Its

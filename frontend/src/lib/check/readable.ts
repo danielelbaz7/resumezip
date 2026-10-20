@@ -10,10 +10,9 @@ import type { PdfReading, Problem, Rule } from "./engine"
 import type { Place } from "./places"
 import { comparable, wordsOf } from "./pdf"
 import { readDate, readDateRange } from "./readDate"
-import { entryAt, textsOf } from "./resume"
+import { entryAt, textsOf, type ResumeView } from "./resume"
 import { FINE_SYMBOLS, ODD_SYMBOLS } from "./settings"
 import { layoutBulletsIn } from "./text"
-import type { ResumeView } from "./resume"
 
 // What the resume reader reads in place of each character no font had, as pdf.js reads it.
 const NOT_PRINTED = "\0"
@@ -71,7 +70,7 @@ function uncertainBuiltinSections(resume: ResumeView, pdf: PdfReading): Set<Sect
   const sections = new Set(resume.order.filter((section) => headings.has(comparable(resume.printedHeadings[section]))))
   // Parser provenance covers aliases such as 'Work Experience', not merely
   // the exact default heading printed by our own templates.
-  for (const occurrence of pdf.parsed.occurrences ?? [])
+  for (const occurrence of pdf.parsed.occurrences)
     if (occurrence.section && headings.has(comparable(occurrence.heading))) sections.add(occurrence.section)
   return sections
 }
@@ -218,7 +217,7 @@ const entriesRead: Rule = {
       }
       const found = pdf.parsed.sections.find(({ name }) => name === section)
       // A section that isn't found at all is R2's.
-      if (typed.length === 0 || !found) continue
+      if (!found) continue
       if (found.entries.length !== typed.length) {
         checked++
         problems.push({
@@ -311,7 +310,7 @@ const unplaced: Rule = {
     if (!sectionsPrint(resume)) return { checked: 0, problems: [], partial: true }
     const uncertain = unresolvedExtraHeadings(resume, pdf)
     const texts = textsOf(resume)
-      .filter(({ place }) => !("sectionId" in place))
+      .filter(({ place }) => place.kind !== "extra-heading" && place.kind !== "extra-text")
       .map(({ place, text }) => ({
         place,
         text: comparable(text),

@@ -40,7 +40,7 @@ function Gaze({ stops, size }: { stops: readonly Stop[]; size: { width: number; 
   // Held at each stop, then a quick glide to the next, as eyes move.
   useEffect(() => {
     const node = spot.current
-    if (!node || stops.length === 0) return
+    if (!node) return
     const animation = node.animate(pathOf(stops), { duration: GAZE_MS, delay: GAZE_DELAY, fill: "both" })
     return () => animation.cancel()
   }, [stops])

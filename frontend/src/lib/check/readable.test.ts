@@ -256,8 +256,8 @@ describe("R4 text the reader can't place", () => {
     const pdf = reading(lines, {
       ...found,
       unplaced: [
-        { heading: "", lines: [0], text: ["Built the ledger"] },
-        { heading: "", lines: [1], text: ["Stray words"] },
+        { id: "unplaced:0:0", heading: "", headingLine: 0, lines: [0], text: ["Built the ledger"] },
+        { id: "unplaced:1:1", heading: "", headingLine: 1, lines: [1], text: ["Stray words"] },
       ],
     })
     expect(check("R4", jake, pdf).findings.map(({ place }) => place)).toEqual([
@@ -274,7 +274,10 @@ describe("R4 text the reader can't place", () => {
       educationSection: [{ id: 1, schoolName: "University of Michigan", schoolLocation: "Ann Arbor, MI", degree }],
     }
     const text = `${degree} Ann Arbor, MI`
-    const pdf = reading([line(text)], { ...found, unplaced: [{ heading: "Education", lines: [0], text: [text] }] })
+    const pdf = reading([line(text)], {
+      ...found,
+      unplaced: [{ id: "unplaced:0:0", heading: "Education", headingLine: 0, lines: [0], text: [text] }],
+    })
     expect(check("R4", resume, pdf).findings.map(({ place }) => place)).toEqual([
       { kind: "entry", section: "Education", entry: 0, field: "degree" },
     ])
@@ -288,7 +291,10 @@ describe("R4 text the reader can't place", () => {
     }
     // Both the profile's location and the school's place are on the line; it's under Education.
     const text = "Stanford, California · San Francisco Bay Area, California"
-    const pdf = reading([line(text)], { ...found, unplaced: [{ heading: "Education", lines: [0], text: [text] }] })
+    const pdf = reading([line(text)], {
+      ...found,
+      unplaced: [{ id: "unplaced:0:0", heading: "Education", headingLine: 0, lines: [0], text: [text] }],
+    })
     expect(check("R4", resume, pdf).findings.map(({ place }) => place)).toEqual([
       { kind: "entry", section: "Education", entry: 0, field: "schoolLocation" },
     ])
@@ -301,7 +307,7 @@ describe("R4 text the reader can't place", () => {
     }
     const pdf = reading([line("Built the ledger")], {
       ...found,
-      unplaced: [{ heading: "Projects", lines: [0], text: ["Built the ledger"] }],
+      unplaced: [{ id: "unplaced:0:0", heading: "Projects", headingLine: 0, lines: [0], text: ["Built the ledger"] }],
     })
     expect(check("R4", resume, pdf).findings.map(({ place }) => place)).toEqual([
       { kind: "entry", section: "Projects", entry: 0, field: "projectDescription", line: 0 },
@@ -309,7 +315,10 @@ describe("R4 text the reader can't place", () => {
   })
 
   test("points text with no letters or digits at its page", () => {
-    const pdf = reading([line("— · —", { page: 1 })], { ...found, unplaced: [{ heading: "", lines: [0], text: ["— · —"] }] })
+    const pdf = reading([line("— · —", { page: 1 })], {
+      ...found,
+      unplaced: [{ id: "unplaced:0:0", heading: "", headingLine: 0, lines: [0], text: ["— · —"] }],
+    })
     expect(check("R4", jake, pdf).findings.map(({ place }) => place)).toEqual([{ kind: "page", page: 1 }])
   })
 
@@ -317,7 +326,7 @@ describe("R4 text the reader can't place", () => {
     const resume = { ...jake, profileSection: { ...jake.profileSection, location: "دبي, UAE" } }
     const pdf = reading([line("\0\0\0, UAE")], {
       ...found,
-      unplaced: [{ heading: "Top of the resume", lines: [0], text: ["\0\0\0, UAE"] }],
+      unplaced: [{ id: "unplaced:0:0", heading: "Top of the resume", headingLine: 0, lines: [0], text: ["\0\0\0, UAE"] }],
     })
     expect(check("R4", resume, pdf)).toMatchObject({ status: "passed", partial: true, messages: [] })
   })
@@ -329,7 +338,7 @@ describe("R2–R4 while a section's text doesn't print", () => {
   const pdf = reading([line("\0\0\0\0\0 Jan 2024 - Present"), line("Stripe")], {
     ...found,
     sections: [],
-    unplaced: [{ heading: "", lines: [0, 1], text: ["\0\0\0\0\0 Jan 2024 - Present", "Stripe"] }],
+    unplaced: [{ id: "unplaced:0:0", heading: "", headingLine: 0, lines: [0, 1], text: ["\0\0\0\0\0 Jan 2024 - Present", "Stripe"] }],
   })
 
   test("find nothing until it does, as it may be what threw the reading out, and R8 says what to change", () => {

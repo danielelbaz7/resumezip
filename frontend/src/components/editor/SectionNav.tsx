@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import type { DraggableProvided, DropResult } from "@hello-pangea/dnd"
 import { GripVertical } from "lucide-react"
@@ -25,7 +25,7 @@ interface SectionNavProps {
   active: ActiveSection
   onSelect: (section: ActiveSection) => void
   onReorder: (sections: SectionRef[]) => void
-  onAdd?: (kind: ExtraKind | SectionName) => void
+  onAdd: (kind: ExtraKind | SectionName) => void
 }
 
 /**
@@ -33,7 +33,7 @@ interface SectionNavProps {
  * entries each has, and a row of pill tabs on narrower ones. Profile stays first; the rest can be
  * dragged into any order by their icons.
  */
-function SectionNav({ sections, headings, extras, active, onSelect, onReorder, onAdd }: SectionNavProps) {
+export default function SectionNav({ sections, headings, extras, active, onSelect, onReorder, onAdd }: SectionNavProps) {
   const navRef = useRef<HTMLElement>(null)
   const tabRef = useRef<HTMLSpanElement>(null)
   // The section the white tab was last put behind, so choosing another slides it there.
@@ -311,15 +311,12 @@ function SectionNav({ sections, headings, extras, active, onSelect, onReorder, o
         <div className="flex gap-1 xl:flex-col">{sections.map((name, index) => renderSection(name, index))}</div>
       )}
 
-      {onAdd && <AddSectionMenu sections={addable} onAdd={onAdd} />}
+      <AddSectionMenu sections={addable} onAdd={onAdd} />
 
       <p className="mt-[19px] hidden px-3 text-[13px] leading-5 text-ink-3 xl:block">Drag a section to change its place on the page.</p>
     </nav>
   )
 }
-
-// Dragging is costly to render, so it re-renders only when its props change.
-export default memo(SectionNav)
 
 /**
  * How many entries each section of the open resume has. It's read as one

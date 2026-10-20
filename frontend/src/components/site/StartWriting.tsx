@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useCallback, useEffect, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { getStorage, hasSavedResumes } from "@/lib/resumeKeys"
 import type { TemplateId } from "@/lib/templates"
@@ -30,28 +30,25 @@ const opensNew = (template?: TemplateId) => template !== undefined || !hasSavedR
 export function useStartWriting() {
   const router = useRouter()
 
-  const start = useCallback(
-    async (template?: TemplateId) => {
-      const store = opensNew(template) ? (await loadResumes()).openResumes() : null
-      // Resumes the browser couldn't save are only in the store, until the page is closed.
-      if (!store || (template === undefined && Object.keys(store.getState().resumes).length > 0)) {
-        rise(() => router.push("/create/dashboard"))
-        return
-      }
-      const id = store.create("Untitled resume", "personal", template)
-      // The editor's preview needs the PDF compiler and the template's fonts, so they start downloading now.
-      loadCompiler(template)
-      rise(() => router.push(`/create/new/${id}`))
-    },
-    [router],
-  )
+  const start = async (template?: TemplateId) => {
+    const store = opensNew(template) ? (await loadResumes()).openResumes() : null
+    // Resumes the browser couldn't save are only in the store, until the page is closed.
+    if (!store || (template === undefined && Object.keys(store.getState().resumes).length > 0)) {
+      rise(() => router.push("/create/dashboard"))
+      return
+    }
+    const id = store.create("Untitled resume", "personal", template)
+    // The editor's preview needs the PDF compiler and the template's fonts, so they start downloading now.
+    loadCompiler(template)
+    rise(() => router.push(`/create/new/${id}`))
+  }
 
   // The dashboard starts its own downloads, with the fonts of the resume edited last.
-  const prepare = useCallback((template?: TemplateId) => {
+  const prepare = (template?: TemplateId) => {
     if (!opensNew(template)) return
     loadCompiler(template)
     void loadResumes()
-  }, [])
+  }
 
   return { start, prepare }
 }

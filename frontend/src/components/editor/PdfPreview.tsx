@@ -84,11 +84,11 @@ const MAX_LIT = 6
 interface PdfPreviewProps {
   /** Object URL of the latest compiled PDF. */
   pdfUrl: string | null
-  error?: string | null
+  error: string | null
   /** A new PDF is being built in another template, so the one on screen is out of date. */
-  updating?: boolean
+  updating: boolean
   /** The template `pdfUrl` is printed in. */
-  template?: string | null
+  template: string | null
 }
 
 /**
@@ -112,7 +112,7 @@ interface HeldAnchor {
   box: DOMRect
 }
 
-function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPreviewProps) {
+function PdfPreview({ pdfUrl, error, updating, template }: PdfPreviewProps) {
   const [drawings, setDrawings] = useState<Drawing[]>([])
   const [zoom, setZoom] = useState(1)
   // Catches up with the zoom once it settles. Until then, the pages on screen
@@ -363,15 +363,15 @@ function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPre
       if (!layer?.querySelector(":scope > .endOfContent") || pages.has(page)) return
       // Runs of text, not the empty spans pdf.js wraps some of them in.
       const runs = [...layer.querySelectorAll<HTMLElement>("span")].filter(
-        (span) => span.childElementCount === 0 && span.textContent?.trim(),
+        (span) => span.childElementCount === 0 && span.textContent.trim(),
       )
       pages.set(
         page,
-        runs.map((run) => run.textContent ?? ""),
+        runs.map((run) => run.textContent),
       )
       if (beforeRef.current?.template !== template) return
       const changed = runs.filter((run) => {
-        const text = run.textContent ?? ""
+        const text = run.textContent
         const left = unmatched.get(text) ?? 0
         if (left > 0) unmatched.set(text, left - 1)
         return left === 0
@@ -559,7 +559,7 @@ function copyPlainText(event: ClipboardEvent, pdfjs: ReactPdf["pdfjs"]) {
  * A zoom within the limits. `from`, the zoom it changes from, can be below
  * MIN_ZOOM after Fit: zooming out from there stays put rather than jumping up to MIN_ZOOM.
  */
-function clampZoom(zoom: number, from = MIN_ZOOM) {
+function clampZoom(zoom: number, from: number) {
   return Math.min(Math.max(zoom, Math.min(MIN_ZOOM, from)), MAX_ZOOM)
 }
 

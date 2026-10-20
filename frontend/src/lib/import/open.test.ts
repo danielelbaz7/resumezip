@@ -431,7 +431,7 @@ describe("a Word file", () => {
       { heading: "Page footer", text: ["CONFIDENTIAL", "REFERENCES ON REQUEST"] },
     ])
     // Kept, the footer's is a section of its own, named as a new one is.
-    const kept = toResumeContent(parsed, new Set(), { keepAs: { [unplacedKey(parsed.unplaced[1], 1)]: "text" } })
+    const kept = toResumeContent(parsed, new Set(), { keepAs: { [unplacedKey(parsed.unplaced[1])]: "text" } })
     expect(Object.values(kept.extraSections ?? {})).toEqual([
       { kind: "text", heading: "New section", text: "CONFIDENTIAL\nREFERENCES ON REQUEST" },
     ])

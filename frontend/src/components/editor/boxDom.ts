@@ -205,7 +205,7 @@ function pointAt(root: HTMLElement, offset: number): Point {
   const lines = [...root.children]
   let rest = offset
   for (const [index, line] of lines.entries()) {
-    const length = line.textContent?.length ?? 0
+    const length = line.textContent.length
     if (rest <= length || index === lines.length - 1) {
       let column = Math.min(rest, length)
       const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT)
@@ -222,7 +222,7 @@ function pointAt(root: HTMLElement, offset: number): Point {
 }
 
 /** Selects from `start` to `end` in the box, or puts the cursor at `start`. */
-export function selectIn(root: HTMLElement, start: number, end = start) {
+export function selectIn(root: HTMLElement, start: number, end: number) {
   const from = pointAt(root, start)
   const to = end === start ? from : pointAt(root, end)
   root.ownerDocument.getSelection()?.setBaseAndExtent(from.node, from.offset, to.node, to.offset)

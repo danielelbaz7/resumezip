@@ -20,7 +20,6 @@
 // The headings' column, which grows with the text in it.
 #let margin = sized(0.98in)
 #let gutter = 0.2in
-#let old(body) = text(number-type: "old-style", body)
 
 // A heading's words, kept within the column: right-aligned, a wider one would
 // run left into the page margin, and off the paper with Fine-tune's smallest
@@ -82,7 +81,7 @@
 // grid cell, entries that each stick to the next can't be split across pages.
 #let entry(title, dates, subtitle, place, items: ()) = {
   block(sticky: items.len() > 0, {
-    row(strong(title), old(dates))
+    row(strong(title), dates)
     if has(subtitle) or has(place) {
       v(spaced(3.5pt))
       row(emph(subtitle), text(fill: grey, place))
@@ -91,7 +90,7 @@
   bullets(items)
 }
 
-#let entries(items, gap: 8pt) = items.join(v(sized(gap)))
+#let entries(items) = items.join(v(sized(8pt)))
 
 // ---------- Heading ----------
 
@@ -104,7 +103,7 @@
     // How to reach you, then your links, each on a line of its own.
     let reach = ()
     if has(p.location) { reach.push(p.location) }
-    if has(p.phone) { reach.push(old(p.phone)) }
+    if has(p.phone) { reach.push(p.phone) }
     if has(p.email) { reach.push(email-link(p.email, p.email)) }
     let links = ()
     if has(p.linkedin) { links.push(web-link(p.linkedin, p.linkedin)) }
@@ -143,7 +142,7 @@
     })))
   } else if name == "Projects" and data.projects.len() > 0 {
     section(heading-or(hd.projects, "Projects"), entries(data.projects.map(pr => {
-      block(sticky: pr.bullets.len() > 0, row(project-header(pr, h(0.4em) + [·] + h(0.4em), url => web-link(url, url)), old(pr.date)))
+      block(sticky: pr.bullets.len() > 0, row(project-header(pr, h(0.4em) + [·] + h(0.4em), url => web-link(url, url)), pr.date))
       bullets(pr.bullets)
     })))
   } else if name == "Publications" and data.publications.len() > 0 {
@@ -168,7 +167,7 @@
           strong(a.name)
           if has(a.organization) { [, #a.organization] }
         },
-        old(a.date),
+        a.date,
       )
     }).join(v(spaced(4.5pt))))
   }

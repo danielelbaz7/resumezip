@@ -20,7 +20,7 @@ function formatEdited(value: string | undefined) {
   return today ? `Today, ${timeFormat.format(date)}` : dateFormat.format(date)
 }
 
-export const tagName = (tag: string) => RESUME_TAGS.find((option) => option.id === tag?.toLowerCase())?.name ?? tag
+export const tagName = (tag: string) => RESUME_TAGS.find((option) => option.id === tag.toLowerCase())?.name ?? tag
 
 interface ResumeTableProps {
   resumes: ResumeWithId[]

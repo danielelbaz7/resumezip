@@ -34,7 +34,6 @@ function check(id: string, resume: Resume) {
   const report = runChecks(resume, { rules: [rule], today: TODAY })
   return {
     status: report.results[0].status,
-    credit: report.results[0].credit,
     scoring: report.results[0].scoring,
     messages: report.findings.map((finding) => finding.message),
     findings: report.findings,

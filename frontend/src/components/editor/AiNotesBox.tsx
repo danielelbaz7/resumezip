@@ -7,8 +7,9 @@ import type { Place } from "@/lib/check/places"
 import type { ResumeView } from "@/lib/check/resume"
 import { findingOf } from "@/lib/review/ai/place"
 import type { SavedNote } from "@/lib/review/ai/saved"
+import { aiKeyOf } from "@/components/review/notes"
 import { useCheckActions } from "./CheckContext"
-import { aiKeyOf, useMarks, usePointAt } from "./MarksContext"
+import { useMarks, usePointAt } from "./MarksContext"
 
 // The line down a note's left side, and its dot: the review page's pens, red for a red flag and blue for done well.
 const TONE_LINE = {

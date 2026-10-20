@@ -353,8 +353,7 @@ function Editor({ id }: { id: string }) {
     if (!pending) return
     setDeletedEntry(null)
     const { dataKey } = SECTIONS[pending.section]
-    const saved = read()?.[dataKey]
-    const entries = Array.isArray(saved) ? saved : []
+    const entries = read()?.[dataKey] ?? []
     // An entry added since can have taken its id.
     const taken = entries.some((entry) => entry.id === pending.entry.id)
     const id = taken ? Math.max(...entries.map((entry) => entry.id)) + 1 : pending.entry.id
@@ -804,7 +803,7 @@ function ResumeName() {
     const others = Object.entries(getState().resumes).filter(([key]) => key !== id)
     const unique = uniqueTitle(
       title ?? "",
-      others.map(([, resume]) => resume?.resumeTitle),
+      others.map(([, resume]) => resume.resumeTitle),
     )
     if (unique !== title) update("resumeTitle", unique)
   }

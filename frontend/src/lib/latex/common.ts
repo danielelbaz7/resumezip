@@ -72,11 +72,11 @@ const SIGNS: [RegExp, string][] = [
 ]
 
 /**
- * Text as LaTeX that prints it as typed. Line breaks are `lineBreak`; tabs
- * are spaces. Letters are composed (NFC), since pdfLaTeX can print "é" but not
- * "e" followed by a combining accent, as macOS sometimes types it.
+ * Text as LaTeX that prints it as typed. Line breaks and tabs are spaces.
+ * Letters are composed (NFC), since pdfLaTeX can print "é" but not "e"
+ * followed by a combining accent, as macOS sometimes types it.
  */
-export function latex(value: string, lineBreak = " "): string {
+export function latex(value: string): string {
   return SIGNS.reduce(
     (text, [sign, command]) => text.replace(sign, command),
     value
@@ -85,7 +85,7 @@ export function latex(value: string, lineBreak = " "): string {
       .replace(/[\\{}&%$#_~^"]/g, (special) => SPECIAL[special])
       .replace(LIGATURE, "$&\\kern0pt ")
       .replace(/\t/g, " ")
-      .replace(/\r\n?|\n/g, lineBreak),
+      .replace(/\r\n?|\n/g, " "),
   )
 }
 
@@ -232,11 +232,11 @@ export function citation(
  * number, as `citations` in templates/common.typ. Needs enumitem. `options`
  * are more of enumitem's, as the space between them and the margin's indent.
  */
-export function citations(publications: TemplateData["publications"], showLink: ShowLink, options: string, indent = "  "): string {
+export function citations(publications: TemplateData["publications"], showLink: ShowLink, options: string): string {
   return [
-    `${indent}\\begin{enumerate}[label={[\\arabic*]}, widest=${publications.length}, align=left, leftmargin=*, ${options}]`,
-    ...publications.map((publication) => `${indent}  \\item ${itemText(citation(publication, showLink))}`),
-    `${indent}\\end{enumerate}`,
+    `  \\begin{enumerate}[label={[\\arabic*]}, widest=${publications.length}, align=left, leftmargin=*, ${options}]`,
+    ...publications.map((publication) => `    \\item ${itemText(citation(publication, showLink))}`),
+    "  \\end{enumerate}",
   ].join("\n")
 }
 

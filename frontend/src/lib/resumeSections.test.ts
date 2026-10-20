@@ -164,6 +164,17 @@ describe("atomic section actions and cross-tab merging", () => {
     expect(changedPaths("extraSections", before, after)).toEqual([`extraSections.${a}`])
     first.flush()
   })
+  test("an edit that changes nothing, or to a section or resume that isn't there, changes nothing", () => {
+    const { first } = tabs()
+    const before = first.getState()
+    first.editSection("missing", a, { heading: "Renamed" })
+    first.editSection("r", "44444444-4444-4444-8444-444444444444", { heading: "Renamed" })
+    first.editSection("r", a, { heading: text.heading, text: text.text })
+    // A list has no text, and a text section no bullets.
+    first.editSection("r", b, { text: "Not a list's" })
+    first.editSection("r", a, { bullets: "• Not a text's" })
+    expect(first.getState()).toBe(before)
+  })
   test("different member edits merge; same member is last-save wins", () => {
     const { first, second, saved } = tabs()
     first.editSection("r", a, { text: "A" })
@@ -203,10 +214,10 @@ describe("atomic section actions and cross-tab merging", () => {
   })
   test("every replacement clears extensions absent from the new file", () => {
     const { first } = tabs()
-    first.replace("r", fromAttachment(envelope({ profileSection: {} }, 1))!)
+    first.replace("r", fromAttachment(envelope({ profileSection: {} }, 1))!, "pdf")
     expect(first.getState().resumes.r.extraSections).toEqual({})
-    first.replace("r", resume)
-    first.replace("r", fromAttachment(envelope({ extraSections: { [c]: note } }))!)
+    first.replace("r", resume, "pdf")
+    first.replace("r", fromAttachment(envelope({ extraSections: { [c]: note } }))!, "pdf")
     expect(Object.keys(first.getState().resumes.r?.extraSections ?? {})).toEqual([c])
   })
 })

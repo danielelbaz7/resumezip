@@ -211,7 +211,7 @@
       bullets(pr.bullets)
     })))
   } else if name == "Publications" and data.publications.len() > 0 {
-    (heading-or(hd.publications, "Publications"), citations(data.publications, (url, body) => web-link(url, body), gap: 6pt))
+    (heading-or(hd.publications, "Publications"), citations(data.publications, (url, body) => web-link(url, body)))
   } else if name == "Leadership" and data.leadership.len() > 0 {
     (heading-or(hd.leadership, "Leadership"), entries(data.leadership.map(l => entry(l.organization, l.role, date-range(l.start, l.end), l.location, items: l.bullets))))
   } else if name == "Volunteership" and data.volunteer.len() > 0 {

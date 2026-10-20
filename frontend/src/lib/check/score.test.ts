@@ -9,7 +9,6 @@ import { pdfLayoutOf } from "./extraPdf"
 import {
   bandOf,
   checkingCategories,
-  colorOf,
   keepFixes,
   keepScores,
   mustFixMax,
@@ -272,14 +271,6 @@ describe("the resume score", () => {
     expect(words([69, 0])).toEqual(["Needs work", "Needs work"])
     // The most a resume with a must-fix left can score.
     expect(bandOf(MUST_FIX_MAX).name).not.toBe("Strong")
-  })
-
-  test("is shown red below 60, amber to 79, green to 99, and as perfect at 100", () => {
-    const colors = (scores: number[]) => scores.map(colorOf)
-    expect(colors([0, 59])).toEqual(["red", "red"])
-    expect(colors([60, 79])).toEqual(["amber", "amber"])
-    expect(colors([80, 99])).toEqual(["green", "green"])
-    expect(colorOf(100)).toBe("perfect")
   })
 })
 

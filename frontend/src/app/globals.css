@@ -11,7 +11,6 @@
 @theme {
   --color-paper: #f4f4f1; /* page background */
   --color-sheet: #ffffff; /* paper, inputs, cards */
-  --color-desk: #e8e8e4; /* behind the resume preview */
   --color-ink: #111318; /* text and primary buttons */
   --color-ink-2: #5f6166; /* secondary text (5.5:1 on paper) */
   --color-rule: #dadad6; /* hairlines */
@@ -313,7 +312,6 @@
   &:hover:not(:disabled),
   &:focus-visible {
     filter: brightness(1.22);
-    background-image: linear-gradient(180deg, #3a3e4a, #15171d 55%, #0b0c10);
   }
   &:active:not(:disabled) {
     filter: brightness(0.92);
@@ -357,19 +355,6 @@
   font-weight: 400;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-@layer utilities {
-  /* Hide scrollbar but keep the ability to scroll */
-  .scrollbar-hidden {
-    overflow-y: auto;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
-  .scrollbar-hidden::-webkit-scrollbar {
-    display: none;
-  }
 }
 
 @layer base {
@@ -495,9 +480,6 @@
 .row-action .is-shut .eye {
   opacity: 0.45;
 }
-.row-action .done-tick {
-  stroke-dasharray: 1;
-}
 /* A tick that draws itself: here, and in the editor's Download button. */
 :is(.row-action, .download-button) .tick {
   stroke-dasharray: 1;
@@ -529,9 +511,6 @@
   }
   .row-action:hover .eye {
     animation: eye-blink 480ms ease-in-out;
-  }
-  .row-action:hover .done-tick {
-    animation: tick-redraw 420ms cubic-bezier(0.65, 0, 0.35, 1);
   }
 }
 
@@ -589,11 +568,6 @@
 @keyframes eye-blink {
   40% {
     transform: scaleY(0.1);
-  }
-}
-@keyframes tick-redraw {
-  from {
-    stroke-dashoffset: 1;
   }
 }
 @keyframes pencil-write {

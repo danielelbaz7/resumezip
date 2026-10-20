@@ -11,7 +11,7 @@ import { extraTexts, type ResumeView } from "./resume"
 
 export interface PdfTextPart {
   text: string
-  place?: Place
+  place: Place
 }
 export interface PdfSectionLayout {
   ref: string
@@ -21,7 +21,6 @@ export interface PdfSectionLayout {
 export interface ExtraPdfMatch {
   sectionId: string
   status: "matched" | "missing" | "ambiguous"
-  lines: number[]
   parts: { place: Place; lines: number[] }[]
 }
 export interface ExtraPdfReading {
@@ -53,11 +52,11 @@ export function pdfLayoutOf(view: ResumeView): PdfSectionLayout[] {
 export function matchExtraPdf(lines: Line[], layout: readonly PdfSectionLayout[]): ExtraPdfReading {
   const headings = new Set(layout.map((section) => comparable(section.heading)))
   const normalized = lines.map((line) => comparable(line.text))
-  const allStarts = lines.flatMap((line, index) => (headings.has(normalized[index]) ? [index] : []))
+  const allStarts = lines.flatMap((_, index) => (headings.has(normalized[index]) ? [index] : []))
   // Prose can literally contain another section's heading on a line of its
   // own. Recognize a full expected body before deciding which heading-shaped
   // lines are boundaries; matching bodies own their interior lines.
-  const bodies = new Map<PdfSectionLayout, { start: number; end: number }[]>()
+  const bodies = new Map<PdfSectionLayout, { want: string; found: { start: number; end: number }[] }>()
   for (const section of layout) {
     if (extraKey(section.ref) === null) continue
     const want = section.parts.map(({ text }) => comparable(text)).join("")
@@ -68,50 +67,50 @@ export function matchExtraPdf(lines: Line[], layout: readonly PdfSectionLayout[]
       while (got.length < want.length && end < lines.length && want.startsWith(got + normalized[end])) got += normalized[end++]
       if (got === want && want) found.push({ start, end })
     }
-    bodies.set(section, found)
+    bodies.set(section, { want, found })
   }
-  const interiors = new Set<number>()
-  for (const found of bodies.values())
-    for (const range of found) for (const index of allStarts) if (index > range.start && index < range.end) interiors.add(index)
-  const required = new Map<string, number>()
-  for (const section of layout) required.set(comparable(section.heading), (required.get(comparable(section.heading)) ?? 0) + 1)
+  const interiorsOf = (skip: ReadonlySet<PdfSectionLayout>) => {
+    const interiors = new Set<number>()
+    for (const [section, { found }] of bodies)
+      if (!skip.has(section))
+        for (const range of found) for (const index of allStarts) if (index > range.start && index < range.end) interiors.add(index)
+    return interiors
+  }
+  const interiors = interiorsOf(new Set())
+  const expected = new Map<string, PdfSectionLayout[]>()
+  for (const section of layout) {
+    const heading = comparable(section.heading)
+    expected.set(heading, [...(expected.get(heading) ?? []), section])
+  }
   const deficient = new Set(
-    [...required]
-      .filter(([heading, count]) => allStarts.filter((index) => normalized[index] === heading && !interiors.has(index)).length < count)
+    [...expected]
+      .filter(
+        ([heading, peers]) => allStarts.filter((index) => normalized[index] === heading && !interiors.has(index)).length < peers.length,
+      )
       .map(([heading]) => heading),
   )
   const ambiguousOwnership = new Set<PdfSectionLayout>()
-  for (const [section, found] of bodies)
+  for (const [section, { found }] of bodies)
     if (found.some((range) => allStarts.some((index) => index > range.start && index < range.end && deficient.has(normalized[index]))))
       ambiguousOwnership.add(section)
   // A matching prose suffix must not swallow the only heading occurrence
   // needed by another expected section. Missing custom text followed by a
   // real builtin 'Awards / Prize' is otherwise indistinguishable from prose
   // that literally ends with those words.
-  if (ambiguousOwnership.size) {
-    interiors.clear()
-    for (const [section, found] of bodies)
-      if (!ambiguousOwnership.has(section))
-        for (const range of found) for (const index of allStarts) if (index > range.start && index < range.end) interiors.add(index)
-  }
-  const starts = allStarts.filter((index) => !interiors.has(index))
-  const ranges = starts.map((start, index) => ({ start, end: starts[index + 1] ?? lines.length, heading: comparable(lines[start].text) }))
-  const expected = new Map<string, PdfSectionLayout[]>()
-  for (const section of layout) {
-    const heading = comparable(section.heading)
-    expected.set(heading, [...(expected.get(heading) ?? []), section])
-  }
+  const owned = interiorsOf(ambiguousOwnership)
+  const starts = allStarts.filter((index) => !owned.has(index))
+  const ranges = starts.map((start, index) => ({ start, end: starts[index + 1] ?? lines.length, heading: normalized[start] }))
   const sections: ExtraPdfMatch[] = []
   const excludedLines: number[] = []
   const assigned = layout.map((section) => {
     const heading = comparable(section.heading)
     const candidates = ranges.filter((range) => range.heading === heading)
     const peers = expected.get(heading)!
-    return candidates.length === peers.length ? candidates[peers.indexOf(section)] : undefined
+    return { candidates, range: candidates.length === peers.length ? candidates[peers.indexOf(section)] : undefined }
   })
   const before: number[] = []
   let maximum = -Infinity
-  for (const range of assigned) {
+  for (const { range } of assigned) {
     before.push(maximum)
     if (range) maximum = Math.max(maximum, range.start)
   }
@@ -119,50 +118,48 @@ export function matchExtraPdf(lines: Line[], layout: readonly PdfSectionLayout[]
   let minimum = Infinity
   for (let i = assigned.length - 1; i >= 0; i--) {
     after[i] = minimum
-    if (assigned[i]) minimum = Math.min(minimum, assigned[i]!.start)
+    const { range } = assigned[i]
+    if (range) minimum = Math.min(minimum, range.start)
   }
   for (const [sectionIndex, section] of layout.entries()) {
     const sectionId = extraKey(section.ref)
     if (sectionId === null) continue
-    const heading = comparable(section.heading)
-    const candidates = ranges.filter((range) => range.heading === heading)
-    const peers = expected.get(heading)!
-    const empty = { sectionId, lines: [], parts: [] }
+    const { candidates, range } = assigned[sectionIndex]
+    const empty = { sectionId, parts: [] }
     if (ambiguousOwnership.has(section)) {
       sections.push({ ...empty, status: "ambiguous" })
       continue
     }
-    if (candidates.length !== peers.length) {
+    if (!range) {
       sections.push({ ...empty, status: candidates.length === 0 ? "missing" : "ambiguous" })
       continue
     }
-    const range = candidates[peers.indexOf(section)]
     if (range.start <= before[sectionIndex] || range.start >= after[sectionIndex]) {
       sections.push({ ...empty, status: "ambiguous" })
       continue
     }
-    if (!bodies.get(section)?.some((body) => body.start === range.start)) {
+    const { want, found } = bodies.get(section)!
+    if (!found.some((body) => body.start === range.start)) {
       sections.push({ ...empty, status: "missing" })
       continue
     }
-    const body = lines.slice(range.start + 1, range.end).map((line) => comparable(line.text))
-    const wanted = section.parts.map((part) => comparable(part.text))
-    if (body.join("") !== wanted.join("")) {
+    const body = normalized.slice(range.start + 1, range.end)
+    if (body.join("") !== want) {
       sections.push({ ...empty, status: "missing" })
       continue
     }
     const indexes = Array.from({ length: range.end - range.start }, (_, index) => range.start + index)
     const offsets = body.reduce<number[]>((out, text) => [...out, out[out.length - 1] + text.length], [0])
     let offset = 0
-    const parts = section.parts.flatMap((part, index) => {
+    const parts = section.parts.flatMap((part) => {
       const start = offset
-      offset += wanted[index].length
-      if (!part.place || start === offset) return []
+      offset += comparable(part.text).length
+      if (start === offset) return []
       return [
         { place: part.place, lines: body.flatMap((_, i) => (offsets[i] < offset && offsets[i + 1] > start ? [range.start + 1 + i] : [])) },
       ]
     })
-    sections.push({ sectionId, status: "matched", lines: indexes, parts })
+    sections.push({ sectionId, status: "matched", parts })
     excludedLines.push(...indexes)
   }
   return { sections, excludedLines }

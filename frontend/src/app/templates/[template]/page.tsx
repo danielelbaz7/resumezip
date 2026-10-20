@@ -11,16 +11,7 @@ import { StartWritingLink } from "@/components/site/StartWriting"
 import StructuredData from "@/components/site/StructuredData"
 import { pageMetadata, SHARE_IMAGE_SIZE } from "@/lib/site"
 import { breadcrumbs, TEMPLATES_CRUMB } from "@/lib/structuredData"
-import {
-  fontsOf,
-  printedName,
-  type Template,
-  TEMPLATES,
-  templateBySlug,
-  templateImageAlt,
-  templatePath,
-  templateSlug,
-} from "@/lib/templates"
+import { printedName, type Template, TEMPLATES, templateBySlug, templateImageAlt, templatePath, templateSlug } from "@/lib/templates"
 import { checksPassed, READING_CHECKS, READING_RESULTS, WHY_NOT } from "../how-they-read/checks"
 import { ABOUT } from "./about"
 
@@ -104,7 +95,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
                   alt={templateImageAlt(template)}
                   fill
                   priority
-                  sizes="(min-width: 1024px) 45vw, (min-width: 768px) 45vw, 100vw"
+                  sizes="(min-width: 768px) 45vw, 100vw"
                   className="object-cover object-top"
                 />
               </div>
@@ -115,7 +106,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
               <h1 className="mt-3.5 text-balance font-serif text-[44px] leading-[1.02] tracking-[-0.035em] sm:text-[56px] lg:text-[64px]">
                 {printedName(template)} resume <em className="pr-[0.04em] text-accent">template</em>
               </h1>
-              <p className="mt-3 text-[16px] text-ink-3">Set in {fontsOf(template)[0].family} · Letter or A4</p>
+              <p className="mt-3 text-[16px] text-ink-3">Set in {template.font} · Letter or A4</p>
               {about.text.map((paragraph) => (
                 <p key={paragraph} className="mt-4 max-w-[620px] text-pretty text-[16px] leading-relaxed text-ink-2">
                   {paragraph}

@@ -22,7 +22,7 @@ import {
 } from "@/lib/resumeFile"
 import { storedFile, zipDirectory } from "@/lib/zip"
 import { MAX_BYTES, MAX_PAGES, TIME_LIMIT_MS, TooMuchTextError } from "./limits"
-import { readPdf, type Line, type PageSize, type PdfPage } from "./lines"
+import { readPdf, type PageSize, type PdfPage } from "./lines"
 import type { ParsedResume } from "./parse"
 import type { ReadRequest, ReadResult } from "./read"
 
@@ -41,7 +41,6 @@ export type OpenedFile =
   | {
       kind: "parsed"
       parsed: ParsedResume
-      lines: Line[]
       title: string
       fileName: string
       /** The PDF itself, for showing it beside what was found. Absent for Word files. */
@@ -200,7 +199,6 @@ async function openPdf(data: ArrayBuffer, title: string, fileName: string, signa
     return {
       kind: "parsed",
       parsed,
-      lines: parsed.lines,
       title,
       fileName,
       pdf: { doc, pages: pages.map(({ width, height }) => ({ width, height })) },
@@ -245,7 +243,7 @@ async function openWordFile(data: ArrayBuffer, title: string, fileName: string, 
   const resume = wordFileResume(data)
   if (resume) return { kind: "resumezip", resume, title, from: "docx" }
   const parsed = found(await readInWorker({ kind: "docx", data }, signal), "This Word file has no text in it.")
-  return { kind: "parsed", parsed, lines: parsed.lines, title, fileName }
+  return { kind: "parsed", parsed, title, fileName }
 }
 
 /**

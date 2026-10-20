@@ -269,11 +269,10 @@ describe.each(files)("%s", (file) => {
     const [person] = file.split("/")
     const fixture = JSON.parse(readFileSync(path.join(CORPUS, person, "resume.json"), "utf8"))
     const { parsed, resume } = await readBack(new Uint8Array(readFileSync(path.join(CORPUS, `${file}.pdf`))))
-    const summaries = parsed.extraGroups?.filter((group) => group.kind === "summary") ?? []
-    if (summaries.length) {
+    if (parsed.summaries.length) {
       // As typed: the PDF's lines are joined back up where they only wrapped.
       expect(resume.profileSection.summary).toBe(fixture.summary)
-      expect(summaries).toHaveLength(1)
+      expect(parsed.summaries).toHaveLength(1)
     }
   })
 })

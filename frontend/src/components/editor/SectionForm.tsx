@@ -30,21 +30,19 @@ export interface DeletedEntry {
 interface SectionFormProps {
   section: SectionDef
   /** Takes the section off the resume. */
-  onDelete?: () => void
+  onDelete: () => void
   /** An entry was deleted, and can be put back. */
-  onEntryDeleted?: (deleted: DeletedEntry) => void
+  onEntryDeleted: (deleted: DeletedEntry) => void
   /** An entry Undo put back, which its section opens again once it's shown. */
-  restored?: { section: SectionName; id: number } | null
+  restored: { section: SectionName; id: number } | null
   /** The section has opened the entry put back. */
-  onRestored?: () => void
+  onRestored: () => void
 }
 
 // How long an entry takes to slide open, closed or away (matches duration-300).
 const SLIDE_MS = 300
 
-// How long a dragged entry takes to slide to its new place, then how long it
-// stays lit up after, to show which one moved.
-const MOVE_MS = 200
+// How long a dragged entry stays lit up in its new place, to show which one moved.
 const LIT_MS = 900
 // The id of those animations, to tell them from the CSS transitions on the same elements.
 const MOVING = "moving"
@@ -70,46 +68,20 @@ function pointAt(target: HTMLElement | null | undefined, line?: number, view: HT
   view?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" })
 }
 
-/** Where each entry is drawn, mid-slide or not, from the top of their list. */
-function placesOf(entries: Map<number, HTMLElement>, list: HTMLElement | null): Map<number, number> {
-  const top = list?.getBoundingClientRect().top ?? 0
-  return new Map([...entries].map(([id, element]) => [id, element.getBoundingClientRect().top - top]))
-}
-
-/** Stops the entries' slides and lights, so the next move can start them afresh. */
+/** Stops the entries' lights, so the next move can start them afresh. */
 function stopMoving(entries: Map<number, HTMLElement>) {
   for (const element of entries.values()) {
-    for (const animated of [element, element.querySelector("[data-card]")]) {
-      for (const animation of animated?.getAnimations() ?? []) if (animation.id === MOVING) animation.cancel()
-    }
+    for (const animation of element.querySelector("[data-card]")?.getAnimations() ?? []) if (animation.id === MOVING) animation.cancel()
   }
 }
 
-/**
- * Slides each entry from where it was drawn (`from`) to its place now, and
- * lights up the card of the one that moved. With less motion, it only lights up.
- */
-function slide(entries: Map<number, HTMLElement>, list: HTMLElement | null, moved: number, from: Map<number, number>) {
-  const to = placesOf(entries, list)
-  const still = reducedMotion()
-  for (const [id, element] of entries) {
-    const start = from.get(id)
-    const by = start === undefined || still ? 0 : start - (to.get(id) ?? start)
-    const sliding = Math.abs(by) >= 1
-    if (sliding) {
-      element.animate([{ transform: `translateY(${by}px)`, zIndex: id === moved ? 1 : 0 }, { transform: "none" }], {
-        id: MOVING,
-        duration: MOVE_MS,
-        easing: "ease-out",
-      })
-    }
-    const card = id === moved ? element.querySelector<HTMLElement>("[data-card]") : null
-    if (card) {
-      // It settles back to the shadow it has at rest, an open card's or a folded one's.
-      const unlit: Keyframe = { boxShadow: getComputedStyle(card).boxShadow }
-      card.animate([LIT, LIT, unlit], { id: MOVING, duration: (sliding ? MOVE_MS : 0) + LIT_MS, easing: "ease-in" })
-    }
-  }
+/** Lights up the card of the entry that moved. */
+function lightUp(entries: Map<number, HTMLElement>, moved: number) {
+  const card = entries.get(moved)?.querySelector<HTMLElement>("[data-card]")
+  if (!card) return
+  // It settles back to the shadow it has at rest, an open card's or a folded one's.
+  const unlit: Keyframe = { boxShadow: getComputedStyle(card).boxShadow }
+  card.animate([LIT, LIT, unlit], { id: MOVING, duration: LIT_MS, easing: "ease-in" })
 }
 
 /** The fields that name an entry's card: the company alone, or a skill group and its skills. */
@@ -138,7 +110,7 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
   const { read, update: updateResume } = useOpenResume()
   const saved = useResumeField(section.dataKey)
   const headings = useResumeField("headings")
-  const entries = Array.isArray(saved) ? saved : []
+  const entries = saved ?? []
   const latest = useRef(entries)
   latest.current = entries
 
@@ -159,8 +131,8 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
   const titleNotes = useId()
   const openRef = useRef(openId)
   openRef.current = openId
-  // A drop that hasn't lit up yet: which entry moved, and where each entry was drawn before it.
-  const moving = useRef<{ id: number; from: Map<number, number>; frame?: number } | null>(null)
+  // A drop that hasn't lit up yet: which entry moved.
+  const moving = useRef<{ id: number; frame?: number } | null>(null)
   const [dnd, setDnd] = useState(loadedDragAndDrop)
 
   // The first field is the card's name: an open card's name is where it's
@@ -253,7 +225,7 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
   useEffect(() => {
     if (!restored || restored.section !== section.name) return
     const { id } = restored
-    restoredDone.current?.()
+    restoredDone.current()
     setConfirmingId(null)
     setOpened((count) => count + 1)
     setOpenId(id)
@@ -262,8 +234,8 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
       () => {
         const element = elements.current.get(id)
         if (!element?.isConnected) return
-        slide(elements.current, list.current, id, new Map())
-        reveal(element, scrollerOf(element), reducedMotion())
+        lightUp(elements.current, id)
+        reveal(element, scrollerOf(element))
         const first = element.querySelector<HTMLElement>(FIRST_FIELD)
         if (first && window.matchMedia("(pointer: fine)").matches) first.focus({ preventScroll: true })
         else element.querySelector<HTMLElement>("[data-done]")?.focus({ preventScroll: true })
@@ -288,7 +260,7 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
     if (!waiting || waiting.frame !== undefined) return
     waiting.frame = requestAnimationFrame(() => {
       moving.current = null
-      slide(elements.current, list.current, waiting.id, waiting.from)
+      lightUp(elements.current, waiting.id)
     })
   }, [saved])
 
@@ -335,7 +307,7 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
         return
       }
       scroller.style.overflowAnchor = anchoring
-      if (id !== null) reveal(element, scroller, reduced)
+      if (id !== null) reveal(element, scroller)
     }
     requestAnimationFrame(hold)
     if (id !== null) requestAnimationFrame(() => focusFirstField(id))
@@ -359,7 +331,7 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
     setTimeout(
       () => {
         const element = elements.current.get(id)
-        if (element) reveal(element, scrollerOf(element), reducedMotion())
+        if (element) reveal(element, scrollerOf(element))
         focusFirstField(id)
       },
       reducedMotion() ? 0 : SLIDE_MS,
@@ -370,19 +342,16 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
 
   // The others keep their ids, so React doesn't give the next entry what was
   // the deleted one's: its place in the slide, or a bullets field's mode.
-  // Focus that was in it goes to Undo (DeletedToast), or else to Add.
+  // Focus that was in it goes to Undo (DeletedToast).
   const remove = (id: number) => {
     setRemovingId(null)
     const current = latest.current
     const index = current.findIndex((entry) => entry.id === id)
     if (index < 0) return
-    const hadFocus = elements.current.get(id)?.contains(document.activeElement) ?? false
     save(current.filter((entry) => entry.id !== id))
     setOpenId((open) => (open === id ? null : open))
-    if (onEntryDeleted) {
-      const entry = current[index]
-      onEntryDeleted({ section: section.name, entry, index, title: summaryOf(section, entry) || `Entry ${index + 1}` })
-    } else if (hadFocus) addButton.current?.focus({ preventScroll: true })
+    const entry = current[index]
+    onEntryDeleted({ section: section.name, entry, index, title: summaryOf(section, entry) || `Entry ${index + 1}` })
   }
 
   // The entry slides away, then it's deleted.
@@ -407,7 +376,7 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
     if (!destination || from < 0 || destination.index === from) return
     const next = [...current]
     next.splice(destination.index, 0, ...next.splice(from, 1))
-    moving.current = { id, from: new Map() }
+    moving.current = { id }
     save(next)
     setConfirmingId(null)
   }
@@ -704,7 +673,7 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
           note={note}
           onRename={(name) => updateResume("headings", { ...headings, [section.headingKey]: name })}
           flag={here?.kind === "heading" || here?.kind === "section" ? target!.finding : null}
-          end={onDelete && <DeleteSection onDelete={onDelete} />}
+          end={<DeleteSection onDelete={onDelete} />}
         />
       </div>
 

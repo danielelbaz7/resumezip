@@ -193,10 +193,6 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
     () => (watching && pdfResume ? JSON.stringify(pdfLayoutOf(viewOf(pdfResume))) : undefined),
     [watching, pdfResume],
   )
-  const layout = useMemo<PdfSectionLayout[] | undefined>(
-    () => (layoutJSON === undefined ? undefined : JSON.parse(layoutJSON)),
-    [layoutJSON],
-  )
   const previewUrl = preview?.url
   const previewPrinted = preview?.printed
   // Private omitted-line edits can keep the PDF identical while moving an
@@ -212,6 +208,7 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
       setRead({ printed: previewPrinted, key: readingKey, url: previewUrl, pdf: known.get(readingKey) ?? null })
       return
     }
+    const layout: PdfSectionLayout[] | undefined = layoutJSON === undefined ? undefined : JSON.parse(layoutJSON)
     const reading = new AbortController()
     const cancel = whenIdle(() => {
       // The reader only loads once Check has been opened.
@@ -234,7 +231,7 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
       cancel()
       reading.abort()
     }
-  }, [watching, previewUrl, previewPrinted, readingKey, layout])
+  }, [watching, previewUrl, previewPrinted, readingKey, layoutJSON])
 
   // What the grammar checker found in each piece of text, once it has loaded,
   // and the text it's checking now.

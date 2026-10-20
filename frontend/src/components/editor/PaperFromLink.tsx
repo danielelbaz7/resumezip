@@ -38,15 +38,13 @@ interface PaperFromLinkProps {
   owner: () => string
   /** Adds papers as new entries. `show` brings the first into view. */
   onAdd: (papers: Partial<PublicationFields>[], show: boolean) => void
-  /** The section's own add button, shown first, where it has no tabs to be at the end of. */
-  children?: React.ReactNode
 }
 
 /**
  * Adds publications from their DOIs or links, one per line. Each paper is
  * looked up in turn, and only its DOI leaves the browser.
  */
-export default function PaperFromLink({ entries, owner, onAdd, children }: PaperFromLinkProps) {
+export default function PaperFromLink({ entries, owner, onAdd }: PaperFromLinkProps) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState("")
   const [progress, setProgress] = useState<{ at: number; of: number } | null>(null)
@@ -195,20 +193,17 @@ export default function PaperFromLink({ entries, owner, onAdd, children }: Paper
 
   return (
     <div className="flex flex-col">
-      <div className="flex flex-wrap gap-3">
-        {children}
-        <button
-          ref={toggle}
-          type="button"
-          onClick={open ? close : show}
-          aria-expanded={open}
-          aria-controls={open ? panelId : undefined}
-          className={sheetPill("white", "h-10 px-4 text-[14px] font-medium")}
-        >
-          <Link2 aria-hidden="true" />
-          Add from DOI or link
-        </button>
-      </div>
+      <button
+        ref={toggle}
+        type="button"
+        onClick={open ? close : show}
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        className={`${sheetPill("white", "h-10 px-4 text-[14px] font-medium")} self-start`}
+      >
+        <Link2 aria-hidden="true" />
+        Add from DOI or link
+      </button>
 
       {open && (
         <div id={panelId} className="mt-5 flex flex-col gap-3 border-t border-hairline pt-5" onKeyDown={onKeyDown}>

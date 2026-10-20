@@ -6,7 +6,7 @@
 
 import { printedResume } from "@/lib/leftOut"
 import type { Entry, Resume } from "@/lib/resume"
-import { extraHeading, extraHasBody, extrasOf, resolveSections } from "@/lib/resumeSections"
+import { extraHeading, extrasOf, resolveSections } from "@/lib/resumeSections"
 import { templateById, type TemplateId } from "@/lib/templates"
 import { printedTune, type PrintedTune } from "@/lib/tune"
 
@@ -283,7 +283,6 @@ export function toTemplateData(saved: Resume): TemplateData {
     order: resolveSections(resume),
     extras: Object.fromEntries(
       Object.entries(extrasOf(resume))
-        .filter(([, section]) => extraHasBody(section))
         .map(([id, section]): [string, ExtraTemplateSection] => {
           const heading = extraHeading({ ...section, heading: text(section.heading) })
           const printable: ExtraTemplateSection =
@@ -296,7 +295,7 @@ export function toTemplateData(saved: Resume): TemplateData {
                 }
           return [`extra:${id}`, printable]
         })
-        // extraHasBody counts invisible characters as words; a body of only them would print a bare heading.
+        // A section with nothing to print, as one of only invisible characters, would print a bare heading.
         .filter(([, printable]) => (printable.kind === "list" ? printable.bullets : printable.paragraphs).length > 0),
     ),
     education: entries(resume.educationSection, (e) => ({

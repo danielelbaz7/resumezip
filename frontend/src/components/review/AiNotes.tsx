@@ -4,27 +4,26 @@ import { useId, useState } from "react"
 import { Clock, RotateCcw } from "lucide-react"
 import { Squares } from "@/components/site/Loader"
 import type { Problem } from "@/lib/review/ai/askForNotes"
-import type { Note } from "./PageMarks"
+import type { Ink, Note } from "./PageMarks"
 import { STORM, SUN, type Picture } from "./weather/pictures"
 
-export type AiState = { step: "asking" } | { step: "done"; notes: Note[] } | { step: "problem"; reason: Problem; message: string }
+export type AiState =
+  { step: "asking" } | { step: "done"; notes: Note[] } | { step: "problem"; reason: Exclude<Problem, "off">; message: string }
 
 // The problem's headline, its last words set in italic; the line under it, when the message would only repeat it.
 // prettier-ignore
-const PROBLEM_WORDS: Record<Problem, { lead: string; stress: string; body?: string }> = {
+const PROBLEM_WORDS: Record<Exclude<Problem, "off">, { lead: string; stress: string; body?: string }> = {
   limit: { lead: "Give it", stress: "a few minutes.", body: "You’ve asked for a lot of AI notes in a short time." },
   busy: { lead: "Give it", stress: "a minute.", body: "The AI is busy right now." },
   lines: { lead: "Too long for", stress: "AI notes." },
-  off: { lead: "AI notes are", stress: "off here." },
   other: { lead: "AI notes", stress: "didn’t load." },
 }
 
 /** What the pill over the dock says when the AI notes couldn't be had. */
-export const PILL_WORDS: Record<Problem, string> = {
+export const PILL_WORDS: Record<Exclude<Problem, "off">, string> = {
   limit: "AI notes are paused for a few minutes",
   busy: "The AI is busy, so here are the ATS checks",
   lines: "This resume is too long for AI notes",
-  off: "AI notes are off here",
   other: "AI notes didn’t load, so here are the ATS checks",
 }
 
@@ -41,10 +40,10 @@ export function Pill({ children, onClose }: { children: React.ReactNode; onClose
   )
 }
 
-type Tone = "red" | "good"
+type AiInk = Extract<Ink, "red" | "good">
 
 // prettier-ignore
-const TILES: Record<Tone, { title: string; line: string; empty: string; picture: Picture }> = {
+const TILES: Record<AiInk, { title: string; line: string; empty: string; picture: Picture }> = {
   red: { title: "Red flags", line: "Lines a recruiter would trip on.", empty: "None found. Nice.", picture: STORM },
   good: { title: "Done well", line: "Lines that land. Keep them.", empty: "None stood out.", picture: SUN },
 }
@@ -56,10 +55,10 @@ const layersOf = ({ palette, glyphs, inks }: Picture) =>
     color,
     text: glyphs.map((row, r) => row.replace(/./g, (glyph, c) => (inks[r][c] === String(ink) ? glyph : " "))).join("\n"),
   }))
-const LAYERS: Record<Tone, { color: string; text: string }[]> = { red: layersOf(STORM), good: layersOf(SUN) }
+const LAYERS: Record<AiInk, { color: string; text: string }[]> = { red: layersOf(TILES.red.picture), good: layersOf(TILES.good.picture) }
 
 /** A tile for one kind of flag: its count, and its picture in text. Pressed, it's tall and its flags are listed. */
-function Tile({ tone, count, pressed, onPress }: { tone: Tone; count: number; pressed: boolean; onPress: () => void }) {
+function Tile({ tone, count, pressed, onPress }: { tone: AiInk; count: number; pressed: boolean; onPress: () => void }) {
   const line = useId()
   const { title, line: words } = TILES[tone]
   return (
@@ -111,8 +110,8 @@ function Flags({
   onOpen: (key: string | null) => void
   onPick: (note: Note) => void
 }) {
-  const of = (tone: Tone) => notes.filter((note) => (tone === "red" ? note.ink === "red" : note.ink === "good"))
-  const [shown, setShown] = useState<Tone>(() => (of("red").length === 0 && of("good").length > 0 ? "good" : "red"))
+  const of = (tone: AiInk) => notes.filter((note) => note.ink === tone)
+  const [shown, setShown] = useState<AiInk>(() => (of("red").length === 0 && of("good").length > 0 ? "good" : "red"))
   const listed = of(shown)
   return (
     <div className="review-flags">
@@ -203,7 +202,7 @@ export default function AiNotes({
         {words.lead} <em className="text-accent">{words.stress}</em>
       </p>
       <p className="mt-2 text-[13px] text-ink-2">{words.body ?? state.message}</p>
-      {state.reason !== "lines" && state.reason !== "off" && (
+      {state.reason !== "lines" && (
         <button type="button" onClick={onAsk} className="review-try mt-3">
           <RotateCcw aria-hidden="true" className="h-4 w-4" />
           Try again

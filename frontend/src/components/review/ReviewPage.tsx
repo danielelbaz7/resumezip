@@ -22,7 +22,7 @@ import { GAZE_MS, gazeOf, type Stop } from "./gaze"
 import MarkedPages, { type Flight } from "./MarkedPages"
 import { aiNotesOf, checkNotesOf } from "./notes"
 import { measurer, type Note } from "./PageMarks"
-import { useAiNotes, type AiNotes as Ai } from "./useAiNotes"
+import { useAiNotes, type AiSide } from "./useAiNotes"
 
 const ACCEPTED_FILES =
   ".pdf,.docx,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/json"
@@ -61,14 +61,14 @@ const NARROW_LINES: Record<Verdict, string[]> = { ready: ["Ready", "to send"], a
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, ms)))
 
-/** Re-renders every `every` ms while `on`, for words that count. */
-function useTicking(on: boolean, every = 100) {
+/** Re-renders every 100 ms while `on`, for words that count. */
+function useTicking(on: boolean) {
   const [, setTick] = useState(0)
   useEffect(() => {
     if (!on) return
-    const timer = setInterval(() => setTick((tick) => tick + 1), every)
+    const timer = setInterval(() => setTick((tick) => tick + 1), 100)
     return () => clearInterval(timer)
-  }, [on, every])
+  }, [on])
 }
 
 /**
@@ -159,7 +159,7 @@ function Result({
   review: Review
   pages: readonly DrawnPage[] | null
   drawing: boolean
-  ai: Ai
+  ai: AiSide
   /** Where page 1 was as it was read, which it flies from. */
   from: Flight | null
   onFix: () => void
@@ -171,15 +171,12 @@ function Result({
   const counts = countsOf(report)
   const measure = useMemo(() => measurer(), [])
   const checked = useMemo(() => checkNotesOf(report.view, report.findings, reading, measure), [report, reading, measure])
-  const state = useMemo<AiState | null>(
-    () =>
-      !answer
-        ? null
-        : answer.step === "done"
-          ? { step: "done", notes: units ? aiNotesOf(notesOf({ notes: answer.notes }, units), measure) : [] }
-          : answer,
-    [answer, units, measure],
-  )
+  // Null when the page has no AI side: the AI isn't asked, or is off on this site.
+  const state = useMemo<AiState | null>(() => {
+    if (!answer || answer.step === "asking") return answer
+    if (answer.step === "done") return { step: "done", notes: units ? aiNotesOf(notesOf({ notes: answer.notes }, units), measure) : [] }
+    return answer.reason === "off" ? null : { step: "problem", reason: answer.reason, message: answer.message }
+  }, [answer, units, measure])
   // The page opens on the AI's notes, or on the checks when there are none to be had.
   const [shown, setShown] = useState<Shown>(answer && answer.step !== "problem" ? "ai" : "checks")
   const [open, setOpen] = useState<string | null>(null)
@@ -214,22 +211,13 @@ function Result({
   }, [answer, show])
 
   // A flag picked in the list: its mark, brought into view and focused, which shows its note.
-  // When the page shows the checks, it's switched to the AI's notes first, and the mark is looked for once they're drawn.
-  const pick = useCallback(
-    (note: Note) => {
-      const focus = () => {
-        const mark = document.querySelector<HTMLElement>(`[data-note="${CSS.escape(note.key)}"]`)
-        if (!mark) return
-        mark.focus({ preventScroll: true })
-        mark.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
-      }
-      if (shown === "ai") return focus()
-      show("ai")
-      requestAnimationFrame(() => requestAnimationFrame(focus))
-    },
-    [shown, show],
-  )
-  const withAi = units && state && !(state.step === "problem" && state.reason === "off")
+  const pick = (note: Note) => {
+    const mark = document.querySelector<HTMLElement>(`[data-note="${CSS.escape(note.key)}"]`)
+    if (!mark) return
+    mark.focus({ preventScroll: true })
+    mark.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
+  }
+  const withAi = units && state
   const caveats = [
     !reading && "The printed copy couldn’t be read back, so how hiring software reads it isn’t scored.",
     !review.spelled && "Spelling wasn’t checked: the spelling checker couldn’t load.",
@@ -397,7 +385,7 @@ export default function ReviewPage() {
             const still = matchMedia("(prefers-reduced-motion: reduce)").matches
             const gaze = read && !still ? gazeOf(read.lines, page) : []
             const eyesFrom = gaze.length > 0 ? performance.now() + GAZE_DELAY : null
-            setState((state) => (state.step === "working" ? { ...state, page, gaze: gaze.length > 0 ? gaze : null, eyesFrom } : state))
+            setState((state) => (state.step === "working" ? { ...state, page, gaze, eyesFrom } : state))
             firstDrawn(page)
           }).then((pages) => {
             // Left while it drew, the drawing stopped and freed its pages.

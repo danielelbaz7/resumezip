@@ -46,7 +46,6 @@ describe("a Margin PDF opened without its resume", () => {
     const { parsed, wrong } = await read({ ...sample, headings: { projects: "Things I Built" } })
     expect(parsed.sections.map((section) => section.name)).toEqual(["Work", "Education", "Skills", "Leadership", "Volunteership", "Awards"])
     // The project is the custom section's text, for the review to keep as one.
-    expect(parsed.occurrences?.find((occurrence) => occurrence.heading === "Things I Built")?.kind).toBe("unsupported")
     expect(parsed.unplaced.map((group) => group.heading)).toEqual(["Things I Built"])
     expect(parsed.unplaced[0].text.join(" ")).toContain("Tabsplit")
     expect(wrong.filter((field) => !field.startsWith("projects"))).toEqual([])
@@ -72,7 +71,7 @@ describe("a Margin PDF opened without its resume", () => {
       skills: "Programmierkenntnisse",
     }
     const { parsed, wrong } = await read({ ...sample, headings })
-    expect(parsed.occurrences?.map((occurrence) => occurrence.heading)).toEqual([
+    expect(parsed.occurrences.map((occurrence) => occurrence.heading)).toEqual([
       "Summary",
       "Internationalization",
       "Education",
@@ -99,7 +98,7 @@ describe("a Margin PDF opened without its resume", () => {
       headings: { awards: "Honors, Awards, Grants, Prizes, Fellowships and Certifications" },
     })
     expect(parsed.unplaced).toEqual([])
-    expect(parsed.occurrences?.at(-1)?.heading).toBe("Honors, Awards, Grants, Prizes, Fellowships and Certifications")
+    expect(parsed.occurrences.at(-1)?.heading).toBe("Honors, Awards, Grants, Prizes, Fellowships and Certifications")
     expect(wrong).toEqual([])
   })
 })

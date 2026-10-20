@@ -450,7 +450,9 @@ describe("S10 locations", () => {
       ],
     }
     const report = runChecks(resume, { rules: RULES.filter((rule) => rule.id === "S10") })
-    expect(report.results).toEqual([expect.objectContaining({ status: "failed", checked: 2, credit: 0.5 })])
+    expect(report.results).toEqual([
+      expect.objectContaining({ status: "failed", checked: 2, scoring: expect.objectContaining({ credit: 0.5 }) }),
+    ])
     expect(report.findings).toHaveLength(1)
   })
 
@@ -479,7 +481,7 @@ describe("S10 locations", () => {
     const after = runChecks(saved, { rules })
     expect(after.dismissed).toEqual([expect.objectContaining({ key: first.findings[0].key, dismissed: true })])
     expect(after.findings).toEqual([expect.objectContaining({ key: first.findings[1].key, dismissed: false })])
-    expect(after.results[0]).toMatchObject({ checked: 2, credit: 0.5 })
+    expect(after.results[0]).toMatchObject({ checked: 2, scoring: { credit: 0.5 } })
 
     const fixed = runChecks(
       {
@@ -492,7 +494,7 @@ describe("S10 locations", () => {
       { rules },
     )
     expect(fixed.findings).toEqual([])
-    expect(fixed.results[0]).toMatchObject({ status: "passed", credit: 1 })
+    expect(fixed.results[0]).toMatchObject({ status: "passed", scoring: { credit: 1 } })
   })
 
   test("leaves the profile location to C4 and skips sections without location fields", () => {

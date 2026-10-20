@@ -69,13 +69,13 @@ const item =
 interface DownloadMenuProps {
   choices: DownloadChoice[]
   /** A choice is getting its file ready, as Share PDF may after it's pressed: the ▾ spins. */
-  busy?: boolean
+  busy: boolean
   /** Called as the menu opens, so a choice can get its file ready before it's pressed. */
-  onOpen?: () => void
+  onOpen: () => void
   /** What a choice says once it's pressed, while the menu's closed. */
-  notice?: MenuNotice | null
+  notice: MenuNotice | null
   /** Takes the notice away: once it's done and has been shown a while, or it's closed. */
-  onNoticeClose?: () => void
+  onNoticeClose: () => void
 }
 
 /**
@@ -84,7 +84,7 @@ interface DownloadMenuProps {
  * Tab close it, and either way the keyboard goes back to the ▾. A choice's
  * notice shows in the same place once the menu's closed.
  */
-export default function DownloadMenu({ choices, busy = false, onOpen, notice = null, onNoticeClose }: DownloadMenuProps) {
+export default function DownloadMenu({ choices, busy, onOpen, notice, onNoticeClose }: DownloadMenuProps) {
   const menuId = useId()
   const button = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
@@ -102,7 +102,7 @@ export default function DownloadMenu({ choices, busy = false, onOpen, notice = n
     fromEnd.current = last
     setClosing(false)
     setPlace(placeBy(button.current))
-    onOpen?.()
+    onOpen()
   }
 
   // It fades away, then goes. `refocus` puts the keyboard back on the ▾.
@@ -143,7 +143,7 @@ export default function DownloadMenu({ choices, busy = false, onOpen, notice = n
   const done = noticed && !notice.working
   useEffect(() => {
     if (!done || holding) return
-    const goes = window.setTimeout(() => latestNoticeClose.current?.(), NOTICE_MS)
+    const goes = window.setTimeout(() => latestNoticeClose.current(), NOTICE_MS)
     return () => window.clearTimeout(goes)
   }, [done, holding])
   useEffect(() => {
@@ -153,7 +153,7 @@ export default function DownloadMenu({ choices, busy = false, onOpen, notice = n
   // Closed from the keyboard or with ×, the keyboard goes back to the ▾.
   const closeNotice = () => {
     button.current?.focus()
-    onNoticeClose?.()
+    onNoticeClose()
   }
 
   // The first choice, or the last, gets the keyboard, so arrows move through them.

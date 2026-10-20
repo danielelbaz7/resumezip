@@ -20,15 +20,11 @@ test("heuristic PDFs retain optional content and repeated unsupported groups acr
       sectionOrder: [`extra:${first}`, `extra:${second}`],
     }
     const { parsed } = await readBack(await render(input))
-    const groups = parsed.extraGroups ?? []
-    expect(
-      groups.map((group) => group.kind),
-      sample.selectedTemplate,
-    ).toEqual(["summary"])
+    expect(parsed.summaries, sample.selectedTemplate).toHaveLength(1)
     const presentations = parsed.unplaced.filter((group) => /^presentations$/i.test(group.heading))
     expect(presentations, sample.selectedTemplate).toHaveLength(2)
     expect(presentations[0].id).not.toBe(presentations[1].id)
-    const keepAs = Object.fromEntries(parsed.unplaced.map((group, index) => [unplacedKey(group, index), "text" as const]))
+    const keepAs = Object.fromEntries(parsed.unplaced.map((group) => [unplacedKey(group), "text" as const]))
     const kept = toResumeContent(parsed, new Set(), { keepAs })
     const sections: ExtraSection[] = Object.values(kept.extraSections ?? {})
     const body = [
@@ -68,7 +64,7 @@ test("lines that only wrapped in the PDF are joined back up, as they were typed"
     }
     const { parsed } = await readBack(await render(input))
     const keepAs = Object.fromEntries(
-      parsed.unplaced.map((group, index) => [unplacedKey(group, index), group.heading === "Talks" ? ("list" as const) : ("text" as const)]),
+      parsed.unplaced.map((group) => [unplacedKey(group), group.heading === "Talks" ? ("list" as const) : ("text" as const)]),
     )
     const kept = toResumeContent(parsed, new Set(), { keepAs })
     expect(kept.profileSection.summary, sample.selectedTemplate).toBe(summary)

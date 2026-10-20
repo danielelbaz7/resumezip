@@ -52,7 +52,7 @@
   bullets(items)
 }
 
-#let entries(items, gap: 9pt) = items.join(v(sized(gap)))
+#let entries(items) = items.join(v(sized(9pt)))
 
 // ---------- Heading ----------
 

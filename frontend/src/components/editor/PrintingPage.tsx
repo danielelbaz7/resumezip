@@ -72,10 +72,10 @@ const percent = (value: number, of: number) => `${(value / of) * 100}%`
 interface PrintingPageProps {
   width: number
   /** The preview has arrived: fade out, then the parent removes this. */
-  leaving?: boolean
+  leaving: boolean
 }
 
-export default function PrintingPage({ width, leaving = false }: PrintingPageProps) {
+export default function PrintingPage({ width, leaving }: PrintingPageProps) {
   const status = useSyncExternalStore(onCompilerStatus, compilerStatus, compilerStatus)
   const [explain, setExplain] = useState(false)
 

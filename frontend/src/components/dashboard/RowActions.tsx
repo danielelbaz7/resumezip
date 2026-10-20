@@ -181,15 +181,6 @@ export function EyeIcon({ shut }: { shut: boolean }) {
   )
 }
 
-/** A tick, which draws itself again when pointed at. */
-export function DoneIcon() {
-  return (
-    <svg {...iconProps}>
-      <path className="done-tick" pathLength={1} d="m5 12.5 4.5 4.5L19 7.5" />
-    </svg>
-  )
-}
-
 /** Three dots, for a menu of more actions. They hop one after another. */
 export function MoreIcon() {
   return (

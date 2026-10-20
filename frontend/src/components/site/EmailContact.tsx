@@ -5,7 +5,7 @@ import { useRef, useState } from "react"
 import { Check, Copy, Mail } from "lucide-react"
 import { CONTACT_EMAIL } from "@/lib/contact"
 
-// Frosted glass, as the address beside it is, a size smaller.
+// Frosted glass, as the address beside it is, and as tall, with its words a little smaller.
 const COPY_PILL =
   "glass glass-float inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-sm text-ink transition-[filter] hover:brightness-[1.03]"
 
@@ -19,7 +19,7 @@ const COPIED_MS = 2000
  * blue Email bubble in place of the pointer, saying what a click does; a
  * finger, with no pointer to follow, just opens the email app.
  */
-export default function EmailContact({ compact = false }: { compact?: boolean }) {
+export default function EmailContact() {
   const bubble = useRef<HTMLSpanElement>(null)
   const [over, setOver] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -56,9 +56,7 @@ export default function EmailContact({ compact = false }: { compact?: boolean })
         onPointerLeave={() => setOver(false)}
         // Raised above Copy email: each glass pill is a layer of its own, so
         // without it the later one would cover the bubble wherever they meet.
-        className={`glass glass-float relative z-10 inline-flex items-center rounded-full text-ink ${compact ? "h-10 px-5 text-[15px]" : "h-12 px-6 text-[17px]"} ${
-          over ? "cursor-none" : ""
-        }`}
+        className={`glass glass-float relative z-10 inline-flex h-10 items-center rounded-full px-5 text-[15px] text-ink ${over ? "cursor-none" : ""}`}
       >
         {CONTACT_EMAIL}
         {/* Centred on the pointer, above it; it fades and grows in as the pointer arrives. */}

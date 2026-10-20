@@ -81,7 +81,7 @@ interface StrokesProps {
   strokes: Stroke[][]
   /** The first mark's index, when these are some marks' strokes but not all. */
   first?: number
-  masks?: RefObject<(SVGPathElement | null)[][]>
+  masks: RefObject<(SVGPathElement | null)[][]>
   prefix: string
 }
 
@@ -98,7 +98,6 @@ function Strokes({ strokes, first = 0, masks, prefix }: StrokesProps) {
             <mask key={`${first + k}-${j}`} id={`${prefix}-${first + k}-${j}`}>
               <path
                 ref={(path) => {
-                  if (!masks) return
                   masks.current[first + k] ??= []
                   masks.current[first + k][j] = path
                 }}
@@ -129,7 +128,7 @@ function Strokes({ strokes, first = 0, masks, prefix }: StrokesProps) {
 }
 
 /** A picture laid over the editor's, where it lies on it. */
-function OverlayPicture({ overlay, ref }: { overlay: Overlay; ref?: (element: HTMLImageElement | null) => void }) {
+function OverlayPicture({ overlay, ref }: { overlay: Overlay; ref: (element: HTMLImageElement | null) => void }) {
   const [left, top, right, bottom] = overlay.box
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -176,7 +175,7 @@ function WayIn({ ref, copyRef, onFocus, contactId }: WayInProps) {
         <div id={contactId} className="mt-6 border-t border-ink/10 pt-5">
           <h3 className="sr-only">Get in touch</h3>
           <p className="mb-3 text-sm text-ink-2">Found a bug or have an idea? I read every message.</p>
-          <EmailContact compact />
+          <EmailContact />
         </div>
       </div>
     </section>
@@ -222,7 +221,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     }
     if (Object.values(el).some((part) => !part)) return
     let screen = { width: 0, height: 0 }
-    let laid = layoutStage({ width: 1440, height: 900 })
+    let laid: StageLayout
     let wayInHeight = 0
     // How far each mark is drawn, and how much of its arrow and note shows: the story asks every
     // frame, and drawing a mask again repaints, so what hasn't changed is left as it is.
@@ -252,7 +251,7 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
       el.pointer.style.width = `${editor.width * POINTER}px`
     }
 
-    /** Mark `i` drawn `t` of the way: its loop or line, then its arrow, then its note writing in from the left. */
+    /** Mark `i` drawn `t` of the way: its loop, then its arrow, then its note writing in from the left. */
     function draw(i: number, t: number) {
       if (drawnTo[i] === t) return
       drawnTo[i] = t

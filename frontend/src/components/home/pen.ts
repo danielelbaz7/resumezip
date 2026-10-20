@@ -1,8 +1,8 @@
 // The blue marker on the home page's editor (HomeStory.tsx): loops round
-// what a note is about, a line under it, arrows from the notes. Each stroke is
-// a filled outline whose width swells in the middle and thins where the pen
-// lands and lifts, as a felt tip does, and the line down its middle, which a
-// mask draws along to make it look written.
+// what a note is about, and arrows from the notes. Each stroke is a filled
+// outline whose width swells in the middle and thins where the pen lands and
+// lifts, as a felt tip does, and the line down its middle, which a mask draws
+// along to make it look written.
 
 export type Point = readonly [number, number]
 
@@ -93,16 +93,6 @@ export function loopStroke(
     points.push([cx + x * Math.cos(tilt) - y * Math.sin(tilt), cy + x * Math.sin(tilt) + y * Math.cos(tilt) + t * 0.12 - 0.4])
   }
   return penStroke(points, width, 0.06)
-}
-
-/** A line under words from x0 to x1 at y, wavering a little and drifting up as a hand does. */
-export function underStroke(x0: number, x1: number, y: number, width: number): Stroke {
-  const points: Point[] = []
-  for (let i = 0; i <= 8; i++) {
-    const x = x0 + ((x1 - x0) * i) / 8
-    points.push([x, y + Math.sin(x * 0.05) * 1.2 + (x - x0) * -0.012])
-  }
-  return penStroke(points, width, 0.08)
 }
 
 /**

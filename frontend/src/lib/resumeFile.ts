@@ -160,17 +160,19 @@ function readFormat(
     if (recognized(text)) throw new TooLongError()
     return null
   }
-  let file
+  let parsed: unknown
   try {
-    file = JSON.parse(text)
+    parsed = JSON.parse(text)
   } catch {
     if (recognized(text)) throw damaged(noun)
     return null
   }
-  if (file?.format !== FORMAT) return null
-  if (file.version !== 1 && file.version !== VERSION)
+  const file = object(parsed)
+  if (file.format !== FORMAT) return null
+  const { version } = file
+  if (version !== 1 && version !== VERSION)
     throw new AttachmentError(`This ${noun} needs a newer resumezip. Refresh the app and try again, or open it with a newer version.`)
-  return file
+  return { ...file, version }
 }
 
 /** A resume in a file of the given version, checked and cleaned. */
@@ -271,11 +273,7 @@ export function cleanResume(input: unknown): ResumeContent {
   if (typeof resume.updatedAt === "string" && !Number.isNaN(Date.parse(resume.updatedAt))) {
     clean.updatedAt = resume.updatedAt
   }
-  if (resume.extraSections !== undefined) {
-    const decoded = readExtraSections(resume.extraSections)
-    if (!decoded.complete) throw new AttachmentError("The sections in this PDF are damaged. Try another saved PDF.")
-    clean.extraSections = decoded.sections
-  }
+  if (resume.extraSections !== undefined) clean.extraSections = readExtraSections(resume.extraSections).sections
   // The saved order's known sections, then the core ones it lacks and any optional one with entries.
   // That's then only the sections it shows, so it's marked as chosen (see Resume.sectionsChosen).
   clean.sectionOrder = resolveSections({ ...clean, sectionOrder: resume.sectionOrder, sectionsChosen: resume.sectionsChosen })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { type Stroke, arrowStrokes, loopStroke, penStroke, underStroke } from "./pen"
+import { type Stroke, arrowStrokes, loopStroke, penStroke } from "./pen"
 
 // The points of an SVG path made of M and L commands.
 const pointsOf = (path: string) =>
@@ -58,16 +58,6 @@ describe("a loop round a word", () => {
     // Loose, but not reaching the lines above and below, about 10px away.
     expect(word[1] - box.top).toBeLessThan(12)
     expect(box.bottom - word[3]).toBeLessThan(12)
-  })
-})
-
-describe("a line under words", () => {
-  it("runs the words' length, close under them, drifting up a little as a hand does", () => {
-    const box = bounds(underStroke(50, 250, 100, 3.7))
-    expect(box.left).toBeLessThanOrEqual(50)
-    expect(box.right).toBeGreaterThanOrEqual(249)
-    expect(box.top).toBeGreaterThan(93)
-    expect(box.bottom).toBeLessThan(104)
   })
 })
 

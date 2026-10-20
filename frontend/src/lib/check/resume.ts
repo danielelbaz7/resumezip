@@ -30,7 +30,7 @@ export type ResumeType = "professional" | "personal" | "academic"
 
 /** A resume's type. Resumes without one, or with one this version doesn't know, count as Professional. */
 export function resumeTypeOf(resume: Resume): ResumeType {
-  const tag = resume?.resumeTag
+  const tag = resume.resumeTag
   return tag === "academic" || tag === "personal" ? tag : "professional"
 }
 

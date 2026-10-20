@@ -154,8 +154,6 @@ export interface RuleResult {
   status: RuleStatus
   /** How many things it looked at; 0 unless it ran. */
   checked: number
-  /** How much of the resume passes it, from 0 to 1, with dismissed findings counting as passing; 1 unless it ran. */
-  credit: number
   /** What it found, dismissed or not. */
   findings: Finding[]
   /** Grading ignores advisory findings; null means the whole rule is advice. */
@@ -245,7 +243,7 @@ function run(
   pdf: PdfReading | undefined,
   grammar: GrammarReading | undefined,
 ): RuleResult {
-  const untouched = { rule, checked: 0, credit: 1, findings: [] }
+  const untouched = { rule, checked: 0, findings: [] }
   if (rule.category === "spelling" && input.resume.grammarLanguage === "other") return { ...untouched, status: "skipped" }
   if ((rule.reads === "pdf" && !pdf) || (rule.reads === "grammar" && !grammar)) return { ...untouched, status: "waiting" }
   try {
@@ -307,9 +305,7 @@ function judge(rule: Rule, outcome: Outcome, view: ResumeView, dismissed: Readon
       ? 1
       : outcome.credit !== undefined
         ? clamp(outcome.credit)
-        : rule.each !== undefined
-          ? clamp(1 - rule.each * open.length)
-          : clamp((checked - failed) / checked)
+        : clamp((checked - failed) / checked)
   const scored = open.filter((finding) => !finding.advisory)
   const scoredPlaces = new Set(scored.map((finding) => placeId(finding.place))).size
   const scoring = rule.advisory
@@ -328,7 +324,6 @@ function judge(rule: Rule, outcome: Outcome, view: ResumeView, dismissed: Readon
     rule,
     status: open.length > 0 ? "failed" : "passed",
     checked,
-    credit,
     findings,
     scoring,
     ...(outcome.partial && { partial: true }),

@@ -11,7 +11,7 @@ import type { Unit } from "@/lib/review/ai/units"
 /** The AI's notes on a review, as they come: asked for, back, or a reason there are none. */
 export type AiAnswer = { step: "asking" } | { step: "done"; notes: SavedNote[] } | { step: "problem"; reason: Problem; message: string }
 
-export interface AiNotes {
+export interface AiSide {
   /** The lines asked about, which the notes point at; null when there are none to ask about. */
   units: Unit[] | null
   /** The lines' hash, which the notes are kept by in this browser; null until it's worked out, or if it can't be. */
@@ -31,7 +31,7 @@ export interface AiNotes {
  * printed, while its spelling is still being checked, and shows the result
  * once the notes are back; the result can ask again.
  */
-export function useAiNotes(): AiNotes {
+export function useAiNotes(): AiSide {
   const [units, setUnits] = useState<Unit[] | null>(null)
   const [hash, setHash] = useState<string | null>(null)
   const [answer, setAnswer] = useState<AiAnswer | null>(null)

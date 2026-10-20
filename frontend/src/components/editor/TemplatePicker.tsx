@@ -10,7 +10,7 @@ import { reducedMotion } from "./layout"
 const CLOSE_MS = 260
 
 interface TemplatePickerProps {
-  value: unknown
+  value: string | undefined
   onChange: (template: TemplateId) => void
 }
 

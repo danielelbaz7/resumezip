@@ -604,21 +604,21 @@ describe("replacing a resume with a file", () => {
   test("keeps when the file was last edited, so the same file opened again isn't newer or older", () => {
     const storage = memoryStorage(saved(ada, grace))
     const tab = openTab(storage)
-    tab.replace("a", older)
+    tab.replace("a", older, "pdf")
     expect(tab.getState().resumes.a).toMatchObject({ resumeTitle: "Ada", profileSection: older.profileSection, updatedAt: older.updatedAt })
     expect(stored(storage, "a")?.updatedAt).toBe(older.updatedAt)
 
     // A file that doesn't say counts as edited now.
-    tab.replace("g", { profileSection: { fullName: "Grace Murray" } })
+    tab.replace("g", { profileSection: { fullName: "Grace Murray" } }, "pdf")
     expect(tab.getState().resumes.g.updatedAt).toBe("2026-10-06T12:00:00.000Z")
   })
 
   test("with one from before Fine-tune prints it with the template's own settings, as the file was", () => {
     const storage = memoryStorage(saved({ ...ada, tune: { size: 0.9, paper: "a4" } }))
     const tab = openTab(storage)
-    tab.replace("a", older)
+    tab.replace("a", older, "pdf")
     expect(tab.getState().resumes.a.tune).toBeNull()
-    tab.replace("a", { ...older, tune: { margin: 1.2 } })
+    tab.replace("a", { ...older, tune: { margin: 1.2 } }, "pdf")
     expect(stored(storage, "a")?.tune).toEqual({ margin: 1.2 })
   })
 
@@ -626,7 +626,7 @@ describe("replacing a resume with a file", () => {
     const storage = memoryStorage(saved(ada))
     const tab = openTab(storage)
     const before = tab.getState().resumes.a
-    tab.replace("a", older)
+    tab.replace("a", older, "pdf")
     expect(tab.getState().replaced).toMatchObject({ id: "a", undone: false })
 
     tab.undoReplace("a")
@@ -638,7 +638,7 @@ describe("replacing a resume with a file", () => {
   test("can't be undone once the resume changes again, so nothing newer is lost", () => {
     const storage = memoryStorage(saved(ada))
     const tab = openTab(storage)
-    tab.replace("a", older)
+    tab.replace("a", older, "pdf")
     tab.edit("a", "resumeTitle", "Ada, after replacing")
     expect(tab.getState().replaced).toBeNull()
     tab.undoReplace("a")
@@ -649,7 +649,7 @@ describe("replacing a resume with a file", () => {
     const storage = memoryStorage(saved(ada))
     const one = openTab(storage)
     const two = openTab(storage)
-    one.replace("a", older)
+    one.replace("a", older, "pdf")
     two.receive(keyOf("a"))
     two.edit("a", "resumeTitle", "Ada, edited in two")
     two.flush()
@@ -663,7 +663,7 @@ describe("replacing a resume with a file", () => {
     const storage = memoryStorage(saved(ada))
     const one = openTab(storage)
     const two = openTab(storage)
-    one.replace("a", older)
+    one.replace("a", older, "pdf")
     two.receive(keyOf("a"))
     two.edit("a", "resumeTitle", "Ada, edited in two")
     two.flush()
@@ -679,7 +679,7 @@ describe("replacing a resume with a file", () => {
     const storage = memoryStorage(saved(ada))
     const one = openTab(storage)
     const two = openTab(storage)
-    one.replace("a", older)
+    one.replace("a", older, "pdf")
     two.receive(keyOf("a"))
     two.remove("a")
 

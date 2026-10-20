@@ -186,7 +186,7 @@
     }
   }
 
-  /* The results, rising into place on the sky. */
+  /* The results, on the sky. */
   /* Its foot is as tall as the footer's lift (.zip-footer in globals.css),
      which the page runs on into with no strip of sky (SiteFooter's bare), so
      the buttons' dock stops above the footer's rounded corners, not over them. */
@@ -196,24 +196,16 @@
     flex: 1;
     flex-direction: column;
     padding: 4px 16px 24px;
-    animation: review-rise 600ms var(--ease-glide) backwards;
   }
   @media (min-width: 48rem) {
     .review-board {
       padding-bottom: 40px;
     }
   }
-  @keyframes review-rise {
-    from {
-      opacity: 0;
-      transform: translateY(40px);
-    }
-  }
   /* Arriving with the page that was being read flying into the card (MarkedPages.tsx), the board
      stays put, what's round the page fades in as it lands, and the marks wait for it to land. */
   .review-board[data-flight] {
     --review-marks-wait: 850ms;
-    animation: none;
   }
   .review-board[data-flight] > :first-child,
   .review-board[data-flight] .review-side,
@@ -794,7 +786,6 @@
     .review-scribble {
       transition: none;
     }
-    .review-board,
     .review-board[data-flight] *,
     .review-board[data-flight] .review-card::before,
     .review-theirs,

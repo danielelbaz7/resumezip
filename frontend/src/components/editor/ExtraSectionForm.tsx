@@ -11,7 +11,7 @@ import { StyledBox } from "./StyledBox"
 
 /** A section the person added, found by its key rather than its title, which can be anyone's. */
 export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: string; onDelete: () => void }) {
-  const { editSection, includeSection } = useResumeActions()
+  const { editSection } = useResumeActions()
   const { id } = useOpenResume()
   const extraSections = useResumeField("extraSections")
   const section: ExtraSection | undefined = extraSections?.[sectionId]
@@ -53,7 +53,7 @@ export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: s
           <input
             type="checkbox"
             checked={!section.leftOut}
-            onChange={(event) => includeSection(id, sectionId, event.target.checked)}
+            onChange={(event) => editSection(id, sectionId, { leftOut: !event.target.checked })}
             className="h-4 w-4 accent-accent"
           />
           Include section in the PDF

@@ -45,7 +45,7 @@
   bullets(items)
 }
 
-#let entries(items, gap: 8pt) = items.join(v(sized(gap)))
+#let entries(items) = items.join(v(sized(8pt)))
 
 // Between the parts of a line, so they don't run together when read as text.
 #let dot = h(0.45em) + text(fill: grey, [·]) + h(0.45em)

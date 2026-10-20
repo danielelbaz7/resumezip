@@ -84,10 +84,12 @@ describe("actual extra PDF occurrences", () => {
       [line("Interests"), line("Reading fiction"), line("Interests"), line("Reading fiction")],
       pdfLayoutOf(viewOf(source)),
     )
-    expect(result.sections.map(({ sectionId, status, lines }) => ({ sectionId, status, lines }))).toEqual([
-      { sectionId: first, status: "matched", lines: [0, 1] },
-      { sectionId: second, status: "matched", lines: [2, 3] },
+    expect(result.sections.map(({ sectionId, status }) => ({ sectionId, status }))).toEqual([
+      { sectionId: first, status: "matched" },
+      { sectionId: second, status: "matched" },
     ])
+    // In the sections' order: the first's lines, then the second's.
+    expect(result.excludedLines).toEqual([0, 1, 2, 3])
   })
 
   test("missing or changed text is a problem, and ambiguous text only makes R3 partial", () => {

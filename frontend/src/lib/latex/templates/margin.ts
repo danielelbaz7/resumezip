@@ -9,9 +9,6 @@
 // line's baseline to the next line's capitals; LaTeX puts lines a
 // \baselineskip apart, baseline to baseline. The spaces below are the .typ's
 // turned into LaTeX's, so lines land where the PDF has them.
-//
-// margin.typ asks for old-style figures in dates and the phone number, but the
-// Charis SIL it prints with has none, so the PDF's are lining, as these are.
 
 import {
   CHARIS,

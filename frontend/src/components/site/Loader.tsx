@@ -14,12 +14,12 @@ export function Squares() {
  * "Loading" beside the squares, and dots that type out after the word. With
  * less motion the grid and dots are still.
  */
-export default function Loader({ label = "Loading" }: { label?: string }) {
+export default function Loader() {
   return (
     <span role="status" className="inline-flex items-center gap-2.5 text-sm text-ink-2">
       <Squares />
       <span>
-        {label}
+        Loading
         <span aria-hidden="true" className="loader-dots">
           <i>.</i>
           <i>.</i>

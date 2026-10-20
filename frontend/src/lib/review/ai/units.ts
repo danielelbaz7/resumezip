@@ -20,8 +20,6 @@ export interface Unit {
   lines: MarkedLine[]
 }
 
-const marked = (line: Line): line is MarkedLine => line.box !== undefined
-
 export function unitsOf(view: ResumeView, pdf: PdfReading): Unit[] {
   // Each bullet's lines, by its first line; the lines it wraps onto belong to it.
   const bullets = new Map<Line, Line[]>()
@@ -48,19 +46,18 @@ export function unitsOf(view: ResumeView, pdf: PdfReading): Unit[] {
     bullets.set(line, lines)
     for (const each of lines.slice(1)) wrapped.add(each)
   })
-  const units: Unit[] = []
+  const units: Omit<Unit, "id">[] = []
   for (const line of pdf.lines) {
     if (wrapped.has(line) || !line.text.trim() || line.page === undefined) continue
     const lines = bullets.get(line) ?? [line]
     units.push({
-      id: `u${units.length + 1}`,
       bullet: bullets.has(line) || line.bullet,
       text: lines.map((each) => each.text).join(" "),
       page: line.page,
-      lines: lines.filter((each): each is MarkedLine => marked(each) && each.page === line.page),
+      lines: lines.filter((each): each is MarkedLine => each.box !== undefined && each.page === line.page),
     })
   }
-  return units.filter((unit) => unit.lines.length > 0).map((unit, index) => ({ ...unit, id: `u${index + 1}` }))
+  return units.filter((unit) => unit.lines.length > 0).map((unit, index) => ({ id: `u${index + 1}`, ...unit }))
 }
 
 /** The lines the AI is sent and points at, or null when there are none: the PDF wasn't read, or has no line to point at. */

@@ -91,7 +91,7 @@ test("the summary comes back, and added sections can be kept as they were", asyn
     sectionOrder: [`extra:${first}`, `extra:${second}`],
   })
   const keepAs = Object.fromEntries(
-    parsed.unplaced.map((group, index) => [unplacedKey(group, index), group.heading === "Talks" ? ("list" as const) : ("text" as const)]),
+    parsed.unplaced.map((group) => [unplacedKey(group), group.heading === "Talks" ? ("list" as const) : ("text" as const)]),
   )
   const kept = toResumeContent(parsed, new Set(), { keepAs })
   expect(kept.profileSection.summary).toBe("Builds useful tools, and writes about them.")

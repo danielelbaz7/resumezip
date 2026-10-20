@@ -44,25 +44,19 @@ export function readForChecks(lines: Line[], layout: PdfSectionLayout[]): { pars
   const excluded = new Set(extras.excludedLines)
   const indexes = original.flatMap((_, index) => (excluded.has(index) ? [] : [index]))
   const parsed = parseResume(indexes.map((index) => original[index]))
-  const source = parsed.lines.map((line, index) => indexes[(line as Line & { sourceIndex?: number }).sourceIndex ?? index])
+  const source = parsed.lines.map((line) => indexes[line.sourceIndex])
   const remap = (values: number[]) => values.map((index) => source[index]).filter((index): index is number => index !== undefined)
-  const remapHeading = (index: number | undefined) => (index === undefined ? undefined : (source[index] ?? index))
+  const remapHeading = (index: number) => source[index] ?? index
   parsed.profileLines = remap(parsed.profileLines)
   for (const section of parsed.sections) for (const entry of section.entries) entry.lines = remap(entry.lines)
   for (const group of parsed.unplaced) {
     group.lines = remap(group.lines)
     group.headingLine = remapHeading(group.headingLine)
-    if (group.sourceLines) group.sourceLines = group.sourceLines.map((index) => indexes[index])
   }
-  for (const occurrence of parsed.occurrences ?? []) {
-    occurrence.lines = remap(occurrence.lines)
-    occurrence.headingLine = remapHeading(occurrence.headingLine)!
-    occurrence.sourceLines = occurrence.sourceLines.map((index) => indexes[index])
-  }
-  for (const group of parsed.extraGroups ?? []) {
-    group.lines = remap(group.lines)
-    group.headingLine = remapHeading(group.headingLine)!
-    group.sourceLines = group.sourceLines.map((index) => indexes[index])
+  for (const occurrence of parsed.occurrences) occurrence.headingLine = remapHeading(occurrence.headingLine)
+  for (const summary of parsed.summaries) {
+    summary.lines = remap(summary.lines)
+    summary.headingLine = remapHeading(summary.headingLine)
   }
   parsed.lines = original
   return { parsed, extras }

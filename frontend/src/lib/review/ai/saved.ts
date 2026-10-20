@@ -105,8 +105,9 @@ export function savedForResume(resumeId: string, storage = storageOf()): SavedRe
 
 export function saveNotes(hash: string, notes: SavedNote[], storage = storageOf(), now = Date.now()) {
   if (!storage) return
-  const others = readAll(storage).filter((review) => review.hash !== hash)
-  const before = readAll(storage).find((review) => review.hash === hash)
+  const reviews = readAll(storage)
+  const others = reviews.filter((review) => review.hash !== hash)
+  const before = reviews.find((review) => review.hash === hash)
   writeAll(storage, [...others, { hash, ...(before?.resumeId && { resumeId: before.resumeId }), savedAt: now, notes }])
 }
 

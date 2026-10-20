@@ -16,6 +16,7 @@ import {
   SpellCheck,
   type LucideIcon,
 } from "lucide-react"
+import { checkKeyOf } from "@/components/review/notes"
 import type { Finding, Report, Rule } from "@/lib/check/engine"
 import { describePlace, hasEnoughToCheck } from "@/lib/check/labels"
 import type { ResumeView } from "@/lib/check/resume"
@@ -37,7 +38,7 @@ import { CATEGORIES, MUST_FIX_MAX, SCORE_BANDS, type CategoryId } from "@/lib/ch
 import { hasLeftOut } from "@/lib/leftOut"
 import AiNotesBox from "./AiNotesBox"
 import { useCheck, useCheckActions } from "./CheckContext"
-import { checkKeyOf, useMarks, usePointAt } from "./MarksContext"
+import { useMarks, usePointAt } from "./MarksContext"
 import { levelPill, TIER_BG, TIER_NAMES, tierOf, type Tier } from "./fields"
 
 // A typo can't be dismissed, but its word can be added so it isn't flagged
