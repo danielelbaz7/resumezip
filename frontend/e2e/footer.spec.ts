@@ -8,6 +8,7 @@ test("the footer is a wordmark and its links to a screen reader", async ({ page 
 
   await expect(footer.getByRole("link", { name: "resumezip" })).toHaveAttribute("href", "/")
   await expect(footer.getByRole("navigation", { name: "Footer" }).getByRole("link")).toHaveText(["Terms & privacy", "Contact"])
+  await expect(footer.getByRole("link", { name: "Contact" })).toHaveAttribute("href", "/contact")
   expect(errors).toEqual([])
 })
 
