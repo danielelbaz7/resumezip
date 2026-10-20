@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef } from "react"
 import type { DrawnPage } from "./drawPages"
-import { GAZE_MS, type Stop } from "./gaze"
+import { GAZE_MS, glideOf, pathOf, type Stop } from "./gaze"
 import { circle, highlight, underline, type Box } from "./rough"
 
 // The sample resume on the first screen (Jake's template's picture), and
@@ -17,8 +17,6 @@ const SAMPLE_MARKS: { kind: "circle" | "highlight" | "underline"; box: Box }[] =
 
 /** How long after their page shows the eyes start on it, in ms: once it has faded in over the sample. */
 export const GAZE_DELAY = 400
-// How long the eyes take to jump from one stop to the next, in ms.
-const SACCADE = 140
 /** The page's corners where it's being read (`.review-sheet > *` in review.css), which it flies from. */
 export const SHEET_RADIUS = 30
 
@@ -43,17 +41,9 @@ function Gaze({ stops, size }: { stops: readonly Stop[]; size: { width: number; 
   useEffect(() => {
     const node = spot.current
     if (!node || stops.length === 0) return
-    const at = (stop: Stop) => `translate(${stop.x}px, ${stop.y}px)`
-    const frames: Keyframe[] = [{ offset: 0, transform: at(stops[0]) }]
-    stops.slice(1).forEach((stop, index) => {
-      const start = starts[index + 1]
-      frames.push({ offset: start / GAZE_MS, transform: at(stops[index]), easing: "cubic-bezier(0.16, 1, 0.3, 1)" })
-      frames.push({ offset: (start + SACCADE) / GAZE_MS, transform: at(stop) })
-    })
-    frames.push({ offset: 1, transform: at(stops[stops.length - 1]) })
-    const animation = node.animate(frames, { duration: GAZE_MS, delay: GAZE_DELAY, fill: "both" })
+    const animation = node.animate(pathOf(stops), { duration: GAZE_MS, delay: GAZE_DELAY, fill: "both" })
     return () => animation.cancel()
-  }, [stops, starts])
+  }, [stops])
 
   return (
     <svg
@@ -82,7 +72,10 @@ function Gaze({ stops, size }: { stops: readonly Stop[]; size: { width: number; 
           fill={`url(#${id}heat)`}
           opacity={0.8}
           className="review-heat"
-          style={{ animationDuration: `${Math.max(1, stop.ms - SACCADE)}ms`, animationDelay: `${GAZE_DELAY + starts[index] + SACCADE}ms` }}
+          style={{
+            animationDuration: `${Math.max(1, stop.ms - glideOf(stop))}ms`,
+            animationDelay: `${GAZE_DELAY + starts[index] + glideOf(stop)}ms`,
+          }}
         />
       ))}
       <ellipse ref={spot} rx={40} ry={17} fill={`url(#${id}spot)`} />

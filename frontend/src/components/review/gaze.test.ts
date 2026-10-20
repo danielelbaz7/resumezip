@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
 import type { Line } from "@/lib/import/lines"
-import { GAZE_MS, gazeOf } from "./gaze"
+import { GAZE_MS, gazeOf, pathOf } from "./gaze"
 
 const LETTER = { width: 612, height: 792 }
 
@@ -60,4 +60,12 @@ test("stays on the top of the page, where the page being read shows above the fo
 
 test("has nowhere to look on a page with nothing printed on it", () => {
   expect(gazeOf([], LETTER)).toEqual([])
+})
+
+test("the spot's path only moves forward in time, even when a crowded page leaves each stop shorter than a glide", () => {
+  for (const path of [pathOf(stops), pathOf(Array.from({ length: 60 }, (_, i) => ({ x: 40, y: 30 + i * 4, ms: GAZE_MS / 60 })))]) {
+    const offsets = path.map(({ offset }) => offset as number)
+    expect(offsets.every((offset, i) => offset >= (offsets[i - 1] ?? 0) && offset <= 1)).toBe(true)
+    expect(offsets.at(-1)).toBe(1)
+  }
 })

@@ -15,6 +15,8 @@ export interface Stop {
 
 /** How long the skim takes, in ms: the review page's seven seconds. */
 export const GAZE_MS = 7000
+// How long the eyes take to jump to a stop, in ms, out of the time spent there.
+const SACCADE = 140
 // Only the top of the page is looked at: the part that shows above the fog on the page being read.
 const LOWEST = 0.42
 const DATED = /\b(19|20)\d{2}\b|\bpresent\b/i
@@ -53,4 +55,26 @@ export function gazeOf(lines: readonly Line[], size: { width: number; height: nu
   })
   const total = stops.reduce((sum, stop) => sum + stop.ms, 0)
   return stops.map((stop) => ({ ...stop, ms: (stop.ms * GAZE_MS) / total }))
+}
+
+/** How long the jump to `stop` takes: never longer than the stop, on a page with so many that each is short. */
+export const glideOf = (stop: Stop) => Math.min(SACCADE, stop.ms)
+
+/**
+ * The spot's path over GAZE_MS, as keyframes for Element.animate: held at
+ * each stop, then a quick glide to the next. The offsets only rise and end at
+ * 1, which animate() needs, or it throws.
+ */
+export function pathOf(stops: readonly Stop[]): Keyframe[] {
+  if (stops.length === 0) return []
+  const at = (stop: Stop) => `translate(${stop.x}px, ${stop.y}px)`
+  const frames: Keyframe[] = [{ offset: 0, transform: at(stops[0]) }]
+  let start = stops[0].ms
+  stops.slice(1).forEach((stop, index) => {
+    frames.push({ offset: Math.min(1, start / GAZE_MS), transform: at(stops[index]), easing: "cubic-bezier(0.16, 1, 0.3, 1)" })
+    frames.push({ offset: Math.min(1, (start + glideOf(stop)) / GAZE_MS), transform: at(stop) })
+    start += stop.ms
+  })
+  frames.push({ offset: 1, transform: at(stops[stops.length - 1]) })
+  return frames
 }
