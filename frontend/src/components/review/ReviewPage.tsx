@@ -255,7 +255,10 @@ function Result({
             )}
             {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
             {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
-            {review.setIn && ` A Word file has no pages of its own, so this is how it prints in ${review.setIn}.`}
+            {review.setIn &&
+              (review.setIn.because === "word"
+                ? ` A Word file has no pages of its own, so this is how it prints in ${review.setIn.template}.`
+                : ` This PDF turns its pages, which can’t be marked, so this is how it prints in ${review.setIn.template}.`)}
           </p>
           {withAi && (
             <AiNotes

@@ -4,12 +4,15 @@
 // checker, then every rule runs over it. A PDF is reviewed as it is, its own
 // pages read, shown and marked, so it's judged as the person would send it.
 // A Word or JSON file has no pages of its own, so it's printed with its
-// template, which for a Word file from elsewhere is the default one. Opened in
+// template, which for a Word file from elsewhere is the default one; so is a
+// PDF whose pages it turns itself (/Rotate), as they're read unturned and
+// their marks wouldn't land on their words. Opened in
 // the editor, a resume is printed in its template, so a PDF from elsewhere
 // can score differently there.
 // Nothing leaves the browser: the PDF engine and the grammar checker are
 // downloaded, not called.
 
+import type { PDFDocumentProxy } from "pdfjs-dist"
 import { runChecks, type GrammarLint, type PdfReading, type Report } from "@/lib/check/engine"
 import { pdfLayoutOf } from "@/lib/check/extraPdf"
 import { hasEnoughToCheck } from "@/lib/check/labels"
@@ -42,12 +45,20 @@ export interface Review {
   reading: PdfReading | null
   /** Whether the grammar checker ran; when it couldn't load, spelling doesn't count. */
   spelled: boolean
-  /** The template a Word file from elsewhere was printed in to be reviewed; null when the file's own pages, or its own template, were. */
-  setIn: string | null
+  /**
+   * The template a file from elsewhere was printed in to be reviewed, and why: a Word file has no pages of its
+   * own, and a PDF's turned pages can't be marked. Null when the file's own pages, or its own template, were.
+   */
+  setIn: { template: string; because: "word" | "turned" } | null
 }
 
-/** Whether `file` is reviewed as it is, its own pages read and marked: a PDF is. */
+/** Whether `file` is a PDF, which is reviewed as it is, its own pages read and marked, unless it turns them (seen once it's opened). */
 export const reviewedAsIs = (file: File) => kindOf(file) === "pdf"
+
+async function turned(doc: PDFDocumentProxy): Promise<boolean> {
+  for (let number = 1; number <= doc.numPages; number++) if ((await doc.getPage(number)).rotate % 360 !== 0) return true
+  return false
+}
 
 /** The resume's pages, as the PDF came or as printed, and as read back, once they are; its spelling may still be checked. */
 export interface Printed {
@@ -70,11 +81,15 @@ export async function reviewFile(
 ): Promise<Review> {
   const opened = await openResumeFile(file, { signal })
   if (opened.kind === "all") throw new OpenFileError("This file has several resumes in it. Review a PDF or Word file of one.")
+  const pagesTurned = opened.kind === "parsed" && opened.pdf ? await until(turned(opened.pdf.doc), signal) : false
   if (opened.kind === "parsed") void opened.pdf?.doc.destroy()
   const content = opened.kind === "parsed" ? toResumeContent(opened.parsed) : opened.resume
   const resume = imported(content, "personal")
-  const asIs = reviewedAsIs(file)
-  const setIn = !asIs && opened.kind === "parsed" ? templateById(resume.selectedTemplate).name : null
+  const asIs = reviewedAsIs(file) && !pagesTurned
+  const setIn =
+    !asIs && opened.kind === "parsed"
+      ? { template: templateById(resume.selectedTemplate).name, because: pagesTurned ? ("turned" as const) : ("word" as const) }
+      : null
   const view = viewOf(resume)
   if (!hasEnoughToCheck(view)) throw new OpenFileError("There’s no name and no section in this file to check. Is it a resume?")
   onDone("open")

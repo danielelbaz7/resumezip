@@ -163,6 +163,20 @@ test("a Word file, which has no pages of its own, is printed in Jake's to be rev
   expect(errors).toEqual([])
 })
 
+test("a PDF that turns its own pages is printed in Jake's to be reviewed, as its marks couldn't land on them, and says so", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  await page.goto("/review")
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({ name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf([RESUME], { rotate: 90 }) })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByText("This PDF turns its pages, which can’t be marked, so this is how it prints in Jake's.")).toBeVisible()
+  await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
+  expect(errors).toEqual([])
+})
+
 test("a file with no resume in it says so, and another can be tried", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/review")

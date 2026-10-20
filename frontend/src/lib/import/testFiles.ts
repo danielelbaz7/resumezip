@@ -6,26 +6,28 @@ import { crc32, deflateRawSync } from "node:zlib"
 /**
  * A PDF with a page per list, and a line of text per entry, in Helvetica of
  * `size` points. pdf.js leaves out text that runs off the page, so the more
- * text a page needs, the smaller it has to be.
+ * text a page needs, the smaller it has to be. `rotate` turns every page, as
+ * a viewer shows it (/Rotate).
  */
-export function textPdf(pages: string[][], { size = 12 } = {}): Buffer {
+export function textPdf(pages: string[][], { size = 12, rotate = 0 } = {}): Buffer {
   return pdfOf(
     pages.map((lines) => {
       const text = lines.map((line) => `(${line.replace(/[\\()]/g, "\\$&")}) Tj 0 -${(size * 4) / 3} Td`).join(" ")
       return `BT /F1 ${size} Tf 72 720 Td ${text} ET`
     }),
+    { rotate },
   )
 }
 
-/** A PDF of pages drawn by `contents`, each a page's content stream, with Helvetica as /F1. */
-export function pdfOf(contents: string[]): Buffer {
+/** A PDF of pages drawn by `contents`, each a page's content stream, with Helvetica as /F1, each turned by `rotate`. */
+export function pdfOf(contents: string[], { rotate = 0 } = {}): Buffer {
   // The catalog, the page list (filled in once the pages are numbered) and the font come first.
   const objects = ["<< /Type /Catalog /Pages 2 0 R >>", "", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
   const kids: string[] = []
   for (const content of contents) {
     objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`)
     objects.push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${objects.length} 0 R >>`,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]${rotate ? ` /Rotate ${rotate}` : ""} /Resources << /Font << /F1 3 0 R >> >> /Contents ${objects.length} 0 R >>`,
     )
     kids.push(`${objects.length} 0 R`)
   }
