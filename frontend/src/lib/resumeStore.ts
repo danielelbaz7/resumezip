@@ -17,10 +17,7 @@ import {
   changedPaths,
   deleteKeptAside,
   EVERY_FIELD,
-  idOf,
   isKeptAside,
-  keyOf,
-  LEGACY_KEY,
   loadSaved,
   mergeResume,
   migrateLegacy,
@@ -33,6 +30,7 @@ import {
   worse,
   type SaveStatus,
 } from "./resumeStorage"
+import { idOf, keyOf, LEGACY_KEY } from "./resumeKeys"
 import { numberDuplicateTitles, uniqueTitle } from "./resumeTitles"
 import { DEFAULT_TEMPLATE, templateById } from "./templates"
 import { withPaper, type Paper } from "./tune"

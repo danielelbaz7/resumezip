@@ -85,7 +85,7 @@ const weight = (result: RuleResult) => LEVELS[result.rule.level].penalty
  * that found something takes, and no more than the share of its rules that
  * pass, each counting as much as it could take.
  */
-export function categoryScore(id: CategoryId, results: readonly RuleResult[]): CategoryScore {
+function categoryScore(id: CategoryId, results: readonly RuleResult[]): CategoryScore {
   const { points } = CATEGORIES.find((category) => category.id === id)!
   const ran = results.filter((result) => result.rule.category === id).filter(counts)
   if (ran.length === 0) return { id, points, earned: 0, applies: false, mustFix: false, fixes: 0 }
@@ -111,7 +111,7 @@ const fixesOf = (categories: readonly CategoryScore[]) =>
   categories.reduce((sum, category) => sum + (category.applies ? category.fixes : 0), 0)
 
 /** Whether a must-fix problem is left in the categories that apply. */
-export const hasMustFix = (categories: readonly CategoryScore[]) => categories.some((category) => category.applies && category.mustFix)
+const hasMustFix = (categories: readonly CategoryScore[]) => categories.some((category) => category.applies && category.mustFix)
 
 /**
  * Out of 100: what the categories that apply earned, of what they're worth,

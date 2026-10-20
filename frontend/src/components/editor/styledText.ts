@@ -39,7 +39,7 @@ export const slice = ({ text, styles }: Styled, start: number, end = text.length
   styles: styles.slice(start, end),
 })
 
-export const concat = (...parts: Styled[]): Styled => ({
+const concat = (...parts: Styled[]): Styled => ({
   text: parts.map((part) => part.text).join(""),
   styles: parts.flatMap((part) => part.styles),
 })
@@ -53,7 +53,7 @@ export function linesOf(s: Styled): Styled[] {
   })
 }
 
-export const joinLines = (lines: Styled[]): Styled => concat(...lines.flatMap((line, index) => (index ? [styled("\n"), line] : [line])))
+const joinLines = (lines: Styled[]): Styled => concat(...lines.flatMap((line, index) => (index ? [styled("\n"), line] : [line])))
 
 export const sameStyled = (a: Styled, b: Styled) => a.text === b.text && a.styles.every((style, index) => style === b.styles[index])
 

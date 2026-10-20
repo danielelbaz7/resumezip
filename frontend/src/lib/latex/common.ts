@@ -145,7 +145,7 @@ export function linkTarget(url: string): string | null {
 export const web = (url: string) => `https://${url}`
 
 /** `body` linked to `url`, or `body` alone when `url` isn't an address. */
-export const href = (url: string, body: string) => {
+const href = (url: string, body: string) => {
   const target = linkTarget(url)
   return target ? `\\href{${address(target)}}{${body}}` : body
 }
@@ -200,10 +200,7 @@ export function projectHeader(project: TemplateData["projects"][number], separat
  * `showLink` draws the DOI or link in the template's link style:
  *   R. Conde, J. Smith, and A. Lee, “Title of the paper,” Venue, details, date, doi: 10.1/x.
  */
-export function citation(
-  { title, authors, venue, details, date, doi, link }: TemplateData["publications"][number],
-  showLink: ShowLink,
-): string {
+function citation({ title, authors, venue, details, date, doi, link }: TemplateData["publications"][number], showLink: ShowLink): string {
   // Each part, and the text it ends with, for the closing full stop.
   const rest: [string, string][] = []
   if (venue) rest.push([italic(latex(venue)), venue])

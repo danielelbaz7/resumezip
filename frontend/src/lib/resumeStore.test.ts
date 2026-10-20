@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { memoryStorage } from "./memoryStorage"
 import type { Resume } from "./resume"
 import { createResumeStore, SAVE_DELAY } from "./resumeStore"
-import { keyOf, LEGACY_KEY, readResume } from "./resumeStorage"
+import { keyOf, LEGACY_KEY } from "./resumeKeys"
+import { readResume } from "./resumeStorage"
 import { saveNotes, savedByHash, savedForResume, tieToResume } from "./review/ai/saved"
 
 const ada = { id: "a", resumeTitle: "Ada", profileSection: { fullName: "Ada Lovelace" }, updatedAt: "2026-10-06T10:00:00.000Z" }

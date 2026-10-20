@@ -648,7 +648,7 @@ function readRow(cells: Paragraph[][]): Paragraph[] {
  * across it or a cell at a time (`readRow`). A table in a cell reads its rows
  * into that cell, as paragraphs.
  */
-export function linesFromHtml(html: string): Line[] {
+function linesFromHtml(html: string): Line[] {
   const lines: Line[] = []
   const state: { block: Block | null } = { block: null }
   // The tables around the text being read, innermost last.

@@ -104,7 +104,7 @@ const CheckActionsContext = createContext<CheckActions | null>(null)
 const CheckTargetContext = createContext<Target | null | undefined>(undefined)
 
 /** The form section a place is in; none for the PDF's pages. */
-export function sectionOf(place: Place): ActiveSection | null {
+function sectionOf(place: Place): ActiveSection | null {
   return place.kind === "profile"
     ? "Profile"
     : place.kind === "page"

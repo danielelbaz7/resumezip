@@ -11,7 +11,7 @@ export type ExtraSections = Record<string, ExtraSection>
 export type SectionRef = SectionName | `extra:${string}`
 export type ExtraPatch = { heading?: string; leftOut?: boolean; text?: string; bullets?: string }
 
-export const isUUID = (value: unknown): value is string =>
+const isUUID = (value: unknown): value is string =>
   typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 export const extraKey = (ref: string): string | null => (ref.startsWith("extra:") ? ref.slice(6) : null)
 export const extraRef = (key: string): SectionRef => `extra:${key}`

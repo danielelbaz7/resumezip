@@ -58,7 +58,7 @@ export const OPEN_NAME = "resume-open-page"
  * a moment, and the rest crossfades). Returns false where it doesn't run, for
  * the link to go as usual.
  */
-export function openResume(go: () => void, page: HTMLElement | null): boolean {
+function openResume(go: () => void, page: HTMLElement | null): boolean {
   if (!page || !canTransition()) return false
   // Its usual name pairs it with the other dashboard view; for this, it pairs with the editor's page.
   const usual = page.style.viewTransitionName

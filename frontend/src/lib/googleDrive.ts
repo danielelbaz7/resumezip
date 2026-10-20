@@ -22,7 +22,7 @@ export const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
  * the client's authorized redirect URIs, which can't have wildcards, so
  * preview deployments can't sign in.
  */
-export const SIGNED_IN_PATH = "/google-drive"
+const SIGNED_IN_PATH = "/google-drive"
 /** The BroadcastChannel the signed-in page answers on. */
 export const SIGN_IN_CHANNEL = "google-drive"
 

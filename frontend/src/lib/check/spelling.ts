@@ -114,7 +114,7 @@ const ALWAYS_KNOWN: ReadonlySet<string> = new Set(
  * added with "Add word", and ALWAYS_KNOWN. Without `skills`, the skills'
  * words aren't among them, so the skills themselves can be checked.
  */
-export function knownWords(view: ResumeView, added: ReadonlySet<string>, skills = true): ReadonlySet<string> {
+function knownWords(view: ResumeView, added: ReadonlySet<string>, skills = true): ReadonlySet<string> {
   const isName = (field: string) => NAMES.has(field) && (skills || !SKILLS.has(field))
   const names = [
     ...Object.entries(view.profile)

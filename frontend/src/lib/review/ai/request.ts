@@ -7,9 +7,9 @@ import type { Unit } from "./units"
 export type SentLine = Pick<Unit, "id" | "text" | "bullet">
 
 // A long two-page resume is about 120 lines and 8,000 characters.
-export const MOST_LINES = 300
-export const MOST_LINE_CHARS = 1_000
-export const MOST_CHARS = 24_000
+const MOST_LINES = 300
+const MOST_LINE_CHARS = 1_000
+const MOST_CHARS = 24_000
 
 export const sentOf = (units: readonly Unit[]): SentLine[] => units.map(({ id, text, bullet }) => ({ id, text, bullet }))
 

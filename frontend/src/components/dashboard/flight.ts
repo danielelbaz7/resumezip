@@ -4,10 +4,10 @@
 // message is on the page.
 
 /** How long the page takes to fly into the message or back, in milliseconds. */
-export const FLIGHT_MS = 560
+const FLIGHT_MS = 560
 
 /** How long the resumes after it take to slide into its place, or out of the way. */
-export const GLIDE_MS = 420
+const GLIDE_MS = 420
 
 // Lifts off a little, then speeds up toward the message and settles into it.
 const FLIGHT_EASING = "cubic-bezier(0.6, 0, 0.2, 1)"

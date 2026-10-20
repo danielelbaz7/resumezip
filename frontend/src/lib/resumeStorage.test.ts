@@ -5,18 +5,16 @@ import {
   changedPaths,
   deleteKeptAside,
   EVERY_FIELD,
-  idOf,
   isKeptAside,
-  LEGACY_KEY,
   loadSaved,
   mergeResume,
   readKeptAside,
   readResume,
   removeResume,
-  RESUME_PREFIX,
   saveResume,
   UNREADABLE_PREFIX,
 } from "./resumeStorage"
+import { idOf, LEGACY_KEY, RESUME_PREFIX } from "./resumeKeys"
 
 const ada = { id: "a", resumeTitle: "Ada", profileSection: { fullName: "Ada Lovelace" } }
 const grace = { id: "g", resumeTitle: "Grace", profileSection: { fullName: "Grace Hopper" } }

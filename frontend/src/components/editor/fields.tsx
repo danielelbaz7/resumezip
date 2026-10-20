@@ -79,7 +79,7 @@ export function FlagNote({ id, finding }: { id?: string; finding: Finding }) {
  * line under it, blue where the checker points. Its parent is `relative`, in
  * a `group/field`, with FocusGlow before it and FocusLine after it.
  */
-export const underlined = (flagged: boolean) =>
+const underlined = (flagged: boolean) =>
   `relative w-full min-w-0 border-0 bg-transparent py-2 text-base text-ink outline-none transition-colors focus-visible:outline-none ${
     !flagged ? "border-b border-rule-strong hover:border-ink/40" : "border-b-2 border-accent"
   }`
@@ -89,7 +89,7 @@ export const underlined = (flagged: boolean) =>
  * under the field (which is `relative`, and later), so the text stays crisp,
  * and nothing moves.
  */
-export function FocusGlow() {
+function FocusGlow() {
   return (
     <span
       aria-hidden="true"
@@ -99,7 +99,7 @@ export function FocusGlow() {
 }
 
 /** The line under the field being typed in, in blue, drawn out from the left, with a glow. */
-export function FocusLine() {
+function FocusLine() {
   return (
     <span
       aria-hidden="true"
@@ -212,7 +212,7 @@ const altShortcut = (key: string) => (onMac() ? `⌥${key}` : `Alt+${key}`)
  * touch screen has no keys, so it shows the marks to type, which turn bold and
  * italic as they're typed.
  */
-export function FormatHint({ moveLines = false }: { moveLines?: boolean }) {
+function FormatHint({ moveLines = false }: { moveLines?: boolean }) {
   return window.matchMedia("(pointer: coarse)").matches ? (
     <>
       <span className="font-mono">**bold**</span> · <span className="font-mono">*italic*</span>

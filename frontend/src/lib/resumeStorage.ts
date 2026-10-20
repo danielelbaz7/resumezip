@@ -14,10 +14,6 @@ import { readTune } from "@/lib/tune"
 import type { Resume } from "./resume"
 import { idOf, keyOf, LEGACY_KEY } from "./resumeKeys"
 
-// The keys, and localStorage itself, are in lib/resumeKeys.ts, so pages can
-// look for saved resumes without loading this.
-export { getStorage, idOf, keyOf, LEGACY_KEY, RESUME_PREFIX } from "./resumeKeys"
-
 /**
  * Saved data that can't be read is kept instead of being saved over, each
  * time under a key of its own: this, then the time and a random suffix.

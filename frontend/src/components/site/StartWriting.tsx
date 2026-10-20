@@ -27,7 +27,7 @@ const opensNew = (template?: TemplateId) => template !== undefined || !hasSavedR
  * starts a new resume with it. `prepare`, for a moment before, starts the
  * downloads a new resume's editor needs.
  */
-export function useStartWriting() {
+function useStartWriting() {
   const router = useRouter()
 
   const start = async (template?: TemplateId) => {

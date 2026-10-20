@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { onMac, shortcut, typingIn } from "@/lib/keys"
 
 /** How long the message stays, in milliseconds, unless it's pointed at or has the keyboard's focus. */
-export const UNDO_MS = 6_000
+const UNDO_MS = 6_000
 
 interface DeletedToastProps {
   title: string

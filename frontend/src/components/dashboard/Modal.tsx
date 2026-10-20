@@ -38,7 +38,7 @@ const CloseContext = createContext<() => void>(() => {})
  * Closes the dialog it's in the way Escape does: with `fade`, it fades away,
  * then the dialog's onClose is called. For a Cancel button, so it doesn't vanish at once.
  */
-export const useModalClose = () => useContext(CloseContext)
+const useModalClose = () => useContext(CloseContext)
 
 /** Cancel, which closes the dialog as Escape does, fading away with `fade` (useModalClose). */
 export function CancelButton({ className }: { className: string }) {
