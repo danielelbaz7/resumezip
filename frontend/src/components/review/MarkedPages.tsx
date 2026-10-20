@@ -20,16 +20,19 @@ const FLIGHT_MS = 900
  * The resume's pages as its template prints them, scribbled on in pen where
  * each note is, as crackedresume does. Pointing at a scribble, or tabbing to
  * it, shows its note; the notes that aren't on a line are listed below, and
- * every note is, if the pages couldn't be drawn (`pages` null).
+ * so is every note on a page that couldn't be drawn (all of them, with `pages` null).
  */
 export default function MarkedPages({
   pages,
+  drawing = false,
   notes,
   open,
   onOpen,
   from = null,
 }: {
   pages: readonly DrawnPage[] | null
+  /** Later pages are still being drawn: their notes wait for them, rather than being listed. */
+  drawing?: boolean
   notes: readonly Note[]
   /** The key of the note that's showing. */
   open: string | null
@@ -38,8 +41,9 @@ export default function MarkedPages({
 }) {
   const placed = usePlaced(notes)
   const first = useRef<HTMLDivElement>(null)
-  // Listed under the page: the notes that aren't on a line, or every note when there's no page to scribble on.
-  const loose = notes.filter(({ drawn }) => !pages || !drawn)
+  // Listed under the page: the notes that aren't on a line, and those on a page there's no picture of.
+  const unshown = (note: Note) => !pages || (!drawing && note.drawn !== null && note.drawn.page > pages.length)
+  const loose = notes.filter((note) => !note.drawn || unshown(note))
 
   useEscapeCloses(open, onOpen)
 
@@ -93,7 +97,7 @@ export default function MarkedPages({
       ))}
       {loose.length > 0 && (
         <div className="rounded-[12px] bg-white/75 px-4 py-3">
-          <p className="text-[13px] font-medium text-accent">{pages ? "About the whole resume" : "Notes on your resume"}</p>
+          <p className="text-[13px] font-medium text-accent">{loose.some(unshown) ? "Notes on your resume" : "About the whole resume"}</p>
           <ul className="mt-1.5 flex flex-col gap-1.5 text-[14px] leading-snug">
             {loose.map((note) => (
               <li key={note.key}>

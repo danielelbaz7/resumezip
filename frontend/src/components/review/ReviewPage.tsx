@@ -40,7 +40,14 @@ type State =
       /** The eyes are done: the rest of the wait is the AI's. */
       rest: boolean
     }
-  | { step: "done"; review: Review; pages: readonly DrawnPage[] | null; from: Flight | null }
+  | {
+      step: "done"
+      review: Review
+      pages: readonly DrawnPage[] | null
+      /** Later pages are still being drawn. */
+      drawing: boolean
+      from: Flight | null
+    }
   | { step: "problem"; message: string }
 
 // The result waits this long for the AI's notes, from when it's asked, before it shows the checks' and lets the notes join it.
@@ -137,6 +144,7 @@ type Shown = "ai" | "checks"
 function Result({
   review,
   pages,
+  drawing,
   ai,
   from,
   onFix,
@@ -144,6 +152,7 @@ function Result({
 }: {
   review: Review
   pages: readonly DrawnPage[] | null
+  drawing: boolean
   ai: Ai
   /** Where page 1 was as it was read, which it flies from. */
   from: Flight | null
@@ -300,7 +309,7 @@ function Result({
               </p>
             )}
           </div>
-          <MarkedPages pages={pages} notes={notes} open={open} onOpen={setOpen} from={from} />
+          <MarkedPages pages={pages} drawing={drawing} notes={notes} open={open} onOpen={setOpen} from={from} />
         </div>
       </div>
       <div className="review-dock">
@@ -362,6 +371,8 @@ export default function ReviewPage() {
     // All the pages, and page 1 alone, which is all the result needs to open: the rest join it as they're drawn.
     let drawing: Promise<readonly DrawnPage[] | null> = Promise.resolve(null)
     let first: Promise<DrawnPage | null> = Promise.resolve(null)
+    // Whether drawing's over, all the pages drawn or as many as could be.
+    let drawnAll = false
     try {
       // What reviews a file loads only once there's one to review.
       const { reviewFile } = await import("@/lib/review/review")
@@ -390,6 +401,7 @@ export default function ReviewPage() {
             if (live()) drawn.current = pages
             else freePages(pages)
             firstDrawn(null)
+            drawnAll = true
             return pages
           })
         },
@@ -406,11 +418,12 @@ export default function ReviewPage() {
         step: "done",
         review: result,
         pages: page ? [page] : null,
+        drawing: !drawnAll,
         from: box ? { left: box.left, top: box.top, width: box.width, radius: SHEET_RADIUS } : null,
       })
       window.scrollTo({ top: 0 })
       void drawing.then((pages) => {
-        if (live()) setState((state) => (state.step === "done" && state.review === result ? { ...state, pages } : state))
+        if (live()) setState((state) => (state.step === "done" && state.review === result ? { ...state, pages, drawing: false } : state))
       })
     } catch (error) {
       if (!live()) return
@@ -526,6 +539,7 @@ export default function ReviewPage() {
           <Result
             review={state.review}
             pages={state.pages}
+            drawing={state.drawing}
             ai={ai}
             from={state.from}
             onFix={() => void fix(state.review, ai.hash)}

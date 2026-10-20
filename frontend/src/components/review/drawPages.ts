@@ -13,8 +13,9 @@ export interface DrawnPage {
 const DRAWN_WIDTH = 1400
 
 /**
- * Every page of `pdf`, handed to `onPage` as each is drawn, or null if they
- * can't be drawn (a browser that can't make the picture, say). Stops between
+ * Every page of `pdf`, handed to `onPage` as each is drawn. When one can't be
+ * drawn (a browser that can't make the picture, say), the pages before it,
+ * which may be showing already, or null if there are none. Stops between
  * pages once `signal` aborts, as when the review is left, and frees what it drew.
  */
 export async function drawPages(
@@ -53,9 +54,12 @@ export async function drawPages(
     }
     return drawn
   } catch (error) {
-    if (!signal.aborted) console.warn("The review couldn't draw the resume:", error)
-    freePages(drawn)
-    return null
+    if (signal.aborted) {
+      freePages(drawn)
+      return null
+    }
+    console.warn("The review couldn't draw the resume:", error)
+    return drawn.length > 0 ? drawn : null
   }
 }
 
