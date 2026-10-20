@@ -13,7 +13,7 @@ import { aiPaused, aiPausedUntil } from "@/lib/review/ai/paused"
 import { tieToResume } from "@/lib/review/ai/saved"
 import { unitsToSend } from "@/lib/review/ai/units"
 import { reviewedAsIs, type Review, type ReviewStep } from "@/lib/review/review"
-import { countsLabel, countsOf, foundSentence, reasonOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
+import { countsLabel, countsOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import AiNotes, { Pill, PILL_WORDS, type AiState } from "./AiNotes"
 import Backdrop, { GAZE_DELAY, SHEET_RADIUS } from "./Backdrop"
 import CloudWord from "./CloudWord"
@@ -229,9 +229,15 @@ function Result({
     },
     [shown, show],
   )
-  const red = state?.step === "done" ? state.notes.filter((note) => note.ink === "red").length : 0
-  const green = state?.step === "done" ? state.notes.length - red : 0
   const withAi = units && state && !(state.step === "problem" && state.reason === "off")
+  const caveats = [
+    !reading && "The printed copy couldn’t be read back, so how hiring software reads it isn’t scored.",
+    !review.spelled && "Spelling wasn’t checked: the spelling checker couldn’t load.",
+    review.setIn &&
+      (review.setIn.because === "word"
+        ? `A Word file has no pages of its own, so this is how it prints in ${review.setIn.template}.`
+        : `This PDF turns its pages, which can’t be marked, so this is how it prints in ${review.setIn.template}.`),
+  ].filter(Boolean)
 
   return (
     // Arriving with the page that was read flying into it, the board stays put and what's round the page fades in.
@@ -245,27 +251,19 @@ function Result({
       </div>
       <div className="relative mx-auto w-full max-w-[700px]">
         <div className="review-side">
-          <p className="review-bubble">
-            {reasonOf(score, report)}{" "}
-            {counts.notes > 0 && (
-              <>
-                {foundSentence(counts)} <span className="pointer-coarse:hidden">Hover over a scribble to see why.</span>
-                <span className="hidden pointer-coarse:inline">Tap a scribble to see why.</span>
-              </>
-            )}
-            {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
-            {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
-            {review.setIn &&
-              (review.setIn.because === "word"
-                ? ` A Word file has no pages of its own, so this is how it prints in ${review.setIn.template}.`
-                : ` This PDF turns its pages, which can’t be marked, so this is how it prints in ${review.setIn.template}.`)}
-          </p>
+          {/* Said beside the page only when the review isn't of the page as it came, or not all of it was checked. */}
+          {caveats.length > 0 && <p className="review-bubble">{caveats.join(" ")}</p>}
           {withAi && (
             <AiNotes
               state={state}
               onAsk={() => {
                 retried.current = true
                 retry()
+              }}
+              showing={shown === "ai"}
+              onShow={() => {
+                chose.current = true
+                show("ai")
               }}
               open={open}
               onOpen={setOpen}
@@ -274,9 +272,10 @@ function Result({
           )}
         </div>
         <div className="review-card">
-          <div className="review-card-head flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8]">
+          {/* The switch in the middle, and the checks' score beside it, so the switch stays put as it's switched. */}
+          <div className="review-card-head grid items-center gap-x-3 gap-y-1.5 px-3 pb-3 pt-2.5 text-center text-[16px] text-[#1d3fa8] sm:grid-cols-[1fr_auto_1fr]">
             {withAi && (
-              <div role="group" aria-label="Notes on the page" className="review-switch">
+              <div role="group" aria-label="Notes on the page" className="review-switch justify-self-center sm:col-start-2">
                 <button
                   type="button"
                   aria-pressed={shown === "ai"}
@@ -285,7 +284,7 @@ function Result({
                     show("ai")
                   }}
                 >
-                  AI notes
+                  AI Reviews
                 </button>
                 <button
                   type="button"
@@ -295,20 +294,14 @@ function Result({
                     show("checks")
                   }}
                 >
-                  ATS checks
+                  ATS Checks
                 </button>
               </div>
             )}
-            {shown === "ai" && state?.step === "done" ? (
-              <p>
-                {red} red {red === 1 ? "flag" : "flags"}
-                <span aria-hidden="true"> · </span>
-                {green} green {green === 1 ? "flag" : "flags"}
-              </p>
-            ) : shown === "ai" ? (
-              <p>{state?.step === "asking" ? "Getting notes from AI…" : "No AI notes yet"}</p>
-            ) : (
-              <p className="flex items-baseline gap-x-2">
+            {shown === "checks" && (
+              <p
+                className={`flex items-baseline justify-center gap-x-2 ${withAi ? "sm:col-start-3 sm:justify-self-start sm:text-left" : "sm:col-start-2"}`}
+              >
                 <span className="font-medium">{score.total}/100</span>
                 {counts.notes > 0 && (
                   <>

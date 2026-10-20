@@ -62,7 +62,7 @@ export function FlagNote({ id, finding }: { id?: string; finding: Finding }) {
   return (
     <div id={id} className="sr-only">
       <p>
-        {finding.flag ? (finding.flag === "green" ? "Green flag" : "Red flag") : TIER_NAMES[tierOf(finding)]}: {finding.message}
+        {finding.flag ? (finding.flag === "green" ? "Done well" : "Red flag") : TIER_NAMES[tierOf(finding)]}: {finding.message}
       </p>
       <p>{finding.why}</p>
       {finding.suggestion && <p>{finding.suggestion}</p>}

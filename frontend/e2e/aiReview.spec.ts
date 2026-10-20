@@ -53,7 +53,7 @@ async function reviewed(page: import("@playwright/test").Page) {
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
 }
 
-test("AI notes are asked for once the resume is read, sent as the printed lines, and drawn in red and green with their lists", async ({
+test("AI notes are asked for once the resume is read, sent as the printed lines, and drawn in red and blue, with a tile for each", async ({
   page,
 }) => {
   const errors = pageErrors(page)
@@ -66,8 +66,9 @@ test("AI notes are asked for once the resume is read, sent as the printed lines,
   // The page says, before a file is chosen, that the resume goes to an AI.
   await expect(page.getByText("Resume is sent to AI for review. Nothing is kept.")).toBeVisible()
   await reviewed(page)
-  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Green flags 1" })).toBeVisible()
+  // A tile for each kind, the red flags pressed and listed.
+  await expect(page.getByRole("button", { name: "Red flags, 2", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Done well, 1", pressed: false })).toBeVisible()
   // The lines, numbered, and nothing else: not the file, not its name.
   const lines = (sent as { lines: { id: string; text: string; bullet: boolean }[] }).lines
   expect(Object.keys(sent as object)).toEqual(["lines"])
@@ -75,17 +76,25 @@ test("AI notes are asked for once the resume is read, sent as the printed lines,
   expect(lines.map(({ text }) => text)).toContain("Responsible for testing the checkout service")
 
   // The page is marked with the AI's notes alone, and the checks are a switch away.
-  await expect(page.getByRole("button", { name: "AI notes", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "AI Reviews", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toHaveCount(0)
   await page.getByRole("button", { name: "ATS checks" }).click()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
   await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toHaveCount(0)
-  await page.getByRole("button", { name: "AI notes" }).click()
+  // With the checks drawn, both tiles are shut and nothing is listed; pressing one goes back to the AI's notes.
+  await expect(page.getByRole("button", { name: "Red flags, 2", pressed: false })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Done well, 1", pressed: false })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Says what you did, not what changed", exact: true })).toHaveCount(0)
+  await page.getByRole("button", { name: "Red flags, 2" }).click()
+  await expect(page.getByRole("button", { name: "AI Reviews", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flags, 2", pressed: true })).toBeVisible()
+  await page.getByRole("button", { name: "ATS checks" }).click()
+  await page.getByRole("button", { name: "AI Reviews" }).click()
 
   // Each flag is drawn on its line, and pointing at it in the list shows its note there.
   const red = page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })
   await expect(red).toBeAttached()
-  await expect(page.getByRole("button", { name: "Green flag: A result anyone can picture" })).toBeAttached()
+  await expect(page.getByRole("button", { name: "Done well: A result anyone can picture" })).toBeAttached()
   // The list's rows are named by their titles alone; the marks say which flag they are first.
   await page.getByRole("button", { name: "Says what you did, not what changed", exact: true }).hover()
   const tip = page.getByRole("tooltip")
@@ -93,9 +102,12 @@ test("AI notes are asked for once the resume is read, sent as the printed lines,
   await expect(tip).toContainText("Tested the checkout service, catching [number] bugs before release")
   await page.keyboard.press("Escape")
   await expect(tip).toBeHidden()
-  // Picking one brings its mark into focus, which shows its note.
+  // The other tile lists what's done well instead, and picking one brings its mark into focus, which shows its note.
+  await page.getByRole("button", { name: "Done well, 1" }).click()
+  await expect(page.getByRole("button", { name: "Done well, 1", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Says what you did, not what changed", exact: true })).toHaveCount(0)
   await page.getByRole("button", { name: "A result anyone can picture", exact: true }).click()
-  await expect(page.getByRole("button", { name: "Green flag: A result anyone can picture" })).toBeFocused()
+  await expect(page.getByRole("button", { name: "Done well: A result anyone can picture" })).toBeFocused()
   await expect(tip).toContainText("Before and after, with who it helped.")
   // A note whose words aren't on the resume is listed under the page instead.
   await expect(page.getByRole("listitem").filter({ hasText: "Red flag: Add a summary" })).toBeVisible()
@@ -131,9 +143,10 @@ test("when the AI turns a review away, the page shows the checks and says why, a
 
   // Asked again, it answers, and the pause is over.
   await page.getByRole("button", { name: "Try again" }).click()
-  await expect(page.getByRole("heading", { name: "Red flags 1" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flags, 1" })).toBeVisible()
+  await page.getByRole("button", { name: "Done well, 0" }).click()
   await expect(page.getByText("None stood out.")).toBeVisible()
-  await expect(page.getByRole("button", { name: "AI notes", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "AI Reviews", pressed: true })).toBeVisible()
   await page.reload()
   await expect(page.getByRole("button", { name: "Review my resume" })).toBeVisible()
   await expect(page.getByText("AI notes are paused for a few minutes")).toHaveCount(0)
@@ -149,12 +162,12 @@ test("AI notes are kept in the browser: the same resume shows them again without
     await route.fulfill({ json: { notes: NOTES } })
   })
   await reviewed(page)
-  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
 
   // Reviewed again, as a file with another name: the same notes, with no call.
   await page.reload()
   await page.locator('input[type="file"]').setInputFiles({ ...pdf, name: "Mara Lin (2).pdf" })
-  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible({ timeout: 90_000 })
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
   expect(calls).toBe(1)
 
   // In the editor, the Check tab opens on them and lists them, and they're marked on the preview.
@@ -163,7 +176,7 @@ test("AI notes are kept in the browser: the same resume shows them again without
   await expect(page.getByRole("button", { name: "AI notes", pressed: true })).toBeVisible()
   const notes = page.getByRole("region", { name: "AI notes" })
   await expect(notes.getByRole("region", { name: "Red flags, 2" })).toBeVisible()
-  await expect(notes.getByRole("region", { name: "Green flags, 1" })).toBeVisible()
+  await expect(notes.getByRole("region", { name: "Done well, 1" })).toBeVisible()
   const mark = page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })
   await expect(mark).toBeAttached({ timeout: 60_000 })
   // Pointing at its row shows its note on the preview.
@@ -184,7 +197,7 @@ test("AI notes are kept in the browser: the same resume shows them again without
   )
   await expect(notes.getByText("Changed since the notes")).toBeVisible({ timeout: 60_000 })
   await expect(mark).toHaveCount(0, { timeout: 60_000 })
-  await expect(page.getByRole("button", { name: "Green flag: A result anyone can picture" })).toBeAttached()
+  await expect(page.getByRole("button", { name: "Done well: A result anyone can picture" })).toBeAttached()
   // The checks' marks are a switch away, and never drawn with the AI's.
   await page.getByRole("button", { name: "ATS checks" }).click()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start", exact: true })).toBeAttached()
@@ -244,7 +257,7 @@ test("the AI is asked as soon as the resume is printed, and the result waits for
   answer()
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   // It opens with the notes in: nothing says they're on their way.
-  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
   await expect(page.getByText("Getting notes from AI")).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toBeAttached()
   expect(errors).toEqual([])
@@ -264,7 +277,7 @@ test("when the AI is long coming, the result opens without its notes, and a view
   await expect(page.getByRole("status").filter({ hasText: "Getting notes from AI" })).toBeVisible()
   await page.getByRole("button", { name: "ATS checks" }).click()
   answer()
-  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
   await expect(page.getByRole("button", { name: "ATS checks", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
   expect(errors).toEqual([])
@@ -302,7 +315,7 @@ test("where the lines can't be hashed, the AI is still asked and its notes shown
   })
   await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
   await reviewed(page)
-  await expect(page.getByRole("heading", { name: "Red flags 2" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toBeAttached()
   expect(errors).toEqual([])
 })

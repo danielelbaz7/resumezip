@@ -54,8 +54,9 @@ export function aiNotesOf(notes: readonly AiNote[], measure: (text: string) => n
     const scribble = aiScribbleOf(note, measure)
     return {
       key: aiKeyOf(note.index),
-      ink: note.tone,
-      label: note.tone === "red" ? "Red flag" : "Green flag",
+      // The AI calls what works a green flag; the page calls it done well, in blue.
+      ink: note.tone === "red" ? "red" : "good",
+      label: note.tone === "red" ? "Red flag" : "Done well",
       title: note.title,
       body: note.why,
       rewrite: note.suggestion,

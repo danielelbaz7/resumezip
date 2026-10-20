@@ -10,11 +10,12 @@ import type { SavedNote } from "@/lib/review/ai/saved"
 import { useCheckActions } from "./CheckContext"
 import { aiKeyOf, useMarks, usePointAt } from "./MarksContext"
 
-// The line down a note's left side: the review page's red and green pens.
+// The line down a note's left side, and its dot: the review page's pens, red for a red flag and blue for done well.
 const TONE_LINE = {
   red: "shadow-[inset_3px_0_0_var(--review-red)]",
-  green: "shadow-[inset_3px_0_0_var(--review-green)]",
+  green: "shadow-[inset_3px_0_0_var(--color-accent)]",
 } as const
+const TONE_DOT = { red: "var(--review-red)", green: "var(--color-accent)" } as const
 
 const button =
   "inline-flex h-9 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[13px] font-medium text-white transition-colors hover:bg-ink/85 disabled:opacity-60"
@@ -78,7 +79,7 @@ export default function AiNotesBox({ view }: { view: ResumeView }) {
           AI notes
         </h2>
         <p className="text-[13px] leading-snug text-ink-2">
-          An AI reads it like a recruiter and marks red flags and green flags on the page.
+          An AI reads it like a recruiter and marks red flags and what’s done well on the page.
         </p>
         {problem}
         <button type="button" onClick={askAi} disabled={!canAsk || asking} className={`${button} self-start`}>
@@ -92,7 +93,7 @@ export default function AiNotesBox({ view }: { view: ResumeView }) {
 
   const tones = [
     { tone: "red", title: "Red flags" },
-    { tone: "green", title: "Green flags" },
+    { tone: "green", title: "Done well" },
   ] as const
   return (
     <section aria-labelledby={heading} className="check-box glass flex flex-col overflow-hidden rounded-panel">
@@ -113,7 +114,7 @@ export default function AiNotesBox({ view }: { view: ResumeView }) {
         return (
           <section key={tone} aria-label={`${title}, ${some.length}`} className="flex flex-col">
             <h3 className="label-mono flex items-center gap-2 border-t border-rule px-3.5 pb-1.5 pt-3 text-ink-2">
-              <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ background: `var(--review-${tone})` }} />
+              <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ background: TONE_DOT[tone] }} />
               {title} · {some.length}
             </h3>
             <ul className="flex flex-col">
