@@ -12,7 +12,7 @@ const PHONE = { width: 390, height: 844 }
 
 /** Each handwritten note, by its first line. */
 const notes = (page: Page) => MARKS.map((mark) => page.getByText(mark.note[0], { exact: true }))
-const wayIn = (page: Page) => page.getByRole("region", { name: "Your resume, on your own computer." })
+const wayIn = (page: Page) => page.getByRole("region", { name: "Ready when you are." })
 const floatingStart = (page: Page) => page.getByRole("link", { name: "Start writing. It’s free." })
 
 /** How much of it shows: the story fades its parts rather than hiding them. */
@@ -221,7 +221,7 @@ test("the story ends on the way in, its words and Start writing in its middle, a
   const box = (await wayIn(page).boundingBox())!
   for (const part of [
     wayIn(page).getByText("Your turn", { exact: true }),
-    wayIn(page).getByRole("heading", { name: "Your resume, on your own computer." }),
+    wayIn(page).getByRole("heading", { name: "Ready when you are." }),
     wayIn(page).getByText("Every template is free"),
     start,
   ]) {
@@ -270,7 +270,7 @@ test("Start writing stays on screen when the way in's words reflow taller", asyn
   await expect.poll(async () => (await start.boundingBox())!.y + (await start.boundingBox())!.height).toBeLessThanOrEqual(620)
 
   // Half as big again as it's set at this width: taller, but still shorter than the window.
-  await page.getByRole("heading", { name: "Your resume, on your own computer." }).evaluate((heading) => (heading.style.fontSize = "64px"))
+  await page.getByRole("heading", { name: "Ready when you are." }).evaluate((heading) => (heading.style.fontSize = "64px"))
   await expect.poll(async () => (await start.boundingBox())!.y + (await start.boundingBox())!.height).toBeLessThanOrEqual(620)
 })
 

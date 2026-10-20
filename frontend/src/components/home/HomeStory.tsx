@@ -166,7 +166,7 @@ function WayIn({ ref, copyRef, onFocus }: WayInProps) {
       <div ref={copyRef} className="home-cta-copy text-center">
         <p className="label-mono text-ink-2">Your turn</p>
         <h2 id="way-in" className="mt-3 text-balance font-serif text-[clamp(36px,3.5vw,50px)] leading-[1.02] tracking-[-0.035em]">
-          Your resume, on <em className="text-accent">your own computer.</em>
+          Ready when <em className="text-accent">you are.</em>
         </h2>
         <p className="mt-3.5 text-balance text-[15.5px] leading-normal text-ink-2 sm:text-[17px]">
           Every template is free, and{" "}
