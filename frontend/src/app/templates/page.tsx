@@ -48,7 +48,7 @@ export default function TemplatesPage() {
             </StartWritingLink>
           </div>
 
-          <div className="mt-9 flex flex-col gap-2 md:mt-[17px]">
+          <div className="mt-9 flex flex-col gap-2 md:mt-2.5">
             <h1 className="text-balance font-serif text-[38px] leading-[1.05] tracking-[-0.025em] sm:text-[52px] md:text-[64px] md:leading-[1.02]">
               Pick a <em className="pr-[0.04em] text-accent">template</em>.
             </h1>

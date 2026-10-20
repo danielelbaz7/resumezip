@@ -25,7 +25,7 @@ export default function Greeting({ resumes, loaded }: GreetingProps) {
   const name = resumes.map((resume) => firstName(resume.profileSection?.fullName)).find(Boolean)
 
   return (
-    <div className="mt-9 flex flex-col items-center gap-2 text-center md:mt-[17px]">
+    <div className="mt-9 flex flex-col items-center gap-2 text-center md:mt-2.5">
       {/* Where it doesn't fit on a line, the name goes onto the next one, whole. */}
       <h1 className="max-w-full text-balance font-serif text-[38px] leading-[1.05] tracking-[-0.025em] wrap-anywhere sm:text-[52px] md:text-[64px] md:leading-[1.02]">
         {ready ? (

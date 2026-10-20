@@ -48,6 +48,8 @@ export const TEXT_PILL = sheetPill("text")
  * its own padding across.
  */
 export const SEGMENTS = "segment-track h-[46px] max-w-full gap-0.5 p-[5px]"
+/** SEGMENTS in the dashboard's and templates page's glass bar, which hides the track, so it's only as tall as the search beside it. */
+export const BAR_SEGMENTS = "segment-track h-10 max-w-full gap-0.5 p-0.5"
 export const SEGMENT =
   "relative inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full text-[15px] font-medium tracking-[-0.01em] transition-colors duration-150 focus-visible:outline-none [&_svg]:size-4"
 

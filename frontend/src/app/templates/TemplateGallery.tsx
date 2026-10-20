@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useEffect, useId, useRef, useState } from "react"
 import { ArrowUpRight, Search } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
-import { SEGMENT, SEGMENTS, sheetPill, WHITE_PILL } from "@/components/pills"
+import { BAR_SEGMENTS, SEGMENT, sheetPill, WHITE_PILL } from "@/components/pills"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import { useThumb } from "@/components/useThumb"
 import { typingIn } from "@/lib/keys"
@@ -87,7 +87,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
       {/* The dashboard's bar (styles/dashboard.css), with nothing after the chips. Straight in the page's
           main, not in a block with the templates, which fades in (page-in in globals.css): glass in a fading
           block can't blur what's behind it, so the bar would change color as the fade ended. */}
-      <div className="dash-toolbar dash-toolbar-plain glass glass-liquid mt-8 md:mt-[34px]">
+      <div className="dash-toolbar dash-toolbar-plain glass glass-liquid mt-8 md:mt-5">
         <LiquidLens bevel={26} strength={1.25} />
         <div className="dash-toolbar-search">
           {/* A press anywhere on the field goes to its box. */}
@@ -97,7 +97,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
               event.preventDefault()
               searchRef.current?.focus()
             }}
-            className="search-field flex h-11 cursor-text items-center gap-2.5 pl-[18px] pr-3"
+            className="search-field flex h-10 cursor-text items-center gap-2.5 pl-[18px] pr-3"
           >
             <Search className="h-4 w-4 shrink-0 text-[#8b9099]" aria-hidden="true" />
             <label htmlFor={searchId} className="sr-only">
@@ -139,7 +139,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
             ref={chips.group}
             role="group"
             aria-label="Filter by style"
-            className={`${SEGMENTS} overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+            className={`${BAR_SEGMENTS} overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
           >
             <span ref={chips.thumb} aria-hidden="true" className={`segment-thumb ${chips.placed ? "" : "invisible"}`} />
             {STYLES.map((option) => {
@@ -163,7 +163,7 @@ export default function TemplateGallery({ newId }: { newId?: TemplateId }) {
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col md:mt-[22px]">
+      <div className="mt-5 flex flex-col">
         <p role="status" className="sr-only">
           {announcement}
         </p>

@@ -17,7 +17,7 @@
     grid-template-areas: "search" "chips" "controls";
     align-items: center;
     gap: 12px;
-    padding: 7px;
+    padding: 6px;
     border-radius: 26px;
   }
   /* The tag chips and the view switch have no track of their own in it: the glass is theirs. */
