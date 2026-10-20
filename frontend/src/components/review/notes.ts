@@ -6,7 +6,7 @@ import { describePlace } from "@/lib/check/labels"
 import type { ResumeView } from "@/lib/check/resume"
 import type { AiNote, Tone } from "@/lib/review/ai/answer"
 import { aiScribbleOf, marksOf, scribbleOf } from "@/lib/review/marks"
-import type { Note } from "./PageMarks"
+import type { Ink, Note } from "./PageMarks"
 
 /** The key a checker finding's note goes by, which its row in the Check panel uses too. */
 export const checkKeyOf = (finding: Finding) => `check:${finding.key}`
@@ -19,6 +19,12 @@ export const TONE_NAMES: Record<Tone, { one: string; many: string }> = {
   red: { one: "Red flag", many: "Red flags" },
   green: { one: "Done well", many: "Done well" },
 }
+
+/**
+ * The pen a finding is drawn in: its tier's, so its mark on the page is the
+ * color of its dot in the Check panel (TIER_BG in components/editor/fields.tsx).
+ */
+export const inkOf = (finding: Pick<Finding, "level" | "advisory">): Ink => (finding.advisory ? "optional" : finding.level)
 
 /** The checker's findings as notes, drawn where they're printed in `pdf`, if it's been read. */
 export function checkNotesOf(
@@ -39,7 +45,7 @@ export function checkNotesOf(
     return [
       {
         key,
-        ink: fix ? "fix" : "look",
+        ink: inkOf(finding),
         label: fix ? "Must fix" : null,
         title: finding.message,
         body: finding.suggestion ?? null,

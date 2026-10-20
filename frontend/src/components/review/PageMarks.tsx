@@ -4,8 +4,8 @@ import { useEffect, useId, useMemo } from "react"
 import type { Box, Scribble } from "@/lib/review/marks"
 import { bracket, circle, rectangle, strike, underline } from "./rough"
 
-/** The pen a note is drawn in: the checker's must-fix and look, and the AI's red flags and what's done well. */
-export type Ink = "fix" | "look" | "red" | "good"
+/** The pen a note is drawn in: the checker's three tiers, and the AI's red flags and what's done well. */
+export type Ink = "fix" | "look" | "optional" | "red" | "good"
 
 /** A note on the resume, the checker's or the AI's, and where it's drawn. */
 export interface Note {
@@ -88,7 +88,13 @@ const seedOf = (key: string) => [...key].reduce((hash, char) => (hash * 31 + cha
 
 const percent = (part: number, whole: number) => `${(part / whole) * 100}%`
 
-export const LABEL_INK: Record<Ink, string> = { fix: "text-alert", look: "text-accent", red: "text-alert", good: "text-accent" }
+export const LABEL_INK: Record<Ink, string> = {
+  fix: "text-alert",
+  look: "text-accent",
+  optional: "text-accent",
+  red: "text-alert",
+  good: "text-accent",
+}
 
 /** How a note's rewrite is set apart under it: a line down its left. */
 export const REWRITE = "border-l-2 border-hairline pl-2 text-ink"
@@ -173,6 +179,7 @@ export function PageMarks({
             key={note.key}
             className="review-scribble"
             data-ink={note.ink}
+            data-scribble={note.key}
             data-quiet={fading && open !== note.key ? "" : undefined}
             style={{ "--delay": `${placed.findIndex((other) => other.note === note) * 90}ms` } as React.CSSProperties}
           >

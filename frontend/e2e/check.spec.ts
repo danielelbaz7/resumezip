@@ -180,15 +180,17 @@ test("the checker asks for a name and an entry first, then scores the resume and
   await expect(score.locator("[aria-live=polite]")).toContainText(/^\d+\s*\/ 100\s*out of 100$/)
 
   // A category with something to fix is open, lists it, and folds from the
-  // keyboard. What passed isn't listed.
+  // keyboard.
   const contact = panel.getByRole("button", { name: /^Contact & personal details, 1 to fix/ })
   await expect(contact).toHaveAttribute("aria-expanded", "true")
   const email = panel.getByRole("button", { name: /Add your email address/ })
   await expect(email).toBeVisible()
-  // Its findings are grouped by tier, must-fixes first, each under its name; optional advice
-  // (here, a phone number) is its own tier, and isn't marked again on each row.
-  await expect(panel.getByRole("heading", { level: 3, name: /^Must fix · \d+$/ }).first()).toBeVisible()
-  await expect(panel.getByRole("heading", { level: 3, name: /^Optional · \d+$/ }).first()).toBeVisible()
+  // Its findings come must-fixes first, each saying its tier; optional advice
+  // (here, a phone number) is its own tier.
+  await expect(email).toHaveAccessibleDescription("Must fix")
+  await expect(panel.getByRole("button", { name: /^Profile → Phone Consider adding a phone number$/ })).toHaveAccessibleDescription(
+    "Optional",
+  )
   await contact.focus()
   await page.keyboard.press("Enter")
   await expect(contact).toHaveAttribute("aria-expanded", "false")
@@ -201,16 +203,20 @@ test("the checker asks for a name and an entry first, then scores the resume and
   await contact.focus()
   await page.keyboard.press("Space")
   await expect(contact).toHaveAttribute("aria-expanded", "true")
-  // Once everything's checked: not the checks it passed, nor a category with
-  // nothing to fix.
+  // Once everything's checked, every category is listed, numbered: one with
+  // nothing to fix says it passed, with its points, and doesn't open. The
+  // checks it passed aren't listed.
   await expect(panel.getByRole("status")).toBeHidden()
-  await expect(panel.getByText("No Social Security number")).toHaveCount(0)
+  const checks = panel.getByRole("region", { name: "Checks" })
+  await expect(checks).toContainText(/\d of 8 clear/)
+  await expect(checks.getByRole("listitem").filter({ hasText: /^02Readable by hiring software/ })).toContainText(
+    /Passed, \d+ of \d+ points$/,
+  )
   await expect(panel.getByRole("button", { name: /^Readable by hiring software/ })).toHaveCount(0)
+  await expect(panel.getByText("No Social Security number")).toHaveCount(0)
 
-  // A word says how the score reads, a line what it measures, and another
-  // that the must-fixes hold it down.
+  // A word says how the score reads, and a line that the must-fixes hold it down.
   await expect(score).toContainText("Needs work")
-  await expect(score).toContainText("How well this resume follows the checks below.")
   await expect(score).toContainText("Capped at 74 until you fix 6 items.")
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
 
@@ -459,13 +465,62 @@ test("a name in a script no font has is a must-fix that says it doesn't print, n
   await expect(finding).toBeVisible()
   // Once the PDF's been read, it's the only thing to fix: the rest of the sample reads as typed.
   await expect(panel.getByText("Checking the PDF…")).toBeHidden()
-  await expect(panel.getByRole("heading", { level: 3, name: /^Must fix/ })).toHaveText(["Must fix · 1"])
+  const fixing = panel.getByRole("button", { name: / to fix\b/ })
+  await expect(fixing).toHaveCount(1)
+  await expect(fixing).toHaveAccessibleName(/, 1 to fix(,|$)/)
   await expect(panel.getByText(/Hiring software can't find your name/)).toHaveCount(0)
 
   // Choosing it opens the name, and says it's the fonts, not the typing.
   await finding.click()
   await expect(page.getByLabel("Full name")).toBeFocused()
   await expect(page.getByText("Your typing is fine. For now, write it in Latin letters.")).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
+test("each finding's mark on the preview is drawn in its dot's color: must fix red, worth a look yellow, optional blue", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  // The sample with a typo (must fix), a vague word (worth a look), and a job
+  // that has ended written in the present tense (optional advice).
+  const sample = JSON.parse(readFileSync("src/lib/typst/preview-samples/jake.json", "utf8"))
+  const [google, ford] = sample.workExperienceSection
+  google.workDescription += "\n• Helped teh team with various tasks"
+  ford.workDescription += "\n• Builds a nightly report of failed sensor checks for the release team"
+  const id = "marks-in-tier-colors"
+  await page.addInitScript(
+    ({ key, value }) => {
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
+    },
+    { key: `resume:${id}`, value: JSON.stringify({ ...sample, id, resumeTitle: "Marcus" }) },
+  )
+  await page.goto(`/create/new/${id}`)
+  await page
+    .getByRole("tablist", { name: "Write, check or style" })
+    .getByRole("tab", { name: /^Check/ })
+    .click()
+  const panel = page.getByRole("tabpanel", { name: /^Check/ })
+  const preview = page.getByRole("region", { name: "Live preview" })
+
+  for (const [tier, message] of [
+    ["Must fix", "“teh” may be misspelled"],
+    ["Worth a look", "“various” is vague"],
+    ["Optional", "“Builds” is present tense, but this has ended"],
+  ]) {
+    const finding = panel.getByRole("button", { name: new RegExp(`^Experience → .*${message}$`) })
+    await expect(finding).toHaveAccessibleDescription(tier)
+    // The mark, found by the button laid over it, which is named for the finding.
+    const mark = preview.getByRole("button", { name: new RegExp(`^(${tier}: )?${message}$`) })
+    await expect(mark).toBeVisible()
+    const note = await mark.getAttribute("data-note")
+    const pen = await preview.locator(`[data-scribble="${note}"]`).evaluate((scribble) => getComputedStyle(scribble).color)
+    const dot = await finding
+      .locator("[aria-hidden=true]")
+      .first()
+      .evaluate((span) => getComputedStyle(span).backgroundColor)
+    expect(pen, tier).toBe(dot)
+  }
 
   expect(errors).toEqual([])
 })

@@ -5,7 +5,8 @@
    switch (MarksContext.tsx, CheckPanel.tsx). */
 @layer components {
   :root {
-    /* The pens the notes are drawn in, besides the accent's blue (done well) and the caution yellow (worth a look). */
+    /* The AI's red flags' pen. The checks' marks are drawn in their tiers' colors, as their dots in the
+       Check panel are (alert, caution, accent), and what's done well in the accent's blue. */
     --review-red: #d92d4a;
   }
   /* The sky behind it all, a little blurred and washed, brightest in the middle. */
@@ -528,11 +529,14 @@
   .review-scribble {
     transition: opacity 200ms;
   }
-  .review-scribble[data-ink="fix"],
   .review-scribble[data-ink="red"] {
     color: var(--review-red);
   }
-  .review-scribble[data-ink="good"] {
+  .review-scribble[data-ink="fix"] {
+    color: var(--color-alert);
+  }
+  .review-scribble[data-ink="good"],
+  .review-scribble[data-ink="optional"] {
     color: var(--color-accent);
   }
   /* The checks' worth-a-look marks, in the Check panel's yellow; a little heavier, as yellow is faint on white. */
