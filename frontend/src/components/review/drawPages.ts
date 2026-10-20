@@ -12,8 +12,16 @@ export interface DrawnPage {
 // How wide each page is drawn, in pixels: about twice as wide as it's shown, for high-density screens.
 const DRAWN_WIDTH = 1400
 
-/** Every page of `pdf`, or null if they can't be drawn (a browser that can't make the picture, say). */
-export async function drawPages(pdf: Uint8Array): Promise<DrawnPage[] | null> {
+/**
+ * Every page of `pdf`, handed to `onPage` as each is drawn, or null if they
+ * can't be drawn (a browser that can't make the picture, say). Stops between
+ * pages once `signal` aborts, as when the review is left, and frees what it drew.
+ */
+export async function drawPages(
+  pdf: Uint8Array,
+  signal: AbortSignal,
+  onPage?: (page: DrawnPage, index: number) => void,
+): Promise<DrawnPage[] | null> {
   const drawn: DrawnPage[] = []
   try {
     const { loadPdfjs } = await import("@/lib/import/open")
@@ -23,6 +31,7 @@ export async function drawPages(pdf: Uint8Array): Promise<DrawnPage[] | null> {
     try {
       const doc = await task.promise
       for (let number = 1; number <= doc.numPages; number++) {
+        signal.throwIfAborted()
         const page = await doc.getPage(number)
         const size = page.getViewport({ scale: 1 })
         const viewport = page.getViewport({ scale: DRAWN_WIDTH / size.width })
@@ -34,14 +43,17 @@ export async function drawPages(pdf: Uint8Array): Promise<DrawnPage[] | null> {
         await page.render({ canvasContext: context, viewport }).promise
         const picture = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.9))
         if (!picture) throw new Error("The page couldn't be drawn")
-        drawn.push({ url: URL.createObjectURL(picture), width: size.width, height: size.height })
+        signal.throwIfAborted()
+        const drawnPage = { url: URL.createObjectURL(picture), width: size.width, height: size.height }
+        drawn.push(drawnPage)
+        onPage?.(drawnPage, number - 1)
       }
     } finally {
       void task.destroy()
     }
     return drawn
   } catch (error) {
-    console.warn("The review couldn't draw the resume:", error)
+    if (!signal.aborted) console.warn("The review couldn't draw the resume:", error)
     freePages(drawn)
     return null
   }

@@ -359,7 +359,9 @@ export default function ReviewPage() {
     setState({ step: "working", done: new Set(), page: null, gaze: null, eyesFrom: null, rest: false })
     window.scrollTo({ top: 0 })
     const asked = { answer: null as Promise<void> | null, at: 0 }
+    // All the pages, and page 1 alone, which is all the result needs to open: the rest join it as they're drawn.
     let drawing: Promise<readonly DrawnPage[] | null> = Promise.resolve(null)
+    let first: Promise<DrawnPage | null> = Promise.resolve(null)
     try {
       // What reviews a file loads only once there's one to review.
       const { reviewFile } = await import("@/lib/review/review")
@@ -374,35 +376,40 @@ export default function ReviewPage() {
           if (!live()) return
           asked.answer = askAi(unitsToSend(view, read))
           asked.at = Date.now()
-          drawing = drawPages(pdf).then((pages) => {
-            if (!live()) {
-              freePages(pages)
-              return null
-            }
-            drawn.current = pages
-            const page = pages?.[0]
-            if (!page) return pages
+          let firstDrawn: (page: DrawnPage | null) => void = () => {}
+          first = new Promise((resolve) => (firstDrawn = resolve))
+          drawing = drawPages(pdf, current.signal, (page, index) => {
+            if (index > 0 || !live()) return
             const still = matchMedia("(prefers-reduced-motion: reduce)").matches
             const gaze = read && !still ? gazeOf(read.lines, page) : []
             const eyesFrom = gaze.length > 0 ? performance.now() + GAZE_DELAY : null
             setState((state) => (state.step === "working" ? { ...state, page, gaze: gaze.length > 0 ? gaze : null, eyesFrom } : state))
+            firstDrawn(page)
+          }).then((pages) => {
+            // Left while it drew, the drawing stopped and freed its pages.
+            if (live()) drawn.current = pages
+            else freePages(pages)
+            firstDrawn(null)
             return pages
           })
         },
       )
       // The result waits for the AI's notes, though not for ever.
       if (asked.answer) await Promise.race([asked.answer, wait(asked.at + AI_PATIENCE_MS - Date.now())])
-      const pages = await drawing
+      const page = await first
       if (!live()) return
-      running.current = null
-      const box = pages && reading.current?.getBoundingClientRect()
+      // The review stays the running one until it's left, which stops its drawing if that's still going.
+      const box = page && reading.current?.getBoundingClientRect()
       setState({
         step: "done",
         review: result,
-        pages,
+        pages: page ? [page] : await drawing,
         from: box ? { left: box.left, top: box.top, width: box.width, radius: SHEET_RADIUS } : null,
       })
       window.scrollTo({ top: 0 })
+      void drawing.then((pages) => {
+        if (live()) setState((state) => (state.step === "done" && state.review === result ? { ...state, pages } : state))
+      })
     } catch (error) {
       if (!live()) return
       leave()
