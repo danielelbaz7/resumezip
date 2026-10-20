@@ -666,6 +666,18 @@ describe("a dated line under a title", () => {
   })
 })
 
+describe("a school's date after a word that says it's still to come", () => {
+  test.each(["Expected", "Anticipated", "Estimated", "Graduating"])("is its date with “%s:” before it, not a detail", (word) => {
+    const { resume, unplaced } = read("Education", [
+      line([["Purdue University", 36], ["West Lafayette, IN", 460]], { bold: true }),
+      line([["B.S. in Mechanical Engineering", 36]], { italic: true }),
+      line([[`${word}: May 2027`, 36]]),
+    ])
+    expect(resume.educationSection[0].schoolEndDate).toBe(`${word} May 2027`)
+    expect(unplaced).toEqual([])
+  })
+})
+
 describe("degrees under one school", () => {
   test("each keep the school, with advisors and theses set aside as details", () => {
     const { resume } = read("Education", [

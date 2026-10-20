@@ -1233,13 +1233,16 @@ function splitDegreeAndSchool(fragment: Fragment): Fragment[] {
   return [fragment]
 }
 
+// A label a date comes after ("Expected: May 2027"), or a GPA.
+const DATE_LABEL = new RegExp(`^(?:${EXPECTED}|graduat|gpa)`, "i")
+
 /**
  * "Advisor: Prof. Reyes", "Thesis: …": a detail under a label of a word or
  * two. Not a degree ("Bachelor of Science: …"), a school, or a date ("Expected: …").
  */
 function detailLabel(text: string): boolean {
   const label = text.match(/^([A-Z][a-z]+(?: [A-Za-z][a-z]+){0,2}):\s/)?.[1]
-  return label !== undefined && !isDegree(label) && !SCHOOL_WORDS.test(label) && !/^(?:expected|anticipated|graduat|gpa)/i.test(label)
+  return label !== undefined && !isDegree(label) && !SCHOOL_WORDS.test(label) && !DATE_LABEL.test(label)
 }
 
 function readEducation(lines: ParseLine[]): SectionResult {
