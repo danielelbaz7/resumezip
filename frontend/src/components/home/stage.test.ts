@@ -175,6 +175,17 @@ describe("the way in", () => {
       }
     }
   })
+
+  it("is in the middle of the screen, when that's under the header", () => {
+    for (const screen of [...WIDE, ...NARROW]) {
+      const layout = layoutStage(screen)
+      for (const height of [260, 300]) {
+        const box = wayInAt(layout, screen, height)
+        expect(box.y + height / 2, `${screen.width}×${screen.height}`).toBeCloseTo(screen.height / 2)
+        expect(box.x + box.width / 2, `${screen.width}×${screen.height}`).toBeCloseTo(screen.width / 2)
+      }
+    }
+  })
 })
 
 describe("the marks", () => {

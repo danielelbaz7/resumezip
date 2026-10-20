@@ -242,14 +242,12 @@ export function strokeTimes(count: number): [number, number][] {
 }
 
 /**
- * The way in, at the story's end, `height` tall: over the editor's lower
- * middle beside it, or under the editor in place of the notes; always wholly
- * on the screen, under the header.
+ * The way in, at the story's end, `height` tall: in the middle of the screen,
+ * over the editor; always wholly on the screen, under the header.
  */
 export function wayInAt(layout: StageLayout, screen: Size, height: number): Box {
-  const { editor } = layout
   const width = layout.beside ? 560 : Math.min(420, screen.width - 32)
-  const top = layout.beside ? editor.y + editor.height * 0.6 - height / 2 : editor.y + editor.height + 16
+  const top = (screen.height - height) / 2
   const highest = headerHeight(screen) + 8
   const lowest = screen.height - 16 - height
   return { x: (screen.width - width) / 2, y: Math.max(highest, Math.min(top, lowest)), width, height }
