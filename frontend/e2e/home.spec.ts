@@ -200,7 +200,7 @@ test("on a wide screen each note is over what it's about, left to right across t
   for (const { y } of notes) expect(Math.abs(y - notes[0].y)).toBeLessThan(12)
 })
 
-test("the story ends on the way in, with Start writing and not the address to write to", async ({ page }) => {
+test("the story ends on the way in, with Start writing in its middle, and not the address to write to", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/")
   await page.mouse.move(400, 400)
@@ -209,6 +209,12 @@ test("the story ends on the way in, with Start writing and not the address to wr
   // It only takes a click once it has arrived.
   await start.click({ trial: true })
   await expect(start).toHaveAttribute("href", "/create/dashboard")
+  // In the middle of the way in, under its words.
+  const middle = async (target: Locator) => {
+    const box = (await target.boundingBox())!
+    return box.x + box.width / 2
+  }
+  await expect.poll(async () => Math.abs((await middle(start)) - (await middle(wayIn(page))))).toBeLessThan(1)
   // That's on the contact page, which the footer links to.
   await expect(page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toHaveCount(0)
   expect(errors).toEqual([])

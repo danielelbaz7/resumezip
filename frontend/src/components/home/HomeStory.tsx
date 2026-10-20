@@ -175,9 +175,11 @@ function WayIn({ ref, copyRef, onFocus }: WayInProps) {
           </Link>
           .
         </p>
-        <StartWritingLink className={`${INK_GLASS_PILL} mt-6`} preloadOnHover>
-          Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </StartWritingLink>
+        <div className="mt-6 flex justify-center">
+          <StartWritingLink className={INK_GLASS_PILL} preloadOnHover>
+            Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </StartWritingLink>
+        </div>
       </div>
     </section>
   )
