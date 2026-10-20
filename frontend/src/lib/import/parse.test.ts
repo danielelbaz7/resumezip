@@ -192,6 +192,16 @@ describe("a detail line that wraps", () => {
   })
 })
 
+describe("a date range cut across two lines", () => {
+  test.each(["2024", "Present", "Ongoing", "Today"])("joins back up, ending in %s", (end) => {
+    const { resume } = read("Experience", [
+      line([["Data Analyst", 36], ["Jun 2022 –", 480]], { bold: true }),
+      line([["Acme Corp", 36], [end, 480]], { italic: true }),
+    ])
+    expect(resume.workExperienceSection[0]).toMatchObject({ companyName: "Acme Corp", workStartDate: "Jun 2022", workEndDate: end })
+  })
+})
+
 describe("a year on a line that wrapped", () => {
   test("stays in the bullet it carries on", () => {
     const { resume } = read(

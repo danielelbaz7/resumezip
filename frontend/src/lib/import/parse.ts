@@ -84,7 +84,8 @@ const YEAR = "(?:19|20)\\d{2}"
 const ONE_DATE = `(?:(?:${MONTH}|${SEASON})\\s*,?\\s*(?:${YEAR}|['\u2019]\\d{2})|(?:0?[1-9]|1[0-2])\\s*/\\s*(?:${YEAR}|\\d{2})|${YEAR})`
 // The words for a date that's still going ("Present") or hasn't come yet
 // ("Expected") are the checker's, so the two read dates alike.
-const END_DATE = `(?:${ONE_DATE}|${PRESENT_WORDS.map(escaped).join("|")})`
+const PRESENT = `(?:${PRESENT_WORDS.map(escaped).join("|")})`
+const END_DATE = `(?:${ONE_DATE}|${PRESENT})`
 const EXPECTED = `(?:${EXPECTED_WORDS.map(escaped).join("|")})`
 const RANGE = `(${ONE_DATE}|${MONTH}|${SEASON})\\s*(?:-|\u2013|\u2014|\u2212|to|until)\\s*((?:${EXPECTED}\\s+)?${END_DATE})`
 // Group 1: the character before the date, 2: "expected" before it, 3-4: a range's
@@ -374,7 +375,7 @@ function findDate(text: string): (FoundDate & { index: number; length: number })
 const hasDate = (line: Line) => DATE.test(line.text)
 
 const CUT_DATE = new RegExp(`${ONE_DATE}\\s*(?:-|\u2013|\u2014|to)\\s*(?:${MONTH}|${SEASON})?\\s*$`, "i")
-const YEAR_FIRST = /^(?:(?:19|20)\d{2}|present|current|now)\b/i
+const YEAR_FIRST = new RegExp(`^(?:${YEAR}|${PRESENT})\\b`, "i")
 
 /** Joins a date range that wrapped onto the next line back together. */
 function joinWrappedDates(lines: ParseLine[]): ParseLine[] {
