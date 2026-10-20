@@ -3,7 +3,7 @@
 // renewed each month and lost if it isn't spent; OpenAI's credit expires
 // before Azure's, so OpenAI comes next. Azure OpenAI and OpenAI run the same
 // model behind the same chat completions API. All three take one prompt and
-// one answer schema.
+// one answer schema. On `npm run dev`, Gemini can stand in for all of them.
 
 import Anthropic from "@anthropic-ai/sdk"
 import { ANSWER_SCHEMA } from "./prompt"
@@ -14,9 +14,9 @@ interface ClaudeProvider {
   model: string
 }
 
-/** A service behind OpenAI's chat completions API. */
+/** A service behind OpenAI's chat completions API, or Gemini's copy of it. */
 interface ChatProvider {
-  name: "openai" | "azure"
+  name: "openai" | "azure" | "gemini"
   url: string
   headers: Record<string, string>
   /** What the request names as the model: Azure takes its deployment's name. */
@@ -45,11 +45,27 @@ export class ProviderError extends Error {
 const CLAUDE_MODEL = "claude-sonnet-5-5"
 // Azure's deployment runs the same model (AZURE_OPENAI_DEPLOYMENT), so either one's notes read alike.
 const OPENAI_MODEL = "gpt-5.4-mini"
+// The free tier's Flash-Lite allows 500 reviews a day; Flash only 20.
+const GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 /** The providers that have keys in `env`, in the order they're tried. */
 export function providersOf(env: Record<string, string | undefined>): Provider[] {
+  const { ANTHROPIC_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT, GEMINI_API_KEY } = env
+  // Google's free tier keeps what it's sent and may have people read it, and
+  // the site doesn't say it sends resumes to Google: Gemini is only for trying
+  // the review on your own machine. There, with GEMINI_API_KEY set, it's the
+  // only one asked, so testing spends no credit.
+  if (GEMINI_API_KEY && env.NODE_ENV === "development") {
+    return [
+      {
+        name: "gemini",
+        url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        headers: { authorization: `Bearer ${GEMINI_API_KEY}` },
+        deployment: GEMINI_MODEL,
+      },
+    ]
+  }
   const providers: Provider[] = []
-  const { ANTHROPIC_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT } = env
   // A key made in a workspace: Anthropic turns away an organization-wide key unless the request names a workspace.
   if (ANTHROPIC_API_KEY) providers.push({ name: "claude", apiKey: ANTHROPIC_API_KEY, model: CLAUDE_MODEL })
   if (OPENAI_API_KEY) {
