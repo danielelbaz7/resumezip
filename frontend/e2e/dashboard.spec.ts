@@ -242,6 +242,19 @@ test("New resume starts one blank in the template and paper chosen, copies one h
   expect(errors).toEqual([])
 })
 
+test("a resume's More button says which menu it opens", async ({ page }) => {
+  const errors = pageErrors(page)
+  await dashboardWith(page, [resume("a", "Ada")])
+  const more = tile(page, "Ada").getByRole("button", { name: "More for “Ada”" })
+  await more.click()
+  const menu = page.getByRole("menu", { name: "More for “Ada”" })
+  await expect(menu).toBeVisible()
+  const id = await menu.getAttribute("id")
+  expect(id).toBeTruthy()
+  await expect(more).toHaveAttribute("aria-controls", id!)
+  expect(errors).toEqual([])
+})
+
 test("New resume's template menu opens on the chosen one, scrolls inside its glass, and Escape closes only it", async ({ page }) => {
   const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Ada")])

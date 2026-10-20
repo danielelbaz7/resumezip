@@ -25,8 +25,9 @@ interface RowActionProps extends TipProps {
   busy?: boolean
   className?: string
   ref?: Ref<HTMLButtonElement>
-  /** For a button that opens a menu: whether it's open. */
+  /** For a button that opens a menu: whether it's open, and the menu's id. */
   menuOpen?: boolean
+  menuId?: string
   [data: `data-${string}`]: string
 }
 
@@ -60,6 +61,7 @@ export function RowAction({
   className = "",
   ref,
   menuOpen,
+  menuId,
   ...data
 }: RowActionProps) {
   return (
@@ -70,6 +72,7 @@ export function RowAction({
       aria-busy={busy || undefined}
       aria-haspopup={menuOpen === undefined ? undefined : "menu"}
       aria-expanded={menuOpen}
+      aria-controls={menuOpen ? menuId : undefined}
       onClick={onClick}
       disabled={disabled}
       {...data}
