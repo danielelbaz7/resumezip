@@ -68,7 +68,7 @@ jobs:
   browser:
     name: Browser tests (${{ matrix.browser }}, ${{ matrix.shard }} of ${{ matrix.shards }})
     # Pinned, not ubuntu-latest: Playwright installs system libraries for the
-    # exact Ubuntu release, and ubuntu-latest moves to Ubuntu 26 on
+    # exact Ubuntu release, and ubuntu-latest moved to Ubuntu 26 on
     # October 19, 2026. Move this when Playwright supports it.
     runs-on: ubuntu-24.04
     # Room for every try at installing the browser, below, and the tests.

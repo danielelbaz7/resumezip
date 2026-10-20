@@ -104,7 +104,7 @@ You can also open a PDF or Word resume made anywhere else: resumezip sorts it in
 
 ## Privacy, plainly
 
-resumezip has no server of its own, no accounts and no analytics. Your resume never leaves your browser unless you send it somewhere.
+resumezip has no accounts and no analytics, and keeps no copy of your resume. It stays in your browser unless you send it somewhere, or get AI notes on it.
 
 | What | Where it happens |
 | --- | --- |
@@ -112,8 +112,9 @@ resumezip has no server of its own, no accounts and no analytics. Your resume ne
 | Making the PDF | On your device, with [Typst](https://typst.app) running as WebAssembly |
 | Spelling and grammar | On your device, with [Harper](https://github.com/Automattic/harper) |
 | Opening a PDF or Word file | On your device. Nothing is uploaded. |
+| AI notes, for a resume you review on the review page or ask about in the editor | Its text goes through resumezip's one server function to Claude, run by Anthropic, or GPT, run by OpenAI or Microsoft Azure. We don't keep it. |
 
-The only other requests: the PDF engine and the spelling checker download from [jsDelivr](https://www.jsdelivr.com) (files only, nothing of yours goes with them), Save to Google Drive talks to Google when you choose it, and adding a paper by its DOI or link asks [Crossref](https://www.crossref.org) or [arXiv](https://arxiv.org) for its details.
+The only other requests: the PDF engine and the spelling checker download from [jsDelivr](https://www.jsdelivr.com) (files only, nothing of yours goes with them), Save to Google Drive talks to Google when you choose it, and adding a paper by its DOI or link asks [Crossref](https://www.crossref.org) or [doi.org](https://www.doi.org) for its details.
 
 > [!NOTE]
 > Safari deletes a site's data after seven days of Safari use without a visit. That's the cost of having no accounts: in Safari, keep your downloaded PDF. It opens again as an editable resume.
@@ -157,6 +158,7 @@ flowchart LR
 - **Every PDF carries its resume** as an attachment, which is how it opens again exactly.
 - **The importer** reads PDFs from anywhere with [pdf.js](https://mozilla.github.io/pdf.js/) and Word files with [mammoth](https://github.com/mwilliamson/mammoth.js), and sorts what it finds into fields.
 - **The checker** is a set of fixed rules, plus [Harper](https://github.com/Automattic/harper) for spelling and grammar, all in the browser.
+- **AI notes** are the one thing that runs on a server: a function (`frontend/src/app/api/review`) passes a resume's printed text to an AI service and hands back its notes, keeping nothing.
 
 ## Run it yourself
 
@@ -183,7 +185,8 @@ npm run dev   # http://localhost:3000
 
 ```
 frontend/
-├── src/app/                  pages: home, templates, editor, dashboard
+├── src/app/                  pages: home, templates, editor, dashboard, review
+├── src/app/api/review/       the one server function: AI notes
 ├── src/components/editor/    the editor: Write, Check and Style, the preview
 ├── src/lib/typst/            PDF engine, templates and fonts
 ├── src/lib/import/           opening PDF and Word files

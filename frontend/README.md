@@ -33,9 +33,9 @@ npm run test:browser   # after a build; see below
   re-renders only the form it's typed in; `useResumeContext` re-renders with
   every change.
 - `src/lib/resumeSections.ts` owns the sections a person adds: text or bullet
-  lists. The summary is a profile field. Built-in sections keep their existing
-  fields; extras have stable map identities and share the saved section order
-  through `extra:<key>` references. Opening an old resume creates none.
+  lists, each kept under an id of its own in `extraSections` and placed in the
+  saved section order as `extra:<id>`. (The summary isn't one; it's a profile
+  field.) Opening an old resume adds none.
   `resolveSections` is the order the editor shows and the PDF prints. A new
   resume starts with the core sections; Publications, Volunteer, Leadership and
   Awards & Certifications are `optional` (`components/editor/sections.ts`) and
@@ -51,13 +51,14 @@ npm run test:browser   # after a build; see below
 - `src/lib/typst/` builds PDFs in a Web Worker. Its README covers adding a
   template.
 - `src/lib/resumeFile.ts`: every downloaded PDF carries its resume, so the PDF
-  is the user's save file and opens again exactly. Entries and bullets left out
-  of the PDF (`src/lib/leftOut.ts`) aren't in it, and stay only in the browser.
-  Attachments use v1 for resumes without public extras and v2 otherwise,
-  including explicitly created empty sections. Both versions can be opened;
-  damaged or future-version save files produce an error instead of guessed
-  content. Older deployed applications may lose new sections when exporting.
-  A JSON download (the ▾ beside Download PDF) is the same format with
+  is the user's save file and opens again exactly. Sections, entries and
+  bullets left out of the PDF (`src/lib/leftOut.ts`) aren't in it, and stay
+  only in the browser. A resume with sections the person added, even empty
+  ones, is saved as version 2; one without, as version 1, which resumezip from
+  before added sections can open too. Both versions open, and a damaged file,
+  or one from a newer resumezip, says so rather than guess. A resumezip from
+  before added sections, still open in a tab, leaves them out of what it
+  downloads. A JSON download (the ▾ beside Download PDF) is the same format with
   everything the PDF leaves out: the name and tag, what's left out, and what
   the checker was told. Download all, on the dashboard, holds every resume as
   a list under `resumes`. "Open a file" opens both.
@@ -83,13 +84,28 @@ npm run test:browser   # after a build; see below
 - `src/lib/check/` is the resume checker: fixed rules that say what to fix on
   a resume, and where. Its README covers writing a rule.
 - `/review` reviews a resume file without adding it: it's opened as "Open a
-  file" opens it, printed with its template and read back, and its text
-  checked by the grammar checker, so every rule runs and the score is the one
-  the editor's Check gives it (`src/lib/review/review.ts`). The verdict
-  ("Almost there") comes from the editor's score bands (`verdict.ts`), and
-  each note is scribbled on the printed page where `marks.ts` finds it, its
-  note shown when the scribble is pointed at. "Fix it in the editor" adds the
-  resume and opens the editor in Check. All of it happens in the browser.
+  file" opens it, read the way hiring software reads it, and its text checked
+  by the grammar checker, so every rule runs, as the editor's Check runs them
+  (`src/lib/review/review.ts`). A PDF is read and marked on its own pages. A
+  Word or JSON file, which has no pages of its own, or a PDF that turns its
+  pages, is printed in its template first (Jake's, for one from elsewhere).
+  The verdict ("Almost there") comes from the editor's score bands
+  (`verdict.ts`), and each note is scribbled on the page where `marks.ts`
+  finds it, its note shown when the scribble is pointed at. "Fix it in the
+  editor" adds the resume and opens the editor in Check. All of that happens
+  in the browser; the AI notes don't.
+- AI notes, on `/review` and in the editor's Check: `src/lib/review/ai/`
+  sends the resume's printed lines to `src/app/api/review/route.ts`, the
+  site's one server function, which asks the first AI service that answers
+  and hands back its notes, keeping nothing. It tries Claude
+  (`ANTHROPIC_API_KEY`), then OpenAI (`OPENAI_API_KEY`), then Azure OpenAI
+  (`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` and
+  `AZURE_OPENAI_DEPLOYMENT`), each only when its key is set, in `.env.local`
+  on your own machine; with none, the AI notes are off. On `npm run dev`,
+  with `GEMINI_API_KEY` set, it asks Gemini instead, and Azure only when
+  Gemini can't answer, so trying them spends no credit. The browser keeps the
+  notes by the printed lines' hash (`saved.ts`), so the same resume isn't
+  asked about twice.
 - `next.config.js` sends security headers with everything the site serves.
   Its Content-Security-Policy names every site the app sends anything to
   (`connect-src`), and browsers refuse to send to any other. A new one goes

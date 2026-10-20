@@ -1,8 +1,9 @@
 # Contributing to resumezip
 
 Thanks for helping. resumezip is a resume builder that runs in the browser:
-no accounts, no server of its own, and it doesn't store anyone's resume.
-Every change has to keep it that way.
+no accounts, no server but the one function that asks an AI service for AI
+notes, and it doesn't store anyone's resume. Every change has to keep it that
+way.
 
 ## Before you start
 
@@ -22,8 +23,10 @@ npm install
 npm run dev   # http://localhost:3000
 ```
 
-It uses Node 24. There are no accounts, keys or settings to set up.
-[`frontend/README.md`](frontend/README.md) explains how the code fits together.
+It uses Node 24. There are no accounts, keys or settings to set up: without an
+AI service's key the AI notes are off, and everything else works.
+[`frontend/README.md`](frontend/README.md) explains how the code fits together,
+and which keys turn the AI notes on.
 
 ## Making a change
 
@@ -53,9 +56,10 @@ may also comment. Take them as suggestions; you don't have to answer each one.
 
 - **We don't store resumes.** They're saved in the browser, and resumezip
   keeps no copy. Don't add analytics, trackers or ads. The app contacts other
-  sites to download its PDF engine (from jsDelivr) and to fetch something the
-  person asked for, like a paper's details from its DOI. Anything new that
-  sends what someone writes to another site is discussed in an issue first.
+  sites to download its PDF engine (from jsDelivr), to fetch something the
+  person asked for, like a paper's details from its DOI, and, through its one
+  server function, to get AI notes on a resume. Anything new that sends what
+  someone writes to another site is discussed in an issue first.
 - **Saved resumes keep working.** Resumes only exist in visitors' browsers
   and in the PDFs they downloaded. If you change how a resume is stored, older
   ones must still open.

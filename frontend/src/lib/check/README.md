@@ -1,8 +1,9 @@
 # The resume checker
 
 The editor's Check mode (issue #58) runs fixed rules over a resume and says
-what to fix and where. It all happens in the browser: no AI, and nothing is
-sent anywhere.
+what to fix and where. The checker all happens in the browser: no AI, and
+nothing is sent anywhere. (The AI notes beside it in Check are separate:
+`src/lib/review/ai`.)
 
 - `engine.ts` runs the rules and collects what they found:
   `runChecks(resume, { pdf })`. Given the last report (`previous`), it keeps
@@ -13,26 +14,31 @@ sent anywhere.
 - `resume.ts` reads the resume for the rules: each field as trimmed text, each
   bullet on its own (without the "• " or bold and italic marks), and the
   resume's type. Rules never read the saved data themselves. Only what's
-  printed is in it: entries and bullets the person left out of the PDF
-  (`src/lib/leftOut.ts`) aren't, so no rule flags them. An entry keeps its
+  printed is in it: sections, entries and bullets the person left out of the
+  PDF (`src/lib/leftOut.ts`) aren't, so no rule flags them. An entry keeps its
   place in the editor as `index`, so places are built from that, and entries
   are looked up with `entryAt`, never by their place in the list.
-- `ResumeView.order` remains builtin-only for rules about jobs, dates and
-  skills. `allOrder`, `extras` and `textsOf` also cover the custom text/list
-  sections; the summary is a profile field. Prose, like bullets, is read
-  without its bold and italic marks; custom list bullets preserve original
-  line offsets. Extra places use stable section keys, so reordering them
-  preserves targets and dismissals. Custom lists do not receive job-specific
-  advice.
-- `extraPdf.ts` matches actual extracted section occurrences in the import
-  worker, including repeated headings, before builtin semantic checks run.
-  Only complete matching ranges are removed; original PDF line addresses
-  survive the filtered parse. R3 reports missing text as a readability failure
-  and ambiguous matches as partial coverage. It does not assume arbitrary
-  headings are ATS-known or invent builtin field failures from uncertain extras.
-  Custom lists share physical bullet layout checks. Preview cache keys also
-  include editor source addresses, since inserting omitted lines can move a
-  target without changing the PDF bytes.
+- `ResumeView.order` is only the editor's own sections, for the rules about
+  jobs, dates and skills. `allOrder`, `extras` and `textsOf` also have the
+  text and list sections the person added; the summary is a profile field.
+  Their words, like bullets', are read without bold and italic marks, and an
+  added list's bullets keep their line numbers. A place in an added section
+  goes by the section's key, so moving it keeps what was found there, and
+  what was dismissed. Added lists get none of the advice meant for a job's
+  bullets, but the same checks of how bullets print.
+- `extraPdf.ts` finds the sections the person added in the preview's text, in
+  the import worker, before the rules about the editor's own sections run, so
+  their lines aren't read as jobs. A title can't tell them apart (two can
+  share one, or share one of the editor's), so a section counts as found only
+  where its title is followed by exactly its text; only those lines are taken
+  out, and the rest keep their places in the PDF. R3 says when an added
+  section's text is missing, and reads only part of the resume when it can't
+  tell which section is which. A title the person made up isn't taken for one
+  hiring software knows, and an added section that may have been read as one
+  of the editor's doesn't count against that one. The editor's
+  `CheckContext` keeps each reading by the layout as well as the PDF, as a
+  change that doesn't print can move text in the editor while the PDF stays
+  the same.
 - `readDate.ts` reads dates the way resumes write them ("Jan 2024",
   "01/2024", "2024", "Fall 2023", "Expected May 2027", "Present", and ranges
   in one field like "Jun – Aug 2025"), and compares them. Rules that need to
@@ -112,9 +118,9 @@ sent anywhere.
   often right; a suggestion (`look`) is for what's usually a weakness but
   can be a false alarm, and dismissing it gives its points back. A rule can
   also mark individual problems as advisory or give them a contextual level:
-  S3 treats missing work identity as a fix while keeping other entry details
-  as suggestions, and S2 and S5 treat a missing school or skills section as
-  a fix early in a career (`EARLY_CAREER_YEARS`). B8 counts a role with no
+  S3 makes a job without its role or company a fix, and anything else an
+  entry is missing a suggestion; S2 and S5 treat a missing school or skills
+  section as a fix early in a career (`EARLY_CAREER_YEARS`). B8 counts a role with no
   description, or with half or more of its bullets generic, and asks the
   most recent job and any still going for two specific bullets; bullet
   counts are advice. B1 (a duty like "Responsible for" instead of a
@@ -124,8 +130,8 @@ sent anywhere.
   percentage or amount, or a change ("cut deploy time", "used by the
   dispatch team") that says what changed, in a bullet that isn't generic.
   "Improved the code" doesn't. It scores roles only, as a project's bullets
-  often say what it is; there it's advice. Its cues don't establish
-  accomplishment quality.
+  often say what it is; there it's advice. It only looks for those signs, so a
+  bullet with them isn't always a strong one.
 - `score.ts` works out the resume score (issue #67), out of 100: how well the
   resume follows these checks, not whether it gets anyone hired. Each
   category starts with all its points (`settings.ts`), and each rule that
@@ -181,7 +187,7 @@ const realEmail: Rule = {
   why: "Recruiters reply by email, so it has to work.",
   check: ({ resume }) => ({
     checked: 1,
-    problems: EMAIL.test(resume.profile.email)
+    problems: emailAddress(resume.profile.email)
       ? []
       : [{ place: { kind: "profile", field: "email" }, message: "Not a whole email address" }],
   }),
@@ -197,8 +203,8 @@ const realEmail: Rule = {
   unless the rule sets `each`: then each problem takes that share of its
   credit, as each typo does.
 - **Point at the exact place:** a profile field, a section's title, a whole
-  section, an entry, one of its fields, one bullet (`line`), or the PDF's
-  pages. A place that isn't on the resume is a bug: it's logged and left out.
+  section, an entry, one of its fields, one bullet (`line`), the text of a
+  section the person added or one of its bullets, or the PDF's pages. A place that isn't on the resume is a bug: it's logged and left out.
 - **Give `text`** when the problem is about part of the text at the place, or
   about something missing. A dismissal lasts until that text changes, so for a
   missing field the entry's own text (the default) is usually right.

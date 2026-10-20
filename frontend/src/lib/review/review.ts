@@ -9,8 +9,9 @@
 // their marks wouldn't land on their words. Opened in
 // the editor, a resume is printed in its template, so a PDF from elsewhere
 // can score differently there.
-// Nothing leaves the browser: the PDF engine and the grammar checker are
-// downloaded, not called.
+// None of this leaves the browser: the PDF engine and the grammar checker are
+// downloaded, not called. The AI's notes on the same resume are asked for
+// apart from this (components/review/useAiNotes.ts).
 
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import { runChecks, type GrammarLint, type PdfReading, type Report } from "@/lib/check/engine"
