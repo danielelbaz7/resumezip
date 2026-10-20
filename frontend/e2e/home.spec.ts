@@ -200,7 +200,7 @@ test("on a wide screen each note is over what it's about, left to right across t
   for (const { y } of notes) expect(Math.abs(y - notes[0].y)).toBeLessThan(12)
 })
 
-test("the story ends on the way in, with Start writing in its middle, and not the address to write to", async ({ page }) => {
+test("the story ends on the way in, its words and Start writing in its middle, and not the address to write to", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/")
   await page.mouse.move(400, 400)
@@ -209,12 +209,24 @@ test("the story ends on the way in, with Start writing in its middle, and not th
   // It only takes a click once it has arrived.
   await start.click({ trial: true })
   await expect(start).toHaveAttribute("href", "/create/dashboard")
-  // In the middle of the way in, under its words.
-  const middle = async (target: Locator) => {
-    const box = (await target.boundingBox())!
-    return box.x + box.width / 2
+  // Its words and the button, each in the middle of the way in: where they're drawn, which a
+  // left-aligned line's own box, as wide as the way in, wouldn't show.
+  const drawnMiddle = (target: Locator) =>
+    target.evaluate((element) => {
+      const range = document.createRange()
+      range.selectNodeContents(element)
+      const box = range.getBoundingClientRect()
+      return box.x + box.width / 2
+    })
+  const box = (await wayIn(page).boundingBox())!
+  for (const part of [
+    wayIn(page).getByText("Your turn", { exact: true }),
+    wayIn(page).getByRole("heading", { name: "Your resume, on your own computer." }),
+    wayIn(page).getByText("Every template is free"),
+    start,
+  ]) {
+    await expect.poll(async () => Math.abs((await drawnMiddle(part)) - (box.x + box.width / 2))).toBeLessThan(1)
   }
-  await expect.poll(async () => Math.abs((await middle(start)) - (await middle(wayIn(page))))).toBeLessThan(1)
   // That's on the contact page, which the footer links to.
   await expect(page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toHaveCount(0)
   expect(errors).toEqual([])

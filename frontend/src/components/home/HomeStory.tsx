@@ -163,23 +163,21 @@ function WayIn({ ref, copyRef, onFocus }: WayInProps) {
     <section ref={ref} aria-labelledby="way-in" className="home-cta glass glass-float" onFocus={onFocus}>
       <span aria-hidden="true" className="home-cta-shadow" />
       <LiquidLens bevel={26} strength={1.25} />
-      <div ref={copyRef} className="home-cta-copy">
+      <div ref={copyRef} className="home-cta-copy text-center">
         <p className="label-mono text-ink-2">Your turn</p>
         <h2 id="way-in" className="mt-3 text-balance font-serif text-[clamp(36px,3.5vw,50px)] leading-[1.02] tracking-[-0.035em]">
           Your resume, on <em className="text-accent">your own computer.</em>
         </h2>
-        <p className="mt-3.5 text-pretty text-[15.5px] leading-normal text-ink-2 sm:text-[17px]">
+        <p className="mt-3.5 text-balance text-[15.5px] leading-normal text-ink-2 sm:text-[17px]">
           Every template is free, and{" "}
           <Link href="/private-resume-builder" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
             your resume stays in your browser
           </Link>
           .
         </p>
-        <div className="mt-6 flex justify-center">
-          <StartWritingLink className={INK_GLASS_PILL} preloadOnHover>
-            Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </StartWritingLink>
-        </div>
+        <StartWritingLink className={`${INK_GLASS_PILL} mt-6`} preloadOnHover>
+          Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </StartWritingLink>
       </div>
     </section>
   )
