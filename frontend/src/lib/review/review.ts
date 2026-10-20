@@ -22,6 +22,7 @@ import type { Resume, ResumeContent } from "@/lib/resume"
 import { imported } from "@/lib/resumeStore"
 import { templateById } from "@/lib/templates"
 import { compileResume } from "@/lib/typst/compile"
+import { reviewRules } from "./rules"
 
 /** What's done, in the order the page lists them: the file opened, the PDF read, the text checked. */
 export type ReviewStep = "open" | "read" | "spell"
@@ -108,7 +109,7 @@ export async function reviewFile(
   })()
   const [{ pdf, reading }, grammar] = await Promise.all([printing, spelling])
 
-  const report = runChecks(resume, { pdf: reading ?? undefined, grammar })
+  const report = runChecks(resume, { rules: reviewRules(asIs), pdf: reading ?? undefined, grammar })
   const score = scoreOf(report)
   // hasEnoughToCheck held, so there's a total.
   return {
