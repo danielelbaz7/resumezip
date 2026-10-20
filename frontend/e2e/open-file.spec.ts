@@ -139,6 +139,7 @@ test("Cancel stops reading a file, and the next one opens as usual", async ({ pa
 
   // Once pdf.js arrives, the cancelled file isn't opened with it.
   pdfjs.release()
+  // A fixed wait: proving no worker starts reading it, and no dialog opens.
   await page.waitForTimeout(1000)
   expect(workers()).toEqual([])
   await expect(page.getByRole("dialog")).toHaveCount(0)
@@ -203,6 +204,7 @@ test("leaving the page stops reading the file", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Terms & privacy")
 
   pdfjs.release()
+  // A fixed wait: proving no worker starts reading the file.
   await page.waitForTimeout(1000)
   expect(workers()).toEqual([])
   expect(errors).toEqual([])

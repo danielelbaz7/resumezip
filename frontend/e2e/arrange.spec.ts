@@ -307,12 +307,12 @@ test("an entry left out isn't printed, or in the PDF's copy of the resume, and c
 test("a bullet starting with ○ is left out, and Alt and the arrow keys move a line", async ({ page }) => {
   const errors = pageErrors(page)
   await openSection(page, "Experience")
-  // The first entry is open; its bullets are in its first bullets field.
-  const field = page.locator('[data-field="workDescription"]').first()
-  const box = field.getByLabel(BULLETS)
+  // The first entry is open; its bullets are in the first box.
+  const box = page.getByLabel(BULLETS).first()
 
   await box.fill("• Cut serving costs by 30%\n• Built the search index\n○ Mentored four interns")
-  await expect(field.getByText("Lines starting with ○ are left out of the PDF.")).toBeVisible()
+  await expect(page.getByText("Lines starting with ○ are left out of the PDF.")).toBeVisible()
+  await expect(box).toHaveAccessibleDescription(/Lines starting with ○ are left out of the PDF\./)
   await expect
     .poll(() => printedOrder(page, ["Cut serving costs", "Built the search index", "Mentored four interns", "Initech"]))
     .toEqual(["Cut serving costs", "Built the search index", "Initech"])
@@ -477,8 +477,7 @@ test("the checker skips what's left out, and opens the right entry after it", as
   // The left-out entry is the first in the editor, so the finding is about the second.
   await panel.getByRole("button", { name: weak("Google") }).click()
   await expect(page.getByRole("button", { name: "Done editing entry 2" })).toBeVisible()
-  const field = page.locator('[data-field="workDescription"]').nth(1)
-  const box = field.getByLabel(BULLETS)
+  const box = page.getByLabel(BULLETS).nth(1)
   const selected = () => page.evaluate(() => String(getSelection()))
   await expect(box).toBeFocused()
   await expect.poll(selected).toBe("Responsible for the search index")

@@ -91,6 +91,7 @@ test("renaming doesn't rebuild the preview, and fast typing ends on the latest t
   // The resume's name isn't printed, so renaming compiles nothing.
   const compiles = await page.evaluate(() => window.compiles)
   await page.getByLabel("Resume name").fill("Ada's resume")
+  // A fixed wait: proving nothing is sent to the compiler.
   await page.waitForTimeout(1_000)
   expect(await page.evaluate(() => window.compiles)).toBe(compiles)
 

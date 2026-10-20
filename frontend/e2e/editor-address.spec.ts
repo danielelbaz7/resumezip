@@ -1,12 +1,5 @@
 import { expect, test } from "./test"
-import { editorHeading, pageErrors, templateChosen } from "./helpers"
-
-declare global {
-  interface Window {
-    /** Set on the open page by a test. A link that loads a new page loses it; one the app opens in the page keeps it. */
-    marked?: boolean
-  }
-}
+import { editorHeading, pageErrors, templateShown } from "./helpers"
 
 // The editor is one page, built once, that next.config.js serves at every
 // resume's address, /create/new/<id>. The page reads the id from the address.
@@ -72,7 +65,7 @@ test("resumes open in the page from links and the history, each one afresh", asy
   await page.getByRole("link", { name: "Use Harvard" }).click()
   await expect(page).toHaveURL(/\/create\/new\//)
   const first = page.url()
-  await expect(await templateChosen(page)).toContainText("Harvard")
+  await expect(templateShown(page)).toContainText("Harvard")
   await page.getByLabel("Full name").fill("Ada Lovelace")
 
   // So does the dashboard's New resume.
@@ -94,7 +87,7 @@ test("resumes open in the page from links and the history, each one afresh", asy
   await page.evaluate(() => history.go(-2))
   await expect(page).toHaveURL(first)
   await expect(page.getByLabel("Full name")).toHaveValue("Ada Lovelace")
-  await expect(await templateChosen(page)).toContainText("Harvard")
+  await expect(templateShown(page)).toContainText("Harvard")
 
   // And the dashboard's link to a resume opens that one.
   await page.getByRole("link", { name: "Dashboard" }).click()

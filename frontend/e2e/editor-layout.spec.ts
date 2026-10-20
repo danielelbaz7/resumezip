@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "./test"
 import { WIDE_SCREEN } from "../src/components/editor/layout"
-import { editorHeading, pageErrors } from "./helpers"
+import { editorHeading, pageErrors, settled } from "./helpers"
 
 // The editor puts the form beside the preview only where both have room
 // (components/editor/layout.ts). Narrower, an Edit / Preview switch shows one
@@ -204,7 +204,7 @@ test("a field chosen while a new entry slides open keeps the cursor", async ({ p
   const role = page.getByLabel("Role", { exact: true })
   await role.focus()
   // Past the slide, when a new entry puts the cursor in its first field.
-  await page.waitForTimeout(600)
+  await settled(role)
   await expect(role).toBeFocused()
   await page.keyboard.type("Analyst")
   await expect(role).toHaveValue("Analyst")

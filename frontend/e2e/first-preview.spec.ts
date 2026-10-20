@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "./test"
 import { chooseTemplate, editorHeading, instantScrolling, pageErrors } from "./helpers"
+import { TEMPLATES } from "../src/lib/templates"
 
 // The first preview waits for the PDF compiler to download. A stand-in page
 // shows meanwhile (components/editor/PrintingPage.tsx), and the dashboard
@@ -164,6 +165,7 @@ test.describe("on a phone", () => {
     const workers = compilerWorkers(page)
     await page.goto("/")
     await expect(page.getByRole("link", { name: "Start writing" }).first()).toBeVisible()
+    // A fixed wait: proving it doesn't start once the page has settled, as it would on a computer.
     await page.waitForTimeout(2_000)
     expect(workers).toEqual([])
   })
@@ -181,12 +183,16 @@ test("a mouse resting on Start writing starts the editor's downloads before the 
   page.on("request", (request) => {
     if (/\.(otf|ttf)$/.test(request.url())) fonts.push(request.url())
   })
-  await page.goto("/")
-  const pictures = page.getByRole("region", { name: "Templates" }).getByRole("link", { name: / template/ })
+  await page.goto("/templates")
+  await instantScrolling(page)
+  const pictures = page.getByRole("main").getByRole("link", { name: / template/ })
+  await expect(pictures).toHaveCount(TEMPLATES.length)
   for (const picture of await pictures.all()) await picture.hover()
+  // A fixed wait: proving resting on one starts nothing.
   await page.waitForTimeout(1_500)
   expect(fonts).toEqual([])
 
+  await page.goto("/")
   const startWriting = page.getByRole("link", { name: "Start writing" }).first()
   await startWriting.hover()
   await expect.poll(() => fonts.length).toBeGreaterThan(0)
@@ -205,6 +211,7 @@ test("pressing a template's Use starts the compiler before the click", async ({ 
   const use = page.getByRole("link", { name: "Use Harvard" })
   await expect(use).toBeInViewport({ ratio: 1 })
   await use.hover()
+  // A fixed wait: proving resting on it doesn't start the compiler.
   await page.waitForTimeout(500)
   expect(workers).toEqual([])
 
@@ -359,12 +366,14 @@ test("visitors saving data don't download the compiler ahead, on the home page o
   const workers = compilerWorkers(page)
   await page.goto("/")
   await page.getByRole("link", { name: "Start writing" }).first().hover()
-  await page.waitForTimeout(1_000)
+  // A fixed wait: proving neither the page settling nor resting on Start writing starts it.
+  await page.waitForTimeout(2_000)
   expect(workers).toEqual([])
 
   await saveResume(page)
   await page.goto("/create/dashboard")
   await expect(page.getByRole("link", { name: resume.resumeTitle }).first()).toBeVisible()
+  // A fixed wait: proving neither the page settling nor the pictures of the resumes start it.
   await page.waitForTimeout(3_000)
   expect(workers).toEqual([])
 

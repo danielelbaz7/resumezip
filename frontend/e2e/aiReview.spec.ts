@@ -1,4 +1,4 @@
-import { expect, test } from "./test"
+import { expect, test, type Page } from "./test"
 import { textPdf } from "../src/lib/import/testFiles"
 import { pageErrors, seriousAccessibilityProblems } from "./helpers"
 
@@ -46,7 +46,7 @@ const NOTES = [
   },
 ]
 
-async function reviewed(page: import("@playwright/test").Page) {
+async function reviewed(page: Page) {
   await page.goto("/review")
   await page.locator('input[type="file"]').setInputFiles(pdf)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
@@ -78,7 +78,7 @@ test("AI notes are asked for once the resume is read, sent as the printed lines,
   // The page is marked with the AI's notes alone, and the checks are a switch away.
   await expect(page.getByRole("button", { name: "AI Reviews", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toHaveCount(0)
-  await page.getByRole("button", { name: "ATS checks" }).click()
+  await page.getByRole("button", { name: "ATS Checks" }).click()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
   await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toHaveCount(0)
   // With the checks drawn, both tiles are shut and nothing is listed; pressing one goes back to the AI's notes.
@@ -88,8 +88,10 @@ test("AI notes are asked for once the resume is read, sent as the printed lines,
   await page.getByRole("button", { name: "Red flags, 2" }).click()
   await expect(page.getByRole("button", { name: "AI Reviews", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Red flags, 2", pressed: true })).toBeVisible()
-  await page.getByRole("button", { name: "ATS checks" }).click()
+  // So does the switch, opening the tile pressed last.
+  await page.getByRole("button", { name: "ATS Checks" }).click()
   await page.getByRole("button", { name: "AI Reviews" }).click()
+  await expect(page.getByRole("button", { name: "Red flags, 2", pressed: true })).toBeVisible()
 
   // Each flag is drawn on its line, and pointing at it in the list shows its note there.
   const red = page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })
@@ -127,7 +129,7 @@ test("when the AI turns a review away, the page shows the checks and says why, a
   })
   await reviewed(page)
   await expect(page.getByRole("status").filter({ hasText: "AI notes are paused for a few minutes" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "ATS checks", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "ATS Checks", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
   await expect(page.getByText("Give it a few minutes.")).toBeVisible()
   await page.getByRole("button", { name: "OK" }).click()
@@ -229,7 +231,7 @@ test("a review that found nothing can be asked again from the editor", async ({ 
 })
 
 /** Answers /api/review only once `answer()` is called; `asked` settles when the page has asked. */
-async function heldAnswer(page: import("@playwright/test").Page) {
+async function heldAnswer(page: Page) {
   let ask = () => {}
   const asked = new Promise<void>((resolve) => (ask = resolve))
   let answer = () => {}
@@ -242,7 +244,7 @@ async function heldAnswer(page: import("@playwright/test").Page) {
   return { asked, answer }
 }
 
-test("the AI is asked as soon as the resume is printed, and the result waits for its notes while a recruiter's seconds count on the page", async ({
+test("the AI is asked as soon as the resume's pages are read, and the result waits for its notes while a recruiter's seconds count on the page", async ({
   page,
 }) => {
   const errors = pageErrors(page)
@@ -275,10 +277,10 @@ test("when the AI is long coming, the result opens without its notes, and a view
   await page.clock.fastForward(26_000)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByRole("status").filter({ hasText: "Getting notes from AI" })).toBeVisible()
-  await page.getByRole("button", { name: "ATS checks" }).click()
+  await page.getByRole("button", { name: "ATS Checks" }).click()
   answer()
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "ATS checks", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "ATS Checks", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
   expect(errors).toEqual([])
 })

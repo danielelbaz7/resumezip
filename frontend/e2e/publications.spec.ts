@@ -221,6 +221,7 @@ test("stopping keeps what wasn't looked up, and closing the box adds nothing", a
   await expect(box).toBeHidden()
   lookups.release()
 
+  // A fixed wait: proving the lookups that come back add nothing.
   await page.waitForTimeout(500)
   expect(await saved(page)).toEqual([EXISTING])
   expect(errors).toEqual([])

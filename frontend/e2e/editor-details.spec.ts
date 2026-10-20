@@ -2,12 +2,13 @@ import { expect, test, type Locator, type Page } from "./test"
 import { pageErrors } from "./helpers"
 
 // Small things in the editor's form and checker: the glow on the field being
-// typed in (components/editor/fields.tsx) and the score's rolling digits
-// (components/editor/CheckPanel.tsx).
+// typed in (components/editor/fields.tsx), the score's rolling digits
+// (components/editor/CheckPanel.tsx) and the Skills box's hint
+// (components/editor/sections.ts).
 
-/** Starts a resume with a name, in a `width` × `height` window, and waits for its preview. */
-async function startWriting(page: Page, width: number, height: number) {
-  await page.setViewportSize({ width, height })
+/** Starts a resume with a name, in a 1440 × 900 window, and waits for its preview. */
+async function startWriting(page: Page) {
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto("/")
   await page.getByRole("link", { name: "Start writing" }).first().click()
   await expect(page).toHaveURL(/\/create\/new\//)
@@ -24,7 +25,7 @@ const boxOf = async (locator: Locator) => (await locator.boundingBox())!
 
 test("a field glows while it has the focus, and nothing moves", async ({ page }) => {
   const errors = pageErrors(page)
-  await startWriting(page, 1440, 900)
+  await startWriting(page)
   const email = page.getByLabel("Email")
   await page.getByRole("tab", { name: "Write" }).focus()
   const before = [await boxOf(page.getByLabel("Full name")), await boxOf(email)]
@@ -43,7 +44,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
       page,
     }) => {
       const errors = pageErrors(page)
-      await startWriting(page, 1440, 900)
+      await startWriting(page)
       await page
         .getByRole("navigation", { name: "Sections" })
         .getByRole("button", { name: /^Experience$/ })
@@ -74,7 +75,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
 
 test("the Skills box says what belongs in it, and reads it out", async ({ page }) => {
   const errors = pageErrors(page)
-  await startWriting(page, 1440, 900)
+  await startWriting(page)
   await page
     .getByRole("navigation", { name: "Sections" })
     .getByRole("button", { name: /^Skills$/ })

@@ -14,7 +14,9 @@ const WORDS = [
   "Second talk",
 ]
 
-test("review consolidates selected singletons and keeps repeated unknown groups independently", async ({ page }) => {
+test("the review joins a file's two summaries, and keeps two groups under a heading it doesn't know as two added sections", async ({
+  page,
+}) => {
   const errors = pageErrors(page)
   await page.goto("/create/dashboard")
   await page.locator('input[type="file"]').setInputFiles({
@@ -59,6 +61,7 @@ test("review consolidates selected singletons and keeps repeated unknown groups 
 })
 
 test("a group that couldn't be placed has its choice beside its heading, not under a label repeating it", async ({ page }) => {
+  const errors = pageErrors(page)
   await page.goto("/create/dashboard")
   await page.locator('input[type="file"]').setInputFiles({
     name: "Flexible.docx",
@@ -74,9 +77,13 @@ test("a group that couldn't be placed has its choice beside its heading, not und
   const box = (await choice.boundingBox())!
   expect(box.y + box.height / 2).toBeGreaterThan(heading.y)
   expect(box.y + box.height / 2).toBeLessThan(heading.y + heading.height)
+  expect(errors).toEqual([])
 })
 
-test("narrow PDF review retains uncertain and excluded text in its download", async ({ page }) => {
+test("on a phone, a PDF's review downloads the text left out and the text it couldn't place, and the resume gets neither", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/create/dashboard")
   await page.locator('input[type="file"]').setInputFiles({
@@ -107,4 +114,5 @@ test("narrow PDF review retains uncertain and excluded text in its download", as
   )
   expect(saved.extraSections ?? {}).toEqual({})
   expect(saved.profileSection.summary).toBe("")
+  expect(errors).toEqual([])
 })

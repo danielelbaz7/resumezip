@@ -14,8 +14,6 @@ declare global {
     permissionChecks?: number
     /** Where the page was each time it read saved resumes, noted by a test. */
     reads?: string[]
-    /** Set on the open page by a test. A link that loads a new page loses it; one the app opens in the page keeps it. */
-    marked?: boolean
   }
 }
 
@@ -268,10 +266,12 @@ test("typing is saved once it pauses, and just opening a page saves nothing", as
   // Opening the dashboard, or the editor again, saves nothing.
   await page.goto("/create/dashboard")
   await expect(page.getByText(/^1 resume\W+saved in this browser$/i)).toBeVisible()
+  // A fixed wait: proving nothing is saved once the page has settled.
   await page.waitForTimeout(1_000)
   expect(await saves()).toEqual([])
   await page.goto(editor)
   await expect(previewShows(preview, /Ada Lovelace/i)).toBeVisible()
+  // A fixed wait: proving nothing is saved once the page has settled.
   await page.waitForTimeout(1_000)
   expect(await saves()).toEqual([])
 
@@ -357,12 +357,12 @@ test("a resume deleted in another tab leaves no preview behind, so it's built af
   await expect.poll(() => previewsBuilt(page)).toBeGreaterThan(built)
 
   // It comes back with other words, as when its PDF is opened again in another
-  // tab. Until they're built, the preview shows nothing of the deleted resume:
-  // a fixed wait, to show nothing of it is drawn.
+  // tab. Until they're built, the preview shows nothing of the deleted resume.
   await holdPreviews(page, true)
   await other.evaluate(([key, text]) => localStorage.setItem(key, text), [key, saved.replaceAll("Ada Byron", "Grace Hopper")])
   await expect(page.getByLabel("Full name")).toHaveValue("Grace Hopper")
   await expect(preview.getByRole("status", { name: "Loading preview" })).toBeVisible()
+  // A fixed wait: proving nothing of it is drawn.
   await page.waitForTimeout(2_000)
   await expect(preview.getByText(/Ada/)).toHaveCount(0)
   await holdPreviews(page, false)

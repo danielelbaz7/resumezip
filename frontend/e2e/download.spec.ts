@@ -120,10 +120,11 @@ test("Download PDF shows the PDF being made, however quick, and saves it as that
   const button = page.getByRole("button", { name: "Download PDF" })
   await button.click()
   await expect(button).toBeDisabled()
+  // A fixed wait: proving the PDF, made by now, waits for the line to fill.
   await page.waitForTimeout(2_000)
   expect(saved).toBe(false)
-  // Meanwhile the line along the button has filled most of the way. (It wasn't
-  // drawn at all while its keyframes and the class hiding it set different properties.)
+  // Meanwhile the line along the button has filled most of the way. (Its keyframes set scale, as
+  // the class hiding it does: a transform would be multiplied by that class's zero, and never show.)
   const line = button.locator('span[aria-hidden="true"]')
   expect(await line.evaluate((element) => parseFloat(getComputedStyle(element).scale))).toBeGreaterThan(0.9)
 

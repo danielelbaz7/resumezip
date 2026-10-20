@@ -1,7 +1,7 @@
 import { expect, test } from "./test"
 import { pageErrors } from "./helpers"
 
-test("the footer is a wordmark and its links to a screen reader: the zipper is only a picture", async ({ page }) => {
+test("the footer is a wordmark and its links to a screen reader", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/")
   const footer = page.getByRole("contentinfo")
@@ -50,7 +50,7 @@ test("the footer's zipper stays still as the page is scrolled to it and away", a
   await page.keyboard.press("End")
   await page.keyboard.press("Home")
   await page.keyboard.press("End")
-  // Longer than the zipper used to take to shut, to be sure nothing starts.
+  // A fixed wait: proving nothing starts in it once it's been scrolled to.
   await page.waitForTimeout(1500)
   expect(await page.evaluate(() => document.documentElement.dataset.footerMoved)).toBeUndefined()
 })

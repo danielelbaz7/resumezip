@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { expect, test, type Page } from "./test"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import { editorHeading, pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { editorHeading, editorTitle, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 const initial = {
   id: "flexible",
@@ -34,7 +34,10 @@ async function rename(page: Page, heading: string) {
   await page.getByRole("textbox", { name: "Section title" }).press("Enter")
 }
 
-test("optional section lifecycle, duplicate headings, keyboard movement and v2 PDF reopening", async ({ page, browser }, info) => {
+test("two added sections called Experience are told apart, print, and open again from the PDF without a left-out line, and one can be deleted", async ({
+  page,
+  browser,
+}, info) => {
   const errors = pageErrors(page)
   await open(page)
   await previewShown(page)
@@ -54,7 +57,6 @@ test("optional section lifecycle, duplicate headings, keyboard movement and v2 P
     .getByRole("button", { name: /Profile$/ })
     .click()
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
-  await page.screenshot({ path: info.outputPath("flexible-editor.png"), fullPage: true })
   const downloading = page.waitForEvent("download")
   await page.getByRole("button", { name: "Download PDF", exact: true }).click()
   const file = info.outputPath("flexible.pdf")
@@ -159,7 +161,10 @@ test("the Add section menu stays closed once a section is chosen, though the pag
   expect(errors).toEqual([])
 })
 
-test("extra-only checking targets original list lines and deletion restores focus in Check mode", async ({ page }) => {
+test("an added section alone is checked, its finding selects the line it's about, and deleting it with Check open moves the focus to the title", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
   const sectionId = "11111111-1111-4111-8111-111111111111"
   await page.addInitScript(
     ({ sectionId }) =>
@@ -189,13 +194,17 @@ test("extra-only checking targets original list lines and deletion restores focu
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused()
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
-  await expect(page.locator("main h1")).toBeFocused()
+  await expect(editorTitle(page)).toBeFocused()
   await expect(issue).toBeHidden()
+  expect(errors).toEqual([])
 })
 
 test.describe("touch", () => {
   test.use({ hasTouch: true })
-  test("narrow flows keep the keyboard closed on add and allow literal text, inclusion and deletion", async ({ page }) => {
+  test("on a phone, an added section doesn't open the keyboard, keeps its name when given a blank one, and can be left out and deleted", async ({
+    page,
+  }) => {
+    const errors = pageErrors(page)
     await page.setViewportSize({ width: 390, height: 844 })
     await page.emulateMedia({ reducedMotion: "reduce" })
     await open(page)
@@ -212,6 +221,7 @@ test.describe("touch", () => {
     await page.getByRole("button", { name: "Delete section", exact: true }).click()
     await expect.poll(async () => Object.keys((await saved(page)).extraSections)).toEqual([])
     expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
+    expect(errors).toEqual([])
   })
 })
 

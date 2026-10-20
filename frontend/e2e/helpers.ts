@@ -1,6 +1,17 @@
 import AxeBuilder from "@axe-core/playwright"
 import { expect, type Locator, type Page } from "@playwright/test"
 
+declare global {
+  interface Window {
+    /** Set on the open page by a test. A link that loads a new page loses it; one the app opens in the page keeps it. */
+    marked?: boolean
+    /** How many PDFs the compiler's worker has sent back, counted by holdablePreviews. */
+    previewsBuilt?: number
+    /** Holds resumes on their way to the compiler, or sends the held ones on (holdablePreviews). */
+    holdPreviews?: (hold: boolean) => void
+  }
+}
+
 // Safari logs these when a page is left while something is still loading in
 // the background, and the visitor never sees them: the PDF compiler, its
 // fonts and pdf.js's worker, which the home page, dashboard and editor start
@@ -215,8 +226,8 @@ export async function holdablePreviews(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const held: (() => void)[] = []
     let holding = false
-    ;(window as any).previewsBuilt = 0
-    ;(window as any).holdPreviews = (hold: boolean) => {
+    window.previewsBuilt = 0
+    window.holdPreviews = (hold: boolean) => {
       holding = hold
       if (!hold) for (const send of held.splice(0)) send()
     }
@@ -225,7 +236,7 @@ export async function holdablePreviews(page: Page): Promise<void> {
       constructor(...args: ConstructorParameters<typeof Worker>) {
         super(...args)
         this.addEventListener("message", (event) => {
-          if (event.data?.pdf !== undefined) (window as any).previewsBuilt++
+          if (event.data?.pdf !== undefined) window.previewsBuilt!++
         })
       }
       postMessage(message: any, options?: any) {
@@ -238,10 +249,10 @@ export async function holdablePreviews(page: Page): Promise<void> {
 }
 
 /** Holds resumes on their way to the compiler, or sends the held ones on. */
-export const holdPreviews = (page: Page, hold: boolean): Promise<void> => page.evaluate((hold) => (window as any).holdPreviews(hold), hold)
+export const holdPreviews = (page: Page, hold: boolean): Promise<void> => page.evaluate((hold) => window.holdPreviews!(hold), hold)
 
 /** How many PDFs the compiler's worker has sent back, with holdablePreviews. */
-export const previewsBuilt = (page: Page): Promise<number> => page.evaluate(() => (window as any).previewsBuilt)
+export const previewsBuilt = (page: Page): Promise<number> => page.evaluate(() => window.previewsBuilt!)
 
 /** Chooses a template from the gallery behind the header's Template button, which every screen has. */
 export async function chooseTemplate(page: Page, name: string): Promise<void> {
@@ -262,18 +273,6 @@ export const editorHeading = (page: Page, name: string, options: { exact?: boole
 
 /** The editor's title, the open section's heading: its own H1, not the preview's, which is the resume's name. */
 export const editorTitle = (page: Page): Locator => page.getByRole("main").getByRole("heading", { level: 1 })
-
-/**
- * What names the resume's template on screen, once the editor is open. On
- * wide screens it's in the left panel's Style tab, so that's opened first;
- * narrower, the header's Template button says it.
- */
-export async function templateChosen(page: Page): Promise<Locator> {
-  const style = page.getByRole("tab", { name: "Style" })
-  await expect(style).toBeVisible()
-  if (await templateShown(page).isHidden()) await style.click()
-  return templateShown(page)
-}
 
 // A box that shows bold and italic words is an editable div that draws a div
 // per line, with bold words in <strong> and italic ones in <em>

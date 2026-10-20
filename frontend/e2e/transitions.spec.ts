@@ -30,8 +30,8 @@ async function fadingIn(control: Locator, shown: Locator): Promise<string[]> {
     await control.click()
     await expect(shown).toBeVisible()
     await settled(shown)
-    // Preview rendering has its own fades. This assertion concerns the opened
-    // content, including a surrounding dialog overlay or panel transition.
+    // The preview has fades of its own: only those on what opened, or on what
+    // it's in, as the backdrop round a dialog, count.
     return await shown.evaluate(
       (element, { transitions }) =>
         transitions.filter(({ target }) => target.contains(element) || element.contains(target)).map(({ text }) => text),
@@ -77,11 +77,8 @@ test("a section, Write, Check or Style, and the template gallery fade in as they
   await expect(page.getByRole("region", { name: "Style" })).toBeHidden()
 
   // Let the preview finish, so the compiler's download isn't cut off as the page closes.
-  // (Narrower, below, the preview is behind the Edit / Preview switch.)
   await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
 
-  // Narrower, the gallery opens from the Template button.
-  await page.setViewportSize({ width: 1024, height: 768 })
   const gallery = await fadingIn(page.getByRole("button", { name: /^Template/ }), page.getByRole("dialog", { name: "Choose a template" }))
   expect(gallery.some((text) => text.includes("Templates"))).toBe(true)
   await expect(page.getByRole("dialog", { name: "Choose a template" })).toBeVisible()
@@ -93,9 +90,7 @@ test("the template gallery fades away as it closes, rather than vanishing", asyn
   const errors = pageErrors(page)
   await newResume(page)
   // Let the preview finish first, so the compiler's download isn't cut off as the page closes.
-  // (Narrower, below, the preview is behind the Edit / Preview switch.)
   await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
-  await page.setViewportSize({ width: 1024, height: 768 })
   await page.getByRole("button", { name: /^Template/ }).click()
   const gallery = page.getByRole("dialog", { name: "Choose a template" })
   await expect(gallery).toBeVisible()
@@ -209,7 +204,6 @@ test.describe("with less motion", () => {
     expect(await fadingIn(page.getByRole("tab", { name: /^Check/ }), page.getByRole("heading", { name: "ATS score" }))).toEqual([])
     expect(await fadingIn(page.getByRole("tab", { name: "Style" }), page.getByRole("region", { name: "Style" }))).toEqual([])
     await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
-    await page.setViewportSize({ width: 1024, height: 768 })
     expect(
       await fadingIn(page.getByRole("button", { name: /^Template/ }), page.getByRole("dialog", { name: "Choose a template" })),
     ).toEqual([])

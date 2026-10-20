@@ -2,6 +2,13 @@ import { expect, test } from "./test"
 import { textPdf, wordFile } from "../src/lib/import/testFiles"
 import { instantScrolling, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
+declare global {
+  interface Window {
+    /** Makes page 2's picture, held back by a test until it calls this. */
+    drawPage2?: () => void
+  }
+}
+
 // A resume from elsewhere: plain text, with a bullet that's a duty rather than a contribution.
 const RESUME = [
   "Mara Lin",
@@ -98,7 +105,7 @@ test("the result opens once page 1 is drawn, and later pages join it as they're 
     let drawn = 0
     HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, callback: BlobCallback, type?: string, quality?: number) {
       if (++drawn !== 2) return toBlob.call(this, callback, type, quality)
-      ;(window as unknown as { drawPage2: () => void }).drawPage2 = () => toBlob.call(this, callback, type, quality)
+      window.drawPage2 = () => toBlob.call(this, callback, type, quality)
     }
   })
   await page.goto("/review")
@@ -107,7 +114,7 @@ test("the result opens once page 1 is drawn, and later pages join it as they're 
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
   await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => "drawPage2" in window)).toBe(true)
-  await page.evaluate(() => (window as unknown as { drawPage2: () => void }).drawPage2())
+  await page.evaluate(() => window.drawPage2!())
   await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toBeVisible()
   expect(errors).toEqual([])
 })

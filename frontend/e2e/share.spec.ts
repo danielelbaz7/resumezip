@@ -192,8 +192,8 @@ test("closing the share sheet says nothing, and a share that fails says so and c
 // Browsers that can't share files: Firefox can't share at all, and some share links but not files.
 const CANT_SHARE_FILES: Record<string, () => void> = {
   "can't share anything": () => {
-    delete (Navigator.prototype as any).canShare
-    delete (Navigator.prototype as any).share
+    Reflect.deleteProperty(Navigator.prototype, "canShare")
+    Reflect.deleteProperty(Navigator.prototype, "share")
   },
   "shares links but not files": () => {
     Object.defineProperty(Navigator.prototype, "canShare", { configurable: true, value: (data?: ShareData) => !data?.files?.length })
