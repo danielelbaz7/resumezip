@@ -48,14 +48,8 @@ export const tierOf = (finding: Pick<Finding, "level" | "advisory">): Tier => (f
 
 export const TIER_NAMES: Record<Tier, string> = { fix: "Must fix", look: "Worth a look", optional: "Optional" }
 
-/** Each tier's color, as a dot and a pill; TIER_LINE (CheckPanel.tsx) draws the line down a finding's side in it. */
+/** Each tier's color, as the dot by a finding in the Check panel. */
 export const TIER_BG: Record<Tier, string> = { fix: "bg-alert", look: "bg-caution", optional: "bg-accent" }
-
-/** A small pill for a finding's tier, in its color. */
-export const levelPill = (tier: Tier) =>
-  `inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[11px] font-medium leading-none ${TIER_BG[tier]} ${
-    tier === "look" ? "text-ink" : "text-white"
-  }`
 
 /**
  * What the checker or the AI found where the person is fixing it, read out

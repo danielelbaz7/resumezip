@@ -2,20 +2,7 @@
 
 import type React from "react"
 import { useEffect, useId, useMemo, useRef, useState } from "react"
-import {
-  CalendarDays,
-  ChevronDown,
-  IdCard,
-  LayoutList,
-  List,
-  LoaderCircle,
-  Lock,
-  Ruler,
-  ScanText,
-  Sparkles,
-  SpellCheck,
-  type LucideIcon,
-} from "lucide-react"
+import { Check, ChevronDown, LoaderCircle, Lock } from "lucide-react"
 import { checkKeyOf } from "@/components/review/notes"
 import type { Finding, Report, Rule } from "@/lib/check/engine"
 import { describePlace, hasEnoughToCheck } from "@/lib/check/labels"
@@ -39,34 +26,23 @@ import { hasLeftOut } from "@/lib/leftOut"
 import AiNotesBox from "./AiNotesBox"
 import { useCheck, useCheckActions } from "./CheckContext"
 import { useMarks, usePointAt } from "./MarksContext"
-import { levelPill, TIER_BG, TIER_NAMES, tierOf, type Tier } from "./fields"
+import { TIER_BG, TIER_NAMES, tierOf, type Tier } from "./fields"
 
 // A typo can't be dismissed, but its word can be added so it isn't flagged
 // again (rule G1, issue #66).
 const TYPO_RULE = "G1"
 
-// Each category's icon, so categories at the same level still look apart.
-const ICONS: Record<CategoryId, LucideIcon> = {
-  contact: IdCard,
-  readable: ScanText,
-  sections: LayoutList,
-  dates: CalendarDays,
-  bullets: List,
-  length: Ruler,
-  spelling: SpellCheck,
-  polish: Sparkles,
-}
-
-// A small grey pill for a finding's actions: Dismiss, Add word, Bring back.
-const action = "inline-flex h-6 items-center rounded-full bg-ink/[0.05] px-2.5 text-[12px] text-ink transition-colors hover:bg-ink/[0.1]"
+// A finding's actions, as quiet underlined words: Dismiss, Add word, Bring back.
+const action =
+  "self-start text-[12px] font-medium text-ink-2 underline decoration-rule underline-offset-[3px] transition-colors hover:text-ink hover:decoration-ink-2"
 
 type Category = (typeof CATEGORIES)[number]
 
 /**
  * What the checker found on the resume, in the left bar's Check mode: the
- * resume score, then each category with something to fix or review, its
- * points and what it found. What passed isn't listed. Choosing a finding
- * opens its field in the form.
+ * resume score, then every category as a numbered line with its points, a
+ * tick for those that passed, and under the others what they found.
+ * Choosing a finding opens its field in the form.
  */
 export default function CheckPanel() {
   const { report, checked, pdf, grammar } = useCheck()
@@ -81,13 +57,13 @@ export default function CheckPanel() {
   )
   const score = useShownScore(report, checking)
   const fixes = useShownFixes(report, checking)
-  const shown = useShownCategories(report.findings, checking)
+  const withFindings = useCategoriesWithFindings(report.findings, checking)
 
   if (!hasEnoughToCheck(view)) {
     return (
       <div className="flex flex-col gap-4 px-3 py-4 xl:p-0">
         <ScoreHeader total={null} />
-        <p className="px-2 text-sm leading-relaxed text-ink-2">
+        <p className="text-sm leading-relaxed text-ink-2">
           {/* The checker reads only what's printed, so what's left out of the PDF doesn't count. */}
           {view.profile.fullName && hasLeftOut(checked)
             ? "Include some section content in the PDF to check this resume."
@@ -114,7 +90,7 @@ export default function CheckPanel() {
       <MarksSwitch />
       <ScoreHeader total={score.total} mustFix={score.mustFix} fixes={fixes} updating={checking.size > 0} />
       {(waitingFor("pdf") || checkingGrammar) && (
-        <div role="status" className="flex flex-col gap-1 px-2 text-sm text-ink-2">
+        <div role="status" className="flex flex-col gap-1 text-sm text-ink-2">
           {waitingFor("pdf") && (
             <p>
               {pdf === "unbuilt"
@@ -134,28 +110,13 @@ export default function CheckPanel() {
         </div>
       )}
 
-      {shown.length > 0 ? (
-        <div className="flex flex-col gap-3.5">
-          {shown.map((category) => (
-            <CategoryRow
-              key={category.id}
-              category={category}
-              view={view}
-              findings={report.findings.filter((finding) => finding.category === category.id)}
-              checking={checking.get(category.id)}
-              score={score.categories[CATEGORIES.indexOf(category)]}
-            />
-          ))}
-        </div>
-      ) : (
-        checking.size === 0 && <p className="px-2 text-sm leading-relaxed text-ink-2">Nothing to fix or review.</p>
-      )}
+      <CheckIndex view={view} findings={report.findings} withFindings={withFindings} checking={checking} scores={score.categories} />
 
       {report.dismissed.length > 0 && (
         <Folded summary={`Dismissed · ${report.dismissed.length}`}>
           <ul className="flex flex-col">
             {report.dismissed.map((finding, index) => (
-              <li key={`${finding.key}:${index}`} className="flex flex-col items-start gap-1 px-2 py-1.5">
+              <li key={`${finding.key}:${index}`} className="flex flex-col items-start gap-1 py-1.5">
                 <span className="w-full truncate font-mono text-[11px] text-ink-2">{describePlace(view, finding.place)}</span>
                 <span className="text-[13px] leading-snug text-ink-2">{finding.message}</span>
                 <button
@@ -179,7 +140,12 @@ export default function CheckPanel() {
 function MarksSwitch() {
   const { shown, show } = useMarks()
   return (
-    <div role="group" aria-label="Notes on the page" className="review-switch self-start">
+    // On the white sheet the switch's own white track wouldn't show, so it's grey here.
+    <div
+      role="group"
+      aria-label="Notes on the page"
+      className="review-switch self-start bg-fill shadow-[inset_0_0_0_1px_var(--color-fill-line)]"
+    >
       <button type="button" aria-pressed={shown === "checks"} onClick={() => show("checks")}>
         ATS checks
       </button>
@@ -206,11 +172,11 @@ function useShownFixes(report: Report, checking: ReadonlyMap<CategoryId, unknown
 }
 
 /**
- * The categories with something to fix or review. One being checked again
- * stays if it had findings when last checked, rather than going while its
- * PDF or grammar findings wait to be found again.
+ * The categories shown with something to fix or review. One being checked
+ * again keeps its findings' line if it had findings when last checked, rather
+ * than ticking while its PDF or grammar findings wait to be found again.
  */
-function useShownCategories(findings: readonly Finding[], checking: ReadonlyMap<CategoryId, unknown>): Category[] {
+function useCategoriesWithFindings(findings: readonly Finding[], checking: ReadonlyMap<CategoryId, unknown>): ReadonlySet<CategoryId> {
   const found = new Set(findings.map((finding) => finding.category))
   const had = useRef(new Set<CategoryId>())
   useEffect(() => {
@@ -220,13 +186,12 @@ function useShownCategories(findings: readonly Finding[], checking: ReadonlyMap<
       else had.current.delete(id)
     }
   })
-  return CATEGORIES.filter(({ id }) => found.has(id) || (checking.has(id) && had.current.has(id)))
+  return new Set(CATEGORIES.filter(({ id }) => found.has(id) || (checking.has(id) && had.current.has(id))).map(({ id }) => id))
 }
 
 /**
  * The resume score as a big number, a word for how it reads, a scale with
- * where each word starts, in a line what it measures, and whether a must-fix
- * is holding it down. A perfect score's number glows
+ * where each word starts, and whether a must-fix is holding it down. A perfect score's number glows
  * (`[data-perfect] .score-number` in styles/editor.css).
  */
 function ScoreHeader({
@@ -245,7 +210,7 @@ function ScoreHeader({
   const scored = typeof total === "number"
   const band = scored ? bandOf(total) : null
   return (
-    <section aria-labelledby={id} data-perfect={total === 100 || undefined} className="flex flex-col px-2">
+    <section aria-labelledby={id} data-perfect={total === 100 || undefined} className="flex flex-col">
       <h2 id={id} className="label-mono text-ink-2">
         ATS score
       </h2>
@@ -289,10 +254,9 @@ function ScoreHeader({
         {band && <p className="ml-auto font-serif text-2xl italic leading-none tracking-[-0.01em] text-accent">{band.name}</p>}
       </div>
       <ScoreScale total={total} />
-      <p className="mt-3 text-[13px] leading-relaxed text-ink-2">How well this resume follows the checks below.</p>
       {mustFix && (
-        <p className="bg-hatch mt-3 flex items-start gap-2 rounded-panel border border-rule bg-sheet px-4 py-3 text-[13px] leading-snug text-ink">
-          <Lock className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <p className="mt-3.5 flex items-start gap-2 text-balance text-[13px] leading-snug text-ink">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {/* The count follows the cap (`shownFixes`); the wording without one is only a fallback. */}
           {fixes > 0
             ? `Capped at ${mustFixMax(fixes)} until you fix ${fixes === 1 ? "1 item" : `${fixes} items`}.`
@@ -365,20 +329,77 @@ function Odometer({ value }: { value: number }) {
 }
 
 /**
- * One category with something to fix or review, in a box of its own: its
- * icon, a count of each level, its points, and, opened, what it checks and
- * its findings (fixes first). It's open until folded, and slides open and shut.
+ * Every category, numbered in order like a book's contents: its name, dotted
+ * leaders to its points, and how it stands, which is a tick once it's passed,
+ * a spinner while it's checked again, or what it found, under its line.
  */
-function CategoryRow({
+function CheckIndex({
+  view,
+  findings,
+  withFindings,
+  checking,
+  scores,
+}: {
+  view: ResumeView
+  findings: readonly Finding[]
+  /** The categories shown with what they found (`useCategoriesWithFindings`). */
+  withFindings: ReadonlySet<CategoryId>
+  /** What each category being checked is waiting on. */
+  checking: ReadonlyMap<CategoryId, Rule["reads"]>
+  /** Each category's points as shown, in CATEGORIES' order; null until it's been checked once. */
+  scores: readonly (CategoryScore | null)[]
+}) {
+  const id = useId()
+  const clear = CATEGORIES.filter((category) => !withFindings.has(category.id)).length
+  return (
+    <section aria-labelledby={id} className="flex flex-col">
+      <div className="flex items-baseline justify-between border-b border-ink pb-2">
+        <h2 id={id} className="label-mono text-ink-2">
+          Checks
+        </h2>
+        <p className="label-mono text-ink-2">
+          {clear} of {CATEGORIES.length} clear
+        </p>
+      </div>
+      <ol>
+        {CATEGORIES.map((category, index) => (
+          <CheckRow
+            key={category.id}
+            number={index + 1}
+            category={category}
+            view={view}
+            findings={withFindings.has(category.id) ? findings.filter((finding) => finding.category === category.id) : null}
+            checking={checking.get(category.id)}
+            score={scores[index]}
+          />
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+// How each tier is counted in a category's name for screen readers, as "2 to fix, 1 optional".
+const TIER_COUNTS: Record<Tier, string> = { fix: "to fix", look: "to review", optional: "optional" }
+
+const TIER_ORDER: readonly Tier[] = ["fix", "look", "optional"]
+
+/**
+ * One category's line in the index. One with findings is a button that folds
+ * them away under it, sliding open and shut; it starts open.
+ */
+function CheckRow({
+  number,
   category,
   view,
   findings,
   checking,
   score,
 }: {
+  number: number
   category: Category
   view: ResumeView
-  findings: Finding[]
+  /** What it found; null when it's shown as passed. */
+  findings: Finding[] | null
   /** What it's waiting on, while some of its rules are still being checked. */
   checking: Rule["reads"] | undefined
   /** Its points as shown; null until it has been checked once. */
@@ -386,71 +407,76 @@ function CategoryRow({
 }) {
   const id = useId()
   const [open, setOpen] = useState(true)
-  // Its findings by tier, the ones that count most first.
-  const tiers = (["fix", "look", "optional"] as const)
-    .map((tier) => ({ tier, found: findings.filter((finding) => tierOf(finding) === tier) }))
-    .filter(({ found }) => found.length > 0)
-  const counts = tiers.map(({ tier, found }) => `${found.length} ${TIER_COUNTS[tier]}`).join(", ")
+  const counted = score?.applies && score.points > 0
+  const points = counted ? `${wholePoints(score.earned)} of ${score.points} points` : null
+  const line = "grid w-full grid-cols-[22px_1fr_auto] items-baseline gap-x-1.5 py-2.5 text-left"
+  const content = (
+    <>
+      <span aria-hidden="true" className="font-mono text-[11px] tabular-nums text-ink-3">
+        {String(number).padStart(2, "0")}
+      </span>
+      {/* The dots follow the name's last line (`.check-leader` in styles/editor.css). */}
+      <span className="check-leader">
+        <span>{category.name}</span>
+      </span>
+      <span aria-hidden="true" className="flex items-center gap-1.5 self-center">
+        {checking ? (
+          <LoaderCircle className="h-3.5 w-3.5 animate-spin text-ink-2 motion-reduce:animate-none" />
+        ) : findings ? (
+          <ChevronDown
+            className={`h-3.5 w-3.5 text-ink-2 transition-transform duration-300 ease-out group-hover:text-ink motion-reduce:transition-none ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        ) : (
+          <Check className="h-3.5 w-3.5 text-ink" strokeWidth={2.25} />
+        )}
+        {/* As wide as "30/30" even when shorter or empty, so the ticks line up. */}
+        <span className="min-w-[5ch] whitespace-nowrap text-right font-mono text-[12px] tabular-nums text-ink">
+          {counted && (
+            <>
+              {wholePoints(score.earned)}
+              <span className="text-ink-3">/{score.points}</span>
+            </>
+          )}
+        </span>
+      </span>
+    </>
+  )
+
+  if (!findings) {
+    return (
+      <li title={category.about} className={`${line} border-b border-hairline text-sm text-ink-2`}>
+        {content}
+        <span className="sr-only">{[checking ? "Checking" : "Passed", points].filter(Boolean).join(", ")}</span>
+      </li>
+    )
+  }
+
+  // Its findings, the ones that count most first.
+  const sorted = TIER_ORDER.flatMap((tier) => findings.filter((finding) => tierOf(finding) === tier))
+  const counts = TIER_ORDER.map((tier) => [tier, findings.filter((finding) => tierOf(finding) === tier).length] as const)
+    .filter(([, count]) => count > 0)
+    .map(([tier, count]) => `${count} ${TIER_COUNTS[tier]}`)
+    .join(", ")
   // Where it stands, in a few words. While its rules wait on the PDF or the
   // text, it says so instead of a count.
   const status = checking === "pdf" ? "Reading the PDF…" : checking ? "Checking…" : counts
-  const Icon = ICONS[category.id]
-
   return (
-    // Frosted glass with a lit rim and a soft shadow (.check-box in editor.css), so each box stands
-    // apart. Clipped to its corners, so its buttons' focus outlines are drawn inside them.
-    <section aria-labelledby={`${id}-name`} className="check-box glass flex flex-col overflow-hidden rounded-panel">
-      <h2>
+    <li className="border-b border-hairline">
+      <h3>
         <button
           type="button"
           aria-expanded={open}
           aria-controls={`${id}-body`}
-          aria-label={`${category.name}, ${status}`}
+          aria-label={[category.name, status, points].filter(Boolean).join(", ")}
+          title={category.about}
           onClick={() => setOpen(!open)}
-          className="flex w-full items-start gap-2.5 px-3.5 pb-2 pt-3.5 text-left transition-colors hover:bg-ink/[0.02] focus-visible:outline-offset-[-2px]"
+          className={`${line} group text-sm font-medium text-ink focus-visible:outline-offset-[-2px]`}
         >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink" aria-hidden="true">
-            {checking ? (
-              <LoaderCircle className="h-4 w-4 animate-spin text-ink-2 motion-reduce:animate-none" />
-            ) : (
-              <Icon className="h-4 w-4" strokeWidth={1.75} />
-            )}
-          </span>
-          <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <span id={`${id}-name`} className="text-sm font-medium leading-snug text-ink">
-              {category.name}
-            </span>
-            {checking ? (
-              <span className="text-[12px] leading-snug text-ink-2">{status}</span>
-            ) : (
-              <span className="flex flex-wrap gap-1.5">
-                {tiers.map(({ tier, found }) => (
-                  <span key={tier} className={levelPill(tier)}>
-                    {found.length} {TIER_COUNTS[tier]}
-                  </span>
-                ))}
-              </span>
-            )}
-          </span>
-          {/* Its points, big, so each box reads by its number. Said by the meter below. */}
-          {score?.applies && (
-            <span aria-hidden="true" className="shrink-0 self-center whitespace-nowrap tabular-nums">
-              <span className="font-serif text-[28px] leading-none tracking-[-0.03em] text-ink">{wholePoints(score.earned)}</span>
-              <span className="font-mono text-[11px] text-ink-2">/{score.points}</span>
-            </span>
-          )}
-          <ChevronDown
-            className={`mt-1.5 h-4 w-4 shrink-0 text-ink-2 transition-transform duration-300 ease-out motion-reduce:transition-none ${
-              open ? "rotate-180" : ""
-            }`}
-            aria-hidden="true"
-          />
+          {content}
         </button>
-      </h2>
-      <div className="pb-3.5 pl-[52px] pr-3.5">
-        <Points name={category.name} score={score} checking={Boolean(checking)} />
-      </div>
-
+      </h3>
       {/* Slides by its grid row. Once it starts to shut, inert keeps the keyboard
           out of what's sliding away; once shut, visibility (which changes at the
           end of its transition) hides it from view too. */}
@@ -462,99 +488,53 @@ function CategoryRow({
         }`}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="flex flex-col border-t border-rule">
-            <p className="px-3.5 pt-2.5 text-[12px] leading-snug text-ink-2">{category.about}</p>
-            {tiers.map(({ tier, found }) => (
-              <Group key={tier} tier={tier} title={`${TIER_NAMES[tier]} · ${found.length}`}>
-                {found.map((finding, index) => (
-                  <FindingItem key={`${finding.key}:${index}`} finding={finding} view={view} />
-                ))}
-              </Group>
+          <ul className="flex flex-col pb-1.5 pl-7">
+            {sorted.map((finding, index) => (
+              <FindingItem key={`${finding.key}:${index}`} finding={finding} view={view} />
             ))}
-          </div>
+          </ul>
         </div>
       </div>
-    </section>
+    </li>
   )
 }
 
-/** A category's points, as a bar; the number is in its box's header. */
-function Points({ name, score, checking }: { name: string; score: CategoryScore | null; checking: boolean }) {
-  // Not checked yet: the count says it's being checked.
-  if (!score?.applies) return null
-  const earned = wholePoints(score.earned)
-  return (
-    <div className="flex items-center gap-2">
-      <div
-        role="meter"
-        aria-label={`${name}, points`}
-        aria-valuemin={0}
-        aria-valuemax={score.points}
-        aria-valuenow={earned}
-        aria-valuetext={`${earned} of ${score.points} points`}
-        className="h-1 flex-1 overflow-hidden rounded-full bg-rule"
-      >
-        <div
-          className={`h-full rounded-full transition-[width,background-color] duration-500 ease-out motion-reduce:transition-none ${
-            checking ? "bg-ink-2" : "bg-accent"
-          }`}
-          style={{ width: `${(100 * score.earned) / score.points}%` }}
-        />
-      </div>
-    </div>
-  )
-}
-
-/** Some of a category's findings, of one tier, under a small title with the tier's colored dot, as rows across its box. */
-function Group({ tier, title, children }: { tier: Tier; title: string; children: React.ReactNode }) {
-  const id = useId()
-  return (
-    <section aria-labelledby={id} className="flex flex-col">
-      <h3 id={id} className="label-mono flex items-center gap-2 px-3.5 pb-1.5 pt-3 text-ink-2">
-        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${TIER_BG[tier]}`} />
-        {title}
-      </h3>
-      <ul className="flex flex-col">{children}</ul>
-    </section>
-  )
-}
-
-// How each tier is counted in a category's summary, as "2 to fix, 1 optional".
-const TIER_COUNTS: Record<Tier, string> = { fix: "to fix", look: "to review", optional: "optional" }
-
-// The line down a finding's left side, in its tier's color.
-const TIER_LINE: Record<Tier, string> = {
-  fix: "shadow-[inset_3px_0_0_var(--color-alert)]",
-  look: "shadow-[inset_3px_0_0_var(--color-caution)]",
-  optional: "shadow-[inset_3px_0_0_var(--color-accent)]",
-}
+// A place's number stays with its word when the place wraps: "bullet 4", "Page 2".
+const keepNumbers = (place: string) => place.replace(/ (?=\d)/g, " ")
 
 /**
- * A finding, as a row in its category's box: it opens its field, and a
- * suggestion can be dismissed. A line down its left side is its tier's color.
+ * A finding, under its category's line, with its tier's dot: it opens its
+ * field, and a suggestion can be dismissed.
  */
 function FindingItem({ finding, view }: { finding: Finding; view: ResumeView }) {
   const { open, dismiss, addWord } = useCheckActions()
   // Pointing at it shows its mark's note on the preview.
   const point = usePointAt(checkKeyOf(finding))
+  const tier = tierOf(finding)
+  const tierName = useId()
   return (
-    // Pointing at the finding shades the whole row, its actions too.
-    <li
-      {...point}
-      className={`flex flex-col border-t border-rule transition-colors has-[>button:first-child:hover]:bg-ink/[0.02] ${TIER_LINE[tierOf(finding)]}`}
-    >
+    <li {...point} className="flex flex-col items-start gap-1.5 border-t border-dashed border-hairline py-2.5 first:border-t-0">
       <button
         type="button"
         onClick={() => open(finding)}
         onFocus={point.onMouseEnter}
         onBlur={point.onMouseLeave}
-        className="flex flex-col items-start gap-1 px-3.5 py-2.5 text-left focus-visible:outline-offset-[-2px]"
+        aria-describedby={tierName}
+        className="group flex flex-col items-start gap-0.5 text-left focus-visible:outline-offset-2"
       >
-        <span className="w-full truncate font-mono text-[11px] text-ink-2">{describePlace(view, finding.place)}</span>
-        <span className="text-sm leading-snug text-ink">{finding.message}</span>
+        <span className="-ml-[15px] flex items-baseline gap-2 font-mono text-[11px] leading-snug text-ink-2">
+          <span aria-hidden="true" className={`h-[7px] w-[7px] shrink-0 -translate-y-px rounded-full ${TIER_BG[tier]}`} />
+          {keepNumbers(describePlace(view, finding.place))}
+        </span>
+        <span className="text-sm leading-snug text-ink decoration-rule underline-offset-[3px] group-hover:underline">
+          {finding.message}
+        </span>
       </button>
+      <span id={tierName} hidden>
+        {TIER_NAMES[tier]}
+      </span>
       {(finding.level === "look" || finding.rule === TYPO_RULE) && (
-        <div className="-mt-0.5 flex gap-1.5 px-3.5 pb-3">
+        <div className="flex gap-3">
           {finding.rule === TYPO_RULE && (
             <button type="button" onClick={() => addWord(finding.text)} aria-label={`Add word “${finding.text}”`} className={action}>
               Add word
@@ -575,9 +555,7 @@ function FindingItem({ finding, view }: { finding: Finding; view: ResumeView }) 
 function Folded({ summary, children }: { summary: string; children: React.ReactNode }) {
   return (
     <details>
-      <summary className="label-mono cursor-pointer select-none rounded-full px-2 py-1 text-ink-2 transition-colors hover:text-ink">
-        {summary}
-      </summary>
+      <summary className="label-mono cursor-pointer select-none py-1 text-ink-2 transition-colors hover:text-ink">{summary}</summary>
       <div className="pt-1">{children}</div>
     </details>
   )
