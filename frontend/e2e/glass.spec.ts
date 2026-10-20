@@ -1,4 +1,7 @@
 import { expect, test, type Locator, type Page } from "./test"
+import { textPdf } from "../src/lib/import/testFiles"
+import { openFile } from "./helpers"
+import { FROM_ELSEWHERE } from "./resumes"
 
 /** How many elements, with their ::before and ::after, draw a backdrop filter. */
 const blurred = (page: Page) =>
@@ -95,4 +98,33 @@ test("the review page's frosted sheet and fog are in no block that fades in, and
   expect(await fadesFromMain(headline)).toContain("page-in")
   // Its button is solid white glass, with nothing behind it showing through.
   expect(await frostedInAFade(page)).toEqual(["Review my resume"])
+})
+
+/** What a frame of frosted glass draws under its rim, on its ::before. */
+const frostOf = (frame: Locator) =>
+  frame.evaluate((element) => {
+    const { backgroundColor, backdropFilter } = getComputedStyle(element, "::before")
+    return { backgroundColor, backdropFilter }
+  })
+
+test("asked for less transparency, the review page's frame is as solid as the dashboard's", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium", "Playwright can't ask a browser for less transparency; Chromium's DevTools protocol can")
+  const session = await page.context().newCDPSession(page)
+  await session.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-transparency", value: "reduce" }] })
+
+  await page.goto("/create/dashboard")
+  const sheet = await frostOf(page.getByRole("main").locator("xpath=.."))
+  expect(sheet).toEqual({ backgroundColor: "rgba(255, 255, 255, 0.78)", backdropFilter: "none" })
+
+  // With the AI's notes, so the frame's head has its switch to find it by.
+  await page.route("**/api/review", (route) => route.fulfill({ json: { notes: [] } }))
+  await page.goto("/review")
+  await openFile(page.getByRole("button", { name: "Review my resume" }), {
+    name: "Mara Lin.pdf",
+    mimeType: "application/pdf",
+    buffer: textPdf([FROM_ELSEWHERE]),
+  })
+  const frame = page.getByRole("group", { name: "Notes on the page" }).locator("xpath=../..")
+  await expect(frame).toBeVisible({ timeout: 90_000 })
+  expect(await frostOf(frame)).toEqual(sheet)
 })

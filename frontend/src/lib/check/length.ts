@@ -1,13 +1,12 @@
 // Length & layout (L1–L5 in issue #58): how the preview PDF fills its pages,
 // and how each bullet wraps.
 
+import { count } from "@/lib/count"
 import { yearsOfWork } from "./career"
 import type { PdfReading, Rule } from "./engine"
 import { printedLayoutBullets } from "./pdf"
 import type { ResumeView } from "./resume"
 import { LONG_BULLET_LINES, MIN_PAGE_FULL, SHORT_LAST_LINE, SPILL_LINES, TWO_PAGE_YEARS } from "./settings"
-
-const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`
 
 // L3 and L4 read the same bullets' layout, so it's worked out once for each
 // reading of the PDF and the resume it's of.
@@ -34,10 +33,10 @@ const pages: Rule = {
   check: ({ resume, pdf, today }) => {
     // An academic CV runs as long as it needs to.
     if (resume.type === "academic") return null
-    const count = pdf.pages.length
+    const pageCount = pdf.pages.length
     const years = yearsOfWork(resume, today)
     const allowed = years >= TWO_PAGE_YEARS ? 2 : 1
-    if (count <= allowed) return { checked: 1, problems: [] }
+    if (pageCount <= allowed) return { checked: 1, problems: [] }
     // Whole years, rounded down, so 9.8 years doesn't read as the 10 that would allow two pages.
     const worked = Math.floor(years)
     return {
@@ -47,15 +46,15 @@ const pages: Rule = {
           place: { kind: "page", page: allowed + 1 },
           message:
             allowed === 2
-              ? `${plural(count, "page")}; 2 at most`
+              ? `${count(pageCount, "page")}; 2 at most`
               : worked > 0
-                ? `${plural(count, "page")} for ${plural(worked, "year")} of work`
-                : plural(count, "page"),
+                ? `${count(pageCount, "page")} for ${count(worked, "year")} of work`
+                : count(pageCount, "page"),
           // The page count, and what's allowed once that's two, so a dismissal
           // ends if the resume grows a page or the work reaches 10 years. One
           // page allowed keeps the text it always had, so dismissals saved
           // before two pages were allowed still hold.
-          text: allowed === 1 ? plural(count, "page") : `${plural(count, "page")} of 2`,
+          text: allowed === 1 ? count(pageCount, "page") : `${count(pageCount, "page")} of 2`,
           suggestion: allowed === 1 ? "Cut what matters least to fit one page." : "Cut what matters least to fit two pages.",
         },
       ],
@@ -81,7 +80,7 @@ const spill: Rule = {
           ? [
               {
                 place: { kind: "page", page: last },
-                message: `Only ${plural(lines, "line")} on page ${last}`,
+                message: `Only ${count(lines, "line")} on page ${last}`,
                 suggestion: "Trim a little so it ends a page sooner, or fill out the last page.",
               },
             ]

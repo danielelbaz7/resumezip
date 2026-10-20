@@ -4,10 +4,11 @@ import type { PDFDocumentProxy, PDFWorker } from "pdfjs-dist"
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ClipboardEvent } from "react"
 // react-pdf's styles are in the page's first download, though its code isn't
 // (see below). Next loads a later chunk's CSS as a React stylesheet resource,
-// and React suspends renders until it's in: what was typed into the form
-// meanwhile was lost, as React reset each field to the value it last rendered.
+// and React suspends renders until it's in, so what's typed into the form
+// meanwhile would be lost: React resets each field to the value it last rendered.
 import "react-pdf/dist/esm/Page/AnnotationLayer.css"
 import "react-pdf/dist/esm/Page/TextLayer.css"
+import { PDFJS_WORKER_URL } from "@/lib/pdfjsWorker"
 import { compilerStatus, onCompilerStatus } from "@/lib/typst/compile"
 import { scrollerOf, uncovered } from "./layout"
 import PrintingPage from "./PrintingPage"
@@ -15,11 +16,6 @@ import { OPEN_NAME } from "@/components/dashboard/viewSwitch"
 import { PreviewMarks } from "./MarksContext"
 
 type ReactPdf = typeof import("./reactPdf")
-
-// The worker is bundled with the app, like the one lib/import/open.ts uses.
-// pdfjs-dist is pinned to react-pdf's version so both share one copy and the
-// worker matches the library. reactPdf.ts points pdf.js at the same file.
-const WORKER_URL = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString()
 
 // Every preview is loaded in one pdf.js worker, started with the first. Given
 // none, pdf.js starts a worker for each PDF, which loads its script again, and
@@ -37,7 +33,7 @@ let workerFetched = false
 function fetchWorker() {
   if (workerFetched) return
   workerFetched = true
-  fetch(WORKER_URL)
+  fetch(PDFJS_WORKER_URL)
     .then((response) => response.arrayBuffer())
     .catch(() => {})
 }
@@ -84,11 +80,11 @@ const MAX_LIT = 6
 interface PdfPreviewProps {
   /** Object URL of the latest compiled PDF. */
   pdfUrl: string | null
-  error?: string | null
+  error: string | null
   /** A new PDF is being built in another template, so the one on screen is out of date. */
-  updating?: boolean
+  updating: boolean
   /** The template `pdfUrl` is printed in. */
-  template?: string | null
+  template: string | null
 }
 
 /**
@@ -112,7 +108,7 @@ interface HeldAnchor {
   box: DOMRect
 }
 
-function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPreviewProps) {
+function PdfPreview({ pdfUrl, error, updating, template }: PdfPreviewProps) {
   const [drawings, setDrawings] = useState<Drawing[]>([])
   const [zoom, setZoom] = useState(1)
   // Catches up with the zoom once it settles. Until then, the pages on screen
@@ -363,15 +359,15 @@ function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPre
       if (!layer?.querySelector(":scope > .endOfContent") || pages.has(page)) return
       // Runs of text, not the empty spans pdf.js wraps some of them in.
       const runs = [...layer.querySelectorAll<HTMLElement>("span")].filter(
-        (span) => span.childElementCount === 0 && span.textContent?.trim(),
+        (span) => span.childElementCount === 0 && span.textContent.trim(),
       )
       pages.set(
         page,
-        runs.map((run) => run.textContent ?? ""),
+        runs.map((run) => run.textContent),
       )
       if (beforeRef.current?.template !== template) return
       const changed = runs.filter((run) => {
-        const text = run.textContent ?? ""
+        const text = run.textContent
         const left = unmatched.get(text) ?? 0
         if (left > 0) unmatched.set(text, left - 1)
         return left === 0
@@ -511,7 +507,7 @@ function PdfPreview({ pdfUrl, error, updating = false, template = null }: PdfPre
       {error && (
         <p
           role="status"
-          className="border-t border-rule px-5 py-2 text-xs text-[#b42318] md:px-8 xl:absolute xl:left-1/2 xl:top-9 xl:w-max xl:max-w-[90%] xl:-translate-x-1/2 xl:rounded-full xl:border-0 xl:bg-sheet xl:px-4 xl:shadow-[0_8px_24px_-12px_rgba(17,19,24,0.35)]"
+          className="border-t border-rule px-5 py-2 text-xs text-alert md:px-8 xl:absolute xl:left-1/2 xl:top-9 xl:w-max xl:max-w-[90%] xl:-translate-x-1/2 xl:rounded-full xl:border-0 xl:bg-sheet xl:px-4 xl:shadow-[0_8px_24px_-12px_rgba(17,19,24,0.35)]"
         >
           Couldn&apos;t update the preview: {error}
         </p>
@@ -559,7 +555,7 @@ function copyPlainText(event: ClipboardEvent, pdfjs: ReactPdf["pdfjs"]) {
  * A zoom within the limits. `from`, the zoom it changes from, can be below
  * MIN_ZOOM after Fit: zooming out from there stays put rather than jumping up to MIN_ZOOM.
  */
-function clampZoom(zoom: number, from = MIN_ZOOM) {
+function clampZoom(zoom: number, from: number) {
   return Math.min(Math.max(zoom, Math.min(MIN_ZOOM, from)), MAX_ZOOM)
 }
 

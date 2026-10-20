@@ -38,15 +38,13 @@ interface PaperFromLinkProps {
   owner: () => string
   /** Adds papers as new entries. `show` brings the first into view. */
   onAdd: (papers: Partial<PublicationFields>[], show: boolean) => void
-  /** The section's own add button, shown first, where it has no tabs to be at the end of. */
-  children?: React.ReactNode
 }
 
 /**
  * Adds publications from their DOIs or links, one per line. Each paper is
  * looked up in turn, and only its DOI leaves the browser.
  */
-export default function PaperFromLink({ entries, owner, onAdd, children }: PaperFromLinkProps) {
+export default function PaperFromLink({ entries, owner, onAdd }: PaperFromLinkProps) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState("")
   const [progress, setProgress] = useState<{ at: number; of: number } | null>(null)
@@ -195,20 +193,17 @@ export default function PaperFromLink({ entries, owner, onAdd, children }: Paper
 
   return (
     <div className="flex flex-col">
-      <div className="flex flex-wrap gap-3">
-        {children}
-        <button
-          ref={toggle}
-          type="button"
-          onClick={open ? close : show}
-          aria-expanded={open}
-          aria-controls={open ? panelId : undefined}
-          className={sheetPill("white", "h-10 px-4 text-[14px] font-medium")}
-        >
-          <Link2 aria-hidden="true" />
-          Add from DOI or link
-        </button>
-      </div>
+      <button
+        ref={toggle}
+        type="button"
+        onClick={open ? close : show}
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        className={`${sheetPill("white", "h-10 px-4 text-[14px] font-medium")} self-start`}
+      >
+        <Link2 aria-hidden="true" />
+        Add from DOI or link
+      </button>
 
       {open && (
         <div id={panelId} className="mt-5 flex flex-col gap-3 border-t border-hairline pt-5" onKeyDown={onKeyDown}>
@@ -240,7 +235,7 @@ export default function PaperFromLink({ entries, owner, onAdd, children }: Paper
               {problems.map((problem, index) => (
                 <li
                   key={`${index}:${problem.line}`}
-                  className="flex flex-col gap-1 border-l-2 border-[#b42318] pl-3 text-[13px] leading-normal"
+                  className="flex flex-col gap-1 border-l-2 border-alert pl-3 text-[13px] leading-normal"
                 >
                   <span className="break-all font-mono text-ink">{problem.line}</span>
                   <span className="text-ink-2">{MESSAGES[problem.reason]}</span>
@@ -257,12 +252,11 @@ export default function PaperFromLink({ entries, owner, onAdd, children }: Paper
           )}
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {/* One button that turns into Stop, so it keeps the keyboard's focus. */}
+            {/* One button that turns into Stop, so it keeps the keyboard's focus. A click
+                focuses it too, as Safari doesn't focus a button that's clicked. */}
             <button
               type="button"
               onClick={(event) => {
-                // Safari does not focus buttons on pointer clicks. Keep focus
-                // on this action as it changes between Add papers and Stop.
                 event.currentTarget.focus({ preventScroll: true })
                 if (progress) stopper.current?.abort()
                 else void run()

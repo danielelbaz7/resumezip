@@ -2,7 +2,7 @@ import type { TemplateId } from "@/lib/templates"
 
 // What each template's page says about it. Each is written for its template,
 // from how its picture looks: pages that differ by a name read as copies to
-// search engines. Keep every line true of the template's .typ file.
+// search engines. Every line has to stay true of the template's .typ file.
 
 interface TemplateAbout {
   /** For search results: what it is and what you get, under about 160 characters. */

@@ -9,11 +9,12 @@
 
 import { PROFILE_FIELDS, SECTION_NAMES, SECTIONS } from "@/components/editor/sections"
 import { CHECK_FIELD, readCheckState } from "@/lib/check/state"
+import { isObject } from "@/lib/isObject"
 import { isLeftOut, printedResume } from "@/lib/leftOut"
 import { cleanTag, type Entry, type Headings, type Profile, type Resume, type ResumeContent } from "@/lib/resume"
 import { templateById } from "@/lib/templates"
 import { readTune } from "@/lib/tune"
-import { extraKey, readExtraSections, resolveSections } from "./resumeSections"
+import { isSectionRef, readExtraSections, resolveSections } from "./resumeSections"
 
 export const ATTACHMENT_NAME = "resumezip.json"
 /** Where a Word file keeps its text, and its document's relationships, which have the addresses its links go to. */
@@ -48,7 +49,11 @@ export const MAX_RESUMES = 1_000
 
 /** An attachment with more than MAX_LENGTH characters or MAX_ENTRIES entries, or a JSON file with more than MAX_RESUMES resumes. */
 export class TooLongError extends Error {}
-/** A recognized save file must never silently fall back to guessed PDF text. */
+/**
+ * A resumezip file that's damaged or from a newer version, so it isn't
+ * opened; the message says which. Reading its text instead, as for any other
+ * PDF or Word file, would quietly bring back less than was saved.
+ */
 export class AttachmentError extends Error {}
 
 /** What a file is called in the messages about it. */
@@ -160,24 +165,25 @@ function readFormat(
     if (recognized(text)) throw new TooLongError()
     return null
   }
-  let file
+  let parsed: unknown
   try {
-    file = JSON.parse(text)
+    parsed = JSON.parse(text)
   } catch {
     if (recognized(text)) throw damaged(noun)
     return null
   }
-  if (file?.format !== FORMAT) return null
-  if (file.version !== 1 && file.version !== VERSION)
+  const file = object(parsed)
+  if (file.format !== FORMAT) return null
+  const { version } = file
+  if (version !== 1 && version !== VERSION)
     throw new AttachmentError(`This ${noun} needs a newer resumezip. Refresh the app and try again, or open it with a newer version.`)
-  return file
+  return { ...file, version }
 }
 
 /** A resume in a file of the given version, checked and cleaned. */
-function readContent(version: 1 | 2, saved: unknown, noun: FileNoun): ResumeContent {
-  if (!saved || typeof saved !== "object" || Array.isArray(saved)) throw damaged(noun)
-  if (entryCount(saved) > MAX_ENTRIES) throw new TooLongError()
-  const resume = saved as Record<string, unknown>
+function readContent(version: 1 | 2, resume: unknown, noun: FileNoun): ResumeContent {
+  if (!isObject(resume)) throw damaged(noun)
+  if (entryCount(resume) > MAX_ENTRIES) throw new TooLongError()
   if (version === 1) {
     const { extraSections, ...legacy } = resume
     return cleanResume(legacy)
@@ -186,25 +192,17 @@ function readContent(version: 1 | 2, saved: unknown, noun: FileNoun): ResumeCont
   if (!decoded.complete) throw new AttachmentError(`The sections in this ${noun} are damaged. Try another saved ${noun}.`)
   if (
     resume.sectionOrder !== undefined &&
-    (!Array.isArray(resume.sectionOrder) ||
-      resume.sectionOrder.some(
-        (ref: unknown) =>
-          typeof ref !== "string" ||
-          (extraKey(ref) === null
-            ? !SECTION_NAMES.includes(ref as (typeof SECTION_NAMES)[number])
-            : !Object.hasOwn(decoded.sections, extraKey(ref)!)),
-      ))
+    (!Array.isArray(resume.sectionOrder) || resume.sectionOrder.some((ref: unknown) => !isSectionRef(ref, decoded.sections)))
   )
     throw new AttachmentError(`The section order in this ${noun} is damaged. Try another saved ${noun}.`)
   return cleanResume({ ...resume, extraSections: decoded.sections })
 }
 
-const object = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+const object = (value: unknown): Record<string, unknown> => (isObject(value) ? value : {})
 
 const string = (value: unknown) => (typeof value === "string" ? value : "")
 
-/** How many entries a resume's sections have together. */
+/** How many entries a resume's sections have together, each section the person added counting as one. */
 const entryCount = (resume: unknown) => {
   const extras = object(object(resume).extraSections)
   return (
@@ -271,13 +269,9 @@ export function cleanResume(input: unknown): ResumeContent {
   if (typeof resume.updatedAt === "string" && !Number.isNaN(Date.parse(resume.updatedAt))) {
     clean.updatedAt = resume.updatedAt
   }
-  if (resume.extraSections !== undefined) {
-    const decoded = readExtraSections(resume.extraSections)
-    if (!decoded.complete) throw new AttachmentError("The sections in this PDF are damaged. Try another saved PDF.")
-    clean.extraSections = decoded.sections
-  }
-  // The saved order's known sections, then the core ones it lacks and any optional one with entries.
-  // That's then only the sections it shows, so it's marked as chosen (see Resume.sectionsChosen).
+  if (resume.extraSections !== undefined) clean.extraSections = readExtraSections(resume.extraSections).sections
+  // The sections it shows, in order (see resolveSections). That's then only the
+  // sections it has, not every one, so it's marked as chosen (see Resume.sectionsChosen).
   clean.sectionOrder = resolveSections({ ...clean, sectionOrder: resume.sectionOrder, sectionsChosen: resume.sectionsChosen })
   clean.sectionsChosen = true
   return clean

@@ -3,7 +3,7 @@
 // PDF's pages. Also how a finding is told apart from others, for dismissing it.
 
 import { PROFILE_FIELDS, SECTIONS, type FieldKey, type FieldKeyOf, type ProfileKey, type SectionName } from "@/components/editor/sections"
-import { entryAt, type ResumeView } from "./resume"
+import { entryAt, type Entry, type ResumeView } from "./resume"
 
 export type Place =
   // A profile field, like "email".
@@ -19,6 +19,8 @@ export type Place =
   | { kind: "extra-text"; sectionId: string; field: "text" | "bullets"; line?: number }
   // The PDF as a whole, or one of its pages (from 1).
   | { kind: "page"; page?: number }
+
+export const entryPlace = (entry: Entry, field?: FieldKey): Place => ({ kind: "entry", section: entry.section, entry: entry.index, field })
 
 /** The field a place is in: a profile field, or one of an entry's. */
 export const fieldOf = (place: Place) =>
@@ -147,9 +149,9 @@ function fingerprint(text: string): string {
   return (hash >>> 0).toString(36)
 }
 
-/** Identifies a place exactly, bullet line included: equal ids mean the same place. */
+/** Tells places apart as `pathOf` does, and bullets by their line too: equal ids mean the same place. */
 export const placeId = (place: Place) =>
-  place.kind === "entry" && place.line !== undefined ? `${pathOf(place)}.${place.line}` : pathOf(place)
+  (place.kind === "entry" || place.kind === "extra-text") && place.line !== undefined ? `${pathOf(place)}.${place.line}` : pathOf(place)
 
 /** What tells a finding apart: its rule, the field it's in, and the text it flagged. */
 export const findingKey = (rule: string, place: Place, text: string) => `${rule}|${pathOf(place)}|${fingerprint(text)}`

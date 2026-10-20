@@ -1,4 +1,5 @@
 import { expect, test } from "./test"
+import { saveResumes } from "./helpers"
 
 test("pages preload one file per font, with its Latin letters", async ({ page }) => {
   await page.goto("/")
@@ -9,14 +10,16 @@ test("pages preload one file per font, with its Latin letters", async ({ page })
 })
 
 test("a name with a letter that isn't preloaded still shows in the site's font", async ({ page }) => {
-  await page.addInitScript((resume) => localStorage.setItem(`resume:${resume.id}`, JSON.stringify(resume)), {
-    id: "polish",
-    resumeTitle: "Łukasz Kowalski",
-    resumeTag: "professional",
-    updatedAt: "2026-10-06T12:00:00.000Z",
-    selectedTemplate: "jake",
-    profileSection: { fullName: "Łukasz Kowalski" },
-  })
+  await saveResumes(page, [
+    {
+      id: "polish",
+      resumeTitle: "Łukasz Kowalski",
+      resumeTag: "professional",
+      updatedAt: "2026-10-06T12:00:00.000Z",
+      selectedTemplate: "jake",
+      profileSection: { fullName: "Łukasz Kowalski" },
+    },
+  ])
   await page.goto("/create/dashboard")
   await expect(page.getByRole("link", { name: "Łukasz Kowalski" })).toBeVisible()
 

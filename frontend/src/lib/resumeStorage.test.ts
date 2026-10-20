@@ -5,19 +5,16 @@ import {
   changedPaths,
   deleteKeptAside,
   EVERY_FIELD,
-  getStorage,
-  idOf,
   isKeptAside,
-  LEGACY_KEY,
   loadSaved,
   mergeResume,
   readKeptAside,
   readResume,
   removeResume,
-  RESUME_PREFIX,
   saveResume,
   UNREADABLE_PREFIX,
 } from "./resumeStorage"
+import { idOf, LEGACY_KEY, RESUME_PREFIX } from "./resumeKeys"
 
 const ada = { id: "a", resumeTitle: "Ada", profileSection: { fullName: "Ada Lovelace" } }
 const grace = { id: "g", resumeTitle: "Grace", profileSection: { fullName: "Grace Hopper" } }
@@ -27,7 +24,6 @@ const deniedError = () => new DOMException("Access is denied for this document."
 
 afterEach(() => {
   vi.restoreAllMocks()
-  vi.unstubAllGlobals()
 })
 
 describe("what the editor can show of a saved resume", () => {
@@ -48,6 +44,7 @@ describe("what the editor can show of a saved resume", () => {
     ["checker settings that aren't an object", "check", ["B1|a|b"]],
     ["a mark that the sections were chosen that isn't true", "sectionsChosen", "yes"],
     ["Fine-tune's settings that aren't an object", "tune", "small"],
+    ["a type that isn't text", "resumeTag", 3],
   ])("leaves out a field in a shape it can't show (%s)", (_, field, value) => {
     const { resume, complete } = readResume(JSON.stringify({ ...ada, [field]: value }))
     expect(complete).toBe(false)
@@ -135,26 +132,6 @@ describe("saved data that can't be read", () => {
 })
 
 describe("when the browser won't let the site save anything", () => {
-  test("getStorage gives null instead of throwing", () => {
-    vi.stubGlobal("window", {
-      get localStorage() {
-        throw deniedError()
-      },
-    })
-    expect(getStorage()).toBeNull()
-  })
-
-  test("getStorage gives null in browsers without localStorage", () => {
-    vi.stubGlobal("window", { localStorage: null })
-    expect(getStorage()).toBeNull()
-  })
-
-  test("getStorage gives localStorage when it can be used", () => {
-    const storage = memoryStorage()
-    vi.stubGlobal("window", { localStorage: storage })
-    expect(getStorage()).toBe(storage)
-  })
-
   test("there's no data kept aside to read or delete", () => {
     expect(readKeptAside(null)).toEqual([])
     expect(() => deleteKeptAside(null)).not.toThrow()

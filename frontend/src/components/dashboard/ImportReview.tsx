@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState, type RefObject } from "react"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import { ArrowLeftRight, Check, ChevronDown, CircleAlert, Copy, Download } from "lucide-react"
+import { reducedMotion } from "@/components/editor/layout"
 import { SECTIONS, type FieldKey, type FieldKeyOf, type SectionName } from "@/components/editor/sections"
+import { count } from "@/lib/count"
 import type { Line, PageSize } from "@/lib/import/lines"
 import type { OpenedFile } from "@/lib/import/open"
 import {
   entryKey,
-  extraGroupKey,
+  summaryKey,
   MUCH_UNPLACED,
   unplacedKey,
   toResumeContent,
@@ -18,6 +20,7 @@ import {
   type ParsedResume,
 } from "@/lib/import/parse"
 import type { ResumeContent } from "@/lib/resume"
+import { saveFile } from "@/lib/saveFile"
 import Modal from "./Modal"
 import { BLUE_PILL, TEXT_PILL, WHITE_PILL } from "@/components/pills"
 
@@ -30,7 +33,6 @@ interface ImportReviewProps {
 }
 
 const range = (start?: string, end?: string) => [start, end].filter(Boolean).join(" – ")
-const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`
 
 // How each kind of entry is summed up, and which two fields "Swap" exchanges.
 const SHOWN: {
@@ -89,7 +91,7 @@ const swapFields = (entry: FoundEntry, [a, b]: [FieldKey, FieldKey]): FoundEntry
   fields: { ...entry.fields, [a]: entry.fields[b], [b]: entry.fields[a] },
 })
 
-/** The parsed resume with the user's swaps applied. */
+/** The parsed resume with the person's swaps applied. */
 function withSwaps(parsed: ParsedResume, swapped: Set<string>): ParsedResume {
   return {
     ...parsed,
@@ -126,7 +128,7 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
   const leftovers = parsed.unplaced.reduce((sum, group) => sum + group.text.length, 0)
   // The lines of what's unticked above, which copying and downloading keep too.
   const unticked =
-    (parsed.extraGroups ?? []).filter((group) => skipped.has(extraGroupKey(group.id))).reduce((sum, group) => sum + group.text.length, 0) +
+    parsed.summaries.filter((summary) => skipped.has(summaryKey(summary.id))).reduce((sum, summary) => sum + summary.text.length, 0) +
     parsed.sections.reduce(
       (sum, section) =>
         sum +
@@ -135,14 +137,13 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
           .reduce((lines, entry) => lines + entry.lines.length, 0),
       0,
     )
-  const foundNothing = !profile.fullName && parsed.sections.length === 0 && !parsed.extraGroups?.length
-  const selectedGroups = (kind: "summary") =>
-    (parsed.extraGroups ?? []).filter((group) => group.kind === kind && !skipped.has(extraGroupKey(group.id)))
+  const foundNothing = !profile.fullName && parsed.sections.length === 0 && !parsed.summaries.length
+  const selectedSummaries = parsed.summaries.filter((summary) => !skipped.has(summaryKey(summary.id)))
   const reviewText = [
     ...parsed.unplaced.map((group) => [group.heading, ...group.text].join("\n")),
-    ...(parsed.extraGroups ?? [])
-      .filter((group) => skipped.has(extraGroupKey(group.id)))
-      .map((group) => [group.heading, ...group.text].join("\n")),
+    ...parsed.summaries
+      .filter((summary) => skipped.has(summaryKey(summary.id)))
+      .map((summary) => [summary.heading, ...summary.text].join("\n")),
     ...parsed.sections.flatMap((section) =>
       section.entries
         .filter((_, index) => skipped.has(entryKey(section.name, index)))
@@ -157,7 +158,7 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
   const muchUnplaced = !foundNothing && share >= MUCH_UNPLACED
   const entryKeys = parsed.sections.flatMap((section) => section.entries.map((_, index) => entryKey(section.name, index)))
   // Groups and text kept as sections are something to start from too.
-  const extrasKept = (parsed.extraGroups ?? []).some((group) => !skipped.has(extraGroupKey(group.id))) || Object.keys(keepAs).length > 0
+  const extrasKept = parsed.summaries.some((summary) => !skipped.has(summaryKey(summary.id))) || Object.keys(keepAs).length > 0
   // With every entry unticked, only the profile would be left to start from.
   const nothingTicked = entryKeys.length > 0 && entryKeys.every((key) => skipped.has(key)) && !extrasKept
 
@@ -182,8 +183,7 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
   })
 
   const showUnplaced = () => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    unplacedRef.current?.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" })
+    unplacedRef.current?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" })
     unplacedRef.current?.focus({ preventScroll: true })
   }
 
@@ -197,17 +197,10 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
     }
   }
 
-  const downloadLeftovers = () => {
-    const url = URL.createObjectURL(new Blob([reviewText], { type: "text/plain;charset=utf-8" }))
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `${file.title || "resume"}-review-text.txt`
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
+  const downloadLeftovers = () => saveFile(reviewText, `${file.title || "resume"}-review-text.txt`, "text/plain;charset=utf-8")
 
   const review = (
-    <Modal title="Here's what we found" onClose={close} wide>
+    <Modal onClose={close} wide>
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         {/* Focusable, so the file can be scrolled from the keyboard. */}
         <section
@@ -216,9 +209,9 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
           className="hidden min-h-0 overflow-y-auto border-r border-ink/10 bg-ink/[0.04] focus-visible:outline-offset-[-2px] lg:block"
         >
           {file.pdf ? (
-            <PdfPages doc={file.pdf.doc} pages={file.pdf.pages} lines={file.lines} highlight={highlight} />
+            <PdfPages doc={file.pdf.doc} pages={file.pdf.pages} lines={file.parsed.lines} highlight={highlight} />
           ) : (
-            <TextLines lines={file.lines} highlight={highlight} />
+            <TextLines lines={file.parsed.lines} highlight={highlight} />
           )}
         </section>
 
@@ -258,27 +251,26 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
               <p className="mt-1 break-words text-sm text-ink-2">{contact.length ? contact.join(" · ") : "No contact details found"}</p>
             </section>
 
-            {(parsed.extraGroups ?? []).map((group, index) => {
-              const off = skipped.has(extraGroupKey(group.id))
-              const combined = selectedGroups(group.kind)
+            {parsed.summaries.map((summary, index) => {
+              const off = skipped.has(summaryKey(summary.id))
               return (
-                <section key={group.id} className="mt-8" {...point([group.headingLine, ...group.lines])}>
+                <section key={summary.id} className="mt-8" {...point([summary.headingLine, ...summary.lines])}>
                   <label className="flex items-start gap-3 border-b border-ink pb-2">
                     <input
                       type="checkbox"
                       checked={!off}
-                      onChange={() => setSkipped((set) => toggle(set, extraGroupKey(group.id)))}
-                      aria-label={`Include ${group.heading}, group ${index + 1}`}
+                      onChange={() => setSkipped((set) => toggle(set, summaryKey(summary.id)))}
+                      aria-label={`Include ${summary.heading}, group ${index + 1}`}
                       className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
                     />
-                    <span className="label-mono text-ink-2">{group.heading}</span>
+                    <span className="label-mono text-ink-2">{summary.heading}</span>
                   </label>
                   <div className={`mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed ${off ? "opacity-45" : ""}`}>
-                    {group.text.join("\n")}
+                    {summary.text.join("\n")}
                   </div>
-                  {!off && combined.length > 1 && combined[0].id === group.id && (
+                  {!off && selectedSummaries.length > 1 && selectedSummaries[0].id === summary.id && (
                     <p className="mt-2 text-sm text-ink-2" role="status">
-                      These {combined.length} go together in your profile&apos;s summary, in this order.
+                      These {selectedSummaries.length} go together in your profile&apos;s summary, in this order.
                     </p>
                   )}
                 </section>
@@ -322,7 +314,7 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
                               {dates && <span className="label-mono shrink-0 text-ink-2">{dates}</span>}
                             </div>
                             {secondary && <p className="mt-0.5 break-words text-sm text-ink-2">{secondary}</p>}
-                            {bullets > 0 && <p className="mt-0.5 text-xs text-ink-2">{plural(bullets, "bullet")}</p>}
+                            {bullets > 0 && <p className="mt-0.5 text-xs text-ink-2">{count(bullets, "bullet")}</p>}
                           </div>
                           {shown.swap && (
                             <button
@@ -348,7 +340,7 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
               <section ref={unplacedRef} tabIndex={-1} aria-labelledby="couldnt-place" className="mt-8 scroll-mt-4 outline-none">
                 <div className="flex items-baseline justify-between gap-4 border-b border-ink pb-2">
                   <h3 id="couldnt-place" className="label-mono text-ink-2">
-                    {leftovers > 0 ? <>Couldn&apos;t place · {plural(leftovers, "line")}</> : <>Unticked · {plural(unticked, "line")}</>}
+                    {leftovers > 0 ? <>Couldn&apos;t place · {count(leftovers, "line")}</> : <>Unticked · {count(unticked, "line")}</>}
                   </h3>
                   <div className="flex gap-2">
                     <button
@@ -375,7 +367,7 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
                     : "Copy or download saves the text of what you unticked above."}
                 </p>
                 {parsed.unplaced.map((group, index) => (
-                  <div key={unplacedKey(group, index)} className="mt-4" {...point(group.lines)}>
+                  <div key={unplacedKey(group)} className="mt-4" {...point(group.lines)}>
                     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                       <p className="label-mono text-ink-2">{group.heading}</p>
                       <div className="relative">
@@ -383,13 +375,13 @@ export default function ImportReview({ file, onCancel, onCreate }: ImportReviewP
                             16px on phones, as iOS zooms in on a smaller select. */}
                         <select
                           aria-label={`Keep ${group.heading}, group ${index + 1}`}
-                          value={keepAs[unplacedKey(group, index)] ?? ""}
+                          value={keepAs[unplacedKey(group)] ?? ""}
                           onChange={(event) => {
                             const value = event.target.value
                             setKeepAs((current) => {
                               const next = { ...current }
-                              if (value === "text" || value === "list") next[unplacedKey(group, index)] = value
-                              else delete next[unplacedKey(group, index)]
+                              if (value === "text" || value === "list") next[unplacedKey(group)] = value
+                              else delete next[unplacedKey(group)]
                               return next
                             })
                           }}
@@ -470,8 +462,7 @@ function useScrollToHighlight(container: RefObject<HTMLElement | null>, highligh
   useEffect(() => {
     const first = container.current?.querySelector("[data-highlight]")
     if (!first) return
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    first.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" })
+    first.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" })
   }, [container, highlight])
 }
 

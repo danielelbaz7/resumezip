@@ -40,7 +40,7 @@ function Gaze({ stops, size }: { stops: readonly Stop[]; size: { width: number; 
   // Held at each stop, then a quick glide to the next, as eyes move.
   useEffect(() => {
     const node = spot.current
-    if (!node || stops.length === 0) return
+    if (!node) return
     const animation = node.animate(pathOf(stops), { duration: GAZE_MS, delay: GAZE_DELAY, fill: "both" })
     return () => animation.cancel()
   }, [stops])
@@ -85,8 +85,8 @@ function Gaze({ stops, size }: { stops: readonly Stop[]; size: { width: number; 
 
 /**
  * The page on the first screen, going soft into the fog the words stand on:
- * the sample, marked, until the resume being reviewed is printed and takes
- * its place. `pageRef` is that page, which the result's first page flies from.
+ * the sample, marked, until page 1 of the resume being reviewed is drawn and
+ * takes its place. `pageRef` is that page, which the result's first page flies from.
  */
 export default function Backdrop({
   scanning,
@@ -95,7 +95,7 @@ export default function Backdrop({
   pageRef,
 }: {
   scanning: boolean
-  /** The resume being reviewed, page 1, once it's printed. */
+  /** The resume being reviewed, page 1, once it's drawn. */
   page?: DrawnPage | null
   /** Where the eyes go on it; none with less motion. */
   gaze?: readonly Stop[] | null

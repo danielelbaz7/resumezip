@@ -1,6 +1,8 @@
 /* The review page (/review): a resume floating on the sky, going soft into a
    fog the words stand on, as if seen for seven seconds; then the verdict in
-   cloud, and the reviewed resume in a frosted frame, scribbled on in pen. */
+   cloud, and the reviewed resume in a frosted frame, scribbled on in pen. The
+   editor's Check mode draws the same pen marks on its preview, with the same
+   switch (MarksContext.tsx, CheckPanel.tsx). */
 @layer components {
   :root {
     /* The pens the notes are drawn in, besides the accent's blue (done well) and the caution yellow (worth a look). */
@@ -112,12 +114,7 @@
   /* The resume being reviewed, once it's printed, taking the sample's place
      (Backdrop.tsx): it fades in over the sample, which fades out under it. */
   .review-theirs {
-    animation: review-theirs 600ms var(--ease-glide) backwards;
-  }
-  @keyframes review-theirs {
-    from {
-      opacity: 0;
-    }
+    animation: fade-in 600ms var(--ease-glide) backwards;
   }
   .review-gone {
     opacity: 0;
@@ -145,14 +142,9 @@
     }
   }
   .review-heat {
-    animation-name: review-heat;
+    animation-name: fade-in;
     animation-timing-function: linear;
     animation-fill-mode: both;
-  }
-  @keyframes review-heat {
-    from {
-      opacity: 0;
-    }
   }
 
   /* While a resume is reviewed, a band of light reads down its page. */
@@ -186,7 +178,7 @@
     }
   }
 
-  /* The results, rising into place on the sky. */
+  /* The results, on the sky. */
   /* Its foot is as tall as the footer's lift (.zip-footer in globals.css),
      which the page runs on into with no strip of sky (SiteFooter's bare), so
      the buttons' dock stops above the footer's rounded corners, not over them. */
@@ -196,24 +188,17 @@
     flex: 1;
     flex-direction: column;
     padding: 4px 16px 24px;
-    animation: review-rise 600ms var(--ease-glide) backwards;
   }
   @media (min-width: 48rem) {
     .review-board {
       padding-bottom: 40px;
     }
   }
-  @keyframes review-rise {
-    from {
-      opacity: 0;
-      transform: translateY(40px);
-    }
-  }
   /* Arriving with the page that was being read flying into the card (MarkedPages.tsx), the board
-     stays put, what's round the page fades in as it lands, and the marks wait for it to land. */
+     stays put, what's round the page fades in as it lands, and the marks wait until it has all but
+     landed: a little less than its flight (FLIGHT_MS), which eases out. */
   .review-board[data-flight] {
     --review-marks-wait: 850ms;
-    animation: none;
   }
   .review-board[data-flight] > :first-child,
   .review-board[data-flight] .review-side,
@@ -222,7 +207,7 @@
     animation: review-around 500ms var(--ease-glide) 350ms backwards;
   }
   .review-board[data-flight] .review-card::before {
-    animation: review-theirs 500ms var(--ease-glide) 250ms backwards;
+    animation: fade-in 500ms var(--ease-glide) 250ms backwards;
   }
   @keyframes review-around {
     from {
@@ -232,31 +217,18 @@
   }
 
   /* The resume in a frame of frosted glass with a lit rim, as the dashboard's
-     sheet is framed. The frost is on ::before, so the frame isn't the backdrop
-     root of what's in it. */
+     sheet is framed (its ::before is drawn with .paper-frame's, in sheet.css).
+     The frost is on ::before, so the frame isn't the backdrop root of what's
+     in it. */
   .review-card {
     position: relative;
     isolation: isolate;
     padding: 0 8px 8px;
     border-radius: 28px;
   }
-  .review-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    border-radius: inherit;
-    pointer-events: none;
-    background: rgb(255 255 255 / 0.28);
-    box-shadow:
-      inset 0 0 0 1px rgb(255 255 255 / 0.82),
-      inset 0 2px 0 rgb(255 255 255 / 0.9);
-    -webkit-backdrop-filter: blur(1.5px) saturate(1.3) brightness(1.06);
-    backdrop-filter: blur(1.5px) saturate(1.3) brightness(1.06);
-  }
 
-  /* Beside the card where there's room, else above it: what the scribbles
-     are, and the AI's notes, each on white glass. */
+  /* Beside the card where there's room, else above it: a note on how the
+     page was read, when it needs one, and the AI's notes, each on white. */
   .review-side {
     display: flex;
     flex-direction: column;
@@ -372,19 +344,22 @@
     flex-direction: column;
     gap: 8px;
   }
+  .review-tile,
+  .review-flag-list {
+    border-radius: 18px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px rgb(17 19 24 / 0.05),
+      0 1px 2px rgb(17 19 24 / 0.05),
+      0 18px 40px -18px rgb(25 60 130 / 0.35);
+  }
   .review-tile {
     position: relative;
     display: block;
     width: 100%;
     height: 54px;
     overflow: hidden;
-    border-radius: 18px;
-    background: #fff;
     text-align: left;
-    box-shadow:
-      0 0 0 1px rgb(17 19 24 / 0.05),
-      0 1px 2px rgb(17 19 24 / 0.05),
-      0 18px 40px -18px rgb(25 60 130 / 0.35);
     transition:
       height 560ms var(--ease-glide),
       box-shadow 200ms;
@@ -437,15 +412,12 @@
     z-index: 2;
   }
   .review-tile-title {
+    @apply label-mono;
     display: flex;
     align-items: center;
     gap: 7px;
     color: var(--color-ink-2);
-    font-family: var(--font-mono);
-    font-size: 11px;
     line-height: 1;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
     white-space: nowrap;
   }
   .review-tile-title::before {
@@ -524,15 +496,9 @@
   /* The flags listed under the tiles, on the same solid white. */
   .review-flag-list {
     padding: 10px 12px;
-    border-radius: 18px;
-    background: #fff;
     color: #3a3e46;
     font-size: 14px;
     line-height: 1.4;
-    box-shadow:
-      0 0 0 1px rgb(17 19 24 / 0.05),
-      0 1px 2px rgb(17 19 24 / 0.05),
-      0 18px 40px -18px rgb(25 60 130 / 0.35);
   }
   .review-flag-list li {
     animation: review-flag-in 420ms var(--ease-glide) calc(120ms + var(--row) * 30ms) backwards;
@@ -693,7 +659,7 @@
     height: 16px;
   }
 
-  /* Why the AI notes aren't there: a dark pill over the dock, or under the drop zone. */
+  /* Why the AI notes aren't there: a dark pill over the dock, or under the header on the drop zone. */
   .review-pill {
     display: inline-flex;
     align-items: center;
@@ -782,7 +748,6 @@
     .review-haze,
     .review-sheet,
     .review-fog > span,
-    .review-card::before,
     .review-dock::before {
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
@@ -794,7 +759,6 @@
     .review-scribble {
       transition: none;
     }
-    .review-board,
     .review-board[data-flight] *,
     .review-board[data-flight] .review-card::before,
     .review-theirs,

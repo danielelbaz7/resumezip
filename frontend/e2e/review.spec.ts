@@ -1,20 +1,15 @@
 import { expect, test } from "./test"
 import { textPdf, wordFile } from "../src/lib/import/testFiles"
-import { instantScrolling, pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { instantScrolling, openFile, pageErrors, pixelsOf, seriousAccessibilityProblems } from "./helpers"
+import { FROM_ELSEWHERE } from "./resumes"
 
-// A resume from elsewhere: plain text, with a bullet that's a duty rather than a contribution.
-const RESUME = [
-  "Mara Lin",
-  "mara@example.com | (555) 010-2020 | Seattle, WA",
-  "EXPERIENCE",
-  "Software Engineer, Acme Corp",
-  "Jan 2024 - Present",
-  "- Responsible for testing the checkout service",
-  "- Built a deploy tool that cut release time from two hours to ten minutes for 40 engineers",
-  "EDUCATION",
-  "State University",
-  "B.S. in Computer Science, 2019 - 2023",
-]
+declare global {
+  interface Window {
+    /** Makes page 2's picture, held back by a test until it calls this. */
+    drawPage2?: () => void
+  }
+}
+
 const pdf = (lines: string[]) => ({ name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf([lines]) })
 
 test("reviews a resume in the browser, scribbles its notes on the page, and opens it in Check", async ({ page }) => {
@@ -27,8 +22,7 @@ test("reviews a resume in the browser, scribbles its notes on the page, and open
 
   await page.goto("/review")
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Your resume has 7 seconds/)
-  await expect(page.getByRole("button", { name: "Review my resume" })).toBeVisible()
-  await page.locator('input[type="file"]').setInputFiles(pdf(RESUME))
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf(FROM_ELSEWHERE))
 
   // The first review downloads the PDF engine and the grammar checker.
   const verdict = page.getByRole("heading", { level: 1 })
@@ -65,7 +59,7 @@ test("when the resume can't be drawn, every note is listed under where it would 
     }
   })
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(pdf(RESUME))
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf(FROM_ELSEWHERE))
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByRole("listitem").filter({ hasText: "“Responsible for” is a weak start" })).toBeVisible()
   await expect(page.getByRole("img", { name: /^Page 1 of your resume/ })).toHaveCount(0)
@@ -83,9 +77,9 @@ const LONG = (() => {
     ),
   ])
   const pages = [
-    [...RESUME.slice(0, 3), ...jobs.slice(0, 4).flat()],
+    [...FROM_ELSEWHERE.slice(0, 3), ...jobs.slice(0, 4).flat()],
     jobs.slice(4, 8).flat(),
-    [...jobs.slice(8).flat(), ...RESUME.slice(7)],
+    [...jobs.slice(8).flat(), ...FROM_ELSEWHERE.slice(7)],
   ]
   return { name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf(pages) }
 })()
@@ -98,16 +92,16 @@ test("the result opens once page 1 is drawn, and later pages join it as they're 
     let drawn = 0
     HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, callback: BlobCallback, type?: string, quality?: number) {
       if (++drawn !== 2) return toBlob.call(this, callback, type, quality)
-      ;(window as unknown as { drawPage2: () => void }).drawPage2 = () => toBlob.call(this, callback, type, quality)
+      window.drawPage2 = () => toBlob.call(this, callback, type, quality)
     }
   })
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(LONG)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), LONG)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
   await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => "drawPage2" in window)).toBe(true)
-  await page.evaluate(() => (window as unknown as { drawPage2: () => void }).drawPage2())
+  await page.evaluate(() => window.drawPage2!())
   await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toBeVisible()
   expect(errors).toEqual([])
 })
@@ -124,7 +118,7 @@ test("a page that can't be drawn after page 1 leaves page 1 shown, with its own 
     }
   })
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(LONG)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), LONG)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByText("Notes on your resume")).toBeVisible()
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
@@ -135,7 +129,7 @@ test("a page that can't be drawn after page 1 leaves page 1 shown, with its own 
 test("a PDF from elsewhere is reviewed as it is: its own pages, not a reprint of them", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(LONG)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), LONG)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   // It came on three pages; its template would print it on two.
   await expect(page.getByRole("img", { name: "Page 3 of your resume, with the notes marked" })).toBeVisible()
@@ -148,10 +142,10 @@ test("a Word file, which has no pages of its own, is printed in Jake's to be rev
 }) => {
   const errors = pageErrors(page)
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles({
+  await openFile(page.getByRole("button", { name: "Review my resume" }), {
     name: "Mara Lin.docx",
     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    buffer: wordFile(RESUME),
+    buffer: wordFile(FROM_ELSEWHERE),
   })
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByText("A Word file has no pages of its own, so this is how it prints in Jake's.")).toBeVisible()
@@ -168,9 +162,11 @@ test("a PDF that turns its own pages is printed in Jake's to be reviewed, as its
 }) => {
   const errors = pageErrors(page)
   await page.goto("/review")
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({ name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf([RESUME], { rotate: 90 }) })
+  await openFile(page.getByRole("button", { name: "Review my resume" }), {
+    name: "Mara Lin.pdf",
+    mimeType: "application/pdf",
+    buffer: textPdf([FROM_ELSEWHERE], { rotate: 90 }),
+  })
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByText("This PDF turns its pages, which can’t be marked, so this is how it prints in Jake's.")).toBeVisible()
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
@@ -180,7 +176,7 @@ test("a PDF that turns its own pages is printed in Jake's to be reviewed, as its
 test("a file with no resume in it says so, and another can be tried", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(pdf(["Groceries", "Eggs", "Milk", "Bread"]))
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf(["Groceries", "Eggs", "Milk", "Bread"]))
   await expect(
     page.getByRole("alert").filter({ hasText: "There’s no name and no section in this file to check. Is it a resume?" }),
   ).toBeVisible()
@@ -189,6 +185,7 @@ test("a file with no resume in it says so, and another can be tried", async ({ p
 })
 
 test("the headline is in the home page's headline face", async ({ page }) => {
+  const errors = pageErrors(page)
   const face = async (path: string) => {
     await page.goto(path)
     return page.getByRole("heading", { level: 1 }).evaluate((heading) => getComputedStyle(heading).fontFamily.split(",")[0])
@@ -196,9 +193,11 @@ test("the headline is in the home page's headline face", async ({ page }) => {
   const home = await face("/")
   expect(home).toMatch(/Instrument Serif/)
   expect(await face("/review")).toBe(home)
+  expect(errors).toEqual([])
 })
 
 test("the sky is asked for with the page, and a soft copy of it shows until it arrives", async ({ page }) => {
+  const errors = pageErrors(page)
   let arrive = () => {}
   const arrived = new Promise<void>((resolve) => (arrive = resolve))
   await page.route("**/backgrounds/sky-*.webp", async (route) => {
@@ -224,9 +223,11 @@ test("the sky is asked for with the page, and a soft copy of it shows until it a
       ),
     )
     .toBe("link")
+  expect(errors).toEqual([])
 })
 
 test("the page's fog runs on into the footer, with no strip of sky between them", async ({ page }) => {
+  const errors = pageErrors(page)
   await page.goto("/review")
   // The page scrolls smoothly: measured mid-glide, the footer would move between its box and the picture.
   await instantScrolling(page)
@@ -237,27 +238,16 @@ test("the page's fog runs on into the footer, with no strip of sky between them"
     const footer = (await page.getByRole("contentinfo").boundingBox())!
     // In CSS pixels, so the column's where the footer is on WebKit's double-density screen too.
     const shot = await page.screenshot({ scale: "css" })
-    return page.evaluate(
-      async ({ png, from, to }) => {
-        const image = new Image()
-        image.src = `data:image/png;base64,${png}`
-        await image.decode()
-        const canvas = document.createElement("canvas")
-        canvas.width = image.width
-        canvas.height = image.height
-        const context = canvas.getContext("2d")!
-        context.drawImage(image, 0, 0)
-        const { data } = context.getImageData(200, from, 1, to - from)
-        let most = 0
-        for (let i = 0; i < data.length; i += 4) most = Math.max(most, data[i + 2] - data[i])
-        return most
-      },
-      { png: shot.toString("base64"), from: Math.round(footer.y - 80), to: Math.round(footer.y + 16) },
-    )
+    const from = Math.round(footer.y - 80)
+    const { data } = await pixelsOf(page, shot, { x: 200, y: from, width: 1, height: Math.round(footer.y + 16) - from })
+    let most = 0
+    for (let i = 0; i < data.length; i += 4) most = Math.max(most, data[i + 2] - data[i])
+    return most
   }
   // The fog is a white with a faint cool tint (blue at most 12 above red, where WebKit's tests draw it
   // without its blur); the sky is 90 or more. Measured again while the page is still settling (its
   // headline's face arriving can move the footer between its box and the picture): a strip of sky
   // stays blue however often it's measured.
   await expect.poll(bluest).toBeLessThan(30)
+  expect(errors).toEqual([])
 })

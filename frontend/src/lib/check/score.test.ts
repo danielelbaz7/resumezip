@@ -9,7 +9,6 @@ import { pdfLayoutOf } from "./extraPdf"
 import {
   bandOf,
   checkingCategories,
-  colorOf,
   keepFixes,
   keepScores,
   mustFixMax,
@@ -273,14 +272,6 @@ describe("the resume score", () => {
     // The most a resume with a must-fix left can score.
     expect(bandOf(MUST_FIX_MAX).name).not.toBe("Strong")
   })
-
-  test("is shown red below 60, amber to 79, green to 99, and as perfect at 100", () => {
-    const colors = (scores: number[]) => scores.map(colorOf)
-    expect(colors([0, 59])).toEqual(["red", "red"])
-    expect(colors([60, 79])).toEqual(["amber", "amber"])
-    expect(colors([80, 99])).toEqual(["green", "green"])
-    expect(colorOf(100)).toBe("perfect")
-  })
 })
 
 describe("while checks are under way", () => {
@@ -466,8 +457,8 @@ describe("on real resumes", () => {
         },
       ],
     }
-    // Optional wording and cosmetic advice no longer subtract points. The
-    // substantive failures must still keep this resume in Needs work.
+    // Wording and polish advice costs nothing, but its real problems still
+    // keep this resume in Needs work.
     expect(bandOf((await scoreOfResume(sloppy))!).name).toBe("Needs work")
 
     // A name, a broken email and a company, and nothing else: no role, dates, bullets, education or skills.

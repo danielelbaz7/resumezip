@@ -4,10 +4,11 @@
 // read its words without its marks too (textsOf). It's built once per run, so
 // rules don't each pick the saved data apart, and none of them has to guard
 // against older or broken shapes.
-// Only what's printed is here: entries and bullets the person left out of
-// the PDF (lib/leftOut.ts) aren't, so the checks don't flag them.
+// Only what's printed is here: sections, entries and bullets the person left
+// out of the PDF (lib/leftOut.ts) aren't, so the checks don't flag them.
 
 import { PROFILE_FIELDS, SECTION_NAMES, SECTIONS, type FieldKey, type ProfileKey, type SectionName } from "@/components/editor/sections"
+import { isObject } from "@/lib/isObject"
 import { isLeftOut, isLeftOutLine } from "@/lib/leftOut"
 import { firstColumnOf, templateById } from "@/lib/templates"
 import type { Resume } from "@/lib/resume"
@@ -30,7 +31,7 @@ export type ResumeType = "professional" | "personal" | "academic"
 
 /** A resume's type. Resumes without one, or with one this version doesn't know, count as Professional. */
 export function resumeTypeOf(resume: Resume): ResumeType {
-  const tag = resume?.resumeTag
+  const tag = resume.resumeTag
   return tag === "academic" || tag === "personal" ? tag : "professional"
 }
 
@@ -72,26 +73,30 @@ export interface ResumeView {
   sections: Record<SectionName, Entry[]>
   /** Each section's own title if the person renamed it, or "" for the template's. */
   headings: Record<SectionName, string>
-  /** Shared editor/template defaults, used only for physical PDF occurrence anchors. */
+  /** Each section's title as printed: the person's own, or else the one the editor and templates share. */
   printedHeadings: Record<SectionName, string>
-  /** The sections in the order they're printed. */
+  /** The editor's sections, in the order they're printed. */
   order: SectionName[]
-  /** Mixed print order; semantic rules continue to use the builtin-only order above. */
+  /** Every section in print order, the added ones too. The rules about jobs, dates and skills go by `order`. */
   allOrder: SectionRef[]
+  /** The sections the person added, by their id, without those left out of the PDF. */
   extras: Record<string, ExtraView>
   /** How projects' links print: as text, or only behind the project's name (the Projects section's Links choice). */
   projectLinks: "show" | "title"
 }
 
+/** A section the person added, as the rules read it. */
 export interface ExtraView {
   id: string
+  /** Its title as printed. */
   heading: string
+  /** As saved, but a list's left-out bullets are blank lines. */
   section: ExtraSection
+  /** A list's bullets, in order; none for a text section. */
   bullets: Bullet<"bullets">[]
+  /** Nothing in it prints, as when it was added but never filled in. */
   blank: boolean
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value)
 
 const text = (value: unknown) => (typeof value === "string" ? value.trim() : "")
 

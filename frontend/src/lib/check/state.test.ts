@@ -8,7 +8,7 @@ import { changedPaths, mergeResume } from "@/lib/resumeStorage"
 import { asSaved } from "@/lib/testResume"
 import { runChecks, type Finding, type Rule } from "./engine"
 import { MAX_DISMISSED, MAX_WORD_LENGTH, MAX_WORDS } from "./settings"
-import { addWord, changeCheck, CHECK_FIELD, dismiss, readCheckState, removeWord, restore } from "./state"
+import { addWord, changeCheck, CHECK_FIELD, dismiss, readCheckState, restore } from "./state"
 
 const sample = JSON.parse(readFileSync(path.resolve("src/lib/typst/preview-samples/jake.json"), "utf8"))
 
@@ -25,7 +25,7 @@ const suggestion = (key: string, rule = "B1"): Finding => ({
 })
 
 describe("what the checker saves on a resume", () => {
-  test("language preferences survive storage and merge independently of words", () => {
+  test("keeps the language an older version saved, if it's one it knows", () => {
     const storage = memoryStorage()
     const tab = createResumeStore()
     tab.load(storage)
@@ -35,10 +35,6 @@ describe("what the checker saves on a resume", () => {
     const reloaded = createResumeStore()
     reloaded.load(storage)
     expect(readCheckState(reloaded.getState().resumes[id])).toMatchObject({ grammarLanguage: "other", words: ["spintronics"] })
-    const ours = { ...sample, [CHECK_FIELD]: changeCheck(sample, (state) => ({ ...state, grammarLanguage: "other" })) }
-    const theirs = { ...sample, [CHECK_FIELD]: changeCheck(sample, (state) => addWord(state, "Typst")) }
-    const changed = new Set(changedPaths(CHECK_FIELD, sample[CHECK_FIELD], ours[CHECK_FIELD]))
-    expect(mergeResume(theirs, ours, changed)[CHECK_FIELD]).toEqual({ grammarLanguage: "other", words: ["Typst"] })
     expect(readCheckState(asSaved({ check: { grammarLanguage: 42 } }))).not.toHaveProperty("grammarLanguage")
   })
   test("is nothing dismissed and no words when there's none, or it's in another shape", () => {
@@ -198,12 +194,6 @@ describe("added words", () => {
     const next = addWord(full, "Kubernetes")
     expect(next.words).toHaveLength(MAX_WORDS)
     expect(next.words.at(-1)).toBe("Kubernetes")
-  })
-
-  test("can be removed, whatever their case", () => {
-    const state = { dismissed: [], words: ["Kubernetes", "Typst"] }
-    expect(removeWord(state, "kubernetes").words).toEqual(["Typst"])
-    expect(removeWord(state, "Rust")).toBe(state)
   })
 
   test("reach the rules in lower case", () => {

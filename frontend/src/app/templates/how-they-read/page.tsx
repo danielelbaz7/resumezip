@@ -1,10 +1,11 @@
 import Link from "next/link"
 import { Check, X } from "lucide-react"
+import { CODE, onGitHub } from "@/app/open-source-resume-builder/code"
 import PageIntro from "@/components/site/PageIntro"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import StructuredData from "@/components/site/StructuredData"
-import { PAPER_FRAME, SHEET } from "@/components/site/sheet"
+import { HEADING, PAPER_FRAME, SECTION, SHEET, TEXT_LINK } from "@/components/site/sheet"
 import { pageMetadata } from "@/lib/site"
 import { breadcrumbs, TEMPLATES_CRUMB } from "@/lib/structuredData"
 import { TEMPLATES, templatePath } from "@/lib/templates"
@@ -18,12 +19,6 @@ export const metadata = pageMetadata({
   description:
     "Every resumezip template’s sample PDF, read back as plain text the way hiring software reads it, on every change to the code. What’s checked, and what it finds.",
 })
-
-const TEST_URL = "https://github.com/ian-hoang/resumezip/blob/main/frontend/src/lib/import/readsCleanly.test.ts"
-
-const SECTION = "grid gap-6 border-t border-ink pt-6 md:grid-cols-3 md:gap-12"
-const HEADING = "font-serif text-[28px] leading-[1.15] tracking-[-0.02em] md:text-[32px]"
-const TEXT_LINK = "text-ink underline underline-offset-4 hover:decoration-2"
 
 // Built from results.json, which the test writes and checks, so it says what the samples read today.
 const failing = TEMPLATES.filter(({ id }) => READING_CHECKS.some((check) => READING_RESULTS[id][check.id].length > 0))
@@ -173,7 +168,7 @@ export default function HowTheyReadPage() {
               </p>
               <p>
                 The test is open for anyone to read and run:{" "}
-                <a href={TEST_URL} className={TEXT_LINK}>
+                <a href={onGitHub(CODE.readingTest)} className={TEXT_LINK}>
                   readsCleanly.test.ts on GitHub
                 </a>
                 .

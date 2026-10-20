@@ -9,11 +9,9 @@
 // line's baseline to the next line's capitals; LaTeX puts lines a
 // \baselineskip apart, baseline to baseline. The spaces below are the .typ's
 // turned into LaTeX's, so lines land where the PDF has them.
-//
-// margin.typ asks for old-style figures in dates and the phone number, but the
-// Charis SIL it prints with has none, so the PDF's are lining, as these are.
 
 import {
+  bp,
   CHARIS,
   citations,
   dateRange,
@@ -34,13 +32,9 @@ import {
   webLink,
   type Fallbacks,
   type LatexTemplate,
-  type ShowLink,
   type Units,
 } from "../common"
 import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
-
-/** Links print as their text, as the rest of the line. */
-const plain: ShowLink = (url, text) => shownLink(url, text)
 
 // How tall the fonts' capitals are, in em (their OS/2 tables): where Typst
 // puts the top of a line.
@@ -66,9 +60,7 @@ Charis SIL.`,
 }
 
 const preamble = (units: Units, title: string, fallbacks: string) => {
-  // Sums of Fine-tune's lengths, in the unit it gives them in.
-  const unit = units.size(1).replace(/^[\d.]+/, "")
-  const length = (value: number) => `${Math.round(value * 100) / 100}${unit}`
+  // Sums of Fine-tune's lengths, worked out as numbers and written back with `bp`.
   const value = Number.parseFloat
   const caps = (size: number) => value(units.size(size * CHARIS_CAPS))
   // A line is its capitals' height plus the leading (0.5em) below the line above.
@@ -79,7 +71,7 @@ const preamble = (units: Units, title: string, fallbacks: string) => {
   // LaTeX's space for Typst's v(space) between two lines. Typst measures it from
   // the first's baseline to the second's capitals, so one smaller than the
   // leading brings them closer than a line apart.
-  const between = (space: string) => length(value(space) - leading)
+  const between = (space: string) => bp(value(space) - leading)
   // The heading sits as much lower as its capitals are taller than the text's.
   const lower = units.size(HEADING_SIZE * BIOLINUM_CAPS - 9.6 * CHARIS_CAPS)
   // The headings' 0.15pt outline as fontspec's FakeBold, in hundredths of their size.
@@ -119,10 +111,10 @@ ${links(title)}
 
 % Text size and line spacing, as Fine-tune sets them. Lines are a fixed
 % distance apart, whatever letters they have, as in the PDF.
-\\renewcommand{\\normalsize}{\\fontsize{${units.size(9.6)}}{${length(line)}}\\selectfont}
+\\renewcommand{\\normalsize}{\\fontsize{${units.size(9.6)}}{${bp(line)}}\\selectfont}
 \\normalsize
 \\setlength{\\lineskiplimit}{-\\maxdimen}
-\\setlength{\\topskip}{${length(caps(9.6))}}
+\\setlength{\\topskip}{${bp(caps(9.6))}}
 \\setlength{\\parindent}{0pt}
 \\setlength{\\parskip}{0pt}
 \\raggedright
@@ -137,11 +129,11 @@ ${links(title)}
 % empty line goes on the margin, and the name a line below it, moved up. Then
 % how to reach you, in grey.
 \\newcommand{\\resumeHeader}[2]{%
-  \\null\\nobreak\\kern${length(caps(25) - caps(9.6) - nameLine)}\\relax
-  {\\fontsize{${units.size(25)}}{${length(nameLine)}}\\selectfont\\leavevmode\\nameStyle{#1}\\par}%
+  \\null\\nobreak\\kern${bp(caps(25) - caps(9.6) - nameLine)}\\relax
+  {\\fontsize{${units.size(25)}}{${bp(nameLine)}}\\selectfont\\leavevmode\\nameStyle{#1}\\par}%
   \\if\\relax\\detokenize{#2}\\relax\\else
-    \\vspace{${length(value(units.size(7)) - value(units.space(4.5)))}}%
-    {\\fontsize{${units.size(9)}}{${length(caps(9) + value(units.space(4.5)))}}\\selectfont\\color{grey}#2\\par}%
+    \\vspace{${bp(value(units.size(7)) - value(units.space(4.5)))}}%
+    {\\fontsize{${units.size(9)}}{${bp(caps(9) + value(units.space(4.5)))}}\\selectfont\\color{grey}#2\\par}%
   \\fi
   \\vspace{${units.size(2)}}%
 }
@@ -168,7 +160,7 @@ ${links(title)}
 % specials, after the \\parbox that \\resumeHeadingMeasure takes off its end.
 \\newcommand{\\resumeHeadingAt}[2]{%
   \\setbox\\resumeHeadingBox=\\hbox{\\parbox[t]{\\marginparwidth}{\\raggedleft\\rightskip=0pt minus ${allowance}\\hfuzz=\\maxdimen
-    \\fontsize{#1}{${length(headingLine)}}\\selectfont\\leavevmode\\headingStyle{\\nobreak\\hspace{0pt}#2}\\par\\kern-\\prevdepth}}%
+    \\fontsize{#1}{${bp(headingLine)}}\\selectfont\\leavevmode\\headingStyle{\\nobreak\\hspace{0pt}#2}\\par\\kern-\\prevdepth}}%
 }
 % Its widest line, taking the lines off a copy of it one by one
 \\newcommand{\\resumeHeadingMeasure}{%
@@ -320,12 +312,12 @@ function body(data: TemplateData): string {
         break
       case "projects":
         for (const project of data.projects) {
-          add(`  \\resumeProject{${projectHeader(project, "\\projectSep ", plain)}}{${latex(project.date)}}`)
+          add(`  \\resumeProject{${projectHeader(project, "\\projectSep ", shownLink)}}{${latex(project.date)}}`)
           bullets(project.bullets.map(runs))
         }
         break
       case "publications":
-        add(citations(data.publications, plain, "labelsep=0.7em, topsep=0pt, parsep=0pt, itemsep=\\citationSpace, beginpenalty=10000"))
+        add(citations(data.publications, shownLink, "labelsep=0.7em, topsep=0pt, parsep=0pt, itemsep=\\citationSpace, beginpenalty=10000"))
         break
       case "skills":
         for (const skill of data.skills) add(`  \\resumeSkill{${latex(skill.name)}}{${latex(skill.details)}}`)

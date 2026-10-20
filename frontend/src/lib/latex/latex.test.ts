@@ -156,7 +156,7 @@ const FIELDS = [
   ...["Talks", "Talk", "Notes", "Note"],
 ]
 
-/** A resume with something in every section: links, bold and italic, extra sections and publications. */
+/** A resume with something in every section: links, bold and italic, added sections and publications. */
 const EVERYTHING = {
   sectionOrder: [
     "Education",
@@ -356,6 +356,22 @@ const HEADINGS = ["Work heading", "Talks", "Notes"]
 const printedIn = (id: string, name: string) =>
   id === "accent" && HEADINGS.includes(name) ? `{${name.slice(0, 3)}}{${name.slice(3)} ${PRINTED}}` : `${name} ${PRINTED}`
 
+describe("Accent's section titles", () => {
+  test.each([
+    ["an accent typed as a separate mark", "Re\u0301sume\u0301 talks", "Rés", "umé talks"],
+    ["a conjunct", "शिक्षा", "शिक्षा", ""],
+    ["a flag", "🇫🇷 Projets", "🇫🇷 P", "rojets"],
+  ])("color their first three letters as the PDF does, with %s kept whole", (_, heading, first, rest) => {
+    const text = latexOf({
+      selectedTemplate: "accent",
+      profileSection: { fullName: "Ada Lovelace" },
+      workExperienceSection: [{ id: 1, companyName: "Analytical Engines" }],
+      headings: { work: heading },
+    })
+    expect(text).toContain(`\\resumeSection{${first}}{${rest}}`)
+  })
+})
+
 describe.each(IDS)("a LaTeX file in %s's layout", (id) => {
   test("prints every character TeX reads as markup as typed, in every kind of field", () => {
     const { text, beyondPdfLatex } = toLatexFile(asSaved(everyField(id)))
@@ -423,7 +439,7 @@ describe.each(IDS)("a LaTeX file in %s's layout", (id) => {
   })
 
   test("starts a new paragraph 0.6em further down than a new line, as its PDF does", () => {
-    // The PDF leaves the leading plus 0.6em between paragraphs (extra-body in
+    // The PDF leaves the leading plus 0.6em between paragraphs (prose in
     // templates/common.typ). \baselineskip has the leading in it already, so
     // what a blank line adds, \parskip or a list's parsep, is the 0.6em. Text
     // size and line spacing are both off 1, so the leading can't hide in it.
@@ -467,7 +483,7 @@ describe.each(IDS)("a LaTeX file in %s's layout", (id) => {
     expect(balanced(text)).toBe(true)
   })
 
-  test("with links, bold and italic, extra sections and publications is laid out as its template is", async () => {
+  test("with links, bold and italic, added sections and publications is laid out as its template is", async () => {
     await expect(toLatexFile(asSaved({ ...EVERYTHING, selectedTemplate: id })).text).toMatchFileSnapshot(`__snapshots__/${id}.tex`)
   })
 })
@@ -679,7 +695,7 @@ describe("signs pdfLaTeX prints, but a template's font lacks", () => {
   })
 
   test("get no fallbacks where the template's fonts have them", () => {
-    // TeX Gyre Heros has the arrow, so Swiss's file is as it was.
+    // TeX Gyre Heros has the arrow, so Swiss's file needs no fallback for it.
     const text = latexOf({ selectedTemplate: "swiss", workExperienceSection: [{ id: 1, workRole: "Intern → Software Engineer" }] })
     expect(text).toContain("Intern → Software Engineer")
     expect(text).not.toContain("\\resumeLetters")

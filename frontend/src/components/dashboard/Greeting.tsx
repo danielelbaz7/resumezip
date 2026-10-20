@@ -12,11 +12,11 @@ interface GreetingProps {
 
 /**
  * The dashboard's title, "Good morning, Marcus", by the visitor's clock and
- * the first name on the resume they edited last, in blue, and what to do here
- * under it. It's in the serif the site's other page titles are in. The time is
- * only known in the browser, and the name once the resumes are read, so until
- * then both keep their place, empty: the page as built doesn't guess them, and
- * its first render in the browser matches it.
+ * the first name on the last edited resume that has one, in blue, and what to
+ * do here under it. It's in the serif the site's other page titles are in.
+ * The time is only known in the browser, and the name once the resumes are
+ * read, so until then both keep their place, empty: the page as built doesn't
+ * guess them, and its first render in the browser matches it.
  */
 export default function Greeting({ resumes, loaded }: GreetingProps) {
   const [hour, setHour] = useState<number | null>(null)

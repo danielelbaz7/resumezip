@@ -5,17 +5,16 @@ import { useOpenResume, useResumeActions, useResumeField } from "@/context/Resum
 import { extraHeading, type ExtraSection } from "@/lib/resumeSections"
 import { useCheckActions, useCheckTarget } from "./CheckContext"
 import DeleteSection from "./DeleteSection"
-import { BulletsField, FlagNote, FocusGlow, FocusLine, FormatHint, SectionHeading, selectLine, underlined } from "./fields"
-import { reducedMotion } from "./layout"
-import { StyledBox } from "./StyledBox"
+import { BulletsField, Field, pointAt, SectionHeading } from "./fields"
 
-/** A section the person added, found by its key rather than its title, which can be anyone's. */
+/** A section the person added, found by its key rather than its title, as two sections can have the same title. */
 export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: string; onDelete: () => void }) {
-  const { editSection, includeSection } = useResumeActions()
+  const { editSection } = useResumeActions()
   const { id } = useOpenResume()
   const extraSections = useResumeField("extraSections")
   const section: ExtraSection | undefined = extraSections?.[sectionId]
   const root = useRef<HTMLDivElement>(null)
+  // What the checker points at in this section, while the person fixes it.
   const target = useCheckTarget()
   const { pending, claim } = useCheckActions()
   const place = target?.finding.place
@@ -23,19 +22,15 @@ export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: s
   const flagAt = (field: "text" | "bullets") => (here?.kind === "extra-text" && here.field === field ? target!.finding : null)
 
   useEffect(() => {
-    const place = target?.finding.place
-    if (!target || !place || !("sectionId" in place) || place.sectionId !== sectionId || !pending(target.request)) return
+    if (!target || !here || !pending(target.request)) return
     const timer = setTimeout(() => {
       if (!claim(target.request)) return
       const selector =
-        place.kind === "extra-heading" ? 'button[aria-label="Rename section"]' : `[data-field="${place.field}"] [contenteditable="true"]`
-      const field = root.current?.querySelector<HTMLElement>(selector)
-      field?.focus({ preventScroll: true })
-      if (field && place.kind === "extra-text" && place.line !== undefined) selectLine(field, place.line)
-      field?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" })
+        here.kind === "extra-heading" ? 'button[aria-label="Rename section"]' : `[data-field="${here.field}"] [contenteditable="true"]`
+      pointAt(root.current?.querySelector<HTMLElement>(selector), here.kind === "extra-text" ? here.line : undefined)
     }, 0)
     return () => clearTimeout(timer)
-  }, [target, pending, claim, sectionId])
+  }, [target, here, pending, claim])
 
   if (!section) return null
   const title = extraHeading(section)
@@ -53,7 +48,7 @@ export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: s
           <input
             type="checkbox"
             checked={!section.leftOut}
-            onChange={(event) => includeSection(id, sectionId, event.target.checked)}
+            onChange={(event) => editSection(id, sectionId, { leftOut: !event.target.checked })}
             className="h-4 w-4 accent-accent"
           />
           Include section in the PDF
@@ -61,36 +56,17 @@ export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: s
       </div>
       {section.leftOut && <p className="text-[13px] text-ink-3">This section stays saved here and is left out of the PDF and checks.</p>}
       {section.kind === "text" && (
-        <div data-field="text" className="group/field flex flex-col gap-1.5">
-          {/* Its label turns blue while typing in the box, as a field's does. A label can't be
-              for the box, a div, so a click on it puts the cursor in the box itself. */}
-          <span
-            id={`extra-text-label-${sectionId}`}
-            onClick={() => document.getElementById(`extra-text-${sectionId}`)?.focus()}
-            className="label-mono text-ink-2 transition-colors group-focus-within/field:text-accent"
-          >
-            Text
-          </span>
-          <div className="relative">
-            <FocusGlow />
-            <StyledBox
-              kind="prose"
-              id={`extra-text-${sectionId}`}
-              value={section.text}
-              onChange={(text) => editSection(id, sectionId, { text })}
-              labelId={`extra-text-label-${sectionId}`}
-              describedBy={flagAt("text") ? `extra-text-hint-${sectionId} extra-text-note-${sectionId}` : `extra-text-hint-${sectionId}`}
-              invalid={flagAt("text")?.level === "fix"}
-              // As tall as eight lines, as the text box it replaced was.
-              className={`${underlined(!!flagAt("text"))} min-h-[238px] leading-relaxed`}
-            />
-            <FocusLine />
-          </div>
-          {flagAt("text") && <FlagNote id={`extra-text-note-${sectionId}`} finding={flagAt("text")!} />}
-          <p id={`extra-text-hint-${sectionId}`} className="text-[13px] text-ink-2">
-            Paragraph breaks are kept. <FormatHint />
-          </p>
-        </div>
+        <Field
+          multiline
+          name="text"
+          label="Text"
+          value={section.text}
+          onChange={(text) => editSection(id, sectionId, { text })}
+          flag={flagAt("text")}
+          hint="Paragraph breaks are kept."
+          // As tall as eight and a half lines.
+          boxHeight="min-h-[238px]"
+        />
       )}
       {section.kind === "list" && (
         <BulletsField

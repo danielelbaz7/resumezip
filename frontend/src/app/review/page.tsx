@@ -5,7 +5,7 @@ export const metadata = pageMetadata({
   path: "/review",
   title: "Review your resume",
   description:
-    "Drop your resume and see what a recruiter would skip, marked right on the page, with a score out of 100. Free, and read in your browser.",
+    "Drop your resume and see what a recruiter would skip, marked right on the page, with a score out of 100 and AI notes. Free.",
 })
 
 export default function Review() {

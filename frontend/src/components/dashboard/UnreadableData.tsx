@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useResumeContext } from "@/context/ResumeContext"
+import { saveFile } from "@/lib/saveFile"
 import Modal from "./Modal"
 import { sheetPill, TEXT_PILL, WHITE_PILL } from "@/components/pills"
 
@@ -18,16 +19,8 @@ export default function UnreadableData() {
   // One copy downloads exactly as it was saved. Several go in a JSON list, so
   // they can be told apart again.
   const download = () => {
-    const one = unreadable.length === 1
-    const file = one
-      ? new Blob([unreadable[0]], { type: "text/plain" })
-      : new Blob([JSON.stringify(unreadable, null, 2)], { type: "application/json" })
-    const url = URL.createObjectURL(file)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = one ? "resumezip-unreadable-data.txt" : "resumezip-unreadable-data.json"
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+    if (unreadable.length === 1) saveFile(unreadable[0], "resumezip-unreadable-data.txt", "text/plain")
+    else saveFile(JSON.stringify(unreadable, null, 2), "resumezip-unreadable-data.json", "application/json")
   }
 
   return (

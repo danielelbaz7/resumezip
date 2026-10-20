@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "./test"
-import { boxText, cursorInBox, pageErrors, selectInBox } from "./helpers"
+import { cursorInBox, expectText, pageErrors, previewShown, saveResumes, savedResume, selectInBox } from "./helpers"
 
 // The bullets box shows bold and italic words as they print, without their
 // marks, and makes every edit itself: typing, Enter (a new bullet), ⌘B and
@@ -32,10 +32,7 @@ const undo = (page: Page) => page.keyboard.press("ControlOrMeta+z")
 const redo = (page: Page) => page.keyboard.press("ControlOrMeta+Shift+z")
 
 /** The bullets as saved in this browser. */
-const saved = (page: Page) =>
-  page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "{}").workExperienceSection?.[0]?.workDescription, `resume:${RESUME.id}`)
-
-const expectText = (box: Locator, text: string) => expect.poll(() => boxText(box)).toBe(text)
+const saved = async (page: Page) => (await savedResume(page, RESUME.id)).workExperienceSection?.[0]?.workDescription
 
 // Copying and pasting send the events the page gets for them, so the test
 // doesn't depend on how each browser's clipboard works when run by Playwright.
@@ -62,15 +59,10 @@ const paste = (box: Locator, text: string) =>
 /** Opens the resume with `bullets` in its job, and focuses their box. */
 async function openBox(page: Page, bullets: string): Promise<Locator> {
   const resume = { ...RESUME, workExperienceSection: [{ ...RESUME.workExperienceSection[0], workDescription: bullets }] }
-  await page.addInitScript(
-    ({ key, value }) => {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
-    },
-    { key: `resume:${RESUME.id}`, value: JSON.stringify(resume) },
-  )
+  await saveResumes(page, [resume])
   await page.goto(`/create/new/${RESUME.id}`)
   // The preview first, so the PDF compiler's download isn't cut off, which Safari logs as an error.
-  await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
+  await previewShown(page)
   await page
     .getByRole("navigation", { name: "Sections" })
     .getByRole("button", { name: /^Experience$/ })

@@ -1,5 +1,4 @@
-// Jake's Resume (https://github.com/jakegut/resume), ported from the LaTeX
-// template that used to live in backend/templates/overleaf2.tex.
+// Jake's Resume (https://github.com/jakegut/resume), ported from its LaTeX.
 #import "common.typ": *
 
 #let p = data.profile
@@ -70,11 +69,11 @@
 
 // The profile's summary, above the sections, set as a text section is.
 #if data.summary.len() > 0 {
-  section("Summary", entries((extra-body((kind: "text", paragraphs: data.summary), bullets),)))
+  section("Summary", entries((prose(data.summary),)))
 }
 
 #for name in data.order {
-  if data.extras.at(name, default: none) != none {
+  if name in data.extras {
     let extra = data.extras.at(name)
     section(extra.heading, entries((extra-body(extra, bullets),)))
   } else if name == "Education" and data.education.len() > 0 {

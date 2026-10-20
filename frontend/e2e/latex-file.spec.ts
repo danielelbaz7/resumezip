@@ -1,44 +1,12 @@
-import { readFile } from "node:fs/promises"
 import { expect, test, type Download, type Page } from "./test"
-import { chooseTemplate, pageErrors } from "./helpers"
-
-/** A resume with a job, a bullet and an entry left out of the PDF. */
-const MARA = {
-  id: "mara",
-  resumeTitle: "Mara at Stripe",
-  updatedAt: "2026-10-08T12:00:00.000Z",
-  selectedTemplate: "modernjack",
-  sectionOrder: ["Work", "Education", "Skills"],
-  sectionsChosen: true,
-  headings: {},
-  profileSection: { fullName: "Mara Lin", email: "mara@example.com", linkedin: "linkedin.com/in/maralin" },
-  educationSection: [{ id: 1, schoolName: "State University", degree: "B.S. in Biology", schoolEndDate: "May 2024" }],
-  workExperienceSection: [
-    {
-      id: 1,
-      workRole: "Engineer",
-      companyName: "Stripe",
-      workStartDate: "Jun 2024",
-      workEndDate: "Present",
-      workDescription: "• Built **payments** search for R&D\n○ Fed the cat",
-    },
-    { id: 2, workRole: "Secret agent", companyName: "MI6", leftOut: true },
-  ],
-  skillsSection: [{ id: 1, skillName: "Languages", skillDetails: "Go, TypeScript" }],
-  projectsSection: [],
-  publicationsSection: [],
-  volunteerExperienceSection: [],
-  leadershipExperienceSection: [],
-  awardsSection: [],
-}
+import { chooseTemplate, downloadText, pageErrors, preview, saveResumes } from "./helpers"
+import { MARA } from "./resumes"
 
 /** Opens `resume` in the editor, saved before the page opens, as an earlier visit would have. */
 async function open(page: Page, resume: typeof MARA) {
-  await page.addInitScript((resume) => {
-    if (localStorage.getItem(`resume:${resume.id}`) === null) localStorage.setItem(`resume:${resume.id}`, JSON.stringify(resume))
-  }, resume)
+  await saveResumes(page, [resume])
   await page.goto(`/create/new/${resume.id}`)
-  await expect(page.getByRole("region", { name: "Live preview" }).getByText("Stripe").first()).toBeVisible()
+  await expect(preview(page).getByText("Stripe").first()).toBeVisible()
 }
 
 /** Chooses LaTeX from the ▾ beside Download PDF, and waits for its file. */
@@ -48,8 +16,6 @@ async function downloadLatex(page: Page): Promise<Download> {
   await page.getByRole("menuitem", { name: /^LaTeX/ }).click()
   return downloading
 }
-
-const textOf = async (download: Download) => readFile((await download.path())!, "utf8")
 
 test("a resume downloaded as LaTeX from the ▾ menu is laid out as its template is, with what its PDF prints", async ({ page }) => {
   const errors = pageErrors(page)
@@ -62,7 +28,7 @@ test("a resume downloaded as LaTeX from the ▾ menu is laid out as its template
   await expect(page.getByRole("status").filter({ hasText: "LaTeX file downloaded" })).toBeAttached()
 
   // Modern Jake's, as the resume is, with only what the PDF prints.
-  const text = await textOf(download)
+  const text = await downloadText(download)
   expect(text).toContain("% resumezip's Modern Jake's template")
   expect(text).toContain("\\usepackage[default]{lato}")
   expect(text).toContain("Built \\textbf{payments} search for R\\&D")
@@ -75,7 +41,7 @@ test("a resume downloaded as LaTeX from the ▾ menu is laid out as its template
 
   // Another template, another layout.
   await chooseTemplate(page, "Jake's")
-  const jake = await textOf(await downloadLatex(page))
+  const jake = await downloadText(await downloadLatex(page))
   expect(jake).toContain("% Based on Jake's Resume: https://github.com/jakegut/resume")
   expect(jake).toContain("Built \\textbf{payments} search for R\\&D")
 
@@ -93,7 +59,7 @@ test("a LaTeX file with letters pdfLaTeX can't print says to compile it with XeL
 
   const download = await downloadLatex(page)
   expect(download.suggestedFilename()).toBe("Ivan at Stripe.tex")
-  expect((await textOf(download)).split("\n")[0]).toBe("% !TeX program = xelatex")
+  expect((await downloadText(download)).split("\n")[0]).toBe("% !TeX program = xelatex")
 
   // Said under the ▾, and aloud.
   const notice = page.getByRole("group", { name: "LaTeX file downloaded" })

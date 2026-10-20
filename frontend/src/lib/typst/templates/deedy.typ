@@ -151,8 +151,9 @@
 // ---------- Sections ----------
 
 // Education and skills go on the left; everything else on the right, each in
-// the resume's order. The resume checker reads this list as `firstColumn` in
-// src/lib/templates.ts.
+// the resume's order. The resume checker reads its own copy of this list
+// (`firstColumn` in src/lib/templates.ts), and the LaTeX file has a third
+// (src/lib/latex/templates/deedy.ts), so a change here goes in both.
 #let on-left = ("Education", "Skills")
 
 #let left-section(name) = {
@@ -192,7 +193,7 @@
 }
 
 #let right-section(name) = {
-  if data.extras.at(name, default: none) != none {
+  if name in data.extras {
     let extra = data.extras.at(name)
     (extra.heading, extra-body(extra, bullets))
   } else if name == "Work" and data.work.len() > 0 {
@@ -211,7 +212,7 @@
       bullets(pr.bullets)
     })))
   } else if name == "Publications" and data.publications.len() > 0 {
-    (heading-or(hd.publications, "Publications"), citations(data.publications, (url, body) => web-link(url, body), gap: 6pt))
+    (heading-or(hd.publications, "Publications"), citations(data.publications, web-link))
   } else if name == "Leadership" and data.leadership.len() > 0 {
     (heading-or(hd.leadership, "Leadership"), entries(data.leadership.map(l => entry(l.organization, l.role, date-range(l.start, l.end), l.location, items: l.bullets))))
   } else if name == "Volunteership" and data.volunteer.len() > 0 {
@@ -238,7 +239,7 @@
   {
     let sections = data.order.filter(n => n not in on-left).map(right-section)
     if data.summary.len() > 0 {
-      sections.insert(0, ("Summary", extra-body((kind: "text", paragraphs: data.summary), bullets)))
+      sections.insert(0, ("Summary", prose(data.summary)))
     }
     column(sections)
   },

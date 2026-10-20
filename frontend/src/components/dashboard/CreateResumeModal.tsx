@@ -8,7 +8,7 @@ import { DEFAULT_TEMPLATE, TEMPLATES, templateById, type TemplateId } from "@/li
 import { PAPER_NAMES, PAPERS, readTune, TEMPLATE_SETTINGS, type Paper } from "@/lib/tune"
 import { SEGMENT, SEGMENTS, sheetPill } from "@/components/pills"
 import { useThumb } from "@/components/useThumb"
-import Modal, { useModalClose } from "./Modal"
+import Modal, { CancelButton } from "./Modal"
 import { MENU_ITEM, MENU_PANEL, useMenu } from "./MoreMenu"
 import PagePicture from "./PagePicture"
 import { editedPhrase } from "./ResumeGrid"
@@ -100,7 +100,7 @@ export default function CreateResumeModal({ own, resumes, dragging, onClose, onC
           ref={tabs.group}
           role="tablist"
           aria-label="How to start"
-          className={`${SEGMENTS} mt-[21px] self-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+          className={`${SEGMENTS} mt-[21px] self-start overflow-x-auto no-scrollbar`}
         >
           <span ref={tabs.thumb} aria-hidden="true" className={`segment-thumb ${tabs.placed ? "" : "invisible"}`} />
           {STARTS.map((option, index) => {
@@ -174,7 +174,7 @@ export default function CreateResumeModal({ own, resumes, dragging, onClose, onC
             </div>
           )}
           <div className="ml-auto flex items-center gap-2">
-            <CancelButton />
+            <CancelButton className={sheetPill("text", "h-11 px-4 text-[15px]")} />
             <button
               type="submit"
               disabled={shown === "copy" && !original}
@@ -424,15 +424,5 @@ function ChoiceMenu<Value extends string>({
         </div>
       )}
     </div>
-  )
-}
-
-/** Cancel, which closes the dialog as Escape does, fading away. */
-function CancelButton() {
-  const close = useModalClose()
-  return (
-    <button type="button" onClick={close} className={sheetPill("text", "h-11 px-4 text-[15px]")}>
-      Cancel
-    </button>
   )
 }

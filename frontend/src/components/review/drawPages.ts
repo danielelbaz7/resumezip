@@ -21,7 +21,7 @@ const DRAWN_WIDTH = 1400
 export async function drawPages(
   pdf: Uint8Array,
   signal: AbortSignal,
-  onPage?: (page: DrawnPage, index: number) => void,
+  onPage: (page: DrawnPage, index: number) => void,
 ): Promise<DrawnPage[] | null> {
   const drawn: DrawnPage[] = []
   try {
@@ -47,7 +47,7 @@ export async function drawPages(
         signal.throwIfAborted()
         const drawnPage = { url: URL.createObjectURL(picture), width: size.width, height: size.height }
         drawn.push(drawnPage)
-        onPage?.(drawnPage, number - 1)
+        onPage(drawnPage, number - 1)
       }
     } finally {
       void task.destroy()

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { bulletLines, cursorWithBullets, moveLine, newBullet, pastedList, typedList, withBullets } from "./arrange"
+import { bulletLines, cursorWithBullets, newBullet, pastedList, typedList, withBullets } from "./arrange"
 
 const text = "• Built a loom\n\n○ Fed the cat\n• Wrote the notes"
 
@@ -39,12 +39,6 @@ describe("bullets in a box", () => {
       { line: 3, words: "Wrote the notes", leftOut: false },
     ])
     expect(bulletLines("•\n  \n")).toEqual([])
-  })
-
-  test("moves a line in the text box by one, as Alt+↑ and Alt+↓ do", () => {
-    expect(moveLine(text, 2, -1)).toBe("• Built a loom\n○ Fed the cat\n\n• Wrote the notes")
-    expect(moveLine(text, 0, -1)).toBe(text)
-    expect(moveLine(text, 3, 1)).toBe(text)
   })
 })
 

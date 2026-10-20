@@ -1,5 +1,6 @@
-// Conservative cues for coaching, not a semantic assessment of an accomplishment.
-// Numeric identifiers do not establish scope, and qualitative results need no number.
+// What a bullet says about the work's scope or result (B3), and whether it
+// names its work at all (B8): hints from its words, not a judgment of the
+// work. A version or ticket number isn't scope, and a result needs no number.
 
 import {
   BULLET_FILLER_COUNTS,
@@ -78,7 +79,7 @@ export function hasOutcome(text: string): boolean {
 
 const genericWords = new Set(BULLET_GENERIC_WORDS)
 
-/** Only an action followed entirely by generic filler is diagnosed as lacking detail. */
+/** Whether a bullet is only a verb and generic words: “Built internal tools for the team”. */
 export function isGenericBullet(text: string): boolean {
   // A word that looks generic may be an intentional product or code name.
   if (/["“][^"”]+["”]|`[^`]+`|(?:^|\s)['‘][^'’]+['’](?=$|[\s.,;:!?])/u.test(text)) return false

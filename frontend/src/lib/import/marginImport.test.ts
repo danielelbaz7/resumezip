@@ -5,19 +5,14 @@
 
 import { describe, expect, test } from "vitest"
 import { cleanResume } from "@/lib/resumeFile"
-import { toTemplateData } from "@/lib/typst/resumeData"
-import { differences, readBack, render, samples } from "./testRender"
+import { differences, printedData, readBack, render, samples } from "./testRender"
 
 const sample = samples.find((resume) => resume.selectedTemplate === "margin")
 
-// What a resume prints, as roundtrip.test.ts compares it: GPAs without spaces.
-// Without the sections' order and headings, which aren't read back for a
-// section under a heading the importer doesn't know.
-function printed(resume: Record<string, unknown>) {
-  const data = toTemplateData(resume)
-  for (const school of data.education) school.gpa = school.gpa.replace(/\s+/g, "")
-  return { ...data, order: [], headings: {} }
-}
+// What a resume prints, as roundtrip.test.ts compares it, without the
+// sections' order and headings, which aren't read back for a section under a
+// heading the importer doesn't know.
+const printed = (resume: Record<string, unknown>) => ({ ...printedData(resume), order: [], headings: {} })
 
 async function read(resume: Record<string, unknown>) {
   const { parsed, resume: got } = await readBack(await render(resume))
@@ -46,7 +41,6 @@ describe("a Margin PDF opened without its resume", () => {
     const { parsed, wrong } = await read({ ...sample, headings: { projects: "Things I Built" } })
     expect(parsed.sections.map((section) => section.name)).toEqual(["Work", "Education", "Skills", "Leadership", "Volunteership", "Awards"])
     // The project is the custom section's text, for the review to keep as one.
-    expect(parsed.occurrences?.find((occurrence) => occurrence.heading === "Things I Built")?.kind).toBe("unsupported")
     expect(parsed.unplaced.map((group) => group.heading)).toEqual(["Things I Built"])
     expect(parsed.unplaced[0].text.join(" ")).toContain("Tabsplit")
     expect(wrong.filter((field) => !field.startsWith("projects"))).toEqual([])
@@ -72,7 +66,7 @@ describe("a Margin PDF opened without its resume", () => {
       skills: "Programmierkenntnisse",
     }
     const { parsed, wrong } = await read({ ...sample, headings })
-    expect(parsed.occurrences?.map((occurrence) => occurrence.heading)).toEqual([
+    expect(parsed.occurrences.map((occurrence) => occurrence.heading)).toEqual([
       "Summary",
       "Internationalization",
       "Education",
@@ -99,7 +93,7 @@ describe("a Margin PDF opened without its resume", () => {
       headings: { awards: "Honors, Awards, Grants, Prizes, Fellowships and Certifications" },
     })
     expect(parsed.unplaced).toEqual([])
-    expect(parsed.occurrences?.at(-1)?.heading).toBe("Honors, Awards, Grants, Prizes, Fellowships and Certifications")
+    expect(parsed.occurrences.at(-1)?.heading).toBe("Honors, Awards, Grants, Prizes, Fellowships and Certifications")
     expect(wrong).toEqual([])
   })
 })

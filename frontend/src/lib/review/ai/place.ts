@@ -25,7 +25,7 @@ const LEAST_WORDS = 2
 export function placeOfQuote(view: ResumeView, quote: string): Place | null {
   const wanted = comparable(quote)
   if (!wanted) return null
-  // Every printed text with a field, custom sections' text too, as the checker reads them.
+  // Every printed text with a field, the added sections' too, as the checker reads them.
   const texts = textsOf(view).map(({ place, text }) => ({ place, text: comparable(text) }))
   const whole = texts.find(({ text }) => text.includes(wanted))
   if (whole) return whole.place

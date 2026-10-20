@@ -3,7 +3,7 @@
 
 import type { FieldKey, SectionName } from "@/components/editor/sections"
 import type { Problem, Rule } from "./engine"
-import { fieldOf, LINK_FIELDS, LOCATION_FIELDS, type Place } from "./places"
+import { fieldOf, LINK_FIELDS, LOCATION_FIELDS, placeId, type Place } from "./places"
 import { textsOf, type ResumeView } from "./resume"
 import {
   ACRONYMS,
@@ -24,7 +24,13 @@ import { verbOf } from "./verbs"
 const capitalized = (word: string) => word[0].toUpperCase() + word.slice(1).toLowerCase()
 
 const NAME_KEYS = new Set<string | undefined>(NAME_FIELDS)
-const TITLE_KEYS = new Set<string | undefined>(["workRole", "volunteerRole", "leadershipRole", "awardName", "publicationTitle"])
+const TITLE_KEYS = new Set<string | undefined>([
+  "workRole",
+  "volunteerRole",
+  "leadershipRole",
+  "awardName",
+  "publicationTitle",
+] satisfies FieldKey[])
 const namesIn = (resume: ResumeView) =>
   new Set(
     textsOf(resume)
@@ -32,7 +38,8 @@ const namesIn = (resume: ResumeView) =>
       .flatMap(({ text }) => text.toLowerCase().match(/[\p{L}\p{N}.+-]+/gu) ?? []),
   )
 
-// Quoted terminology and code are intentional text, not prose to copyedit.
+// A text without what's in quotes or code (`npm i`, “Ask Me”, f(x, y)), which
+// keeps its own spacing, capitals and shorthand.
 const proseOf = (text: string) => text.replace(/`[^`]*`|“[^”]*”|"[^"]*"|‘[^’]*’|(?<!\p{L})'[^']+'(?!\p{L})|\b[\w.]+\([^)]*\)/gu, " ")
 
 const endings: Rule = {
@@ -60,19 +67,11 @@ const endings: Rule = {
       problems.push(
         ...group
           .filter(({ bullet }) => period(bullet.text) !== usual)
-          .map(({ place }) =>
-            usual
-              ? {
-                  place,
-                  message: "No period at the end, unlike your other bullets",
-                  suggestion: "Consider matching the punctuation in this entry, unless sentence structure differs.",
-                }
-              : {
-                  place,
-                  message: "Ends with a period, unlike your other bullets",
-                  suggestion: "Consider matching the punctuation in this entry, unless sentence structure differs.",
-                },
-          ),
+          .map(({ place }) => ({
+            place,
+            message: usual ? "No period at the end, unlike your other bullets" : "Ends with a period, unlike your other bullets",
+            suggestion: "End it as this entry's other bullets end, unless it's a different kind of sentence.",
+          })),
       )
     }
     return {
@@ -392,8 +391,8 @@ const numbersOneWay: Rule = {
         .filter(({ digit, word }) => !digit !== !word)
         .map(({ digit }) => (digit ? ("digit" as const) : ("word" as const)))
       const usual = mostCommon(oneWay) ?? ways.usually
-      for (const { place, bullet, digit, word } of written) {
-        const key = `${fieldOf(place)}|${bullet.line}|${place.kind === "entry" ? `${place.section}.${place.entry}` : ""}`
+      for (const { place, digit, word } of written) {
+        const key = placeId(place)
         if (problems.has(key)) continue
         if (digit && word) {
           const rewrite = usual === "digit" ? ways.asDigit(word) : ways.asWord(digit)

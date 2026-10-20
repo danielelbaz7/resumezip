@@ -83,7 +83,7 @@ interface MoreMenuProps {
  */
 export default function MoreMenu({ label, items, ...data }: MoreMenuProps) {
   const { open, setOpen, button, menu, close, onKeyDown } = useMenu()
-  const id = useId()
+  const menuId = useId()
   // It opens leftward from its button, over the page it's on. A phone's
   // left-hand page has too little room left of the button, so there it opens
   // rightward. Measured before it's painted, and by its layout width, since it
@@ -102,6 +102,7 @@ export default function MoreMenu({ label, items, ...data }: MoreMenuProps) {
         tip="More"
         tipAtEnd
         menuOpen={open}
+        menuId={menuId}
         className="more-button"
         onClick={() => setOpen((open) => !open)}
         {...data}
@@ -111,7 +112,7 @@ export default function MoreMenu({ label, items, ...data }: MoreMenuProps) {
       {open && (
         <div
           ref={menu}
-          id={id}
+          id={menuId}
           role="menu"
           aria-label={label}
           onKeyDown={onKeyDown}

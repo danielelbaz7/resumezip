@@ -14,6 +14,7 @@ import {
   bold,
   CHARIS,
   citations,
+  dateRange,
   emailLink,
   ENGINES,
   itemText,
@@ -57,19 +58,17 @@ const FALLBACKS: Fallbacks = {
 
 /** Fine-tune's lengths in bp, the leading above a line, and the \baselineskip of text this size. */
 function lengthsOf(units: Units) {
-  const size = (pt: number) => units.size(pt)
-  const space = (pt: number) => units.space(pt)
-  const lead = space(LEADING)
+  const lead = units.space(LEADING)
   const pitch = (pt: number, cap = CAP) => sum(lead, units.size(cap * pt))
-  return { size, space, gap: units.gap, lead, pitch }
+  return { size: units.size, space: units.space, gap: units.gap, lead, pitch }
 }
 
 const underline = (body: string) => `\\resumeUnderline{${body}}`
 /** A link printed as its own text, underlined, as ian.typ's are. */
 const underlined: ShowLink = (url, text) => shownLink(url, text, underline)
 
-/** "Start – End", with an en dash, or whichever of the two is present, as ian.typ's `dates`. */
-const dates = (start: string, end: string) => joinPresent(" \\textendash{} ", latex(start), latex(end))
+/** "Start – End", with an en dash, as ian.typ's `dates`. */
+const dates = (start: string, end: string) => dateRange(latex(start), latex(end), " \\textendash{} ")
 
 const preamble = (units: Units, title: string, fallbacks: string) => {
   const { size, space, gap, lead, pitch } = lengthsOf(units)

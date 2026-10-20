@@ -152,5 +152,5 @@ function LeftBar({ hidden, tabs, children, style }: LeftBarProps) {
   )
 }
 
-// The editor passes the same children and style until the section list or the template changes, so a new preview doesn't re-render the bar.
+// The editor passes the same children and style until the section list changes, so a new preview doesn't re-render the bar.
 export default memo(LeftBar)

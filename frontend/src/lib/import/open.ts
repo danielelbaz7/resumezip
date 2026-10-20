@@ -6,6 +6,7 @@
 // when it runs out of time, and shuts down whatever it started.
 
 import type { PDFDocumentProxy } from "pdfjs-dist"
+import { PDFJS_WORKER_URL } from "@/lib/pdfjsWorker"
 import type { ResumeContent } from "@/lib/resume"
 import {
   ATTACHMENT_NAME,
@@ -22,7 +23,7 @@ import {
 } from "@/lib/resumeFile"
 import { storedFile, zipDirectory } from "@/lib/zip"
 import { MAX_BYTES, MAX_PAGES, TIME_LIMIT_MS, TooMuchTextError } from "./limits"
-import { readPdf, type Line, type PageSize, type PdfPage } from "./lines"
+import { readPdf, type PageSize, type PdfPage } from "./lines"
 import type { ParsedResume } from "./parse"
 import type { ReadRequest, ReadResult } from "./read"
 
@@ -41,7 +42,6 @@ export type OpenedFile =
   | {
       kind: "parsed"
       parsed: ParsedResume
-      lines: Line[]
       title: string
       fileName: string
       /** The PDF itself, for showing it beside what was found. Absent for Word files. */
@@ -60,7 +60,7 @@ let pdfjs: Promise<typeof import("pdfjs-dist")> | null = null
 export function loadPdfjs() {
   pdfjs ??= import("pdfjs-dist")
     .then((module) => {
-      module.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString()
+      module.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL
       return module
     })
     .catch((error) => {
@@ -200,7 +200,6 @@ async function openPdf(data: ArrayBuffer, title: string, fileName: string, signa
     return {
       kind: "parsed",
       parsed,
-      lines: parsed.lines,
       title,
       fileName,
       pdf: { doc, pages: pages.map(({ width, height }) => ({ width, height })) },
@@ -245,7 +244,7 @@ async function openWordFile(data: ArrayBuffer, title: string, fileName: string, 
   const resume = wordFileResume(data)
   if (resume) return { kind: "resumezip", resume, title, from: "docx" }
   const parsed = found(await readInWorker({ kind: "docx", data }, signal), "This Word file has no text in it.")
-  return { kind: "parsed", parsed, lines: parsed.lines, title, fileName }
+  return { kind: "parsed", parsed, title, fileName }
 }
 
 /**

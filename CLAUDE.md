@@ -1,7 +1,8 @@
 # CLAUDE.md
 
-resumezip is a resume builder that runs entirely in the browser: Next.js 15
-and React 19 in `frontend/`, with no server of its own. Resumes live in
+resumezip is a resume builder that runs in the browser: Next.js 15 and React
+19 in `frontend/`. Its one server function, `frontend/src/app/api/review`,
+passes a resume's printed text to an AI service for AI notes. Resumes live in
 localStorage, PDFs are compiled by Typst (WebAssembly) in a Web Worker, and
 resumezip keeps no copy of anyone's resume. `frontend/README.md` maps the code;
 `CONTRIBUTING.md` has the ground rules. Read both before a large change.
@@ -26,8 +27,8 @@ For anything a visitor can see or that touches storage, also run
 From CONTRIBUTING.md, in short:
 
 - We don't store resumes. No analytics. A new network call beyond the PDF
-  engine's CDN and lookups the person asks for (DOIs) is discussed in an
-  issue first.
+  engine's CDN, lookups the person asks for (DOIs) and the AI notes is
+  discussed in an issue first.
 - Saved resumes keep working. Old localStorage data and old PDFs must still
   open. Change the storage format only with a migration and a test.
 - Templates stay readable by hiring software: no icons or graphics, links

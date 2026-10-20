@@ -1,22 +1,18 @@
-import { expect, test } from "./test"
+import { expect, test, type Page } from "./test"
 import { textPdf } from "../src/lib/import/testFiles"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { openFile, pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { FROM_ELSEWHERE } from "./resumes"
+
+declare global {
+  interface Window {
+    /** How many times the page has measured an SVG element's box (getBBox), counted by a test. */
+    measured?: number
+  }
+}
 
 // The AI's notes, with /api/review answered here: tests never ask a real AI.
 
-const RESUME = [
-  "Mara Lin",
-  "mara@example.com | (555) 010-2020 | Seattle, WA",
-  "EXPERIENCE",
-  "Software Engineer, Acme Corp",
-  "Jan 2024 - Present",
-  "- Responsible for testing the checkout service",
-  "- Built a deploy tool that cut release time from two hours to ten minutes for 40 engineers",
-  "EDUCATION",
-  "State University",
-  "B.S. in Computer Science, 2019 - 2023",
-]
-const pdf = { name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf([RESUME]) }
+const pdf = { name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf([FROM_ELSEWHERE]) }
 
 // The line ids are left wrong on purpose: the page places a note by its quote.
 const NOTES = [
@@ -46,9 +42,9 @@ const NOTES = [
   },
 ]
 
-async function reviewed(page: import("@playwright/test").Page) {
+async function reviewed(page: Page) {
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
 }
@@ -78,7 +74,7 @@ test("AI notes are asked for once the resume is read, sent as the printed lines,
   // The page is marked with the AI's notes alone, and the checks are a switch away.
   await expect(page.getByRole("button", { name: "AI Reviews", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toHaveCount(0)
-  await page.getByRole("button", { name: "ATS checks" }).click()
+  await page.getByRole("button", { name: "ATS Checks" }).click()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
   await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toHaveCount(0)
   // With the checks drawn, both tiles are shut and nothing is listed; pressing one goes back to the AI's notes.
@@ -88,8 +84,10 @@ test("AI notes are asked for once the resume is read, sent as the printed lines,
   await page.getByRole("button", { name: "Red flags, 2" }).click()
   await expect(page.getByRole("button", { name: "AI Reviews", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Red flags, 2", pressed: true })).toBeVisible()
-  await page.getByRole("button", { name: "ATS checks" }).click()
+  // So does the switch, opening the tile pressed last.
+  await page.getByRole("button", { name: "ATS Checks" }).click()
   await page.getByRole("button", { name: "AI Reviews" }).click()
+  await expect(page.getByRole("button", { name: "Red flags, 2", pressed: true })).toBeVisible()
 
   // Each flag is drawn on its line, and pointing at it in the list shows its note there.
   const red = page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })
@@ -127,7 +125,7 @@ test("when the AI turns a review away, the page shows the checks and says why, a
   })
   await reviewed(page)
   await expect(page.getByRole("status").filter({ hasText: "AI notes are paused for a few minutes" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "ATS checks", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "ATS Checks", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
   await expect(page.getByText("Give it a few minutes.")).toBeVisible()
   await page.getByRole("button", { name: "OK" }).click()
@@ -136,7 +134,10 @@ test("when the AI turns a review away, the page shows the checks and says why, a
   // Back on the drop zone in this tab, the pause is said before a file is chosen, and another resume doesn't ask.
   await page.reload()
   await expect(page.getByRole("status").filter({ hasText: "AI notes are paused for a few minutes" })).toBeVisible()
-  await page.locator('input[type="file"]').setInputFiles({ ...pdf, buffer: textPdf([[...RESUME, "Volunteer tutor, 2022"]]) })
+  await openFile(page.getByRole("button", { name: "Review my resume" }), {
+    ...pdf,
+    buffer: textPdf([[...FROM_ELSEWHERE, "Volunteer tutor, 2022"]]),
+  })
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByText("Give it a few minutes.")).toBeVisible()
   expect(calls).toBe(1)
@@ -166,7 +167,7 @@ test("AI notes are kept in the browser: the same resume shows them again without
 
   // Reviewed again, as a file with another name: the same notes, with no call.
   await page.reload()
-  await page.locator('input[type="file"]').setInputFiles({ ...pdf, name: "Mara Lin (2).pdf" })
+  await openFile(page.getByRole("button", { name: "Review my resume" }), { ...pdf, name: "Mara Lin (2).pdf" })
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
   expect(calls).toBe(1)
 
@@ -229,7 +230,7 @@ test("a review that found nothing can be asked again from the editor", async ({ 
 })
 
 /** Answers /api/review only once `answer()` is called; `asked` settles when the page has asked. */
-async function heldAnswer(page: import("@playwright/test").Page) {
+async function heldAnswer(page: Page) {
   let ask = () => {}
   const asked = new Promise<void>((resolve) => (ask = resolve))
   let answer = () => {}
@@ -242,13 +243,13 @@ async function heldAnswer(page: import("@playwright/test").Page) {
   return { asked, answer }
 }
 
-test("the AI is asked as soon as the resume is printed, and the result waits for its notes while a recruiter's seconds count on the page", async ({
+test("the AI is asked as soon as the resume's pages are read, and the result waits for its notes while a recruiter's seconds count on the page", async ({
   page,
 }) => {
   const errors = pageErrors(page)
   const { asked, answer } = await heldAnswer(page)
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
   await asked
   // Asked before there's a result: the page is still being read, its own page counting a recruiter's seven seconds.
   await expect(page.getByRole("heading", { level: 1, name: "Reading it like a recruiter…" })).toBeVisible()
@@ -270,15 +271,15 @@ test("when the AI is long coming, the result opens without its notes, and a view
   await page.clock.install()
   const { asked, answer } = await heldAnswer(page)
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
   await asked
   await page.clock.fastForward(26_000)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByRole("status").filter({ hasText: "Getting notes from AI" })).toBeVisible()
-  await page.getByRole("button", { name: "ATS checks" }).click()
+  await page.getByRole("button", { name: "ATS Checks" }).click()
   answer()
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "ATS checks", pressed: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "ATS Checks", pressed: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start" })).toBeAttached()
   expect(errors).toEqual([])
 })
@@ -297,7 +298,7 @@ test("a page that never finishes drawing doesn't hold the result: after the wait
     await route.fulfill({ json: { notes: NOTES } })
   })
   await page.goto("/review")
-  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
   await asked
   await page.clock.fastForward(26_000)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
@@ -305,14 +306,48 @@ test("a page that never finishes drawing doesn't hold the result: after the wait
   expect(errors).toEqual([])
 })
 
-test("where the lines can't be hashed, the AI is still asked and its notes shown, just not kept", async ({ page }) => {
+test("the verdict's cloud is measured as it's drawn, not again each time the page changes", async ({ page }) => {
   const errors = pageErrors(page)
-  // Only the lines' hash fails: Next.js hashes with it too, as it prefetches links.
   await page.addInitScript(() => {
+    const getBBox = SVGGraphicsElement.prototype.getBBox
+    window.measured = 0
+    SVGGraphicsElement.prototype.getBBox = function (this: SVGGraphicsElement, options?: SVGBoundingBoxOptions) {
+      window.measured!++
+      return getBBox.call(this, options)
+    }
+  })
+  await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
+  await reviewed(page)
+  await page.evaluate(() => document.fonts.ready)
+  const measured = await page.evaluate(() => window.measured!)
+  expect(measured).toBeGreaterThan(0)
+  // Pointing at a flag in the list opens its mark on the page, which renders the page again.
+  const flag = page.getByRole("list", { name: "Red flags" }).getByRole("button", { name: "Says what you did, not what changed" })
+  for (let time = 0; time < 3; time++) {
+    await flag.hover()
+    await expect(flag).toHaveAttribute("data-open", "")
+    await page.mouse.move(0, 0)
+    await expect(flag).not.toHaveAttribute("data-open")
+  }
+  expect(await page.evaluate(() => window.measured)).toBe(measured)
+  expect(errors).toEqual([])
+})
+
+/**
+ * Makes hashing the lines fail, as it does where the page isn't served
+ * securely and has no crypto.subtle. Only the lines' hash fails: Next.js
+ * hashes with it too, as it prefetches links.
+ */
+const linesCantBeHashed = (page: Page) =>
+  page.addInitScript(() => {
     const digest = crypto.subtle.digest.bind(crypto.subtle)
     crypto.subtle.digest = (algorithm: AlgorithmIdentifier, data: BufferSource) =>
       new TextDecoder().decode(data).startsWith('[["u1"') ? Promise.reject(new Error("No digest for the lines")) : digest(algorithm, data)
   })
+
+test("where the lines can't be hashed, the AI is still asked and its notes shown, just not kept", async ({ page }) => {
+  const errors = pageErrors(page)
+  await linesCantBeHashed(page)
   await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
   await reviewed(page)
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
@@ -320,7 +355,29 @@ test("where the lines can't be hashed, the AI is still asked and its notes shown
   expect(errors).toEqual([])
 })
 
+test("where the lines can't be hashed, the editor still asks the AI and shows its notes", async ({ page }) => {
+  const errors = pageErrors(page)
+  await linesCantBeHashed(page)
+  let calls = 0
+  await page.route("**/api/review", async (route) => {
+    calls++
+    await route.fulfill({ json: { notes: NOTES } })
+  })
+  await reviewed(page)
+  await page.getByRole("button", { name: "Fix it in the editor" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  // The review's notes weren't kept without a hash, so the editor asks again.
+  await page.getByRole("button", { name: "AI notes", pressed: false }).click()
+  const ask = page.getByRole("button", { name: "Get AI notes" })
+  await expect(ask).toBeEnabled({ timeout: 60_000 })
+  await ask.click()
+  await expect(page.getByRole("region", { name: "AI notes" }).getByRole("region", { name: "Red flags, 2" })).toBeVisible()
+  expect(calls).toBe(2)
+  expect(errors).toEqual([])
+})
+
 test("the drop zone's note that AI notes are paused goes when the pause is over", async ({ page }) => {
+  const errors = pageErrors(page)
   await page.clock.install()
   await page.goto("/review")
   await page.evaluate(() => sessionStorage.setItem("resumezip.aiPausedUntil", String(Date.now() + 60_000)))
@@ -329,4 +386,5 @@ test("the drop zone's note that AI notes are paused goes when the pause is over"
   await expect(note).toBeVisible()
   await page.clock.fastForward(61_000)
   await expect(note).toHaveCount(0)
+  expect(errors).toEqual([])
 })

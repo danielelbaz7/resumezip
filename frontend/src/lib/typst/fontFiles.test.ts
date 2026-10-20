@@ -3,7 +3,7 @@ import path from "node:path"
 import { beforeAll, describe, expect, test } from "vitest"
 import { CompileFormatEnum, createTypstCompiler, createTypstFontBuilder, type TypstCompiler } from "@myriaddreamin/typst.ts/compiler"
 import { loadFonts } from "@myriaddreamin/typst.ts/options.init"
-import { readBack, render } from "@/lib/import/testRender"
+import { readBack, render, samples } from "@/lib/import/testRender"
 import { fontsOf, templateById, TEMPLATES } from "@/lib/templates"
 import { covers, FONT_FILES, FONT_INFO, FONT_URLS, filesOf, fontsFor, lazyFonts, noFontHas } from "./fontFiles"
 import { toTemplateData } from "./resumeData"
@@ -245,7 +245,7 @@ describe("printing with only the fonts a resume needs", () => {
     }
   })
 
-  // Every font loaded up front, as before, or each read only when it's printed with.
+  // Every font loaded up front, or each read only when it's printed with.
   async function useFonts(fonts: "all" | ((file: string) => Uint8Array)) {
     const builder = createTypstFontBuilder()
     await builder.init({ getModule: () => readFileSync(WASM) })
@@ -271,9 +271,6 @@ describe("printing with only the fonts a resume needs", () => {
       .replace(/\/ID \[\([^)]*\) \([^)]*\)\]/g, "/ID []")
   }
 
-  const samples = readdirSync(path.join(TYPST, "preview-samples")).map((file) =>
-    JSON.parse(readFileSync(path.join(TYPST, "preview-samples", file), "utf8")),
-  )
   const mixed = (template: string) => ({
     selectedTemplate: template,
     profileSection: { fullName: "Đặng Thị Ngọc Ánh", location: MIXED, email: "anh@example.com" },

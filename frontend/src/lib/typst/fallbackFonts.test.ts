@@ -1,50 +1,25 @@
 // Letters a template's fonts lack, printed in the fallback it names rather
-// than in whatever font Typst finds: Cyrillic in Source Sans 3 where TeX Gyre
-// Heros has none, Cyrillic and Greek in EB Garamond where TeX Gyre Termes has
-// none or only some, and Greek in Source Sans 3, Lato or EB Garamond where IBM
-// Plex Mono, Raleway and Charis SIL have only a few Greek letters. Before,
-// these came from a serif (Charis SIL, EB Garamond), then from Lato, a few
-// letters of a word from one font and the rest from another.
+// than in whatever font Typst finds, often a serif, and all of a word in one
+// font: Cyrillic in Source Sans 3 where TeX Gyre Heros has none, Cyrillic and
+// Greek in EB Garamond where TeX Gyre Termes has none or only some, and Greek
+// in Source Sans 3, Lato or EB Garamond where IBM Plex Mono, Raleway and
+// Charis SIL have only a few Greek letters.
 
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
-import type { TextItem } from "pdfjs-dist/types/src/display/api"
 import { describe, expect, test } from "vitest"
-import { render } from "@/lib/import/testRender"
+import { lettersOf, render, textWithFonts } from "@/lib/import/testRender"
 import { toTemplateData } from "./resumeData"
 
 const CYRILLIC = "Иван Петров, Москва"
 const GREEK = "Αλέξανδρος Παπαδόπουλος"
 
-/** Each piece of text the PDF prints, with the font pdf.js says it's drawn in, without the subset's tag ("SourceSans3-Bold"). */
-async function printed(pdf: Uint8Array): Promise<{ text: string; font: string }[]> {
-  const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
-  try {
-    const pieces: { text: string; font: string }[] = []
-    for (let number = 1; number <= doc.numPages; number++) {
-      const page = await doc.getPage(number)
-      // The fonts' names are only there once the page's fonts are loaded.
-      await page.getOperatorList()
-      for (const item of (await page.getTextContent()).items as TextItem[]) {
-        const name = String((page.commonObjs.get(item.fontName) as { name?: string }).name)
-        pieces.push({ text: item.str, font: name.replace(/^[A-Z]{6}\+/, "") })
-      }
-    }
-    return pieces
-  } finally {
-    await doc.destroy()
-  }
-}
-
 const SCRIPT = /[\p{Script=Cyrillic}\p{Script=Greek}]/u
-const lettersOf = (text: string) => [...new Set(text.match(/\p{L}/gu))]
 
 /**
  * The fonts `text`'s Cyrillic and Greek letters are printed in, and the
  * letters printed in `font`, which should be every one of them.
  */
 async function fontsOfLetters(resume: Record<string, unknown>, text: string, font: RegExp) {
-  const pieces = (await printed(await render(resume))).filter((piece) => SCRIPT.test(piece.text))
+  const pieces = (await textWithFonts(await render(resume))).filter((piece) => SCRIPT.test(piece.text))
   const inFont = pieces
     .filter((piece) => font.test(piece.font))
     .map((piece) => piece.text)
@@ -138,7 +113,7 @@ test("Margin's headings keep Greek in Linux Biolinum, which has it all", async (
 
 test("the Latin around those letters stays in the template's own font", async () => {
   const text = `Ivan Petrov, ${CYRILLIC}`
-  const pieces = await printed(await render(resumeIn("swiss", text)))
+  const pieces = await textWithFonts(await render(resumeIn("swiss", text)))
   const latin = pieces.filter((piece) => /[A-Za-z]/.test(piece.text) && !SCRIPT.test(piece.text))
   expect(latin.length).toBeGreaterThan(0)
   expect([...new Set(latin.map((piece) => piece.font))].filter((font) => !font.startsWith("TeXGyreHeros-"))).toEqual([])

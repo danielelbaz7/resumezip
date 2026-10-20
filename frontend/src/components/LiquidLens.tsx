@@ -5,9 +5,9 @@ import { rimMap } from "./lens"
 
 interface LiquidLensProps {
   /** How far in from the rim the glass bends, in pixels. */
-  bevel?: number
+  bevel: number
   /** How strongly it bends: 1 bends as far as it can without folding what's under it back. */
-  strength?: number
+  strength: number
 }
 
 // Only Chromium bends a backdrop through an SVG filter: WebKit drops a
@@ -27,7 +27,7 @@ const SETTLE_MS = 150
  * displacement map drawn for the pane's size and corners (lens.ts), so its rim
  * bends what's under it. Elsewhere than Chromium it's an empty layer.
  */
-export default function LiquidLens({ bevel = 24, strength = 1 }: LiquidLensProps) {
+export default function LiquidLens({ bevel, strength }: LiquidLensProps) {
   const layer = useRef<HTMLSpanElement>(null)
   // A url() reference, so only letters and digits.
   const id = `lens-${useId().replace(/[^a-z0-9]/gi, "")}`

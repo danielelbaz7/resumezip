@@ -45,7 +45,7 @@ const SOURCES: Record<string, string> = {
 
 // Downloads wrap the template in a file that also attaches a copy of the
 // resume, so templates don't need to know about it. Checked to leave every
-// template's layout exactly as it was.
+// template's layout exactly as a preview's.
 const withAttachment = (template: string) =>
   `#include "/${template}.typ"
 #pdf.attach("/${ATTACHMENT_NAME}", relationship: "source", mime-type: "application/json", description: "This resume's content, so resumezip can open the PDF for editing again")
@@ -243,19 +243,20 @@ async function compile({ id, template, data, attachment }: CompileRequest) {
     // The fonts download alongside the compiler, or before compiling when
     // the template or the text needs ones that aren't here yet.
     ;[typst] = await Promise.all([getCompiler(), fetchFontsOf(template, json)])
-    const compiler = typst
+    // A const for `print`: TypeScript doesn't narrow a let inside a closure.
+    const instance = typst
     // Prints the resume at `fitted` times the template's own sizes and spacing, and counts the pages.
     const print = async (fitted: Fitted) => {
       // Compiling comes next.
       reportProgress(true)
       // Nothing is awaited between writing the data and compiling it, so
       // concurrent requests can't see each other's data.
-      compiler.mapShadow("/resume.json", new TextEncoder().encode(JSON.stringify({ ...data, tune: { ...data.tune, ...fitted } })))
+      instance.mapShadow("/resume.json", new TextEncoder().encode(JSON.stringify({ ...data, tune: { ...data.tune, ...fitted } })))
       if (attachment !== undefined) {
-        compiler.mapShadow(`/${ATTACHMENT_NAME}`, new TextEncoder().encode(attachment))
-        compiler.addSource("/download.typ", withAttachment(template))
+        instance.mapShadow(`/${ATTACHMENT_NAME}`, new TextEncoder().encode(attachment))
+        instance.addSource("/download.typ", withAttachment(template))
       }
-      const { result, diagnostics } = await compiler.compile({
+      const { result, diagnostics } = await instance.compile({
         mainFilePath: attachment === undefined ? `/${template}.typ` : "/download.typ",
         format: CompileFormatEnum.pdf,
         diagnostics: "unix",

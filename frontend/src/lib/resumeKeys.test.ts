@@ -1,7 +1,33 @@
-import { describe, expect, test, vi } from "vitest"
+import { afterEach, describe, expect, test, vi } from "vitest"
 import { memoryStorage } from "./memoryStorage"
-import { hasSavedResumes, keyOf, LEGACY_KEY } from "./resumeKeys"
+import { getStorage, hasSavedResumes, keyOf, LEGACY_KEY } from "./resumeKeys"
 import { BACKUP_KEY, UNREADABLE_PREFIX } from "./resumeStorage"
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe("getStorage", () => {
+  test("gives null instead of throwing when the browser won't let the site save anything", () => {
+    vi.stubGlobal("window", {
+      get localStorage() {
+        throw new DOMException("Access is denied for this document.", "SecurityError")
+      },
+    })
+    expect(getStorage()).toBeNull()
+  })
+
+  test("gives null in browsers without localStorage", () => {
+    vi.stubGlobal("window", { localStorage: null })
+    expect(getStorage()).toBeNull()
+  })
+
+  test("gives localStorage when it can be used", () => {
+    const storage = memoryStorage()
+    vi.stubGlobal("window", { localStorage: storage })
+    expect(getStorage()).toBe(storage)
+  })
+})
 
 describe("whether there are saved resumes", () => {
   test("is yes for a resume under its own key, without reading it", () => {

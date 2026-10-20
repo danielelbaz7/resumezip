@@ -1,8 +1,6 @@
 import { describe, expect, test } from "vitest"
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
-import { render } from "@/lib/import/testRender"
-import { readPdf, linesFromPages } from "@/lib/import/lines"
+import { pagesOf, render } from "@/lib/import/testRender"
+import { linesFromPages } from "@/lib/import/lines"
 import { TEMPLATES } from "@/lib/templates"
 import { asSaved } from "@/lib/testResume"
 import { toTemplateData } from "./resumeData"
@@ -27,8 +25,8 @@ const mixed = asSaved({
   sectionOrder: ["Work", `extra:${first}`, `extra:${second}`, `extra:${first}`, "extra:missing"],
 })
 
-describe("optional section template data", () => {
-  test("keeps built-in identity separate from repeated custom headings, and prose's lines with their bold and italic words", () => {
+describe("template data with added sections", () => {
+  test("keeps the Work section and two added sections called Work apart, and prose's lines with their bold and italic words", () => {
     const data = toTemplateData(mixed)
     expect(data.order.slice(0, 3)).toEqual(["Work", `extra:${first}`, `extra:${second}`])
     const plain = (text: string) => ({ text, bold: false, italic: false })
@@ -41,7 +39,7 @@ describe("optional section template data", () => {
     expect(data.work[0].company).toBe("Legacy Company")
   })
 
-  test("omitted content and empty sections have no printable descriptor", () => {
+  test("leaves out what the person left out, and a section with nothing to print", () => {
     const serialized = JSON.stringify(toTemplateData(mixed))
     expect(serialized).not.toContain("OMITTED")
     expect(serialized).not.toContain("EMPTY HEADING")
@@ -49,18 +47,12 @@ describe("optional section template data", () => {
 })
 
 async function printed(resume: Record<string, unknown>) {
-  const doc = (await getDocument({ data: await render(resume), isEvalSupported: false, fontExtraProperties: true })
-    .promise) as unknown as PDFDocumentProxy
-  try {
-    const pages = await readPdf(doc)
-    return { pages, lines: linesFromPages(pages) }
-  } finally {
-    await doc.destroy()
-  }
+  const pages = await pagesOf(await render(resume))
+  return { pages, lines: linesFromPages(pages) }
 }
 
-describe.each(TEMPLATES)("$id optional sections", ({ id }) => {
-  test("compiles mixed sections in order without omission leaks or evaluated markup", async () => {
+describe.each(TEMPLATES)("$id with added sections", ({ id }) => {
+  test("prints the editor's sections and the added ones in order, without what was left out, and Typst markup as typed", async () => {
     const { lines } = await printed({ ...mixed, selectedTemplate: id })
     const text = lines.map((line) => line.text).join("\n")
     const normalized = text.replace(/\s+/g, " ")

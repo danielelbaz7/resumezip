@@ -5,11 +5,11 @@
 
 import {
   bold,
+  bp,
   citations,
   dateRange,
   emailLink,
   ENGINES,
-  heros,
   HEROS_FALLBACKS,
   itemText,
   joinPresent,
@@ -21,6 +21,7 @@ import {
   runs,
   sectionsOf,
   shownLink,
+  texGyre,
   webLink,
   type LatexTemplate,
   type ShowLink,
@@ -47,25 +48,23 @@ const LEADING = 4.71 // levelsfyi.typ's leading, in points
 // The rule under a section title: 1pt, drawn centred on its line in Typst.
 const RULE = 1
 
-/** The spaces that differ between Typst and TeX, as lengths in `units`' own unit. */
+/** The spaces that differ between Typst and TeX. */
 function spacing(units: Units) {
-  const unit = units.size(1).replace(/^[\d.]+/, "")
   const points = (length: string) => parseFloat(length)
-  const length = (value: number) => `${Math.round(value * 100) / 100}${unit}`
   const leading = points(units.space(LEADING))
   const line = (size: number) => points(units.size(size * CAP)) + leading
   /** A space the .typ puts above a line of text. */
-  const above = (space: string) => length(points(space) - leading)
+  const above = (space: string) => bp(points(space) - leading)
   return {
-    line: (size: number) => length(line(size)),
+    line: (size: number) => bp(line(size)),
     above,
     // titlesec ends a title with a strut, 0.3 of its line deep.
-    titleToRule: length(points(units.size(6.3)) - 0.3 * line(14) - RULE / 2),
+    titleToRule: bp(points(units.size(6.3)) - 0.3 * line(14) - RULE / 2),
     // What follows the rule is set as if after a line this deep, so it lands
     // where it does in the PDF, whatever its letters.
-    afterRule: length(leading - points(units.size(6.45)) + RULE / 2),
+    afterRule: bp(leading - points(units.size(6.45)) + RULE / 2),
     // At the top of the page, back up over \topskip, the name's leading and 2.2pt more.
-    nameTop: length(-points(units.size(10 * CAP)) - leading - points(units.size(2.2))),
+    nameTop: bp(-points(units.size(10 * CAP)) - leading - points(units.size(2.2))),
   }
 }
 
@@ -74,7 +73,7 @@ const preamble = (units: Units, title: string, fallbacks: string) => {
   return `\\documentclass[${units.paper("letterpaper")}]{article}
 
 ${ENGINES}
-${heros(fallbacks)}
+${texGyre("heros", fallbacks)}
 \\usepackage[margin=${units.margin(0.4)}]{geometry}
 \\usepackage{xcolor}
 \\usepackage{titlesec}
@@ -109,7 +108,8 @@ ${links(title)}
 %-------------------------
 % Custom commands
 ${ROW}
-% A long left part wraps, and the right one sits on its last line.
+% A job's columns are bottom-aligned too: a long role or organization wraps,
+% and the others sit on its last line.
 \\renewcommand{\\tabularxcolumn}[1]{b{#1}}
 
 % The name, its capitals a little above the margin, and the space under it

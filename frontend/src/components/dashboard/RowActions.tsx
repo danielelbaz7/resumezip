@@ -25,8 +25,9 @@ interface RowActionProps extends TipProps {
   busy?: boolean
   className?: string
   ref?: Ref<HTMLButtonElement>
-  /** For a button that opens a menu: whether it's open. */
+  /** For a button that opens a menu: whether it's open, and the menu's id. */
   menuOpen?: boolean
+  menuId?: string
   [data: `data-${string}`]: string
 }
 
@@ -60,6 +61,7 @@ export function RowAction({
   className = "",
   ref,
   menuOpen,
+  menuId,
   ...data
 }: RowActionProps) {
   return (
@@ -70,6 +72,7 @@ export function RowAction({
       aria-busy={busy || undefined}
       aria-haspopup={menuOpen === undefined ? undefined : "menu"}
       aria-expanded={menuOpen}
+      aria-controls={menuOpen ? menuId : undefined}
       onClick={onClick}
       disabled={disabled}
       {...data}
@@ -177,15 +180,6 @@ export function EyeIcon({ shut }: { shut: boolean }) {
         <circle cx="12" cy="12" r="2.75" />
       </g>
       <path className="eye-slash" pathLength={1} d="m4 4 16 16" />
-    </svg>
-  )
-}
-
-/** A tick, which draws itself again when pointed at. */
-export function DoneIcon() {
-  return (
-    <svg {...iconProps}>
-      <path className="done-tick" pathLength={1} d="m5 12.5 4.5 4.5L19 7.5" />
     </svg>
   )
 }

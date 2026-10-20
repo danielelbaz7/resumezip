@@ -32,7 +32,6 @@ import type { Resume } from "@/lib/resume"
 import { toJson } from "@/lib/resumeFile"
 import { extraKey, filledSections, resolveSections, type ExtraKind, type SectionRef } from "@/lib/resumeSections"
 import { resumeOf } from "@/lib/resumeStore"
-import { uniqueTitle } from "@/lib/resumeTitles"
 import { fileNameOf, saveFile } from "@/lib/saveFile"
 import { compilePreview, forgetPreviewFit, loadCompiler, makeDownload, printedOf, Superseded } from "@/lib/typst/compile"
 import { templateIdOf } from "@/lib/typst/resumeData"
@@ -169,13 +168,13 @@ function Editor({ id }: { id: string }) {
     return forgetPreviewFit
   }, [id])
 
-  // The saved order, plus any sections missing from older resumes.
-  // The optional sections with entries, which show even when the saved order lacks them. As
-  // text, so typing in one doesn't re-render the editor.
+  // The sections with entries, as text, so typing in one doesn't re-render the editor.
   const filled = useResumeState((state) => {
     const resume = resumeOf(state, id)
     return resume ? filledSections(resume).join(" ") : ""
   })
+  // The sections the editor shows, in order: the saved order's, then any it
+  // lacks that have entries or that the person added (resolveSections).
   const sections = useMemo(
     () => resolveSections({ sectionOrder: savedOrder, sectionsChosen, extraSections }, filled ? (filled.split(" ") as SectionName[]) : []),
     [savedOrder, sectionsChosen, extraSections, filled],
@@ -286,9 +285,12 @@ function Editor({ id }: { id: string }) {
   // can be clicked while a field has focus.
   useEffect(() => {
     const touch = window.matchMedia("(pointer: coarse)")
-    // A box to tick or a choice to pick doesn't bring the keyboard up.
+    // A box to tick or a choice to pick doesn't bring the keyboard up. Bullets and the summary are typed in a
+    // contenteditable box (StyledBox), which does.
     const isField = (target: EventTarget | null) =>
-      target instanceof HTMLTextAreaElement || (target instanceof HTMLInputElement && target.type !== "checkbox" && target.type !== "radio")
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof HTMLInputElement && target.type !== "checkbox" && target.type !== "radio") ||
+      (target instanceof HTMLElement && target.isContentEditable)
     const onFocusIn = (event: FocusEvent) => setTyping(touch.matches && isField(event.target))
     const onFocusOut = (event: FocusEvent) => {
       if (isField(event.target) && !isField(event.relatedTarget)) setTyping(false)
@@ -353,8 +355,7 @@ function Editor({ id }: { id: string }) {
     if (!pending) return
     setDeletedEntry(null)
     const { dataKey } = SECTIONS[pending.section]
-    const saved = read()?.[dataKey]
-    const entries = Array.isArray(saved) ? saved : []
+    const entries = read()?.[dataKey] ?? []
     // An entry added since can have taken its id.
     const taken = entries.some((entry) => entry.id === pending.entry.id)
     const id = taken ? Math.max(...entries.map((entry) => entry.id)) + 1 : pending.entry.id
@@ -789,7 +790,7 @@ function Editor({ id }: { id: string }) {
  * own, so typing a name doesn't re-render the editor.
  */
 function ResumeName() {
-  const { getState } = useResumeActions()
+  const { renameResume } = useResumeActions()
   const { id, update } = useOpenResume()
   const title = useResumeField("resumeTitle")
 
@@ -800,14 +801,7 @@ function ResumeName() {
   }, [tabTitle])
 
   // Once a rename is done, number the name if another resume already has it.
-  const commit = () => {
-    const others = Object.entries(getState().resumes).filter(([key]) => key !== id)
-    const unique = uniqueTitle(
-      title ?? "",
-      others.map(([, resume]) => resume?.resumeTitle),
-    )
-    if (unique !== title) update("resumeTitle", unique)
-  }
+  const commit = () => renameResume(id, title ?? "")
 
   // As wide as its words: an unseen copy of them sizes the box, which the input fills.
   return (

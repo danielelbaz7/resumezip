@@ -50,15 +50,19 @@ export function scrollerOf(element: HTMLElement): HTMLElement {
   return document.scrollingElement as HTMLElement
 }
 
+/** Where a scroller shows its contents: its own box, or for the page, the part of the window the pinned bars leave uncovered. */
+export const visibleArea = (scroller: HTMLElement) =>
+  scroller === document.scrollingElement ? uncovered() : scroller.getBoundingClientRect()
+
 /**
  * Scrolls just enough to show an element clear of the pinned bars, or the top
  * of a tall one, like an opened entry's heading and first fields.
  */
-export function reveal(element: HTMLElement, scroller: HTMLElement, reduced: boolean) {
+export function reveal(element: HTMLElement, scroller: HTMLElement) {
   const box = element.getBoundingClientRect()
-  const view = scroller === document.scrollingElement ? uncovered() : scroller.getBoundingClientRect()
+  const view = visibleArea(scroller)
   const below = box.top + Math.min(box.height, 260) - view.bottom
   const above = view.top - box.top
   const by = above > 0 ? -above - 16 : below > 0 ? below + 16 : 0
-  if (by) scroller.scrollBy({ top: by, behavior: reduced ? "auto" : "smooth" })
+  if (by) scroller.scrollBy({ top: by, behavior: reducedMotion() ? "auto" : "smooth" })
 }

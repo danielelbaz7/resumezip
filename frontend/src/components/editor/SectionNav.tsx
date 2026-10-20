@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import type { DraggableProvided, DropResult } from "@hello-pangea/dnd"
 import { GripVertical } from "lucide-react"
@@ -11,7 +11,7 @@ import { extraHeading, extraKey, type ExtraKind, type ExtraSections, type Sectio
 import { resumeOf } from "@/lib/resumeStore"
 import AddSectionMenu from "./AddSectionMenu"
 import { loadDragAndDrop, type DragAndDrop } from "./dragAndDrop"
-import { WIDE_SCREEN } from "./layout"
+import { reducedMotion, useWideScreen } from "./layout"
 import { EXTRA_ICONS, PROFILE_ICON, SECTION_ICONS } from "./sectionIcons"
 import { SECTION_NAMES, SECTIONS, type SectionName } from "./sections"
 
@@ -25,7 +25,7 @@ interface SectionNavProps {
   active: ActiveSection
   onSelect: (section: ActiveSection) => void
   onReorder: (sections: SectionRef[]) => void
-  onAdd?: (kind: ExtraKind | SectionName) => void
+  onAdd: (kind: ExtraKind | SectionName) => void
 }
 
 /**
@@ -33,12 +33,12 @@ interface SectionNavProps {
  * entries each has, and a row of pill tabs on narrower ones. Profile stays first; the rest can be
  * dragged into any order by their icons.
  */
-function SectionNav({ sections, headings, extras, active, onSelect, onReorder, onAdd }: SectionNavProps) {
+export default function SectionNav({ sections, headings, extras, active, onSelect, onReorder, onAdd }: SectionNavProps) {
   const navRef = useRef<HTMLElement>(null)
   const tabRef = useRef<HTMLSpanElement>(null)
   // The section the white tab was last put behind, so choosing another slides it there.
   const tabAt = useRef<ActiveSection | null>(null)
-  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(WIDE_SCREEN).matches)
+  const wide = useWideScreen()
   const [dnd, setDnd] = useState<DragAndDrop | null>(null)
   const [dragging, setDragging] = useState(false)
   const entries = useEntryCounts()
@@ -72,14 +72,6 @@ function SectionNav({ sections, headings, extras, active, onSelect, onReorder, o
     }
   }, [])
 
-  useEffect(() => {
-    const query = window.matchMedia(WIDE_SCREEN)
-    const sync = () => setWide(query.matches)
-    sync()
-    query.addEventListener("change", sync)
-    return () => query.removeEventListener("change", sync)
-  }, [])
-
   // Keep the chosen tab in view in the row.
   useEffect(() => {
     const nav = navRef.current
@@ -88,8 +80,7 @@ function SectionNav({ sections, headings, extras, active, onSelect, onReorder, o
     const box = (tab.parentElement === nav ? tab : tab.parentElement!).getBoundingClientRect()
     const view = nav.getBoundingClientRect()
     const by = box.left < view.left + 16 ? box.left - view.left - 16 : box.right > view.right - 16 ? box.right - view.right + 16 : 0
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    if (by) nav.scrollBy({ left: by, behavior: reduced ? "auto" : "smooth" })
+    if (by) nav.scrollBy({ left: by, behavior: reducedMotion() ? "auto" : "smooth" })
   }, [active, wide])
 
   const onDragEnd = ({ source, destination }: DropResult) => {
@@ -164,7 +155,7 @@ function SectionNav({ sections, headings, extras, active, onSelect, onReorder, o
     return () => observer.disconnect()
   }, [active, sections, allTitles, wide, dnd, dragging])
 
-  // Keyboard focus shows as a soft shade and dark text rather than the site's blue ring, which boxed the row in.
+  // Keyboard focus shows as a soft shade and dark text rather than the site's blue ring, which would box the row in.
   // The chosen section has the grey tab behind it already, so a shade there would draw a second one inside it.
   const item = (isActive: boolean) =>
     `flex h-9 w-full min-w-0 shrink-0 items-center gap-3 whitespace-nowrap rounded-full pl-9 pr-3.5 text-left text-[15px] tracking-[-0.01em] transition-colors focus-visible:outline-none xl:h-10 xl:shrink xl:rounded-[12px] xl:pl-[41px] xl:pr-[15px] ${
@@ -263,7 +254,7 @@ function SectionNav({ sections, headings, extras, active, onSelect, onReorder, o
       ref={navRef}
       onKeyDown={onArrowKey}
       aria-label="Sections"
-      className="relative isolate flex gap-1 overflow-x-auto px-2 py-2 [scrollbar-width:none] xl:flex-col xl:overflow-visible xl:p-0 [&::-webkit-scrollbar]:hidden"
+      className="relative isolate flex gap-1 overflow-x-auto px-2 py-2 no-scrollbar xl:flex-col xl:overflow-visible xl:p-0"
     >
       <span
         ref={tabRef}
@@ -311,15 +302,12 @@ function SectionNav({ sections, headings, extras, active, onSelect, onReorder, o
         <div className="flex gap-1 xl:flex-col">{sections.map((name, index) => renderSection(name, index))}</div>
       )}
 
-      {onAdd && <AddSectionMenu sections={addable} onAdd={onAdd} />}
+      <AddSectionMenu sections={addable} onAdd={onAdd} />
 
       <p className="mt-[19px] hidden px-3 text-[13px] leading-5 text-ink-3 xl:block">Drag a section to change its place on the page.</p>
     </nav>
   )
 }
-
-// Dragging is costly to render, so it re-renders only when its props change.
-export default memo(SectionNav)
 
 /**
  * How many entries each section of the open resume has. It's read as one

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "./test"
-import { chooseTemplate, editorHeading, instantScrolling, pageErrors } from "./helpers"
+import { chooseTemplate, editorHeading, instantScrolling, newResume, pageErrors, preview, previewShown, saveResumes } from "./helpers"
+import { TEMPLATES } from "../src/lib/templates"
 
 // The first preview waits for the PDF compiler to download. A stand-in page
 // shows meanwhile (components/editor/PrintingPage.tsx), and the dashboard
@@ -15,15 +16,6 @@ const resume = {
   selectedTemplate: "jake",
   profileSection: { fullName: "Ada Lovelace" },
 }
-
-/** Saves a resume in the browser before the page loads, as an earlier visit would have. */
-const saveResume = (page: Page, saved: { id: string } & Record<string, unknown> = resume) =>
-  page.addInitScript(
-    ({ key, value }) => {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
-    },
-    { key: `resume:${saved.id}`, value: JSON.stringify(saved) },
-  )
 
 /** The compiler workers the page starts, noted as they start. (The preview's pdf.js has a worker too.) */
 function compilerWorkers(page: Page): string[] {
@@ -46,10 +38,9 @@ test("the editor shows a stand-in page until the first preview, and downloads on
   await page.goto("/")
   await page.getByRole("link", { name: "Start writing" }).first().click()
 
-  const preview = page.getByRole("region", { name: "Live preview" })
-  await expect(preview.getByRole("status", { name: "Loading preview" })).toBeVisible()
-  await expect(preview.locator("canvas")).toBeVisible()
-  await expect(preview.getByRole("status", { name: "Loading preview" })).toHaveCount(0)
+  await expect(preview(page).getByRole("status", { name: "Loading preview" })).toBeVisible()
+  await previewShown(page)
+  await expect(preview(page).getByRole("status", { name: "Loading preview" })).toHaveCount(0)
   // Typst's own fonts, from its CDN, aren't used by any template.
   expect(requested.filter((url) => url.includes("typst-assets"))).toEqual([])
   expect(errors).toEqual([])
@@ -64,16 +55,12 @@ test("a resume downloads only its template's fonts, and another template's once 
     const font = request.url().match(/\/([\w-]+)\.[0-9a-f]+\.(otf|ttf)$/)
     if (font) fonts.push(font[1])
   })
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  const preview = page.getByRole("region", { name: "Live preview" })
-  await expect(preview.getByText(/Ada Lovelace/i).first()).toBeVisible()
+  await newResume(page, { name: "Ada Lovelace" })
   // Jake's, the default, is set in New Computer Modern.
   expect([...fonts].sort()).toEqual(["NewCM10-Bold", "NewCM10-BoldItalic", "NewCM10-Italic", "NewCM10-Regular"])
   // The page as drawn, to tell when another template's has replaced it.
   const drawn = () =>
-    preview
+    preview(page)
       .locator("canvas")
       .first()
       .evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())
@@ -83,7 +70,11 @@ test("a resume downloads only its template's fonts, and another template's once 
   await chooseTemplate(page, "Harvard")
   await expect.poll(() => fonts.filter((font) => font.startsWith("EBGaramond")).length).toBe(4)
   await expect.poll(drawn).not.toBe(jakes)
-  await expect(preview.getByText(/Ada Lovelace/i).first()).toBeVisible()
+  await expect(
+    preview(page)
+      .getByText(/Ada Lovelace/i)
+      .first(),
+  ).toBeVisible()
   await expect(page.getByText(/Couldn.t update the preview/)).toHaveCount(0)
   expect(fonts.filter((font) => !/^(NewCM10|EBGaramond)-/.test(font))).toEqual([])
   expect(errors).toEqual([])
@@ -91,7 +82,7 @@ test("a resume downloads only its template's fonts, and another template's once 
 
 test("the dashboard starts the compiler, and the editor uses the same one", async ({ page, browserName }) => {
   const errors = pageErrors(page)
-  await saveResume(page)
+  await saveResumes(page, [resume])
   const workers = compilerWorkers(page)
   const downloads: string[] = []
   page.on("request", (request) => {
@@ -105,7 +96,7 @@ test("the dashboard starts the compiler, and the editor uses the same one", asyn
   const downloadedAhead = downloads.length
 
   await page.getByRole("link", { name: resume.resumeTitle }).first().click()
-  await expect(page.getByRole("region", { name: "Live preview" }).locator("canvas")).toBeVisible()
+  await previewShown(page)
   expect(workers).toHaveLength(1)
   // The editor doesn't download the compiler again.
   expect(downloads).toHaveLength(downloadedAhead)
@@ -129,7 +120,7 @@ test("on a computer, the home page downloads the compiler once it has settled, a
   const downloadedAhead = downloads.length
 
   await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page.getByRole("region", { name: "Live preview" }).locator("canvas")).toBeVisible()
+  await previewShown(page)
   expect(workers).toHaveLength(1)
   // The editor doesn't download the compiler again.
   expect(downloads).toHaveLength(downloadedAhead)
@@ -151,7 +142,7 @@ test("if the home page's download of the compiler fails, the editor uses the app
   await expect.poll(() => fromJsDelivr.length).toBe(1)
 
   await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page.getByRole("region", { name: "Live preview" }).locator("canvas")).toBeVisible()
+  await previewShown(page)
   expect(fromJsDelivr).toHaveLength(1)
   expect(errors).toEqual([])
 })
@@ -161,11 +152,14 @@ test.describe("on a phone", () => {
 
   test("reading the home page doesn't download the compiler", async ({ page, browserName }) => {
     test.skip(browserName !== "chromium", "Checked in Chromium, whose touch emulation gives the page a phone's coarse pointer")
+    const errors = pageErrors(page)
     const workers = compilerWorkers(page)
     await page.goto("/")
     await expect(page.getByRole("link", { name: "Start writing" }).first()).toBeVisible()
+    // A fixed wait: proving it doesn't start once the page has settled, as it would on a computer.
     await page.waitForTimeout(2_000)
     expect(workers).toEqual([])
+    expect(errors).toEqual([])
   })
 })
 
@@ -181,17 +175,21 @@ test("a mouse resting on Start writing starts the editor's downloads before the 
   page.on("request", (request) => {
     if (/\.(otf|ttf)$/.test(request.url())) fonts.push(request.url())
   })
-  await page.goto("/")
-  const pictures = page.getByRole("region", { name: "Templates" }).getByRole("link", { name: / template/ })
+  await page.goto("/templates")
+  await instantScrolling(page)
+  const pictures = page.getByRole("main").getByRole("link", { name: / template/ })
+  await expect(pictures).toHaveCount(TEMPLATES.length)
   for (const picture of await pictures.all()) await picture.hover()
+  // A fixed wait: proving resting on one starts nothing.
   await page.waitForTimeout(1_500)
   expect(fonts).toEqual([])
 
+  await page.goto("/")
   const startWriting = page.getByRole("link", { name: "Start writing" }).first()
   await startWriting.hover()
   await expect.poll(() => fonts.length).toBeGreaterThan(0)
   await startWriting.click()
-  await expect(page.getByRole("region", { name: "Live preview" }).locator("canvas")).toBeVisible()
+  await previewShown(page)
   expect(errors).toEqual([])
 })
 
@@ -205,13 +203,14 @@ test("pressing a template's Use starts the compiler before the click", async ({ 
   const use = page.getByRole("link", { name: "Use Harvard" })
   await expect(use).toBeInViewport({ ratio: 1 })
   await use.hover()
+  // A fixed wait: proving resting on it doesn't start the compiler.
   await page.waitForTimeout(500)
   expect(workers).toEqual([])
 
   await page.mouse.down()
   await expect.poll(() => workers.length).toBe(1)
   await page.mouse.up()
-  await expect(page.getByRole("region", { name: "Live preview" }).locator("canvas")).toBeVisible()
+  await previewShown(page)
   expect(workers).toHaveLength(1)
   expect(errors).toEqual([])
 })
@@ -219,7 +218,7 @@ test("pressing a template's Use starts the compiler before the click", async ({ 
 test("pdf.js's worker downloads while the first preview is still being made", async ({ page, browserName }) => {
   test.skip(browserName !== "chromium", "The page sees its workers' requests in Chromium")
   const errors = pageErrors(page)
-  await saveResume(page)
+  await saveResumes(page, [resume])
   // The fonts are held back, so the first PDF can't be made yet.
   let releaseFonts = () => {}
   const fontsHeld = new Promise<void>((resolve) => (releaseFonts = resolve))
@@ -231,17 +230,16 @@ test("pdf.js's worker downloads while the first preview is still being made", as
   page.on("request", (request) => requested.push(request.url()))
   await page.goto(`/create/new/${resume.id}`)
 
-  const preview = page.getByRole("region", { name: "Live preview" })
   await expect.poll(() => requested.some((url) => url.includes("pdf.worker"))).toBe(true)
-  await expect(preview.getByRole("status", { name: "Loading preview" })).toBeVisible()
+  await expect(preview(page).getByRole("status", { name: "Loading preview" })).toBeVisible()
   releaseFonts()
-  await expect(preview.locator("canvas")).toBeVisible()
+  await previewShown(page)
   expect(errors).toEqual([])
 })
 
 test("the form can be used before the code that draws the preview and drags sections has downloaded", async ({ page }) => {
   const errors = pageErrors(page)
-  await saveResume(page)
+  await saveResumes(page, [resume])
   // The page's first download is what its HTML names. Everything after it,
   // scripts, styles and fonts alike, is held back until it's released.
   const firstDownload = new Set<string>()
@@ -275,8 +273,7 @@ test("the form can be used before the code that draws the preview and drags sect
   const experience = sections.getByRole("button", { name: /^Experience$/ })
   await experience.click()
   await expect(editorHeading(page, "Experience")).toBeVisible()
-  const preview = page.getByRole("region", { name: "Live preview" })
-  await expect(preview.getByRole("status", { name: "Loading preview" })).toBeVisible()
+  await expect(preview(page).getByRole("status", { name: "Loading preview" })).toBeVisible()
   await expect(sections.getByRole("button", { name: "Reorder Experience" })).toHaveCount(0)
 
   // The sections are put back as draggable ones, and the one with the focus keeps it.
@@ -284,13 +281,17 @@ test("the form can be used before the code that draws the preview and drags sect
   release()
   await expect(sections.getByRole("button", { name: "Reorder Experience" })).toBeVisible()
   await expect(experience).toBeFocused()
-  await expect(preview.getByText(/Grace Hopper/i).first()).toBeVisible()
+  await expect(
+    preview(page)
+      .getByText(/Grace Hopper/i)
+      .first(),
+  ).toBeVisible()
   expect(errors).toEqual([])
 })
 
 test("an entry being typed in when the drag and drop arrives keeps the cursor, and can be dragged once it's left", async ({ page }) => {
   const errors = pageErrors(page)
-  await saveResume(page, { ...resume, workExperienceSection: [{ id: 1, workRole: "Engineer", companyName: "Google" }] })
+  await saveResumes(page, [{ ...resume, workExperienceSection: [{ id: 1, workRole: "Engineer", companyName: "Google" }] }])
   // Only the drag and drop is held back, until it's released.
   let release = () => {}
   const released = new Promise<void>((resolve) => (release = resolve))
@@ -330,7 +331,7 @@ test("an entry being typed in when the drag and drop arrives keeps the cursor, a
 
 test("if the code that draws the preview fails to download, the next PDF tries it again", async ({ page }) => {
   const errors = pageErrors(page)
-  await saveResume(page)
+  await saveResumes(page, [resume])
   let failed = false
   await page.route("**/_next/static/chunks/**", async (route) => {
     if (failed) return route.continue()
@@ -346,29 +347,36 @@ test("if the code that draws the preview fails to download, the next PDF tries i
 
   // Whether the first PDF came before the failure or is still to come, a PDF comes after it.
   await page.getByLabel("Full name").fill("Grace Hopper")
-  const preview = page.getByRole("region", { name: "Live preview" })
-  await expect(preview.getByText(/Grace Hopper/i).first()).toBeVisible()
+  await expect(
+    preview(page)
+      .getByText(/Grace Hopper/i)
+      .first(),
+  ).toBeVisible()
   // Only the failed download, which the browser logs.
   expect(errors.filter((error) => !/^Failed to load resource/.test(error))).toEqual([])
 })
 
 test("visitors saving data don't download the compiler ahead, on the home page or the dashboard", async ({ page }) => {
+  const errors = pageErrors(page)
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "connection", { value: { saveData: true, effectiveType: "4g" } })
   })
   const workers = compilerWorkers(page)
   await page.goto("/")
   await page.getByRole("link", { name: "Start writing" }).first().hover()
-  await page.waitForTimeout(1_000)
+  // A fixed wait: proving neither the page settling nor resting on Start writing starts it.
+  await page.waitForTimeout(2_000)
   expect(workers).toEqual([])
 
-  await saveResume(page)
+  await saveResumes(page, [resume])
   await page.goto("/create/dashboard")
   await expect(page.getByRole("link", { name: resume.resumeTitle }).first()).toBeVisible()
+  // A fixed wait: proving neither the page settling nor the pictures of the resumes start it.
   await page.waitForTimeout(3_000)
   expect(workers).toEqual([])
 
   // Opening a resume still makes its preview.
   await page.getByRole("link", { name: resume.resumeTitle }).first().click()
-  await expect(page.getByRole("region", { name: "Live preview" }).locator("canvas")).toBeVisible()
+  await previewShown(page)
+  expect(errors).toEqual([])
 })

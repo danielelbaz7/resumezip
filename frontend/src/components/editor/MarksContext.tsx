@@ -1,24 +1,26 @@
 "use client"
 
-// The pen marks on the editor's preview, in Check mode: the ATS checks' (blue
-// and red) or the AI's notes (red and green), never both, as on the review
+// The pen marks on the editor's preview, in Check mode: the ATS checks' (red
+// and yellow) or the AI's notes (red and blue), never both, as on the review
 // page. Which note is showing is shared, so pointing at a mark on the page or
 // at its row in the Check panel shows the same note on the page.
 
 import type React from "react"
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useOpenResume } from "@/context/ResumeContext"
-import type { PdfReading, Report } from "@/lib/check/engine"
+import type { Finding, PdfReading, Report } from "@/lib/check/engine"
 import type { Place } from "@/lib/check/places"
-import { keptNotesOf, notesNowOf } from "@/lib/review/ai/answer"
+import { notesNowOf } from "@/lib/review/ai/answer"
+import type { AiReviewError } from "@/lib/review/ai/askForNotes"
 import { findingOf, placeOfNote } from "@/lib/review/ai/place"
+import { PROBLEMS } from "@/lib/review/ai/problems"
 import { sentOf } from "@/lib/review/ai/request"
 import { hashOf, saveNotes, savedByHash, savedForResume, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
 import { unitsToSend } from "@/lib/review/ai/units"
 import { measurer, PageMarks, useEscapeCloses, usePlaced, type Note, type PageSize, type Placed } from "@/components/review/PageMarks"
-import { aiKeyOf, aiNotesOf, checkKeyOf, checkNotesOf } from "@/components/review/notes"
+import { aiNotesOf, checkKeyOf, checkNotesOf } from "@/components/review/notes"
 import type { Mode } from "./CheckContext"
-import type { Finding } from "@/lib/check/engine"
+import { reducedMotion } from "./layout"
 
 /** Which notes mark the preview. */
 export type Shown = "checks" | "ai"
@@ -50,8 +52,6 @@ interface MarksValue {
 
 const MarksContext = createContext<MarksValue | null>(null)
 
-const PROBLEM = "Something went wrong getting AI notes. Try again in a minute."
-
 export function MarksProvider({
   report,
   reading,
@@ -75,7 +75,7 @@ export function MarksProvider({
   const [open, setOpen] = useState<string | null>(null)
   const [ai, setAi] = useState<AiAsk>({ step: "idle" })
 
-  // A resume opened from the review brings its AI notes, kept in this browser, and opens on them.
+  // A resume opened from the review, or asked about here before, brings its AI notes, kept in this browser, and opens on them.
   useEffect(() => {
     const saved = savedForResume(id)?.notes ?? null
     setAiNotes(saved)
@@ -114,33 +114,33 @@ export function MarksProvider({
     asking.current = current
     setAi({ step: "asking" })
     void (async () => {
-      const hash = await hashOf(sentOf(units))
-      // This version of the resume was reviewed before, here or in the editor: no need to ask again,
+      // Without a hash (no crypto.subtle, on a page that isn't served securely) the notes are still asked for, just not kept.
+      const hash = await hashOf(sentOf(units)).catch(() => null)
+      // This version of the resume was reviewed before, on the review page or here: no need to ask again,
       // unless that review found nothing, which would only show this prompt again.
-      const before = savedByHash(hash)?.notes
+      const before = hash ? savedByHash(hash)?.notes : undefined
       let saved = before?.length ? before : null
       if (!saved) {
-        const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
+        const { askForKeptNotes } = await import("@/lib/review/ai/askForNotes")
         try {
-          saved = keptNotesOf(await askForNotes(units, current.signal), units)
+          saved = await askForKeptNotes(units, current.signal)
         } catch (error) {
           if (current.signal.aborted) return
-          if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
-          setAi({ step: "problem", message: error instanceof AiReviewError ? error.message : PROBLEM })
+          setAi({ step: "problem", message: (error as AiReviewError).message })
           return
         }
         if (current.signal.aborted) return
-        saveNotes(hash, saved)
+        if (hash) saveNotes(hash, saved)
       }
       if (current.signal.aborted) return
-      tieToResume(hash, id)
+      if (hash) tieToResume(hash, id)
       setAiNotes(saved)
       setAi({ step: "idle" })
       show("ai")
     })().catch((error) => {
       if (current.signal.aborted) return
       console.error("Couldn't get AI notes:", error)
-      setAi({ step: "problem", message: PROBLEM })
+      setAi({ step: "problem", message: PROBLEMS.other })
     })
   }, [units, id, show])
 
@@ -205,7 +205,7 @@ export function usePointAt(key: string) {
       if (box.top < seen.top || box.bottom > seen.bottom) {
         scroller.scrollBy({
           top: box.top - seen.top - seen.height / 3,
-          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          behavior: reducedMotion() ? "auto" : "smooth",
         })
       }
     },
@@ -227,5 +227,3 @@ export function PreviewMarks({ page, file }: { page: number; file: string }) {
   if (!size || !placed.some((each) => each.page === page)) return null
   return <PageMarks page={page} size={size} placed={placed} open={open} onOpen={setOpen} onChoose={choose} />
 }
-
-export { aiKeyOf, checkKeyOf }

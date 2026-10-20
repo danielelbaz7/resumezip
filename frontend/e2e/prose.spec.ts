@@ -1,5 +1,5 @@
-import { expect, test, type Locator, type Page } from "./test"
-import { boxText, pageErrors, selectInBox } from "./helpers"
+import { expect, test, type Page } from "./test"
+import { expectText, pageErrors, previewShown, printed, saveResumes, savedResume, selectInBox } from "./helpers"
 
 // The summary and a text section show bold and italic words as they print,
 // without their marks, as bullets do, and are saved with them. Their lines
@@ -19,30 +19,12 @@ const RESUME = {
   extraSections: { [notes]: { kind: "text", heading: "Notes", text: "Speaks **French**." } },
 }
 
-const saved = (page: Page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "{}"), `resume:${RESUME.id}`)
-const preview = (page: Page) => page.getByRole("region", { name: "Live preview" })
-
-/** The text of the preview's pages, or "" while a page's text is still being laid out. */
-const printed = (page: Page) =>
-  preview(page)
-    .locator(".react-pdf__Page__textContent")
-    .evaluateAll((layers) =>
-      layers.every((layer) => layer.querySelector(".endOfContent")) ? layers.map((layer) => layer.textContent ?? "").join(" ") : "",
-    )
-
 async function open(page: Page) {
-  await page.addInitScript(
-    ({ key, value }) => {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
-    },
-    { key: `resume:${RESUME.id}`, value: JSON.stringify(RESUME) },
-  )
+  await saveResumes(page, [RESUME])
   await page.goto(`/create/new/${RESUME.id}`)
   // The preview first, so the PDF compiler's download isn't cut off, which Safari logs as an error.
-  await expect(preview(page).locator(".react-pdf__Page__canvas").first()).toBeVisible()
+  await previewShown(page)
 }
-
-const expectText = (box: Locator, text: string) => expect.poll(() => boxText(box)).toBe(text)
 
 test("the summary shows bold and italic words as they print, and keeps their marks when it's saved", async ({ page }) => {
   const errors = pageErrors(page)
@@ -59,7 +41,9 @@ test("the summary shows bold and italic words as they print, and keeps their mar
   await selectInBox(box, "Builds fast ".length, "Builds fast tools".length)
   await page.keyboard.press("ControlOrMeta+b")
   await expect(box.getByRole("strong")).toHaveText(["fast", "tools"])
-  await expect.poll(async () => (await saved(page)).profileSection.summary).toBe("Builds **fast** **tools**.\n\nWrites *docs*.")
+  await expect
+    .poll(async () => (await savedResume(page, RESUME.id)).profileSection.summary)
+    .toBe("Builds **fast** **tools**.\n\nWrites *docs*.")
 
   // Enter starts a line with no bullet, and marks typed as words turn bold.
   await selectInBox(box, "Builds fast tools.\n\nWrites docs.".length)
@@ -67,7 +51,7 @@ test("the summary shows bold and italic words as they print, and keeps their mar
   await page.keyboard.type("Ships **often**.")
   await expectText(box, "Builds fast tools.\n\nWrites docs.\nShips often.")
   await expect
-    .poll(async () => (await saved(page)).profileSection.summary)
+    .poll(async () => (await savedResume(page, RESUME.id)).profileSection.summary)
     .toBe("Builds **fast** **tools**.\n\nWrites *docs*.\nShips **often**.")
   // The PDF prints the words, not the marks.
   await expect.poll(() => printed(page)).toContain("Ships often.")
@@ -96,7 +80,7 @@ test("a text section shows bold and italic words as they print, and keeps their 
   await page.keyboard.press("ControlOrMeta+b")
   await page.keyboard.type(" and *Spanish*")
   await expect(box.getByRole("emphasis")).toHaveText("Spanish")
-  await expect.poll(async () => (await saved(page)).extraSections[notes].text).toBe("Speaks **French** and *Spanish*.")
+  await expect.poll(async () => (await savedResume(page, RESUME.id)).extraSections[notes].text).toBe("Speaks **French** and *Spanish*.")
   await expect.poll(() => printed(page)).toContain("Speaks French and Spanish.")
 
   // Typed among bold words, it's bold and italic, and saved so the PDF reads it that way.
@@ -105,7 +89,7 @@ test("a text section shows bold and italic words as they print, and keeps their 
   await page.keyboard.type(" Also *German*")
   await expect(box.getByRole("emphasis")).toHaveText(["Spanish", "German"])
   await expect
-    .poll(async () => (await saved(page)).extraSections[notes].text)
+    .poll(async () => (await savedResume(page, RESUME.id)).extraSections[notes].text)
     .toBe("Speaks **French** and *Spanish*. **Also** ***German***")
 
   expect(errors).toEqual([])

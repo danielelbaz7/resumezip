@@ -4,9 +4,10 @@
 // plain JSON strings, which Typst never evaluates as markup, so no escaping
 // is needed.
 
+import { SECTIONS, type SectionName } from "@/components/editor/sections"
 import { printedResume } from "@/lib/leftOut"
 import type { Entry, Resume } from "@/lib/resume"
-import { extraHeading, extraHasBody, extrasOf, resolveSections } from "@/lib/resumeSections"
+import { extraHeading, extrasOf, resolveSections } from "@/lib/resumeSections"
 import { templateById, type TemplateId } from "@/lib/templates"
 import { printedTune, type PrintedTune } from "@/lib/tune"
 
@@ -29,7 +30,7 @@ export interface TemplateData {
     awards: string
   }
   order: string[]
-  /** New section kinds only; built-in data and rendering keep their existing shapes. */
+  /** Text and list sections the person added, by their `extra:<id>` in `order`. */
   extras: Record<string, ExtraTemplateSection>
   education: {
     school: string
@@ -283,7 +284,6 @@ export function toTemplateData(saved: Resume): TemplateData {
     order: resolveSections(resume),
     extras: Object.fromEntries(
       Object.entries(extrasOf(resume))
-        .filter(([, section]) => extraHasBody(section))
         .map(([id, section]): [string, ExtraTemplateSection] => {
           const heading = extraHeading({ ...section, heading: text(section.heading) })
           const printable: ExtraTemplateSection =
@@ -296,7 +296,7 @@ export function toTemplateData(saved: Resume): TemplateData {
                 }
           return [`extra:${id}`, printable]
         })
-        // extraHasBody counts invisible characters as words; a body of only them would print a bare heading.
+        // A section with nothing to print, as one of only invisible characters, would print a bare heading.
         .filter(([, printable]) => (printable.kind === "list" ? printable.bullets : printable.paragraphs).length > 0),
     ),
     education: entries(resume.educationSection, (e) => ({
@@ -370,4 +370,37 @@ export function toTemplateData(saved: Resume): TemplateData {
       date: text(e.awardDate),
     })),
   }
+}
+
+/** Where each section's entries and heading are in TemplateData. */
+const SECTION_KEYS: Record<SectionName, keyof TemplateData["headings"]> = {
+  Education: "education",
+  Work: "work",
+  Projects: "projects",
+  Publications: "publications",
+  Skills: "skills",
+  Leadership: "leadership",
+  Volunteership: "volunteer",
+  Awards: "awards",
+}
+
+/** A section with something to print, and its heading. */
+export type PrintedSection = { heading: string; name: string } & (
+  { kind: "extra"; extra: ExtraTemplateSection } | { kind: keyof TemplateData["headings"] }
+)
+
+/**
+ * The resume's sections in its order, each with something to print, and the
+ * heading it prints: the one the person wrote, or the one every template
+ * prints (`heading-or` in the .typ files). The summary isn't one; it's in
+ * `summary`.
+ */
+export function printedSections(data: TemplateData): PrintedSection[] {
+  return data.order.flatMap((name): PrintedSection[] => {
+    const extra = data.extras[name]
+    if (extra) return [{ kind: "extra", name, heading: extra.heading, extra }]
+    const kind = SECTION_KEYS[name as SectionName]
+    if (!kind || data[kind].length === 0) return []
+    return [{ kind, name, heading: data.headings[kind] || SECTIONS[name as SectionName].title }]
+  })
 }

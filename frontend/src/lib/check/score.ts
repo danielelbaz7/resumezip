@@ -2,7 +2,7 @@
 // rules, out of 100. It says nothing about whether a resume gets anyone
 // hired. Each category is worth its points (CATEGORIES) and starts with all
 // of them. Each rule that finds something takes some away: a must-fix up to
-// half of them, a suggestion up to a fifth (LEVELS), at least half of that
+// half of them, a suggestion up to 35% (LEVELS), at least half of that
 // for finding anything (LEAST_PENALTY), and the rest by how much of the
 // resume fails it, with dismissed suggestions counting as passing
 // (engine.ts). Rules that pass earn nothing, so easy passes can't make up for
@@ -23,7 +23,6 @@ import {
   MUST_FIX_MAX,
   MUST_FIX_STEP,
   SCORE_BANDS,
-  SCORE_COLORS,
   type CategoryId,
 } from "./settings"
 
@@ -43,35 +42,30 @@ export interface CategoryScore {
 }
 
 export interface Score {
-  /** From 0 to 100, or null until there's a name and an entry to check. */
+  /** From 0 to 100, or null until there's a name, and an entry or an added section, to check. */
   total: number | null
   /** Each category, in CATEGORIES' order. */
   categories: CategoryScore[]
 }
+
+type Scored = RuleResult & { scoring: NonNullable<RuleResult["scoring"]> }
 
 // A rule counts once it has looked at the whole resume, or found something
 // where it did look, so a problem it lists always costs points, as when the
 // grammar checker failed partway. One that doesn't apply, broke, is still
 // waiting for the PDF or the grammar checker, or has seen only part of the
 // text (partial) and found nothing there is left out: that's no pass yet.
-const counts = (result: RuleResult) =>
-  !result.rule.advisory &&
-  result.scoring !== null &&
-  (result.status === "failed" || result.status === "passed") &&
-  (!result.partial || failed(result))
-
-const creditOf = (result: RuleResult) => result.scoring?.credit ?? result.credit
-const levelOf = (result: RuleResult) => result.scoring?.level ?? result.rule.level
-const failed = (result: RuleResult) => result.scoring?.failed ?? result.status === "failed"
+const counts = (result: RuleResult): result is Scored =>
+  result.scoring != null && (result.status === "failed" || result.status === "passed") && (!result.partial || result.scoring.failed)
 
 /**
  * What a rule takes from its category, as a share of its points: nothing when
  * it passes, and when it finds something, its level's penalty, at least
  * LEAST_PENALTY of it and the rest by how much of the resume fails it.
  */
-function penaltyOf(result: RuleResult): number {
-  if (!failed(result)) return 0
-  return LEVELS[levelOf(result)].penalty * (LEAST_PENALTY + (1 - LEAST_PENALTY) * (1 - creditOf(result)))
+function penaltyOf({ scoring }: Scored): number {
+  if (!scoring.failed) return 0
+  return LEVELS[scoring.level].penalty * (LEAST_PENALTY + (1 - LEAST_PENALTY) * (1 - scoring.credit))
 }
 
 /**
@@ -81,8 +75,9 @@ function penaltyOf(result: RuleResult): number {
  */
 export const wholePoints = (points: number) => Math.floor(points + 1e-9)
 
-// Coverage weights stay fixed when a contextual finding is resolved. Otherwise
-// fixing an issue can lower the passing share by shrinking its denominator.
+// A rule weighs as much as its own level, not what it found: a must-fix that a
+// suggestion rule finds (S2, S3) would otherwise weigh less once fixed, and
+// fixing it could lower the share that passes.
 const weight = (result: RuleResult) => LEVELS[result.rule.level].penalty
 
 /**
@@ -90,19 +85,19 @@ const weight = (result: RuleResult) => LEVELS[result.rule.level].penalty
  * that found something takes, and no more than the share of its rules that
  * pass, each counting as much as it could take.
  */
-export function categoryScore(id: CategoryId, results: readonly RuleResult[]): CategoryScore {
+function categoryScore(id: CategoryId, results: readonly RuleResult[]): CategoryScore {
   const { points } = CATEGORIES.find((category) => category.id === id)!
-  const ran = results.filter((result) => result.rule.category === id && counts(result))
+  const ran = results.filter((result) => result.rule.category === id).filter(counts)
   if (ran.length === 0) return { id, points, earned: 0, applies: false, mustFix: false, fixes: 0 }
   const left = Math.max(0, 1 - ran.reduce((sum, result) => sum + penaltyOf(result), 0))
   const passing =
-    ran.reduce((sum, result) => sum + weight(result) * creditOf(result), 0) / ran.reduce((sum, result) => sum + weight(result), 0)
+    ran.reduce((sum, result) => sum + weight(result) * result.scoring.credit, 0) / ran.reduce((sum, result) => sum + weight(result), 0)
   return {
     id,
     points,
     earned: points * Math.min(left, passing),
     applies: true,
-    mustFix: ran.some((result) => failed(result) && levelOf(result) === "fix"),
+    mustFix: ran.some(({ scoring }) => scoring.failed && scoring.level === "fix"),
     fixes: ran.reduce((sum, result) => sum + result.findings.filter(isMustFix).length, 0),
   }
 }
@@ -116,7 +111,7 @@ const fixesOf = (categories: readonly CategoryScore[]) =>
   categories.reduce((sum, category) => sum + (category.applies ? category.fixes : 0), 0)
 
 /** Whether a must-fix problem is left in the categories that apply. */
-export const hasMustFix = (categories: readonly CategoryScore[]) => categories.some((category) => category.applies && category.mustFix)
+const hasMustFix = (categories: readonly CategoryScore[]) => categories.some((category) => category.applies && category.mustFix)
 
 /**
  * Out of 100: what the categories that apply earned, of what they're worth,
@@ -146,12 +141,6 @@ const contentShare = (bullets: CategoryScore) =>
 
 /** The word for a score out of 100 (SCORE_BANDS). */
 export const bandOf = (total: number) => SCORE_BANDS.find((band) => total >= band.least) ?? SCORE_BANDS[SCORE_BANDS.length - 1]
-
-export type ScoreColor = (typeof SCORE_COLORS)[number]["color"]
-
-/** The color a score out of 100 is shown in (SCORE_COLORS). */
-export const colorOf = (total: number): ScoreColor =>
-  (SCORE_COLORS.find((band) => total >= band.least) ?? SCORE_COLORS[SCORE_COLORS.length - 1]).color
 
 /** The resume's score, from what the checker found (`runChecks`). */
 export function scoreOf(report: Report): Score {
@@ -183,10 +172,11 @@ export type KeptScores = Map<CategoryId, CategoryScore>
 
 /**
  * Keeps the points of each category that isn't being checked, while the
- * resume can be scored. Before it has a name and an entry most rules don't
- * apply, which would look like a category with nothing to score, and once it
- * loses them the points it had are let go, so they aren't shown again when
- * it gets them back before it has been checked anew.
+ * resume can be scored. Before it has a name, and an entry or an added
+ * section, most rules don't apply, which would look like a category with
+ * nothing to score, and once it loses them the points it had are let go, so
+ * they aren't shown again when it gets them back before it has been checked
+ * anew.
  */
 export function keepScores(kept: KeptScores, now: Score, checking: ReadonlyMap<CategoryId, unknown>): void {
   if (now.total === null) {

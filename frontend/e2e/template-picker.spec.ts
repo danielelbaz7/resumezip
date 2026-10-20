@@ -1,12 +1,10 @@
 import { expect, test, type Page } from "./test"
-import { pageErrors, settled } from "./helpers"
+import { newResume, pageErrors, settled } from "./helpers"
+import { TEMPLATES } from "../src/lib/templates"
 
 /** Starts a new resume with a name in it, then makes the window `width` × `height`. */
 async function startWriting(page: Page, width?: number, height?: number) {
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Full name").fill("Ada Lovelace")
+  await newResume(page, { name: "Ada Lovelace" })
   if (width && height) await page.setViewportSize({ width, height })
 }
 
@@ -36,8 +34,8 @@ for (const [width, height] of [
     expect(box.y).toBeGreaterThanOrEqual(0)
     expect(box.x + box.width).toBeLessThanOrEqual(width)
     expect(box.y + box.height).toBeLessThanOrEqual(height)
-    const templates = dialog.locator("button[aria-pressed]")
-    for (const template of await templates.all()) {
+    for (const { name } of TEMPLATES) {
+      const template = dialog.getByRole("button", { name, exact: true })
       await template.scrollIntoViewIfNeeded()
       // Layout is in fractions of a pixel and scrolling in whole ones, so allow one.
       const shown = (await template.boundingBox())!
@@ -48,11 +46,11 @@ for (const [width, height] of [
 
     // Choosing the template with the longest name closes the gallery, keeps
     // what's written, and the header still fits.
-    const names = await templates.evaluateAll((buttons) =>
-      buttons.filter((button) => button.getAttribute("aria-pressed") === "false").map((button) => button.textContent!.trim()),
-    )
-    const longest = names.reduce((a, b) => (b.length > a.length ? b : a))
-    await templates.filter({ has: page.getByText(longest, { exact: true }) }).click()
+    const chosen = (await dialog.getByRole("button", { pressed: true }).textContent())?.trim()
+    const longest = TEMPLATES.map(({ name }) => name)
+      .filter((name) => name !== chosen)
+      .reduce((a, b) => (b.length > a.length ? b : a))
+    await dialog.getByRole("button", { name: longest, exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(picker(page)).toContainText(longest)
     await expect(picker(page)).toBeFocused()
@@ -71,7 +69,7 @@ test("the template gallery works from the keyboard, and closes every way", async
   // It opens on the current template, and Tab stays inside it.
   await picker(page).focus()
   await page.keyboard.press("Enter")
-  const current = dialog.locator('button[aria-pressed="true"]')
+  const current = dialog.getByRole("button", { pressed: true })
   await expect(current).toBeFocused()
   const buttons = await dialog.getByRole("button").count()
   for (let press = 0; press < buttons; press++) await page.keyboard.press("Tab")
@@ -95,7 +93,6 @@ test("the template gallery works from the keyboard, and closes every way", async
   expect(errors).toEqual([])
 })
 
-// From 1280px the editor's Style tab lists the templates instead (e2e/editor-panels.spec.ts).
 test("on a wider screen the gallery opens under its button, and a click elsewhere closes it", async ({ page }) => {
   const errors = pageErrors(page)
   await startWriting(page, 1024, 768)

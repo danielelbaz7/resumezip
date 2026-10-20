@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { PenLine, RotateCcw, Upload } from "lucide-react"
+import { reducedMotion } from "@/components/editor/layout"
 import { Squares } from "@/components/site/Loader"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
@@ -22,7 +23,7 @@ import { GAZE_MS, gazeOf, type Stop } from "./gaze"
 import MarkedPages, { type Flight } from "./MarkedPages"
 import { aiNotesOf, checkNotesOf } from "./notes"
 import { measurer, type Note } from "./PageMarks"
-import { useAiNotes, type AiNotes as Ai } from "./useAiNotes"
+import { useAiNotes, type AiSide } from "./useAiNotes"
 
 const ACCEPTED_FILES =
   ".pdf,.docx,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/json"
@@ -32,9 +33,9 @@ type State =
   | {
       step: "working"
       done: ReadonlySet<ReviewStep>
-      /** Its own pages are read (a PDF), rather than printed first. */
+      /** Its own pages are read (a PDF), rather than printed first, unless it turns them (reviewedAsIs). */
       asIs: boolean
-      /** Page 1 of the resume as printed, once it's drawn, which takes the sample's place. */
+      /** Page 1 of the resume, once it's drawn, which takes the sample's place. */
       page: DrawnPage | null
       gaze: readonly Stop[] | null
       /** When the eyes start on the page (performance.now()), or null when there are none to show. */
@@ -52,7 +53,8 @@ type State =
     }
   | { step: "problem"; message: string }
 
-// The result waits this long for the AI's notes, from when it's asked, before it shows the checks' and lets the notes join it.
+// The result waits this long for the AI's notes, from when it's asked. Past that, it opens on them all the same,
+// saying they're on their way, with nothing marked until they come.
 // The AI usually answers in 4 to 12 seconds; the route gives up after 55.
 const AI_PATIENCE_MS = 25_000
 
@@ -61,14 +63,14 @@ const NARROW_LINES: Record<Verdict, string[]> = { ready: ["Ready", "to send"], a
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, ms)))
 
-/** Re-renders every `every` ms while `on`, for words that count. */
-function useTicking(on: boolean, every = 100) {
+/** Re-renders every 100 ms while `on`, for words that count. */
+function useTicking(on: boolean) {
   const [, setTick] = useState(0)
   useEffect(() => {
     if (!on) return
-    const timer = setInterval(() => setTick((tick) => tick + 1), every)
+    const timer = setInterval(() => setTick((tick) => tick + 1), 100)
     return () => clearInterval(timer)
-  }, [on, every])
+  }, [on])
 }
 
 /**
@@ -159,7 +161,7 @@ function Result({
   review: Review
   pages: readonly DrawnPage[] | null
   drawing: boolean
-  ai: Ai
+  ai: AiSide
   /** Where page 1 was as it was read, which it flies from. */
   from: Flight | null
   onFix: () => void
@@ -171,15 +173,12 @@ function Result({
   const counts = countsOf(report)
   const measure = useMemo(() => measurer(), [])
   const checked = useMemo(() => checkNotesOf(report.view, report.findings, reading, measure), [report, reading, measure])
-  const state = useMemo<AiState | null>(
-    () =>
-      !answer
-        ? null
-        : answer.step === "done"
-          ? { step: "done", notes: units ? aiNotesOf(notesOf({ notes: answer.notes }, units), measure) : [] }
-          : answer,
-    [answer, units, measure],
-  )
+  // Null when the page has no AI side: the AI isn't asked, or is off on this site.
+  const state = useMemo<AiState | null>(() => {
+    if (!answer || answer.step === "asking") return answer
+    if (answer.step === "done") return { step: "done", notes: units ? aiNotesOf(notesOf({ notes: answer.notes }, units), measure) : [] }
+    return answer.reason === "off" ? null : { step: "problem", reason: answer.reason, message: answer.message }
+  }, [answer, units, measure])
   // The page opens on the AI's notes, or on the checks when there are none to be had.
   const [shown, setShown] = useState<Shown>(answer && answer.step !== "problem" ? "ai" : "checks")
   const [open, setOpen] = useState<string | null>(null)
@@ -214,22 +213,13 @@ function Result({
   }, [answer, show])
 
   // A flag picked in the list: its mark, brought into view and focused, which shows its note.
-  // When the page shows the checks, it's switched to the AI's notes first, and the mark is looked for once they're drawn.
-  const pick = useCallback(
-    (note: Note) => {
-      const focus = () => {
-        const mark = document.querySelector<HTMLElement>(`[data-note="${CSS.escape(note.key)}"]`)
-        if (!mark) return
-        mark.focus({ preventScroll: true })
-        mark.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
-      }
-      if (shown === "ai") return focus()
-      show("ai")
-      requestAnimationFrame(() => requestAnimationFrame(focus))
-    },
-    [shown, show],
-  )
-  const withAi = units && state && !(state.step === "problem" && state.reason === "off")
+  const pick = (note: Note) => {
+    const mark = document.querySelector<HTMLElement>(`[data-note="${CSS.escape(note.key)}"]`)
+    if (!mark) return
+    mark.focus({ preventScroll: true })
+    mark.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" })
+  }
+  const withAi = state
   const caveats = [
     !reading && "The printed copy couldn’t be read back, so how hiring software reads it isn’t scored.",
     !review.spelled && "Spelling wasn’t checked: the spelling checker couldn’t load.",
@@ -334,9 +324,9 @@ function Result({
 
 /**
  * The review page: drop a resume, and see what a recruiter would skip, marked
- * on the page, with the score the editor's Check gives it. While it's read,
- * its own page takes the sample's place and a recruiter's eyes go over it; the
- * AI is asked as soon as it's printed, and the result opens with its notes.
+ * on the page, with a score from the editor's checks. While it's read, its own
+ * page takes the sample's place and a recruiter's eyes go over it; the AI is
+ * asked as soon as its pages are read, and the result opens with its notes.
  * "Fix it in the editor" adds it to this browser's resumes and opens it in Check.
  */
 export default function ReviewPage() {
@@ -394,10 +384,10 @@ export default function ReviewPage() {
           first = new Promise((resolve) => (firstDrawn = resolve))
           drawing = drawPages(pdf, current.signal, (page, index) => {
             if (index > 0 || !live()) return
-            const still = matchMedia("(prefers-reduced-motion: reduce)").matches
+            const still = reducedMotion()
             const gaze = read && !still ? gazeOf(read.lines, page) : []
             const eyesFrom = gaze.length > 0 ? performance.now() + GAZE_DELAY : null
-            setState((state) => (state.step === "working" ? { ...state, page, gaze: gaze.length > 0 ? gaze : null, eyesFrom } : state))
+            setState((state) => (state.step === "working" ? { ...state, page, gaze, eyesFrom } : state))
             firstDrawn(page)
           }).then((pages) => {
             // Left while it drew, the drawing stopped and freed its pages.
@@ -555,7 +545,7 @@ export default function ReviewPage() {
         ) : (
           <section className="no-page-in relative flex min-h-[calc(100svh-84px)] flex-col items-center px-4 pb-24 pt-[calc(var(--sheet)*0.62)] text-center">
             <Backdrop
-              // The scan reads the page while it's printed, and again once the eyes are done with it.
+              // The scan reads the page until the eyes take over, and again once they're done with it.
               scanning={!!working && (working.eyesFrom === null || working.rest)}
               page={working?.page}
               gaze={working?.gaze}

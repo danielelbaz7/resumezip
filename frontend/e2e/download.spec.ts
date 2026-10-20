@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "./test"
-import { pageErrors } from "./helpers"
+import { newResume, pageErrors } from "./helpers"
 
 declare global {
   interface Window {
@@ -47,17 +47,7 @@ test("a failed download says so, and trying again downloads the PDF", async ({ p
     }
   })
 
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Resume name").fill("Ada's resume")
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
-      .getByText(/Ada Lovelace/i)
-      .first(),
-  ).toBeVisible()
+  await newResume(page, { title: "Ada's resume", name: "Ada Lovelace" })
 
   // The editor.
   await page.evaluate(() => (window.brokenCompiler = true))
@@ -93,18 +83,7 @@ test("a failed download says so, and trying again downloads the PDF", async ({ p
 })
 
 /** Starts a resume with a name, and waits for its preview, so the compiler is ready and a PDF is made in a moment. */
-async function readyToDownload(page: Page) {
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
-      .getByText(/Ada Lovelace/i)
-      .first(),
-  ).toBeVisible()
-}
+const readyToDownload = (page: Page) => newResume(page, { name: "Ada Lovelace" })
 
 test("Download PDF shows the PDF being made, however quick, and saves it as that ends", async ({ page }) => {
   const errors = pageErrors(page)
@@ -120,10 +99,11 @@ test("Download PDF shows the PDF being made, however quick, and saves it as that
   const button = page.getByRole("button", { name: "Download PDF" })
   await button.click()
   await expect(button).toBeDisabled()
+  // A fixed wait: proving the PDF, made by now, waits for the line to fill.
   await page.waitForTimeout(2_000)
   expect(saved).toBe(false)
-  // Meanwhile the line along the button has filled most of the way. (It wasn't
-  // drawn at all while its keyframes and the class hiding it set different properties.)
+  // Meanwhile the line along the button has filled most of the way. (Its keyframes set scale, as
+  // the class hiding it does: a transform would be multiplied by that class's zero, and never show.)
   const line = button.locator('span[aria-hidden="true"]')
   expect(await line.evaluate((element) => parseFloat(getComputedStyle(element).scale))).toBeGreaterThan(0.9)
 

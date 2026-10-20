@@ -10,12 +10,13 @@ import { pdfLayoutOf, type PdfSectionLayout } from "@/lib/check/extraPdf"
 import { viewOf } from "@/lib/check/resume"
 import { grammarTexts } from "@/lib/check/spelling"
 import { AI_RULE } from "@/lib/review/ai/place"
+import { extraRef } from "@/lib/resumeSections"
 import { printedOf } from "@/lib/typst/compile"
 import type { ActiveSection } from "./SectionNav"
 import { MarksProvider } from "./MarksContext"
 import { usePausedResume, useResumeCheck } from "./useResumeCheck"
 
-/** What the left bar shows: the sections to write in, what the checker found, or the template and Fine-tune. */
+/** What the left bar shows: the sections to write in, what the checker found, or Fine-tune. */
 export type Mode = "write" | "check" | "style"
 
 const MODES: readonly Mode[] = ["write", "check", "style"]
@@ -70,7 +71,7 @@ interface CheckValue {
 
 /** What changes the checker's state. Each keeps the same identity for as long as the resume is open. */
 type CheckActions = ReturnType<typeof useResumeCheck>["actions"] & {
-  /** Switches the left bar, and remembers it in this browser. */
+  /** Switches the left bar, and remembers it for this visit. */
   chooseMode: (mode: Mode) => void
   /** Opens a finding's section, and asks its form to point at the field. */
   open: (finding: Finding) => void
@@ -103,13 +104,13 @@ const CheckActionsContext = createContext<CheckActions | null>(null)
 const CheckTargetContext = createContext<Target | null | undefined>(undefined)
 
 /** The form section a place is in; none for the PDF's pages. */
-export function sectionOf(place: Place): ActiveSection | null {
+function sectionOf(place: Place): ActiveSection | null {
   return place.kind === "profile"
     ? "Profile"
     : place.kind === "page"
       ? null
       : "sectionId" in place
-        ? `extra:${place.sectionId}`
+        ? extraRef(place.sectionId)
         : place.section
 }
 
@@ -133,8 +134,8 @@ function whenIdle(callback: () => void): () => void {
   return () => clearTimeout(timer)
 }
 
-// How many previews to remember as read, by what they print, so going back
-// to one, as with undo, or a change that's put back, doesn't read it again.
+// How many previews to remember as read, so going back to one, as with undo,
+// or a change that's put back, doesn't read it again.
 const READINGS_KEPT = 4
 
 // How many pieces of text to remember the grammar checker's findings for.
@@ -193,14 +194,10 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
     () => (watching && pdfResume ? JSON.stringify(pdfLayoutOf(viewOf(pdfResume))) : undefined),
     [watching, pdfResume],
   )
-  const layout = useMemo<PdfSectionLayout[] | undefined>(
-    () => (layoutJSON === undefined ? undefined : JSON.parse(layoutJSON)),
-    [layoutJSON],
-  )
   const previewUrl = preview?.url
   const previewPrinted = preview?.printed
-  // Private omitted-line edits can keep the PDF identical while moving an
-  // editor target. Include source addresses in the reading cache key.
+  // Readings are kept by the layout as well as by what's printed: as above, a
+  // change that doesn't print can still move text in the editor.
   const readingKey = previewPrinted ? `${previewPrinted}\n${layoutJSON}` : ""
   // The latest preview as read, and what it prints; null if it couldn't be read.
   const [read, setRead] = useState<{ printed: string; key: string; url: string; pdf: PdfReading | null } | null>(null)
@@ -212,6 +209,7 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
       setRead({ printed: previewPrinted, key: readingKey, url: previewUrl, pdf: known.get(readingKey) ?? null })
       return
     }
+    const layout: PdfSectionLayout[] | undefined = layoutJSON === undefined ? undefined : JSON.parse(layoutJSON)
     const reading = new AbortController()
     const cancel = whenIdle(() => {
       // The reader only loads once Check has been opened.
@@ -234,7 +232,7 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
       cancel()
       reading.abort()
     }
-  }, [watching, previewUrl, previewPrinted, readingKey, layout])
+  }, [watching, previewUrl, previewPrinted, readingKey, layoutJSON])
 
   // What the grammar checker found in each piece of text, once it has loaded,
   // and the text it's checking now.
@@ -312,8 +310,8 @@ export function CheckProvider({ onSelect, preview, unbuilt, children }: CheckPro
 
   // The same finding while it's there, or else the same problem as its text
   // changes while it's being fixed: one rule can find more than one thing at
-  // a place, as two typos in a bullet. An AI note from the review isn't the
-  // checker's: it's opened where it was found.
+  // a place, as two typos in a bullet. An AI note isn't the checker's: it's
+  // opened where it was found.
   const live =
     chosen && report
       ? chosen.finding.rule === AI_RULE
@@ -369,7 +367,7 @@ export function useCheckActions(): CheckActions {
 
 /**
  * The finding being fixed, which the forms show on its field. Null once it's
- * fixed or dismissed, and in Write mode, where it would only be noise.
+ * fixed or dismissed, and outside Check mode, where it would only be noise.
  */
 export function useCheckTarget(): Target | null {
   const target = useContext(CheckTargetContext)

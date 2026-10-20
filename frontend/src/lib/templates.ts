@@ -1,5 +1,5 @@
-// Every resume template, in the order they're shown. The home page, the
-// templates page, the editor's template picker and the dashboard all read
+// Every resume template, in the order they're shown. The templates pages, the
+// editor's template picker and the dashboard's New resume dialog all show
 // this list, and each id needs a matching src/lib/typst/templates/<id>.typ
 // and a picture of its first page, made from the sample resume in
 // src/lib/typst/preview-samples/<id>.json. The picture is named after the

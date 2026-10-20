@@ -45,7 +45,7 @@
   bullets(items)
 }
 
-#let entries(items, gap: 8pt) = items.join(v(sized(gap)))
+#let entries(items) = items.join(v(sized(8pt)))
 
 // Between the parts of a line, so they don't run together when read as text.
 #let dot = h(0.45em) + text(fill: grey, [·]) + h(0.45em)
@@ -74,11 +74,11 @@
 // ---------- Sections ----------
 
 #if data.summary.len() > 0 {
-  section("Summary", extra-body((kind: "text", paragraphs: data.summary), bullets))
+  section("Summary", prose(data.summary))
 }
 
 #for name in data.order {
-  if data.extras.at(name, default: none) != none {
+  if name in data.extras {
     let extra = data.extras.at(name)
     section(extra.heading, extra-body(extra, bullets))
   } else if name == "Education" and data.education.len() > 0 {
@@ -96,7 +96,7 @@
       bullets(pr.bullets)
     })))
   } else if name == "Publications" and data.publications.len() > 0 {
-    section(heading-or(hd.publications, "Publications"), citations(data.publications, (url, body) => web-link(url, body), gap: 5pt))
+    section(heading-or(hd.publications, "Publications"), citations(data.publications, web-link, gap: 5pt))
   } else if name == "Skills" and data.skills.len() > 0 {
     section(heading-or(hd.skills, "Skills"), grid(
       columns: (auto, 1fr),

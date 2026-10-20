@@ -70,7 +70,8 @@ const BULLET_ONLY = new RegExp(`^[${BULLET_CHARS}\\-\\u2013\\u2014*]$`)
 const BOLD_FONT = /bold|black|heavy|demi|cmbx|cmb\d|extrab|ultrab/i
 const ITALIC_FONT = /italic|oblique|cmti|cmsl|cmmi|-it\b/i
 
-interface Piece {
+/** A stretch of text in one style. */
+export interface Piece {
   text: string
   bold: boolean
   italic: boolean
@@ -647,7 +648,7 @@ function readRow(cells: Paragraph[][]): Paragraph[] {
  * across it or a cell at a time (`readRow`). A table in a cell reads its rows
  * into that cell, as paragraphs.
  */
-export function linesFromHtml(html: string): Line[] {
+function linesFromHtml(html: string): Line[] {
   const lines: Line[] = []
   const state: { block: Block | null } = { block: null }
   // The tables around the text being read, innermost last.

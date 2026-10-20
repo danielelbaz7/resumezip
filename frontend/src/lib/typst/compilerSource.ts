@@ -22,8 +22,9 @@ export const COMPILER_SIZE = 28_325_178
  * Downloads a WebAssembly file and compiles it as it arrives. Fails if the
  * file doesn't match `integrity`, or if nothing arrives for `idleMs`, so a
  * stalled connection gives up while a slow one that keeps sending finishes.
- * `onData` is called with the number of bytes each time some arrives. (fetch's own `integrity` option only answers once the whole file is in, so
- * it can't tell the two apart.)
+ * (fetch's own `integrity` option only answers once the whole file is in, so
+ * it can't tell the two apart.) `onData` is called with the number of bytes
+ * each time some arrives.
  */
 export async function compileChecked(
   url: string,

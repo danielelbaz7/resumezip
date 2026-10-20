@@ -1,7 +1,8 @@
 # Opening resume files
 
 The dashboard's "Open a file" button (or dropping a file on the page) opens a
-PDF or Word file. It all happens in the browser; nothing is uploaded.
+PDF, a Word file, or a JSON file resumezip saved. It all happens in the
+browser; nothing is uploaded.
 
 - `open.ts` is what the UI calls. pdf.js and mammoth only download when a PDF
   or Word file is opened.
@@ -10,11 +11,12 @@ PDF or Word file. It all happens in the browser; nothing is uploaded.
   nothing cut off. One too big to open (over `MAX_ENTRIES` entries or
   `MAX_LENGTH` characters, far more than any resume has) isn't opened at all, and
   the dialog says why. The attachment holds what's printed plus the template and
-  section order, never the resume's name or tag, or the entries and bullets left
-  out of the PDF (`src/lib/leftOut.ts`), since anyone who gets the PDF can read it.
-  Attachments with flexible sections use version 2; files with only the original
-  sections keep version 1. Recognized damaged data or a newer version stops
-  opening with a useful message instead of silently guessing from its PDF text.
+  section order, never the resume's name or tag, or the sections, entries and
+  bullets left out of the PDF (`src/lib/leftOut.ts`), since anyone who gets the
+  PDF can read it. A resume with sections the person added is attached as
+  version 2, and one without as version 1. A damaged attachment, or one from a
+  newer resumezip, isn't opened: the dialog says why, rather than guess from
+  the PDF's text.
 - **resumezip Word files** carry the same attachment inside the .docx
   (`src/lib/word.ts`), with CRC-32s of the text and the links' addresses it
   was written with, and open the same way while both are unchanged. Word drops
@@ -52,7 +54,7 @@ far beyond a real resume, which is a page or two and under 10,000 characters.
 | File size | 20 MB | before reading it |
 | PDF pages | 20 | as soon as the PDF opens, before any page is read |
 | Text | 200,000 characters or 5,000 lines | as a PDF's text arrives, even partway through a page; a Word file's once converted, and its headers' and footers' lines as they're read |
-| A Word file's XML, unzipped | 10 MB | before converting it, since a small file can unzip to a lot |
+| A Word file, unzipped | 30 MB, room for 20 MB of pictures and 10 MB of text | as it's unzipped, since a small file can unzip to a lot |
 | Paragraphs in a Word file's table cells | 50,000, one in tables in tables counted once for each | as its tables are read, since tables nested deep take long to read |
 | Time | 1 minute | from start to finish, downloads included |
 
@@ -74,9 +76,8 @@ as too much text.
    file's footer is never part of the section above it: what isn't contact
    details goes there, as "Page footer".
 
-Heading occurrences have deterministic review IDs and source-line provenance.
-Repeated headings stay independent, even when their visible words are identical.
-Clear prose summaries go in the profile's summary. Certifications are read as
+Two sections under the same heading stay two, even when their headings read
+the same. A summary written as sentences goes in the profile's summary. Certifications are read as
 awards, as the editor keeps them in Awards & Certifications: "Certifications",
 "Licenses" and "Honors & Certifications" read into Awards, and "Education &
 Certifications" and "Skills & Certifications" into Education and Skills.
@@ -84,13 +85,13 @@ Certifications" and "Skills & Certifications" into Education and Skills.
 The review puts the summaries ticked together, a paragraph each, in the file's
 order. Words set in bold or italic in a bullet or a summary keep the editor's
 marks (`**bold**`, `*italic*`), unless all of it is in that style, which is
-the layout's. Unsupported groups can be kept as text sections or bullet lists, with
-neither choice selected initially. Durable section UUIDs are created only when
-the person confirms the import. Copy and download preserve uncertain text and the original
-text of groups or entries excluded during review.
+the layout's. A group in "Couldn't place" can be kept as a text section or a
+bullet list; neither is chosen until the person picks one, and the section is
+only made once they add the resume. The review's Copy and Download keep the
+text it couldn't place, and the words of whatever was unticked.
 
-The PDF checker reads with `readForChecks`, which parses again without the
-text of sections a person added once it has matched them. A summary reads as
+The PDF checker reads with `readForChecks`, which parses the file once,
+leaving out the text of sections a person added once it has matched them. A summary reads as
 one there too, so the checker doesn't count it as text it can't place.
 
 It handles single and two-column layouts (a narrow column too, when the file
@@ -99,7 +100,9 @@ centered above both), headings in a margin column (set
 against either side of it, and wrapped onto the lines below), dates in a column
 of their own, and Word files with or without heading styles and tables, layout
 tables and tables in tables included, and with or without page headers and
-footers.
+footers. Some layouts still read badly: headings in a margin column level
+with the first line beside them, and dates in a column on the left (see
+`KNOWN_GAPS` in `corpus.test.ts`).
 Scanned PDFs have no text and can't be read.
 
 ## Testing changes

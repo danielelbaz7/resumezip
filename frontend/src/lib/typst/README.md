@@ -5,11 +5,10 @@ via [typst.ts](https://github.com/Myriad-Dreamin/typst.ts). Nothing is sent to a
 server to build a PDF.
 
 - `resumeData.ts` maps the editor's resume data to the JSON the templates read.
-  Existing section arrays keep their original shape. The profile's summary is
-  `summary`, paragraphs every template prints under "Summary" above the
-  sections. Text and list sections a person adds are mapped into `extras`,
-  keyed by their `extra:<id>` ordering reference. Empty bodies have no printable descriptor.
-  Prose stays literal; custom lists use the existing bold/italic bullet runs.
+  The profile's summary is `summary`, paragraphs every template prints under
+  "Summary" above the sections. Text and list sections a person adds are in
+  `extras`, by their `extra:<id>` in `order`; one with nothing to print isn't.
+  Their words, like bullets', keep the person's bold and italic.
   `tune` is the editor's Fine-tune settings (`src/lib/tune.ts`), every one
   there: the text size, margins and line spacing as multiples of the
   template's own (1 when unset), the paper ("" for the template's own), and
@@ -39,9 +38,11 @@ server to build a PDF.
   only downloaded after the first PDF is made.
 - `typst.worker.ts` loads the WebAssembly compiler and the templates once, and
   compiles each request. A resume to keep to one page that runs over is
-  printed again a step tighter at a time (`fitOnePage` in `src/lib/tune.ts`):
+  printed again tighter until it fits (`fitOnePage` in `src/lib/tune.ts`):
   the space between sections first, then margins and line spacing, and the
-  text only after those are at their floors. It counts the pages each time; previews
+  text only after those are at their floors. It tries a step tighter, then
+  two more, four more and so on, then halves the gap, so a resume far over
+  takes a few prints, not one a step. It counts the pages each time; previews
   and downloads both do it, so they match. What it took comes back with the
   PDF, and `previewFit` tells the Fine-tune panel about the preview's. Before compiling, it downloads the fonts that resume
   needs (see [Fonts](#fonts)), alongside the compiler the first time. Downloads also attach a copy of the resume to the PDF
@@ -51,10 +52,10 @@ server to build a PDF.
 - `templates/*.typ` are the resume templates (the first ones were ported from LaTeX).
   `common.typ` has the shared helpers. They are bundled as strings (see the
   `.typ` rule in `next.config.js`).
-  Every template handles `extras` in its order loop with its own section and
-  bullet styles. `extra-body` shares only new-kind content formatting;
-  paragraphs remain breakable across pages. Omitted
-  sections, entries and bullet lines never reach the template data.
+  Every template prints `extras` in its loop over `order`, with its own
+  heading and bullet styles; `extra-body` in `common.typ` prints their words,
+  and lets paragraphs break across pages. Sections, entries and bullets the
+  person left out never reach the templates.
 
 ## Adding a template
 

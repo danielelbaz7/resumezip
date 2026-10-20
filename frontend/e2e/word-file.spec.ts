@@ -1,45 +1,13 @@
 import { expect, test, type Page } from "./test"
-import { pageErrors } from "./helpers"
-
-/** A resume with a job, a bullet and an entry left out of the PDF. */
-const MARA = {
-  id: "mara",
-  resumeTitle: "Mara at Stripe",
-  updatedAt: "2026-10-08T12:00:00.000Z",
-  selectedTemplate: "modernjack",
-  sectionOrder: ["Work", "Education", "Skills"],
-  sectionsChosen: true,
-  headings: {},
-  profileSection: { fullName: "Mara Lin", email: "mara@example.com", linkedin: "linkedin.com/in/maralin" },
-  educationSection: [{ id: 1, schoolName: "State University", degree: "B.S. in Biology", schoolEndDate: "May 2024" }],
-  workExperienceSection: [
-    {
-      id: 1,
-      workRole: "Engineer",
-      companyName: "Stripe",
-      workStartDate: "Jun 2024",
-      workEndDate: "Present",
-      workDescription: "• Built **payments** search\n○ Fed the cat",
-    },
-    { id: 2, workRole: "Secret agent", companyName: "MI6", leftOut: true },
-  ],
-  skillsSection: [{ id: 1, skillName: "Languages", skillDetails: "Go, TypeScript" }],
-  projectsSection: [],
-  publicationsSection: [],
-  volunteerExperienceSection: [],
-  leadershipExperienceSection: [],
-  awardsSection: [],
-}
+import { openFile, pageErrors, preview, saveResumes, savedResume } from "./helpers"
+import { MARA } from "./resumes"
 
 /** Opens Mara's resume in the editor, saved before the page opens, as an earlier visit would have. */
 async function openMara(page: Page) {
-  await page.addInitScript((resume) => {
-    if (localStorage.getItem("resume:mara") === null) localStorage.setItem("resume:mara", JSON.stringify(resume))
-  }, MARA)
+  await saveResumes(page, [MARA])
   await page.goto("/create/new/mara")
   await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
+    preview(page)
       .getByText(/Mara Lin/i)
       .first(),
   ).toBeVisible()
@@ -67,16 +35,16 @@ test("a resume downloaded as Word from the ▾ menu opens in another browser as 
   const other = await elsewhere.newPage()
   const otherErrors = pageErrors(other)
   await other.goto("/create/dashboard")
-  await other.locator('input[type="file"]').setInputFiles(file)
+  await openFile(other.getByRole("button", { name: "Open a file" }).first(), file)
   await expect(other).toHaveURL(/\/create\/new\/mara$/)
   await expect(other.getByLabel("Resume name")).toHaveValue("Mara at Stripe")
-  const opened = await other.evaluate(() => JSON.parse(localStorage.getItem("resume:mara") ?? "{}"))
+  const opened = await savedResume(other, "mara")
   expect(opened).toMatchObject({
     selectedTemplate: "modernjack",
     sectionOrder: ["Work", "Education", "Skills"],
     profileSection: MARA.profileSection,
     educationSection: [MARA.educationSection[0]],
-    workExperienceSection: [{ ...MARA.workExperienceSection[0], workDescription: "• Built **payments** search" }],
+    workExperienceSection: [{ ...MARA.workExperienceSection[0], workDescription: "• Built **payments** search for R&D" }],
     skillsSection: MARA.skillsSection,
   })
   expect(opened.workExperienceSection).toHaveLength(1)

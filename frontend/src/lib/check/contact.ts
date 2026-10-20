@@ -47,8 +47,8 @@ function emailAddress(value: string): boolean {
   if (split < 1 || /[\r\n]/.test(value)) return false
   const local = value.slice(0, split)
   const domain = value.slice(split + 1)
-  // Dot-atoms (including international letters) and quoted local parts are
-  // both valid; consecutive dots or punctuation masquerading as a domain aren't.
+  // Before the @: words joined by single dots, in any alphabet, or a name in
+  // quotes. After it, a domain without spaces or punctuation like / or #.
   const atom = /^[\p{L}\p{N}!#$%&'*+/=?^_`{|}~-]+(?:\.[\p{L}\p{N}!#$%&'*+/=?^_`{|}~-]+)*$/u
   const quoted = /^"(?:[^"\\\r\n]|\\[^\r\n])+"$/
   if ((!atom.test(local) && !quoted.test(local)) || !domain || /[\s/@:#?\\]/u.test(domain)) return false
@@ -59,8 +59,9 @@ function emailAddress(value: string): boolean {
   }
 }
 
-// This is a plausibility check, not verification that a number is assigned.
-// Extensions don't count toward the international number's 15-digit limit.
+// Whether it can be a phone number, by its characters and how many digits it
+// has; whether it's in use can't be told. An extension doesn't count toward
+// the 15 digits a number can have.
 function phoneNumber(value: string): boolean {
   const match = value.match(/^(.*?)(?:\s*(?:ext\.?|extension|x|#)\s*(\d+))?$/i)
   if (!match) return false
@@ -150,7 +151,7 @@ const location: Rule = {
   advisory: true,
   reads: "form",
   title: "Your location or work availability",
-  why: "Location can help when a role has geographic requirements.",
+  why: "Your location helps when a job needs someone in a certain place.",
   check: ({ resume }) => {
     const { location } = resume.profile
     if (!location) {
@@ -297,7 +298,7 @@ const personal: Rule = {
   level: "look",
   reads: "form",
   title: "No age, date of birth, gender or marital status",
-  why: "Personal disclosures are usually unnecessary; follow the conventions and requirements of the job's country.",
+  why: "Personal details are rarely needed, unless it's the custom where the job is.",
   check: ({ resume }) => ({
     checked: 1,
     // What matched is the text, so two details in one field are told apart.
@@ -328,9 +329,7 @@ const ssn: Rule = {
         {
           place,
           message: labeled ? "Leave off your Social Security number" : "Possible Social Security number",
-          suggestion: labeled
-            ? "Remove this sensitive identifier from your resume."
-            : "If this is a Social Security number, remove it. Otherwise, label what the number represents.",
+          suggestion: labeled ? "Delete it." : "If it is one, delete it. If not, say what the number is.",
           text: found[0],
         },
       ]

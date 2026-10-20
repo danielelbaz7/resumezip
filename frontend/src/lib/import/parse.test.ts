@@ -94,6 +94,36 @@ describe("an entry's date", () => {
   })
 })
 
+describe("a date that hasn't come yet", () => {
+  test.each([
+    ["Est. May 2027", "", "Est. May 2027"],
+    ["Estimated May 2027", "", "Estimated May 2027"],
+    ["Graduating May 2027", "", "Graduating May 2027"],
+    ["May 2027 (Est.)", "", "May 2027 (Est.)"],
+    ["May 2027 (Graduating)", "", "May 2027 (Graduating)"],
+    ["Aug 2023 – Est. May 2027", "Aug 2023", "Est. May 2027"],
+    ["Aug 2023 – Graduating May 2027", "Aug 2023", "Graduating May 2027"],
+  ])("keeps the word that says so: %s", (written, start, end) => {
+    const { resume, unplaced } = read("Education", [
+      line([["State University", 36], [written, 480]], { bold: true }),
+      line([["B.S. in Biology", 36]], { italic: true }),
+    ])
+    expect(resume.educationSection[0]).toMatchObject({ schoolName: "State University", schoolStartDate: start, schoolEndDate: end })
+    expect(unplaced).toEqual([])
+  })
+})
+
+describe("a place", () => {
+  test("can be in the District of Columbia, written out", () => {
+    const { resume, unplaced } = read("Experience", [
+      line([["Policy Analyst", 36], ["Jun 2024 – Present", 480]], { bold: true }),
+      line([["Brookings Institution", 36], ["Washington, District of Columbia", 420]], { italic: true }),
+    ])
+    expect(resume.workExperienceSection[0]).toMatchObject({ companyName: "Brookings Institution", workLocation: "Washington, District of Columbia" })
+    expect(unplaced).toEqual([])
+  })
+})
+
 describe("a detail line that wraps", () => {
   const school = [
     line([["State University", 36], ["Aug 2022 – May 2026", 480]], { bold: true }),
@@ -159,6 +189,16 @@ describe("a detail line that wraps", () => {
       lines.map(([each, right], i) => ({ ...each, box: [each.left, 100 + 12 * i, right, 110 + 12 * i] })),
     )
     expect(resume.educationSection.map((entry) => entry.schoolName)).toEqual(["Stanford University", "MIT"])
+  })
+})
+
+describe("a date range cut across two lines", () => {
+  test.each(["2024", "Present", "Ongoing", "Today"])("joins back up, ending in %s", (end) => {
+    const { resume } = read("Experience", [
+      line([["Data Analyst", 36], ["Jun 2022 –", 480]], { bold: true }),
+      line([["Acme Corp", 36], [end, 480]], { italic: true }),
+    ])
+    expect(resume.workExperienceSection[0]).toMatchObject({ companyName: "Acme Corp", workStartDate: "Jun 2022", workEndDate: end })
   })
 })
 
@@ -575,6 +615,16 @@ describe("a link that wrapped after a slash", () => {
     ])
     expect(resume.publicationsSection[0].publicationLink).toBe("doi.org/10.13031/aim.202600531")
   })
+
+  test("in a bullet joins back up without a space", () => {
+    const { resume } = read("Experience", [
+      line([["Data Analyst", 36], ["Jun 2022 – Present", 480]], { bold: true }),
+      line([["Acme Corp", 36]], { italic: true }),
+      line([["Published the cleaning scripts at github.com/", 54]], { bullet: true }),
+      line([["mara/tidy", 54]]),
+    ])
+    expect(resume.workExperienceSection[0].workDescription).toBe("• Published the cleaning scripts at github.com/mara/tidy")
+  })
 })
 
 describe("a line about an award", () => {
@@ -613,6 +663,18 @@ describe("a dated line under a title", () => {
       ]),
     )
     expect(resume.educationSection[0]).toMatchObject({ schoolName: "Purdue University", degree: "M.S. in Mechanical Engineering", schoolEndDate: "May 2027" })
+  })
+})
+
+describe("a school's date after a word that says it's still to come", () => {
+  test.each(["Expected", "Anticipated", "Estimated", "Graduating"])("is its date with “%s:” before it, not a detail", (word) => {
+    const { resume, unplaced } = read("Education", [
+      line([["Purdue University", 36], ["West Lafayette, IN", 460]], { bold: true }),
+      line([["B.S. in Mechanical Engineering", 36]], { italic: true }),
+      line([[`${word}: May 2027`, 36]]),
+    ])
+    expect(resume.educationSection[0].schoolEndDate).toBe(`${word} May 2027`)
+    expect(unplaced).toEqual([])
   })
 })
 
@@ -853,7 +915,7 @@ describe("a role and organization that are hard to tell apart", () => {
     expect(toResumeContent(parsed).workExperienceSection[0]).toMatchObject({ workRole: "Software Engineer, Backend", companyName: "Google" })
   })
 
-  test("are read as before when nothing else on the resume says which comes first", () => {
+  test("are read by their own words alone when nothing else on the resume says which comes first", () => {
     const { resume } = read("Experience", companyFirst("Seminole Heart & Vascular Clinic", "Physician Shadowing – Cardiology", "August 2026 – Present"))
     expect(resume.workExperienceSection[0]).toMatchObject({ workRole: "Seminole Heart & Vascular Clinic", companyName: "Physician Shadowing – Cardiology" })
   })

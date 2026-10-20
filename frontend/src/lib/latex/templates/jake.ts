@@ -17,19 +17,16 @@ import {
   projectHeader,
   runs,
   sectionsOf,
-  shownLink,
   signs,
+  underline,
+  underlined,
   webLink,
   type Fallbacks,
   type LatexTemplate,
-  type ShowLink,
   type Units,
 } from "../common"
 import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 
-const underline = (body: string) => `\\underline{${body}}`
-/** A link printed as its own text, underlined, as Jake's are. */
-const underlined: ShowLink = (url, text) => shownLink(url, text, underline)
 const BAR = " $|$ "
 
 const FALLBACKS: Fallbacks = {

@@ -9,6 +9,6 @@ Closes #
 
 ## Checked
 
-- [ ] `npx tsc --noEmit`, `npm run lint` and `npm test` pass in `frontend/`
+- [ ] `npx tsc --noEmit`, `npm run lint`, `npx prettier --check .` and `npm test` pass in `frontend/`
 - [ ] resumezip still doesn't store anyone's resume
 - [ ] Resumes saved before this change still open, if it changes how they're stored

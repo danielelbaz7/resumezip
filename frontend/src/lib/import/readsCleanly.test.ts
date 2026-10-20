@@ -195,8 +195,8 @@ test("the page's results are what each sample reads", async () => {
 }, 120_000)
 
 test("a ligature character, as text copied from a PDF brings, prints as its letters, and other fi's stay whole", async () => {
-  // Typst gives each glyph one character in the PDF's text. A typed "ﬁ" used
-  // to make it "ﬁ" for every "fi" the font joined: "final" read as "ﬁ nal".
+  // Typst gives each glyph one character in the PDF's text, so a typed "ﬁ"
+  // would make every "fi" the font joins read as "ﬁ": "final" as "ﬁ nal".
   const sample = samples.find((resume) => resume.selectedTemplate === "jake")
   const [job] = sample.workExperienceSection
   const [fi, fl] = [0xfb01, 0xfb02].map((point) => String.fromCodePoint(point))

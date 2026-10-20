@@ -43,7 +43,7 @@ async function background(button: Locator) {
 
 test("a main button is ink on the pages about resumezip, ink glass on the home page, and blue glass in the app", async ({ page }) => {
   await page.goto("/")
-  // The hero's: Start writing is a button there too, not words beside a blue square.
+  // Start writing, on the first screen, is a main button too.
   expect((await background(page.getByRole("link", { name: "Start writing", exact: true }).first())).image).toMatch(INK_GLASS)
   await page.goto("/does-not-exist")
   expect(await background(page.getByRole("link", { name: "Back to home" }))).toEqual({ color: INK, image: "none" })

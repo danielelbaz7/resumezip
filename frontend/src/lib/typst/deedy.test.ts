@@ -2,11 +2,9 @@
 // Education and Skills stays inside the column, rather than printing into the
 // gap between the columns or over the right one.
 
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
 import { expect, test } from "vitest"
-import { readPdf, type PdfPage } from "@/lib/import/lines"
-import { render, samples } from "@/lib/import/testRender"
+import type { PdfPage } from "@/lib/import/lines"
+import { pagesOf, render, samples } from "@/lib/import/testRender"
 
 type Resume = Record<string, unknown>
 type Entry = Record<string, unknown>
@@ -27,15 +25,6 @@ const COMMAS = "Kubernetes,Terraform,Ansible,Prometheus,Grafana,Helm"
 
 // deedy.typ's column-gutter.
 const GUTTER = 0.3 * 72
-
-async function pagesOf(pdf: Uint8Array): Promise<PdfPage[]> {
-  const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
-  try {
-    return await readPdf(doc)
-  } finally {
-    await doc.destroy()
-  }
-}
 
 type Item = PdfPage["items"][number]
 

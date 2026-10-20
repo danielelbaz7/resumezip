@@ -23,12 +23,13 @@ import {
   emailLink,
   ENGINES,
   GREEK,
-  href,
   joinPresent,
   latex,
   LATO,
   links,
+  minus,
   paragraphs,
+  projectName,
   runs,
   sectionsOf,
   shownLink,
@@ -36,17 +37,13 @@ import {
   sum,
   unlessPdfLatex,
   VIETNAMESE,
-  web,
   webLink,
   type Fallbacks,
   type LatexTemplate,
   type Section,
-  type ShowLink,
   type Units,
 } from "../common"
 import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
-
-const minus = (length: string) => `-${length}`
 
 // The .typ's text sizes, and its fonts' cap heights at those sizes (Lato
 // Light 1415/2000, Lato Bold 1446/2000, Raleway 710/1000).
@@ -61,9 +58,6 @@ const FONTS = {
   location: { size: 9.7,  cap: 6.89 },
 }
 type Font = keyof typeof FONTS
-
-/** Links print as their own text, in the font and color of the words around them. */
-const plainLink: ShowLink = (url, text) => shownLink(url, text)
 
 const FALLBACKS: Fallbacks = {
   comment: `Raleway, in roles, dates and places, has only a few Greek letters and no
@@ -331,15 +325,14 @@ function body(data: TemplateData, units: Units): string {
         join(
           "\\entrysep",
           data.projects.map((project) => () => {
-            const name = project.link ? href(web(project.link), latex(project.name)) : latex(project.name)
             const when = [latex(project.date), ...project.links.map((url) => webLink(url))].filter(Boolean).join(" | ")
-            entry(name, latex(project.techStack), when, project.bullets)
+            entry(projectName(project), latex(project.techStack), when, project.bullets)
           }),
         )
         break
       case "publications": {
         const spacing = `labelsep=0.7em, topsep=0pt, partopsep=0pt, parsep=0pt, itemsep=${sum(units.space(6), minus(units.space(FONTS.body.size / 2)))}`
-        add("\\begin{publications}", citations(data.publications, plainLink, spacing), "\\end{publications}")
+        add("\\begin{publications}", citations(data.publications, shownLink, spacing), "\\end{publications}")
         break
       }
       case "awards":

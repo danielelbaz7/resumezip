@@ -1,4 +1,5 @@
 import { SECTION_NAMES, SECTIONS, type DataKey, type SectionName } from "@/components/editor/sections"
+import { isObject } from "@/lib/isObject"
 
 interface ExtraBase {
   heading: string
@@ -10,26 +11,34 @@ export type ExtraSections = Record<string, ExtraSection>
 export type SectionRef = SectionName | `extra:${string}`
 export type ExtraPatch = { heading?: string; leftOut?: boolean; text?: string; bullets?: string }
 
-export const isUUID = (value: unknown): value is string =>
+const isUUID = (value: unknown): value is string =>
   typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
-const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value)
 export const extraKey = (ref: string): string | null => (ref.startsWith("extra:") ? ref.slice(6) : null)
 export const extraRef = (key: string): SectionRef => `extra:${key}`
+/** Whether a saved value names a section: one of the editor's, or one the person added that's in `extras`. */
+export const isSectionRef = (value: unknown, extras: ExtraSections): value is SectionRef =>
+  typeof value === "string" &&
+  (SECTION_NAMES.includes(value as SectionName) || (extraKey(value) !== null && Object.hasOwn(extras, extraKey(value)!)))
 export const sectionIncluded = (section: { leftOut?: boolean }) => section.leftOut !== true
 export const extraHeading = (section: ExtraSection) => section.heading.trim() || "New section"
 
-/** Decode only the new domain. Invalid members are salvaged separately from the original raw save. */
+/**
+ * The added sections that can be read, and whether that's all of them: a file
+ * with a section that can't be read isn't opened (resumeFile.ts), and saved
+ * text with one is kept aside before it's saved over (resumeStorage.ts).
+ */
 export function readExtraSections(value: unknown, { local = false } = {}): { sections: ExtraSections; complete: boolean } {
-  if (!object(value)) return { sections: {}, complete: false }
+  if (!isObject(value)) return { sections: {}, complete: false }
   let complete = true
   const members: [string, ExtraSection][] = []
   for (const [key, raw] of Object.entries(value)) {
     const section = readExtraSection(key, raw)
     if (section) {
       members.push([key, section])
-      // Future local fields must be recoverable before a narrower editor saves.
-      // Portable files instead pass through an explicit public allowlist.
-      if (local && object(raw)) {
+      // In this browser, a section with fields this version doesn't know, as a
+      // newer one may save, isn't all read, so its saved text is kept aside
+      // before a save drops them. A file's sections keep only these fields.
+      if (local && isObject(raw)) {
         const allowed = new Set(["kind", "heading", "leftOut", section.kind === "list" ? "bullets" : "text"])
         if (Object.keys(raw).some((field) => !allowed.has(field))) complete = false
       }
@@ -39,7 +48,7 @@ export function readExtraSections(value: unknown, { local = false } = {}): { sec
 }
 
 function readExtraSection(key: string, value: unknown): ExtraSection | null {
-  if (!object(value)) return null
+  if (!isObject(value)) return null
   const kind = value.kind
   if (!isUUID(key) || (kind !== "text" && kind !== "list")) return null
   if (
@@ -67,7 +76,7 @@ const readMaps = new WeakMap<object, ExtraSections>()
  */
 export function extrasOf(resume: { extraSections?: unknown }): ExtraSections {
   const value = resume.extraSections
-  if (!object(value)) return {}
+  if (!isObject(value)) return {}
   let sections = readMaps.get(value)
   if (!sections) {
     sections = readExtraSections(value).sections
@@ -76,7 +85,7 @@ export function extrasOf(resume: { extraSections?: unknown }): ExtraSections {
   return sections
 }
 
-/** What resolveSections reads of a resume: its order, its sections, and whether the optional ones have entries. */
+/** What resolveSections reads of a resume: its order, its added sections, and which sections have entries. */
 type SavedSections = { sectionOrder?: unknown; sectionsChosen?: unknown; extraSections?: unknown } & { [Key in DataKey]?: unknown }
 
 /** The sections with entries in them, which show whether they're in the saved order or not. */
@@ -93,14 +102,10 @@ export const filledSections = (resume: SavedSections): SectionName[] =>
  * person has (`sectionsChosen`): a new resume's core ones and those added
  * since, which show even while empty, and not one they deleted. A resume
  * older than that listed every section, so there an optional section shows
- * only with entries, and the core ones always do. A view only: opening a
- * resume never repairs order, creates content or generates identities.
+ * only with entries, and the core ones always do. It only reads.
  */
 export function resolveSections(resume: SavedSections, filled: readonly SectionName[] = filledSections(resume)): SectionRef[] {
   const extras = extrasOf(resume)
-  const valid = (value: unknown): value is SectionRef =>
-    typeof value === "string" &&
-    (SECTION_NAMES.includes(value as SectionName) || (extraKey(value) !== null && Object.hasOwn(extras, extraKey(value)!)))
   const order: SectionRef[] = []
   const seen = new Set<SectionRef>()
   const add = (ref: SectionRef) => {
@@ -112,7 +117,7 @@ export function resolveSections(resume: SavedSections, filled: readonly SectionN
   const chosen = resume.sectionsChosen === true
   const shown = (ref: SectionRef) =>
     chosen || !SECTION_NAMES.includes(ref as SectionName) || !SECTIONS[ref as SectionName].optional || filled.includes(ref as SectionName)
-  for (const ref of Array.isArray(resume.sectionOrder) ? resume.sectionOrder : []) if (valid(ref) && shown(ref)) add(ref)
+  for (const ref of Array.isArray(resume.sectionOrder) ? resume.sectionOrder : []) if (isSectionRef(ref, extras) && shown(ref)) add(ref)
   for (const name of SECTION_NAMES) if ((!chosen && !SECTIONS[name].optional) || filled.includes(name)) add(name)
   for (const key of Object.keys(extras)) add(extraRef(key))
   return order

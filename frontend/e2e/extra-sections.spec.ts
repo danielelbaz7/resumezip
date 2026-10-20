@@ -1,7 +1,17 @@
 import { readFileSync } from "node:fs"
 import { expect, test, type Page } from "./test"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import { editorHeading, pageErrors, seriousAccessibilityProblems } from "./helpers"
+import {
+  editorHeading,
+  editorTitle,
+  openFile,
+  pageErrors,
+  pdfText,
+  previewShown,
+  saveResumes,
+  savedResume,
+  seriousAccessibilityProblems,
+} from "./helpers"
 
 const initial = {
   id: "flexible",
@@ -10,14 +20,9 @@ const initial = {
   profileSection: { fullName: "Ada Lovelace" },
   workExperienceSection: [{ id: 1, workRole: "Engineer", companyName: "Computing", workDescription: "• Built the analytical engine" }],
 }
-const saved = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("resume:flexible") ?? "{}"))
 const nav = (page: Page) => page.getByRole("navigation", { name: "Sections" })
-const preview = (page: Page) => page.getByRole("region", { name: "Live preview" })
-const previewShown = (page: Page) => expect(preview(page).locator(".react-pdf__Page__canvas").first()).toBeVisible()
 async function open(page: Page) {
-  await page.addInitScript((resume) => {
-    if (!localStorage.getItem("resume:flexible")) localStorage.setItem("resume:flexible", JSON.stringify(resume))
-  }, initial)
+  await saveResumes(page, [initial])
   await page.goto("/create/new/flexible")
 }
 const menu = (page: Page) => page.getByRole("menu", { name: "Add section" })
@@ -34,7 +39,10 @@ async function rename(page: Page, heading: string) {
   await page.getByRole("textbox", { name: "Section title" }).press("Enter")
 }
 
-test("optional section lifecycle, duplicate headings, keyboard movement and v2 PDF reopening", async ({ page, browser }, info) => {
+test("two added sections called Experience are told apart, print, and open again from the PDF without a left-out line, and one can be deleted", async ({
+  page,
+  browser,
+}, info) => {
   const errors = pageErrors(page)
   await open(page)
   await previewShown(page)
@@ -49,12 +57,11 @@ test("optional section lifecycle, duplicate headings, keyboard movement and v2 P
     .getByRole("textbox", { name: "Bullet points", exact: true })
     .fill("• **Public** list item\n○ PRIVATE_SENTINEL\n• Final list item")
   await expect(nav(page).getByRole("button", { name: /^Experience, section \d+$/ })).toHaveCount(3)
-  await expect.poll(async () => Object.keys((await saved(page)).extraSections ?? {})).toHaveLength(2)
+  await expect.poll(async () => Object.keys((await savedResume(page, "flexible")).extraSections ?? {})).toHaveLength(2)
   await nav(page)
     .getByRole("button", { name: /Profile$/ })
     .click()
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
-  await page.screenshot({ path: info.outputPath("flexible-editor.png"), fullPage: true })
   const downloading = page.waitForEvent("download")
   await page.getByRole("button", { name: "Download PDF", exact: true }).click()
   const file = info.outputPath("flexible.pdf")
@@ -65,23 +72,20 @@ test("optional section lifecycle, duplicate headings, keyboard movement and v2 P
     const json = new TextDecoder().decode(attachment.content)
     expect(JSON.parse(json).version).toBe(2)
     expect(json).not.toContain("PRIVATE")
-    const contents = await Promise.all(
-      Array.from({ length: doc.numPages }, async (_, index) => (await doc.getPage(index + 1)).getTextContent()),
-    )
-    const text = contents.flatMap((content) => content.items.map((item) => ("str" in item ? item.str : ""))).join(" ")
-    expect(text).toContain("Community projects and interests")
-    expect(text).toContain("Literal prose")
-    expect(text).not.toContain("PRIVATE")
   } finally {
     await doc.destroy()
   }
+  const text = await pdfText(file)
+  expect(text).toContain("Community projects and interests")
+  expect(text).toContain("Literal prose")
+  expect(text).not.toContain("PRIVATE")
   const elsewhere = await browser.newContext()
   const other = await elsewhere.newPage()
   await other.goto("/create/dashboard")
-  await other.locator('input[type="file"]').setInputFiles(file)
+  await openFile(other.getByRole("button", { name: "Open a file" }).first(), file)
   await expect(other).toHaveURL(/\/create\/new\/flexible$/)
   await previewShown(other)
-  const reopened = await saved(other)
+  const reopened = await savedResume(other, "flexible")
   expect(Object.keys(reopened.extraSections)).toHaveLength(2)
   expect(reopened.profileSection.summary).toBe("A precise summary.\n\n○ Literal prose.")
   expect(JSON.stringify(reopened)).not.toContain("PRIVATE")
@@ -100,7 +104,7 @@ test("optional section lifecycle, duplicate headings, keyboard movement and v2 P
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
   await expect(nav(page).locator('[aria-current="true"]')).toBeFocused()
-  await expect.poll(async () => Object.keys((await saved(page)).extraSections)).toHaveLength(1)
+  await expect.poll(async () => Object.keys((await savedResume(page, "flexible")).extraSections)).toHaveLength(1)
   expect(errors).toEqual([])
 })
 
@@ -112,7 +116,7 @@ test("a resume starts with four sections, and the optional ones are added and de
   await expect(nav(page).getByRole("button", { name: /^Awards & Certifications$/ })).toHaveCount(0)
   await add(page, "Awards & Certifications")
   await expect(editorHeading(page, "Awards & Certifications", { exact: true })).toBeVisible()
-  await expect.poll(async () => (await saved(page)).sectionOrder).toContain("Awards")
+  await expect.poll(async () => (await savedResume(page, "flexible")).sectionOrder).toContain("Awards")
   // Added once, it's no longer offered. The menu opens over the page, and
   // Escape closes it, back on its button.
   const help = page.getByText("Drag a section to change its place on the page.")
@@ -130,7 +134,7 @@ test("a resume starts with four sections, and the optional ones are added and de
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused()
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
   await expect(nav(page).getByRole("button", { name: /^Awards & Certifications$/ })).toHaveCount(0)
-  await expect.poll(async () => (await saved(page)).sectionOrder).not.toContain("Awards")
+  await expect.poll(async () => (await savedResume(page, "flexible")).sectionOrder).not.toContain("Awards")
   expect(errors).toEqual([])
 })
 
@@ -159,22 +163,20 @@ test("the Add section menu stays closed once a section is chosen, though the pag
   expect(errors).toEqual([])
 })
 
-test("extra-only checking targets original list lines and deletion restores focus in Check mode", async ({ page }) => {
+test("an added section alone is checked, its finding selects the line it's about, and deleting it with Check open moves the focus to the title", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
   const sectionId = "11111111-1111-4111-8111-111111111111"
-  await page.addInitScript(
-    ({ sectionId }) =>
-      localStorage.setItem(
-        "resume:flexible",
-        JSON.stringify({
-          id: "flexible",
-          resumeTitle: "Extra checks",
-          profileSection: { fullName: "Ada Lovelace" },
-          extraSections: { [sectionId]: { kind: "list", heading: "Interests", bullets: "○ PRIVATE_SENTINEL\n• Wrote the the notes" } },
-          sectionOrder: [`extra:${sectionId}`],
-        }),
-      ),
-    { sectionId },
-  )
+  await saveResumes(page, [
+    {
+      id: "flexible",
+      resumeTitle: "Extra checks",
+      profileSection: { fullName: "Ada Lovelace" },
+      extraSections: { [sectionId]: { kind: "list", heading: "Interests", bullets: "○ PRIVATE_SENTINEL\n• Wrote the the notes" } },
+      sectionOrder: [`extra:${sectionId}`],
+    },
+  ])
   await page.goto("/create/new/flexible")
   await previewShown(page)
   await page.getByRole("tab", { name: /^Check/ }).click()
@@ -189,13 +191,17 @@ test("extra-only checking targets original list lines and deletion restores focu
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused()
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
-  await expect(page.locator("main h1")).toBeFocused()
+  await expect(editorTitle(page)).toBeFocused()
   await expect(issue).toBeHidden()
+  expect(errors).toEqual([])
 })
 
 test.describe("touch", () => {
   test.use({ hasTouch: true })
-  test("narrow flows keep the keyboard closed on add and allow literal text, inclusion and deletion", async ({ page }) => {
+  test("on a phone, an added section doesn't open the keyboard, keeps its name when given a blank one, and can be left out and deleted", async ({
+    page,
+  }) => {
+    const errors = pageErrors(page)
     await page.setViewportSize({ width: 390, height: 844 })
     await page.emulateMedia({ reducedMotion: "reduce" })
     await open(page)
@@ -206,12 +212,15 @@ test.describe("touch", () => {
     await rename(page, "")
     await expect(editorHeading(page, "New section", { exact: true })).toBeVisible()
     await page.getByRole("checkbox", { name: "Include section in the PDF", exact: true }).uncheck()
-    await expect.poll(async () => Object.values((await saved(page)).extraSections ?? {}).some((section: any) => section.leftOut)).toBe(true)
+    await expect
+      .poll(async () => Object.values((await savedResume(page, "flexible")).extraSections ?? {}).some((section: any) => section.leftOut))
+      .toBe(true)
     await page.getByRole("button", { name: "Delete section", exact: true }).click()
     await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused()
     await page.getByRole("button", { name: "Delete section", exact: true }).click()
-    await expect.poll(async () => Object.keys((await saved(page)).extraSections)).toEqual([])
+    await expect.poll(async () => Object.keys((await savedResume(page, "flexible")).extraSections)).toEqual([])
     expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
+    expect(errors).toEqual([])
   })
 })
 
@@ -224,9 +233,7 @@ test("a resume from before sections were added from the list shows only the ones
     sectionOrder: ["Education", "Work", "Projects", "Publications", "Skills", "Leadership", "Volunteership", "Awards"],
     leadershipExperienceSection: [{ id: 1, leadershipRole: "Club president" }],
   }
-  await page.addInitScript((resume) => {
-    if (!localStorage.getItem("resume:older")) localStorage.setItem("resume:older", JSON.stringify(resume))
-  }, older)
+  await saveResumes(page, [older])
   await page.goto("/create/new/older")
   const listed = (name: string) => nav(page).getByRole("button", { name: new RegExp(`^${name}$`) })
   await expect(listed("Leadership")).toHaveCount(1)
@@ -237,7 +244,7 @@ test("a resume from before sections were added from the list shows only the ones
   await add(page, "Publications")
   await expect(listed("Publications")).toHaveCount(1)
   await expect
-    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("resume:older") ?? "{}")))
+    .poll(() => savedResume(page, "older"))
     .toMatchObject({ sectionsChosen: true, sectionOrder: ["Education", "Work", "Projects", "Skills", "Leadership", "Publications"] })
   await page.reload()
   await expect(listed("Publications")).toHaveCount(1)
@@ -256,12 +263,12 @@ test("a section the resume started with can be deleted, and added back from the 
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused()
   await page.getByRole("button", { name: "Delete section", exact: true }).click()
   await expect(education).toHaveCount(0)
-  await expect.poll(async () => (await saved(page)).sectionOrder).not.toContain("Education")
+  await expect.poll(async () => (await savedResume(page, "flexible")).sectionOrder).not.toContain("Education")
 
   // Deleted, it's offered in Add section, and comes back at the end.
   await add(page, "Education")
   await expect(education).toHaveCount(1)
-  await expect.poll(async () => (await saved(page)).sectionOrder).toEqual(["Work", "Skills", "Projects", "Education"])
+  await expect.poll(async () => (await savedResume(page, "flexible")).sectionOrder).toEqual(["Work", "Skills", "Projects", "Education"])
   await page.reload()
   await expect(education).toHaveCount(1)
   await previewShown(page)

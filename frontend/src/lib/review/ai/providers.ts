@@ -249,7 +249,7 @@ export async function askAny(providers: readonly Provider[], system: string, use
       console.warn(`AI review: ${provider.name} didn't answer (${last.status ?? "no status"})`)
     }
   }
-  throw last ?? new ProviderError("openai", null, "no provider has keys")
+  throw last ?? new Error("no provider has keys")
 }
 
 /** For tests: every provider awake again. */

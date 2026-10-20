@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from "./test"
-import { pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { newResume, openFile, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 // Save to Google Drive. Google's sign-in and Drive are stood in for, so these
 // tests never call them: the sign-in sends its window straight back with an
@@ -105,21 +105,6 @@ async function sentToDrive(page: Page): Promise<{ name: string; pdf: Buffer }[]>
   })
 }
 
-/** Starts a resume called "Ada's resume", and waits for its preview, so the compiler is ready. */
-async function readyToSave(page: Page) {
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Resume name").fill("Ada's resume")
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
-      .getByText(/Ada Lovelace/i)
-      .first(),
-  ).toBeVisible()
-}
-
 /** Presses Save to Google Drive, in the ▾ menu. */
 async function saveToDrive(page: Page) {
   await page.getByRole("button", { name: "More formats" }).click()
@@ -151,7 +136,7 @@ test("Save to Google Drive signs in with Google in a window of its own, then put
   context.on("request", (request) => {
     if (/(^|\.)google(apis)?\.com$/.test(new URL(request.url()).hostname)) toGoogle.push(request.url())
   })
-  await readyToSave(page)
+  await newResume(page, { title: "Ada's resume", name: "Ada Lovelace" })
 
   // Opening the menu sends Google nothing.
   await page.getByRole("button", { name: "More formats" }).click()
@@ -190,7 +175,11 @@ test("Save to Google Drive signs in with Google in a window of its own, then put
   const other = await elsewhere.newPage()
   const otherErrors = pageErrors(other)
   await other.goto("/create/dashboard")
-  await other.locator('input[type="file"]').setInputFiles({ name: upload.name, mimeType: "application/pdf", buffer: upload.pdf })
+  await openFile(other.getByRole("button", { name: "Open a file" }).first(), {
+    name: upload.name,
+    mimeType: "application/pdf",
+    buffer: upload.pdf,
+  })
   await expect(other).toHaveURL(/\/create\/new\//)
   await expect(other.getByLabel("Full name")).toHaveValue("Ada Lovelace")
   await elsewhere.close()
@@ -221,12 +210,12 @@ test("declining in Google's window says nothing, and a blocked window or a faile
 }) => {
   const errors = pageErrors(page)
   const asked = await fakeGoogle(context, { signIns: ["declined"], uploads: [500] })
-  await readyToSave(page)
+  await newResume(page, { title: "Ada's resume", name: "Ada Lovelace" })
   const failed = page.getByRole("alert").filter({ hasText: "Save to Drive failed" })
 
   // Declined: nothing's uploaded, and nothing's said.
   await saveSigningIn(page)
-  // A fixed wait, to show nothing comes of it.
+  // A fixed wait: proving nothing comes of it.
   await page.waitForTimeout(500)
   expect(asked.uploads).toEqual([])
   await expect(failed).toHaveCount(0)
@@ -266,7 +255,7 @@ test("declining in Google's window says nothing, and a blocked window or a faile
 test("a token Drive refuses is dropped, so trying again signs in again", async ({ page, context }) => {
   const errors = pageErrors(page)
   const asked = await fakeGoogle(context, { uploads: [401] })
-  await readyToSave(page)
+  await newResume(page, { title: "Ada's resume", name: "Ada Lovelace" })
   const failed = page.getByRole("alert").filter({ hasText: "Save to Drive failed" })
 
   await saveSigningIn(page)
@@ -284,7 +273,7 @@ test("a token Drive refuses is dropped, so trying again signs in again", async (
 test("pressing again as a save starts, before the editor says it's saving, doesn't save twice", async ({ page, context }) => {
   const errors = pageErrors(page)
   const asked = await fakeGoogle(context, { uploads: [401] })
-  await readyToSave(page)
+  await newResume(page, { title: "Ada's resume", name: "Ada Lovelace" })
   const failed = page.getByRole("alert").filter({ hasText: "Save to Drive failed" })
   await saveSigningIn(page)
   await expect(failed).toBeVisible()

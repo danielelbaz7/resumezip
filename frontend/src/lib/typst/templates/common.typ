@@ -1,7 +1,7 @@
 // Shared helpers for the resume templates.
 //
-// Resume data is mapped into the compiler as /resume.json by compile.ts, after
-// being normalised by toTemplateData() in resumeData.ts. Every field is
+// Resume data is mapped into the compiler as /resume.json by typst.worker.ts,
+// after being normalised by toTemplateData() in resumeData.ts. Every field is
 // guaranteed to exist (strings default to "", lists to ()), so templates can
 // access fields directly. Values are plain strings, never markup, so user
 // input cannot inject Typst code.
@@ -16,10 +16,10 @@
 // spaces around headings and between entries, through `sized`; the spaces
 // between lines through `spaced`, which follows the line spacing too; the
 // space above each section's heading through `gapped`, which follows the
-// section spacing too; and its page through
-// `page-paper` and `page-margin`. A leading in em already follows the text
-// size, so it's only multiplied by tune.leading. At 1, each gives back the
-// length it's given, so a resume without a tune prints as it always has.
+// section spacing too; and its page through `page-paper` and `page-margin`.
+// A leading in em already follows the text size, so it's only multiplied by
+// tune.leading. At 1, each gives back the length it's given, so a resume
+// without a tune prints exactly as its template sets it.
 #let tune = data.tune
 #let sized(length) = length * tune.size
 #let spaced(length) = length * tune.size * tune.leading
@@ -43,9 +43,9 @@
   }).join()
 } else { item }
 
-// "Start - End", or whichever of the two is present.
-#let date-range(start, end) = {
-  if has(start) and has(end) { start + " - " + end } else { start + end }
+// "Start - End", or whichever of the two is present, `sep` between them.
+#let date-range(start, end, sep: " - ") = {
+  if has(start) and has(end) { start + sep + end } else { start + end }
 }
 
 // Profile URLs are stored without a scheme (see resumeData.ts).
@@ -116,7 +116,7 @@
 // bookmark. Each template still draws its headings its own way, and calls
 // this inside its own text styles: the heading's tags sit in the line at the
 // size around them, and outside the title's text(size:), at another size,
-// they moved what followed by a fraction of a point.
+// they would move what follows by a fraction of a point.
 #let tagged-heading(level, body) = context {
   // Typst sizes and bolds a heading with set rules of its own, which apply
   // whatever its show rule. They're relative to the text around it, so these
@@ -146,20 +146,27 @@
   if present.len() == 0 { "" } else { present.join(sep) }
 }
 
-// Optional sections share content formatting, while every template supplies
-// its own heading and bullet styles. Prose is the user's text, never Typst
-// markup, with the words they marked **bold** or *italic* set that way, a
-// line at a time (`rich`). Keep paragraphs breakable so long sections span pages.
+// Paragraphs of prose, as the summary's and a text section's. Prose is the
+// user's text, never Typst markup, with the words they marked **bold** or
+// *italic* set that way, a line at a time (`rich`). A paragraph can break
+// across pages, so a long section runs on to the next.
 //
 // A blank line leaves 0.6em more than a line break does. Between two
 // paragraphs, the template's paragraph spacing stands in for its leading, and
 // most templates set it to 0pt, so the gap is the leading plus 0.6em. It's
 // weak, so it replaces the paragraph spacing of a template that sets one,
 // like Compact, rather than adding to it.
+#let prose(paragraphs) = {
+  let gap = context v(par.leading + 0.6em, weak: true)
+  paragraphs.map(lines => par(lines.map(rich).join(linebreak()))).join(gap)
+}
+
+// The words of a section the person added: a text section's paragraphs, or a
+// list section's bullets in the template's own style (`show-bullets`). Each
+// template draws the heading.
 #let extra-body(extra, show-bullets) = {
   if extra.kind == "text" {
-    let gap = context v(par.leading + 0.6em, weak: true)
-    extra.paragraphs.map(lines => par(lines.map(rich).join(linebreak()))).join(gap)
+    prose(extra.paragraphs)
   } else if extra.kind == "list" {
     show-bullets(extra.bullets)
   }

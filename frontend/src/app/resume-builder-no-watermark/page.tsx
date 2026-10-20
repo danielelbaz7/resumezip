@@ -1,5 +1,6 @@
 import Link from "next/link"
-import PromisePage, { PromiseSection, TEXT_LINK } from "@/components/site/PromisePage"
+import PromisePage, { PromiseSection } from "@/components/site/PromisePage"
+import { TEXT_LINK } from "@/components/site/sheet"
 import { pageMetadata } from "@/lib/site"
 
 const PATH = "/resume-builder-no-watermark"

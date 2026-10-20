@@ -4,8 +4,7 @@
 
 import { describe, expect, test } from "vitest"
 import { cleanResume } from "@/lib/resumeFile"
-import { toTemplateData } from "@/lib/typst/resumeData"
-import { differences, readBack, render, samples } from "./testRender"
+import { differences, printedData, readBack, render, samples } from "./testRender"
 
 /**
  * Fields each template's sample doesn't read back yet, as paths into the
@@ -75,19 +74,11 @@ const KNOWN_GAPS: Record<string, string[]> = {
   zero2sudo: [],
 }
 
-// What a resume prints, minus differences that print the same or are
-// deliberate: the parser writes GPAs without spaces ("3.9/4.0").
-function printed(resume: Record<string, unknown>) {
-  const data = toTemplateData(resume)
-  for (const school of data.education) school.gpa = school.gpa.replace(/\s+/g, "")
-  return data
-}
-
 describe.each(samples.map((sample) => [sample.selectedTemplate as string, sample]))("the %s sample", (template, sample) => {
   test("reads back as it was printed", async () => {
     const { parsed, resume } = await readBack(await render(sample))
-    const want = printed(cleanResume(sample))
-    const got = printed(resume)
+    const want = printedData(cleanResume(sample))
+    const got = printedData(resume)
 
     expect(parsed.unplaced).toEqual([])
     // Sections are found in the order they're printed; empty ones aren't printed.
@@ -181,7 +172,7 @@ test("a DOI or link holding a year keeps it, and the citation's own date is foun
       { ...sample.publicationsSection[1], publicationLink: "arxiv.org/abs/2023.01234", publicationDate: "Mar. 2024" },
     ],
   }
-  const got = printed((await readBack(await render(resume))).resume).publications
+  const got = printedData((await readBack(await render(resume))).resume).publications
   expect(got.map(({ doi, link, date }) => ({ doi, link, date }))).toEqual([
     { doi: "10.1109/CVPR.2016.90", link: "", date: "June 2016" },
     { doi: "", link: "arxiv.org/abs/2023.01234", date: "Mar. 2024" },

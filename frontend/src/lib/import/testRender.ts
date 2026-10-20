@@ -1,7 +1,6 @@
-// Renders resumes to PDF with the real Typst templates and reads them back
-// the way "Open a file" does for PDFs from elsewhere, for tests. Used by the
-// import round-trip and test set tests, the checker's PDF rule tests, the
-// templates' layout tests, and the plain-text reading and heading tag tests.
+// Renders resumes to PDF with the real Typst templates, and reads PDFs back
+// the way "Open a file" does for PDFs from elsewhere, for any test that needs
+// a resume printed, or a PDF read, as the site does it.
 
 import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
@@ -9,10 +8,10 @@ import { CompileFormatEnum, createTypstCompiler, type TypstCompiler } from "@myr
 import { loadFonts } from "@myriaddreamin/typst.ts/options.init"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"
-import { SECTIONS, type SectionName } from "@/components/editor/sections"
+import type { TextItem } from "pdfjs-dist/types/src/display/api"
 import { firstColumnOf, templateById } from "@/lib/templates"
-import { toTemplateData, type TemplateData } from "@/lib/typst/resumeData"
-import { linesFromPages, readPdf, type PageSize } from "./lines"
+import { printedSections, toTemplateData, type TemplateData } from "@/lib/typst/resumeData"
+import { linesFromPages, readPdf, type PageSize, type PdfPage } from "./lines"
 import { parseResume, toResumeContent } from "./parse"
 
 const TYPST = path.resolve("src/lib/typst")
@@ -60,36 +59,29 @@ export async function render(resume: Record<string, unknown>): Promise<Uint8Arra
   return result
 }
 
-const KINDS: Record<SectionName, keyof TemplateData["headings"]> = {
-  Education: "education",
-  Work: "work",
-  Projects: "projects",
-  Publications: "publications",
-  Skills: "skills",
-  Leadership: "leadership",
-  Volunteership: "volunteer",
-  Awards: "awards",
-}
-
 /**
  * The headings a resume prints, sections the person added included, in the
  * order its PDF holds them: any column on the left first, then the summary,
  * then the other sections.
  */
 export function printedHeadings(resume: Record<string, unknown>, data: TemplateData = toTemplateData(resume)): string[] {
-  const sections = data.order.flatMap((name) => {
-    const extra = data.extras[name]
-    if (extra) return [{ name, heading: extra.heading }]
-    const kind = KINDS[name as SectionName]
-    if (!kind || data[kind].length === 0) return []
-    return [{ name, heading: data.headings[kind] || SECTIONS[name as SectionName].title }]
-  })
+  const sections = printedSections(data)
   const first = firstColumnOf(templateById(resume.selectedTemplate))
   return [
     ...sections.filter(({ name }) => first.includes(name)),
     ...(data.summary.length ? [{ name: "Summary", heading: "Summary" }] : []),
     ...sections.filter(({ name }) => !first.includes(name)),
   ].map(({ heading }) => heading)
+}
+
+/**
+ * What a resume prints, minus differences that print the same or are
+ * deliberate: the parser writes GPAs without spaces ("3.9/4.0").
+ */
+export function printedData(resume: Record<string, unknown>): TemplateData {
+  const data = toTemplateData(resume)
+  for (const school of data.education) school.gpa = school.gpa.replace(/\s+/g, "")
+  return data
 }
 
 /** Paths ("work[0].role") where two values differ. */
@@ -111,15 +103,43 @@ export function differences(want: unknown, got: unknown, at = ""): string[] {
   return want === got ? [] : [at]
 }
 
-/** A PDF read back: its pages, what the resume reader found, and that as a resume. */
-export async function readBack(pdf: Uint8Array) {
+/** `pdf` opened with pdf.js as "Open a file" opens it, for `read`, and closed after. */
+async function withPdf<T>(pdf: Uint8Array, read: (doc: PDFDocumentProxy) => Promise<T>): Promise<T> {
   const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
   try {
-    const pdfPages = await readPdf(doc)
-    const parsed = parseResume(linesFromPages(pdfPages))
-    const pages: PageSize[] = pdfPages.map(({ width, height }) => ({ width, height }))
-    return { parsed, pages, resume: toResumeContent(parsed) }
+    return await read(doc)
   } finally {
     await doc.destroy()
   }
 }
+
+/** A PDF's pages, as "Open a file" reads them before putting their text in lines. */
+export const pagesOf = (pdf: Uint8Array): Promise<PdfPage[]> => withPdf(pdf, (doc) => readPdf(doc))
+
+/** A PDF read back: its pages, what the resume reader found, and that as a resume. */
+export async function readBack(pdf: Uint8Array) {
+  const pdfPages = await pagesOf(pdf)
+  const parsed = parseResume(linesFromPages(pdfPages))
+  const pages: PageSize[] = pdfPages.map(({ width, height }) => ({ width, height }))
+  return { parsed, pages, resume: toResumeContent(parsed) }
+}
+
+/** Each piece of text a PDF prints, with the font pdf.js says it's drawn in, without the subset's tag ("Lato-Bold"). */
+export function textWithFonts(pdf: Uint8Array): Promise<{ text: string; font: string }[]> {
+  return withPdf(pdf, async (doc) => {
+    const pieces: { text: string; font: string }[] = []
+    for (let number = 1; number <= doc.numPages; number++) {
+      const page = await doc.getPage(number)
+      // The fonts' names are only there once the page's fonts are loaded.
+      await page.getOperatorList()
+      for (const item of (await page.getTextContent()).items as TextItem[]) {
+        const name = String((page.commonObjs.get(item.fontName) as { name?: string }).name)
+        pieces.push({ text: item.str, font: name.replace(/^[A-Z]{6}\+/, "") })
+      }
+    }
+    return pieces
+  })
+}
+
+/** The letters in `text`, each once. */
+export const lettersOf = (text: string) => [...new Set(text.match(/\p{L}/gu))]

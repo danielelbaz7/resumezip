@@ -28,12 +28,12 @@ export function bulletsIn(resume: ResumeView, sections?: readonly SectionName[])
     )
 }
 
-/** Bullets with layout, independent of whether the section describes a job or a custom topic. */
+/** Every bullet, in print order, the added lists' too: for rules about how a bullet prints, whatever it's about. */
 export function layoutBulletsIn(resume: ResumeView): { bullet: Bullet<FieldKey | "bullets">; place: Place }[] {
-  const builtin = bulletsIn(resume)
+  const entryBullets = bulletsIn(resume)
   return resume.allOrder.flatMap<{ bullet: Bullet<FieldKey | "bullets">; place: Place }>((ref) => {
     const id = extraKey(ref)
-    if (id === null) return builtin.filter(({ entry }) => entry.section === ref)
+    if (id === null) return entryBullets.filter(({ entry }) => entry.section === ref)
     return (resume.extras[id]?.bullets ?? []).map((bullet) => ({
       bullet,
       place: { kind: "extra-text", sectionId: id, field: "bullets", line: bullet.line } as const,

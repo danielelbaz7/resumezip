@@ -1,16 +1,17 @@
 // Reviews a resume file in the browser, as the editor's Check would: it's
 // opened as "Open a file" opens it, its pages are read the way hiring software
 // reads them (lib/check/preview.ts), its words are checked by the grammar
-// checker, then every rule runs over it. A PDF is reviewed as it is, its own
-// pages read, shown and marked, so it's judged as the person would send it.
-// A Word or JSON file has no pages of its own, so it's printed with its
-// template, which for a Word file from elsewhere is the default one; so is a
-// PDF whose pages it turns itself (/Rotate), as they're read unturned and
-// their marks wouldn't land on their words. Opened in
-// the editor, a resume is printed in its template, so a PDF from elsewhere
-// can score differently there.
-// Nothing leaves the browser: the PDF engine and the grammar checker are
-// downloaded, not called.
+// checker, then the review's rules (rules.ts) run over it. A PDF is reviewed
+// as it is, its own pages read, shown and marked, so it's judged as the
+// person would send it. A Word or JSON file has no pages of its own, so it's
+// printed with its template, which for a Word file from elsewhere is the
+// default one; so is a PDF whose pages it turns itself (/Rotate), as they're
+// read unturned and their marks wouldn't land on their words. Opened in the
+// editor, a resume is printed in its template, so a PDF from elsewhere can
+// score differently there.
+// None of this leaves the browser: the PDF engine and the grammar checker are
+// downloaded, not called. The AI's notes on the same resume are asked for
+// apart from this (components/review/useAiNotes.ts).
 
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import { runChecks, type GrammarLint, type PdfReading, type Report } from "@/lib/check/engine"
@@ -21,7 +22,7 @@ import { scoreOf, type Score } from "@/lib/check/score"
 import { grammarTexts } from "@/lib/check/spelling"
 import { kindOf, OpenFileError, openResumeFile, until } from "@/lib/import/open"
 import { toResumeContent } from "@/lib/import/parse"
-import type { Resume, ResumeContent } from "@/lib/resume"
+import type { ResumeContent } from "@/lib/resume"
 import { imported } from "@/lib/resumeStore"
 import { templateById } from "@/lib/templates"
 import { compileResume } from "@/lib/typst/compile"
@@ -35,13 +36,9 @@ export interface Review {
   title: string
   /** What the file holds, as "Fix it in the editor" adds it. */
   content: ResumeContent
-  /** The resume as checked. */
-  resume: Resume
   report: Report
   score: Score & { total: number }
-  /** Its pages, which the marks are drawn on: the PDF as it came, or as its template prints it. */
-  pdf: Uint8Array
-  /** That PDF as hiring software reads it; null if it couldn't be read, and then the PDF rules don't count. */
+  /** The PDF, as it came or as printed, as hiring software reads it; null if it couldn't be read, and then the PDF rules don't count. */
   reading: PdfReading | null
   /** Whether the grammar checker ran; when it couldn't load, spelling doesn't count. */
   spelled: boolean
@@ -77,7 +74,7 @@ export async function reviewFile(
   file: File,
   signal: AbortSignal,
   onDone: (step: ReviewStep) => void,
-  onPrinted?: (printed: Printed) => void,
+  onPrinted: (printed: Printed) => void,
 ): Promise<Review> {
   const opened = await openResumeFile(file, { signal })
   if (opened.kind === "all") throw new OpenFileError("This file has several resumes in it. Review a PDF or Word file of one.")
@@ -101,8 +98,8 @@ export async function reviewFile(
       const { readPreview } = await import("@/lib/check/preview")
       const reading = await readPreview(url, signal, pdfLayoutOf(view))
       onDone("read")
-      onPrinted?.({ pdf, reading, view })
-      return { pdf, reading }
+      onPrinted({ pdf, reading, view })
+      return reading
     } finally {
       URL.revokeObjectURL(url)
     }
@@ -122,7 +119,7 @@ export async function reviewFile(
       onDone("spell")
     }
   })()
-  const [{ pdf, reading }, grammar] = await Promise.all([printing, spelling])
+  const [reading, grammar] = await Promise.all([printing, spelling])
 
   const report = runChecks(resume, { rules: reviewRules(asIs), pdf: reading ?? undefined, grammar })
   const score = scoreOf(report)
@@ -130,10 +127,8 @@ export async function reviewFile(
   return {
     title: opened.title,
     content,
-    resume,
     report,
     score: { ...score, total: score.total ?? 0 },
-    pdf,
     reading,
     spelled: !!grammar,
     setIn,

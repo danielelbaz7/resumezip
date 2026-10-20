@@ -16,8 +16,8 @@ const CHOICES = "[aria-pressed], [aria-selected], [aria-checked]"
  * `chosen` is the chosen one's value. `layout` changes whenever the choices
  * themselves do, so new ones are watched too.
  */
-export function useThumb<Group extends HTMLElement = HTMLDivElement>(chosen: string, layout = "") {
-  const group = useRef<Group>(null)
+export function useThumb(chosen: string, layout = "") {
+  const group = useRef<HTMLDivElement>(null)
   const thumb = useRef<HTMLSpanElement>(null)
   // The choice the pill was last put under, so a new one slides it there.
   const at = useRef<string | null>(null)

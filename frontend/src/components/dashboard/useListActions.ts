@@ -12,8 +12,8 @@ const COPIED_MS = 2500
 
 export const nameOf = (resume: ResumeWithId) => resume.resumeTitle || "Untitled resume"
 
-// Both views can have more than one copy of a control on the page, one of
-// them hidden (the table and the phone cards), so this finds the one showing.
+// The list has two copies of each control on the page, one of them hidden
+// (the phone cards and the table), so this finds the one showing.
 export function focusShown(selector: string) {
   const shown = [...document.querySelectorAll<HTMLElement>(selector)].find((element) => element.offsetParent !== null)
   shown?.focus()

@@ -7,8 +7,7 @@
 import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, test } from "vitest"
-import { toTemplateData } from "@/lib/typst/resumeData"
-import { differences, readBack } from "./testRender"
+import { differences, printedData, readBack } from "./testRender"
 
 const CORPUS = path.resolve("src/lib/import/corpus")
 
@@ -211,19 +210,18 @@ const KNOWN_GAPS: Record<string, string[]> = {
 
 /**
  * What a resume prints, in a form that's easy to compare: bullets and
- * authors as plain text, GPAs without spaces. Headings and the order of
- * sections are left out: the reader keeps neither, and a layout can print
- * sections in its own order, like a sidebar.
+ * authors as plain text, GPAs without spaces. Headings are left out, as the
+ * reader doesn't keep them, and so is the order of sections, as a layout can
+ * print them in its own order, like a sidebar.
  */
 function printed(resume: Record<string, unknown>) {
   // The sections a person adds aren't in the corpus, and the summary is checked on its own, below.
-  const { headings, order, extras, summary, ...data } = toTemplateData(resume)
+  const { headings, order, extras, summary, ...data } = printedData(resume)
   const plain = (bullets: { text: string }[][]) => bullets.map((runs) => runs.map((run) => run.text).join(""))
   const withPlainBullets = <T extends { bullets: { text: string }[][] }>(entries: T[]) =>
     entries.map((entry) => ({ ...entry, bullets: plain(entry.bullets) }))
   return {
     ...data,
-    education: data.education.map((school) => ({ ...school, gpa: school.gpa.replace(/\s+/g, "") })),
     work: withPlainBullets(data.work),
     projects: withPlainBullets(data.projects),
     leadership: withPlainBullets(data.leadership),
@@ -269,11 +267,10 @@ describe.each(files)("%s", (file) => {
     const [person] = file.split("/")
     const fixture = JSON.parse(readFileSync(path.join(CORPUS, person, "resume.json"), "utf8"))
     const { parsed, resume } = await readBack(new Uint8Array(readFileSync(path.join(CORPUS, `${file}.pdf`))))
-    const summaries = parsed.extraGroups?.filter((group) => group.kind === "summary") ?? []
-    if (summaries.length) {
+    if (parsed.summaries.length) {
       // As typed: the PDF's lines are joined back up where they only wrapped.
       expect(resume.profileSection.summary).toBe(fixture.summary)
-      expect(summaries).toHaveLength(1)
+      expect(parsed.summaries).toHaveLength(1)
     }
   })
 })

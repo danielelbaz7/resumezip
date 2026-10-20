@@ -9,38 +9,36 @@ import {
   bold,
   CHARIS,
   citations,
+  dateRange,
   emailLink,
   ENGINES,
-  href,
   itemText,
-  joinPresent,
   latex,
   links,
+  minus,
   paragraphs,
+  projectName,
   runs,
   sectionsOf,
   shownLink,
   signs,
   sum,
-  web,
+  UNBROKEN_ROW,
   webLink,
   type Fallbacks,
   type LatexTemplate,
-  type ShowLink,
   type Units,
 } from "../common"
 import type { Paragraph, Run, TemplateData } from "@/lib/typst/resumeData"
 
-const minus = (length: string) => `-${length}`
 /** The longer of two lengths that `Units` gave, as the .typ's `calc.max`. */
 const longer = (a: string, b: string) => (parseFloat(a) >= parseFloat(b) ? a : b)
 
 /** Links print as plain text, kept whole, as the .typ boxes them. */
 const whole = (body: string) => `\\mbox{${body}}`
-const plain: ShowLink = (url, text) => shownLink(url, text)
 
-/** "Start – End" with an en dash, or whichever of the two is present. */
-const dates = (start: string, end: string) => joinPresent(" \\textendash{} ", latex(start), latex(end))
+/** "Start – End", with an en dash. */
+const dates = (start: string, end: string) => dateRange(latex(start), latex(end), " \\textendash{} ")
 
 const FALLBACKS: Fallbacks = {
   comment: `EB Garamond has no ₿, which prints in Charis SIL, as in the PDF.`,
@@ -122,14 +120,7 @@ ${links(title)}
   \\nobreak\\prevdepth=${sum("0.4pt", leading, minus(units.size(10.38)))}
 }
 
-% A line with one part flush left and one flush right. A long left part
-% wraps short of the right one, which sits on its last line.
-\\newlength{\\resumeRightWidth}
-\\newcommand{\\resumeRow}[2]{%
-  \\par\\settowidth{\\resumeRightWidth}{#2}%
-  {\\rightskip=\\dimexpr\\resumeRightWidth+0.8em\\relax plus 1fil\\hyphenpenalty=10000\\interlinepenalty=10000
-    #1\\nobreak\\hfill\\rlap{\\hspace{0.8em}#2}\\par}%
-}
+${UNBROKEN_ROW}
 % An organization in gray capitals and its place, then the line under it
 \\newcommand{\\resumeOrganization}[2]{\\resumeRow{\\textbf{\\textcolor{resumeGray}{\\MakeUppercase{#1}}}}{#2}}
 \\newcommand{\\resumeSubRow}[2]{\\nobreak\\resumeRow{#1}{#2}}
@@ -233,7 +224,7 @@ function body(data: TemplateData, units: Units): string {
           const name = project.name && latex(project.name)
           const parts = [project.techStack && latex(project.techStack), ...project.links.map((url) => webLink(url, whole))].filter(Boolean)
           const left = [
-            name && bold(project.link ? href(web(project.link), `\\MakeUppercase{${name}}`) : `\\MakeUppercase{${name}}`),
+            name && bold(projectName(project, (body) => `\\MakeUppercase{${body}}`)),
             parts.length > 0 && `\\textcolor{resumeGray}{${name ? "| " : ""}${parts.join(" | ")}}`,
           ].filter(Boolean)
           add(`  \\resumeRow{${left.join(" ")}}{${latex(project.date)}}`)
@@ -241,7 +232,7 @@ function body(data: TemplateData, units: Units): string {
         })
         break
       case "publications":
-        add(citations(data.publications, plain, "labelsep=0.7em"))
+        add(citations(data.publications, shownLink, "labelsep=0.7em"))
         break
       case "skills":
         add(

@@ -170,7 +170,7 @@ describe("a resumezip PDF", () => {
     ['{"format":"resumezip","version":99,"resume":{}}', "newer version"],
     ['{"format":"resumezip","version":2,"resume":{"extraSections":{"summary":{"kind":"summary","text":"secret"}}}}', "damaged"],
     ['{"format":"resumezip",', "damaged"],
-  ])("a recognized unusable attachment stops opening without a heuristic fallback", async (content, message) => {
+  ])("with its resume damaged or from a newer resumezip says so, without reading its text", async (content, message) => {
     attachment = content
     await expect(openResumeFile(pdf())).rejects.toThrow(OpenFileError)
     await expect(openResumeFile(pdf())).rejects.toThrow(message)
@@ -431,7 +431,7 @@ describe("a Word file", () => {
       { heading: "Page footer", text: ["CONFIDENTIAL", "REFERENCES ON REQUEST"] },
     ])
     // Kept, the footer's is a section of its own, named as a new one is.
-    const kept = toResumeContent(parsed, new Set(), { keepAs: { [unplacedKey(parsed.unplaced[1], 1)]: "text" } })
+    const kept = toResumeContent(parsed, new Set(), { keepAs: { [unplacedKey(parsed.unplaced[1])]: "text" } })
     expect(Object.values(kept.extraSections ?? {})).toEqual([
       { kind: "text", heading: "New section", text: "CONFIDENTIAL\nREFERENCES ON REQUEST" },
     ])

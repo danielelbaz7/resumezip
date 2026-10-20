@@ -10,7 +10,7 @@ interface TypePickerProps {
   value: string
   onChange: (value: string) => void
   /** Types of the person's own already in use, as saved, to pick again. */
-  own?: string[]
+  own: string[]
   /** The dialog it's in opens with the focus on the type chosen (Modal's data-autofocus). */
   focusChosen?: boolean
 }
@@ -38,7 +38,7 @@ const chip = (chosen: boolean) =>
  * from what's chosen, so text that happens to match a chip, as "Data roles"
  * on the way to "Data roles 2", stays in the box.
  */
-export default function TypePicker({ value, onChange, own = [], focusChosen = false }: TypePickerProps) {
+export default function TypePicker({ value, onChange, own, focusChosen = false }: TypePickerProps) {
   const name = useId()
   const offered = OFFERED.map((option) => option.id)
   const choices = [...offered, ...own.filter((tag) => !offered.includes(tag))]

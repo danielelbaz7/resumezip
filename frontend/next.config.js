@@ -22,9 +22,11 @@ const CONTENT_SECURITY_POLICY = [
   // source maps.
   `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
   "worker-src 'self'",
-  // jsDelivr has the PDF engine's and the grammar checker's WebAssembly
-  // (lib/typst/compilerSource.ts). DOIs are looked up at Crossref and doi.org,
-  // which sends DataCite's DOIs, as arXiv's, on to data.crosscite.org
+  // 'self' takes the AI notes' requests (app/api/review), which go on to the
+  // AI services from the server. jsDelivr has the PDF engine's and the
+  // grammar checker's WebAssembly (lib/typst/compilerSource.ts,
+  // lib/check/harper.ts). DOIs are looked up at Crossref and doi.org, which
+  // sends DataCite's DOIs, as arXiv's, on to data.crosscite.org
   // (lib/papers/lookup.ts). Drive is only its upload address
   // (lib/googleDrive.ts): Cloud Storage's API on the same host takes uploads
   // to buckets that need no sign-in. blob: is the preview's PDF, which pdf.js

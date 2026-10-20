@@ -1,5 +1,5 @@
-// Files for tests to open, made in memory the way another app would make
-// them. Used by the import tests here and the browser tests in e2e/.
+// PDFs and Word files for tests to open, made in memory the way another app
+// would make them.
 
 import { crc32, deflateRawSync } from "node:zlib"
 

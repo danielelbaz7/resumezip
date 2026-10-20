@@ -1,19 +1,18 @@
 // Resumes are saved in the browser's localStorage, each under a key of its
 // own ("resume:<id>"); earlier versions saved them all under one. That's the
-// only copy there is, so nothing here throws: the browser can block storage
-// or run out of room, and what's saved can be unreadable. None of that may
-// crash the app or get saved over. lib/resumeStore.ts decides when to save.
+// only copy there is. The browser can block storage or run out of room, and
+// what's saved can be unreadable; none of that may crash the app or get
+// saved over. So nothing here throws but readSaved and migrateLegacy, when
+// storage can't be read, and their callers catch that. lib/resumeStore.ts
+// decides when to save.
 
 import { SECTIONS } from "@/components/editor/sections"
 import { CHECK_FIELD } from "@/lib/check/state"
+import { isObject } from "@/lib/isObject"
 import { readExtraSections } from "@/lib/resumeSections"
 import { readTune } from "@/lib/tune"
 import type { Resume } from "./resume"
 import { idOf, keyOf, LEGACY_KEY } from "./resumeKeys"
-
-// The keys, and localStorage itself, are in lib/resumeKeys.ts, so pages can
-// look for saved resumes without loading this.
-export { getStorage, idOf, keyOf, LEGACY_KEY, RESUME_PREFIX } from "./resumeKeys"
 
 /**
  * Saved data that can't be read is kept instead of being saved over, each
@@ -251,9 +250,6 @@ function readEntry(value: unknown): { resume: Resume | null; complete: boolean }
   return { resume: Object.fromEntries(fields) as Resume, complete }
 }
 
-export const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
-
 // Fields the editor reads as lists of entries, and as objects of named
 // values (the checker's dismissals and added words are one, Fine-tune's
 // settings another). Older resumes can lack some of them, or have them empty
@@ -281,6 +277,8 @@ function readField(key: string, value: unknown): { value: unknown; complete: boo
     return { value: tune, complete }
   }
   if (key === "sectionsChosen" && value !== true) return null
+  // The dashboard names, numbers and sorts resumes by these as text.
+  if ((key === "resumeTitle" || key === "resumeTag") && typeof value !== "string") return null
   return { value, complete: true }
 }
 

@@ -1,9 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { keptNotesOf } from "@/lib/review/ai/answer"
-import type { Problem } from "@/lib/review/ai/askForNotes"
+import type { AiReviewError } from "@/lib/review/ai/askForNotes"
 import { aiPaused } from "@/lib/review/ai/paused"
+import { NO_CONNECTION, PROBLEMS, type Problem } from "@/lib/review/ai/problems"
 import { sentOf } from "@/lib/review/ai/request"
 import { hashOf, saveNotes, savedByHash, type SavedNote } from "@/lib/review/ai/saved"
 import type { Unit } from "@/lib/review/ai/units"
@@ -11,7 +11,7 @@ import type { Unit } from "@/lib/review/ai/units"
 /** The AI's notes on a review, as they come: asked for, back, or a reason there are none. */
 export type AiAnswer = { step: "asking" } | { step: "done"; notes: SavedNote[] } | { step: "problem"; reason: Problem; message: string }
 
-export interface AiNotes {
+export interface AiSide {
   /** The lines asked about, which the notes point at; null when there are none to ask about. */
   units: Unit[] | null
   /** The lines' hash, which the notes are kept by in this browser; null until it's worked out, or if it can't be. */
@@ -27,11 +27,11 @@ export interface AiNotes {
 }
 
 /**
- * The AI's side of a review. The review page asks as soon as the resume is
- * printed, while its spelling is still being checked, and shows the result
- * once the notes are back; the result can ask again.
+ * The AI's side of a review. The review page asks as soon as the resume's
+ * pages are read, while its spelling is still being checked, and shows the
+ * result once the notes are back; the result can ask again.
  */
-export function useAiNotes(): AiNotes {
+export function useAiNotes(): AiSide {
   const [units, setUnits] = useState<Unit[] | null>(null)
   const [hash, setHash] = useState<string | null>(null)
   const [answer, setAnswer] = useState<AiAnswer | null>(null)
@@ -41,24 +41,19 @@ export function useAiNotes(): AiNotes {
   const request = useCallback(async (units: Unit[], hashed: string | null, current: AbortController) => {
     setAnswer({ step: "asking" })
     try {
-      const { askForNotes, AiReviewError } = await import("@/lib/review/ai/askForNotes")
+      const { askForKeptNotes } = await import("@/lib/review/ai/askForNotes")
       try {
-        const notes = keptNotesOf(await askForNotes(units, current.signal), units)
+        const notes = await askForKeptNotes(units, current.signal)
         if (asking.current !== current) return
         if (hashed) saveNotes(hashed, notes)
         setAnswer({ step: "done", notes })
       } catch (error) {
         if (current.signal.aborted) return
-        if (!(error instanceof AiReviewError)) console.error("Couldn't get AI notes:", error)
-        setAnswer(
-          error instanceof AiReviewError
-            ? { step: "problem", reason: error.reason, message: error.message }
-            : { step: "problem", reason: "other", message: "Something went wrong getting AI notes. Try again in a minute." },
-        )
+        const { reason, message } = error as AiReviewError
+        setAnswer({ step: "problem", reason, message })
       }
     } catch {
-      if (!current.signal.aborted)
-        setAnswer({ step: "problem", reason: "other", message: "The AI notes couldn’t load. Check your connection and try again." })
+      if (!current.signal.aborted) setAnswer({ step: "problem", reason: "other", message: NO_CONNECTION })
     }
   }, [])
 
@@ -86,12 +81,7 @@ export function useAiNotes(): AiNotes {
       const saved = hashed ? savedByHash(hashed) : null
       if (saved) setAnswer({ step: "done", notes: saved.notes })
       // Unless it turned this tab away moments ago: asking again would only be turned away.
-      else if (aiPaused())
-        setAnswer({
-          step: "problem",
-          reason: "limit",
-          message: "You’ve asked for a lot of AI notes in a short time. Try again in a few minutes.",
-        })
+      else if (aiPaused()) setAnswer({ step: "problem", reason: "limit", message: PROBLEMS.limit })
       else await request(units, hashed, current)
     },
     [begin, request],

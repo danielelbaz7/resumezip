@@ -14,16 +14,19 @@ import {
   dateRange,
   emailLink,
   ENGINES,
+  fontSize,
   GREEK,
   joinPresent,
   latex,
   links,
   paragraphs,
+  PLAIN_ROW,
   projectHeader,
   runs,
   sectionsOf,
   shownLink,
   SOURCE_SANS,
+  stretch,
   sum,
   unlessPdfLatex,
   webLink,
@@ -71,8 +74,8 @@ ${links(title)}
 
 % Text sizes and line spacing, as Fine-tune sets them: a line is its
 % capitals' height and the gap above them
-\\renewcommand{\\normalsize}{\\fontsize{${units.size(SIZE)}}{${sum(units.size(CAP * SIZE), units.space(LEADING * SIZE))}}\\selectfont}
-\\newcommand{\\nameSize}{\\fontsize{${units.size(NAME)}}{${sum(units.size(CAP * NAME), units.space(LEADING * NAME))}}\\selectfont}
+\\renewcommand{\\normalsize}{${fontSize(units, SIZE, CAP, LEADING)}\\selectfont}
+\\newcommand{\\nameSize}{${fontSize(units, NAME, CAP, LEADING)}\\selectfont}
 \\normalsize
 % Each \\vspace below runs from a line to the top of the next line's
 % capitals, as in the PDF, so a new paragraph takes back the gap above them
@@ -109,17 +112,7 @@ ${links(title)}
   \\nobreak\\addvspace{${units.size(10)}}%
 }
 
-% A line with one part flush left and one flush right. A long left part
-% wraps, and the right one sits on its last line.
-\\newlength{\\rowRight}
-\\newcommand{\\resumeRow}[2]{%
-  \\par\\begingroup
-  \\settowidth{\\rowRight}{#2}%
-  \\rightskip=\\dimexpr\\rowRight+0.8em\\relax plus 1fil
-  \\parfillskip=0pt
-  \\noindent#1\\hspace{0pt plus 1fill}\\rlap{\\hspace{0.8em}#2}\\par
-  \\endgroup
-}
+${PLAIN_ROW}
 
 % An entry: the organization in bold and its dates, then the role and the
 % place, when there's either. After a section title (the space it ends with),
@@ -163,19 +156,13 @@ ${links(title)}
 % \\prevdepth puts what comes next as far below as after a line of text.
 \\newenvironment{resumeSkills}{%
   \\par\\noindent
-  \\renewcommand{\\arraystretch}{${stretch(units)}}%
+  \\renewcommand{\\arraystretch}{${stretch(units, SIZE, CAP, LEADING, 4)}}%
   \\tabularx{\\linewidth}[t]{@{}l@{\\hspace{1.5em}}X@{}}%
 }{%
   \\endtabularx\\par
   \\prevdepth=\\arraystretch\\dp\\strutbox
 }
 `
-
-// How far \arraystretch stretches the space between lines for skills' rows to be 4pt apart, as in mono.typ.
-function stretch(units: Units): number {
-  const line = parseFloat(sum(units.size(CAP * SIZE), units.space(LEADING * SIZE)))
-  return Math.round((parseFloat(sum(units.size(CAP * SIZE), units.space(4))) / line) * 1000) / 1000
-}
 
 function body(data: TemplateData, units: Units): string {
   const lines: string[] = []

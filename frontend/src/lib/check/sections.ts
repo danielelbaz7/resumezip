@@ -2,11 +2,12 @@
 // whether each entry says what it is and where it was, and what's worth
 // saying in the summary, skills and education.
 
-import { SECTIONS, type FieldKey, type FieldKeyOf, type SectionName } from "@/components/editor/sections"
+import { SECTIONS, type FieldKeyOf, type SectionName } from "@/components/editor/sections"
 import { BUZZ } from "./bullets"
-import { stageOf } from "./career"
+import { isHighSchool, stageOf } from "./career"
 import type { Problem, Rule } from "./engine"
-import { LOCATION_FIELDS, type Place } from "./places"
+import { labelOf } from "./labels"
+import { entryPlace, LOCATION_FIELDS } from "./places"
 import { datesOf } from "./readDate"
 import { textsOf, type Entry, type ResumeView } from "./resume"
 import {
@@ -17,7 +18,6 @@ import {
   GPA_CUTOFF,
   GPA_SCALE,
   GPA_SCALE_WITH_PLUS,
-  HIGH_SCHOOL_NAME,
   INTERESTS_GROUP,
   MAX_COURSES,
   MAX_SKILLS_PER_LINE,
@@ -29,8 +29,6 @@ import {
   SOFT_SKILLS,
   SUMMARY_WORDS,
 } from "./settings"
-
-const at = (entry: Entry, field?: FieldKey): Place => ({ kind: "entry", section: entry.section, entry: entry.index, field })
 
 const filled = (entries: Entry[]) => entries.filter((entry) => !entry.blank)
 
@@ -47,8 +45,6 @@ const NAMED_BY: { [Section in SectionName]?: FieldKeyOf<Section>[] } = {
   Leadership: ["leadershipRole", "leadershipOrg"],
   Awards: ["awardName"],
 }
-
-const labelOf = (section: SectionName, field: FieldKey) => SECTIONS[section].fields.find((def) => def.key === field)?.label ?? field
 
 /**
  * The items in a list typed with commas, semicolons or bars, leaving those
@@ -87,8 +83,8 @@ const experience: Rule = {
   why: "It's what a recruiter reads most closely: what you've done.",
   check: ({ resume }) => {
     const entries = EXPERIENCE.flatMap((section) => filled(resume.sections[section]))
-    // Titles, tools and links identify an entry, but don't describe what the
-    // person did. Only printed descriptions can satisfy this essential check.
+    // A title, tools and links say what an entry is, not what the person did,
+    // so only a printed bullet with words in it passes.
     if (entries.some((entry) => entry.bullets.some((bullet) => /\p{L}/u.test(bullet.text)))) return { checked: 1, problems: [] }
     const first = entries[0]
     const description = first && SECTIONS[first.section].fields.find((field) => field.type === "bullets")?.key
@@ -96,7 +92,7 @@ const experience: Rule = {
       checked: 1,
       problems: [
         {
-          place: first ? at(first, description) : { kind: "section", section: "Work" },
+          place: first ? entryPlace(first, description) : { kind: "section", section: "Work" },
           message: first ? "Describe what you did in an experience or project" : "Add experience, projects, leadership or volunteering",
           suggestion: "Describe a contribution in a job, class project, club, leadership role or volunteer experience.",
         },
@@ -159,8 +155,8 @@ const named: Rule = {
       for (const entry of filled(resume.sections[section])) {
         checked += fields.length
         for (const field of fields.filter((key) => !entry.values[key])) {
-          // An explicitly independent role already explains why there is no
-          // single employer. Ordinary job titles still need an organization.
+          // A freelance or self-employed role has no employer to name; any
+          // other job needs its company.
           if (
             section === "Work" &&
             field === "companyName" &&
@@ -168,7 +164,7 @@ const named: Rule = {
           )
             continue
           problems.push({
-            place: at(entry, field),
+            place: entryPlace(entry, field),
             message: `No ${labelOf(section, field).toLowerCase()}`,
             ...(section === "Work" && { level: "fix" as const }),
             ...(section === "Work" &&
@@ -197,7 +193,11 @@ const located: Rule = {
       for (const entry of filled(resume.sections[section])) {
         checked++
         if (!entry.values[field])
-          problems.push({ place: at(entry, field), message: "No location", suggestion: "Add the city, like “Austin, TX”, or “Remote”." })
+          problems.push({
+            place: entryPlace(entry, field),
+            message: "No location",
+            suggestion: "Add the city, like “Austin, TX”, or “Remote”.",
+          })
       }
     }
     return checked ? { checked, problems } : null
@@ -218,7 +218,7 @@ const blank: Rule = {
       checked: entries.length,
       problems: entries
         .filter((entry) => entry.blank)
-        .map((entry) => ({ place: at(entry), message: "Empty entry", suggestion: "Fill it in or delete it." })),
+        .map((entry) => ({ place: entryPlace(entry), message: "Empty entry", suggestion: "Fill it in or delete it." })),
     }
   },
 }
@@ -247,13 +247,13 @@ const skills: Rule = {
       // A group with a category but no skills prints as "Languages:" and nothing more.
       if (items.length === 0) {
         checked += 1
-        problems.push({ place: at(entry, "skillDetails"), message: "No skills in this group" })
+        problems.push({ place: entryPlace(entry, "skillDetails"), message: "No skills in this group" })
         continue
       }
       checked += items.length
       if (items.length >= MAX_SKILLS_PER_LINE) {
         problems.push({
-          place: at(entry, "skillDetails"),
+          place: entryPlace(entry, "skillDetails"),
           message: `${items.length} skills on one line`,
           suggestion: "Split them into groups, like Languages and Tools.",
         })
@@ -263,13 +263,13 @@ const skills: Rule = {
       for (const item of items) {
         const same = item.toLowerCase().replace(/\s+/g, " ")
         if (seen.has(same)) {
-          problems.push({ place: at(entry, "skillDetails"), message: `“${item}” is listed twice`, text: item })
+          problems.push({ place: entryPlace(entry, "skillDetails"), message: `“${item}” is listed twice`, text: item })
         }
         seen.add(same)
         if (!interests && SOFT_SKILLS.includes(same)) {
           problems.push({
             advisory: true,
-            place: at(entry, "skillDetails"),
+            place: entryPlace(entry, "skillDetails"),
             message: `“${item}” is a soft skill`,
             text: item,
             suggestion: "Show it in a bullet instead, with what you did.",
@@ -278,7 +278,7 @@ const skills: Rule = {
         if (SKILL_RATING.test(item)) {
           problems.push({
             advisory: true,
-            place: at(entry, "skillDetails"),
+            place: entryPlace(entry, "skillDetails"),
             message: `“${item}” rates the skill`,
             text: item,
             suggestion: "Leave the rating off: list only what you could be interviewed on, most relevant first.",
@@ -305,7 +305,7 @@ const projects: Rule = {
       problems: entries
         .filter(({ values }) => !values.projectGithub && !values.additionalLink && !values.techStack)
         .map((entry) => ({
-          place: at(entry, "techStack"),
+          place: entryPlace(entry, "techStack"),
           message: "No link or tech stack",
           suggestion: "Add what it's built with, or a link to it.",
         })),
@@ -322,7 +322,6 @@ const highSchool: Rule = {
   why: "Recruiters look at your latest school, and high school takes room from it.",
   check: ({ resume, today }) => {
     const schools = filled(resume.sections.Education)
-    const isHighSchool = ({ values }: Entry) => HIGH_SCHOOL_NAME.test(values.schoolName) || HIGH_SCHOOL_NAME.test(values.degree)
     const high = schools.filter(isHighSchool)
     const college = schools.filter(
       (entry) => !isHighSchool(entry) && (COLLEGE_DEGREE.test(entry.values.degree) || COLLEGE_NAME.test(entry.values.schoolName)),
@@ -337,7 +336,7 @@ const highSchool: Rule = {
       problems: freshman
         ? []
         : high.map((entry) => ({
-            place: at(entry),
+            place: entryPlace(entry),
             message: "High school next to college",
             suggestion: "Leave it off after your first year of college.",
           })),
@@ -363,13 +362,19 @@ const coursework: Rule = {
         const courses = listOf(entry.values.coursework).length
         return [
           ...(courses > MAX_COURSES
-            ? [{ place: at(entry, "coursework"), message: `${courses} courses listed`, suggestion: "Keep the few that fit the job best." }]
+            ? [
+                {
+                  place: entryPlace(entry, "coursework"),
+                  message: `${courses} courses listed`,
+                  suggestion: "Keep the few that fit the job best.",
+                },
+              ]
             : []),
           ...(experienced
             ? [
                 {
                   advisory: true,
-                  place: at(entry, "coursework"),
+                  place: entryPlace(entry, "coursework"),
                   message: "Coursework, years after school",
                   suggestion: "Coursework helps while you're in school or just out; now your work says more.",
                 },
@@ -490,7 +495,7 @@ const gpa: Rule = {
         return low
           ? [
               {
-                place: at(entry, "gpa"),
+                place: entryPlace(entry, "gpa"),
                 message: `A GPA of ${entry.values.gpa}`,
                 suggestion: "Many leave a GPA under 3.5 out of 4.0 off, unless the job asks for it.",
               },

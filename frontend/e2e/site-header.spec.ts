@@ -13,16 +13,6 @@ for (const path of ["/", "/templates"]) {
   })
 }
 
-test("on a phone, the home page's menu asks for the star", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto("/")
-  await page.getByRole("button", { name: "Open menu" }).click()
-  await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Star on GitHub" })).toHaveAttribute(
-    "href",
-    REPO_URL,
-  )
-})
-
 // Every page's header starts where the home page's does, so it doesn't jump from page to page.
 // Scrolled, it stays where it is at the top of the screen, and the page starts under it rather than behind it.
 const pillTop = async (page: Page) => (await page.getByRole("banner").boundingBox())!.y

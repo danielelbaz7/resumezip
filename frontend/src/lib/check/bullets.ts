@@ -1,5 +1,6 @@
 // Bullets (B1–B9 in issue #58): how each one starts, what's in it, and how
-// many a job has. Every finding points at the bullet it's about.
+// many a job has. A finding points at the bullet it's about, or at an
+// entry's bullets as a whole when it's about all of them (B3, B8).
 
 import { SECTIONS, type SectionName } from "@/components/editor/sections"
 import type { Problem, Rule } from "./engine"
@@ -28,7 +29,7 @@ const WEAK = new RegExp(`^(${WEAK_STARTS.map(escaped).join("|")})\\b`, "i")
 
 /** "I", "me", "my", "we" or "our" in a bullet, as written; null if there's none. */
 export function pronounIn(text: string): string | null {
-  // Product handles, links and quoted names are not narrative pronouns.
+  // A link, an email address or a quoted name (“ask me anything”) isn't the person speaking.
   text = text.replace(/(?:https?:\/\/|www\.)\S+|\S+@\S+|["“][^"”]+["”]/g, (value) => " ".repeat(value.length))
   // Not \b, which only knows ASCII letters: it would find "i" at the end of "Nội" and "me" in "Jérôme".
   for (const match of text.matchAll(/(?<![\p{L}\p{M}\p{N}_])(I|i|me|my|we|our|Me|My|We|Our)(?![\p{L}\p{M}\p{N}_])/gu)) {
@@ -85,8 +86,8 @@ const actionVerbs: Rule = {
         const text = opening(bullet.text)
         // A number first ("50% faster…") is fine; weak starts and "I" have rules of their own.
         if (!text || /^\p{N}/u.test(text) || WEAK.test(text) || pronounIn(firstWord(text)) !== null) return []
-        // If the opening word could also name a subject, don't prescribe its
-        // sentence structure ("Research findings informed policy").
+        // A first word that can be a verb passes even when it's the subject,
+        // as in “Research findings informed policy”, and so does a scope or a result.
         return verbAtStart(text) || verbOf(firstWord(text)) || hasScope(text) || hasOutcome(text)
           ? []
           : [
@@ -107,7 +108,7 @@ const scopeAndResults: Rule = {
   level: "look",
   reads: "form",
   title: "Show the scope or result of your work",
-  why: "A result can be a useful change, not just a number. This check looks for cues, not proof of quality.",
+  why: "A result can be a useful change, not just a number. The check looks for signs of one, not how good it is.",
   check: ({ resume }) => {
     const entries = Object.values(resume.sections)
       .flat()
@@ -274,10 +275,10 @@ const descriptions: Rule = {
       problems: entries.flatMap((entry): Problem[] => {
         const field = SECTIONS[entry.section].fields.find((field) => field.type === "bullets")!.key
         const place = { kind: "entry" as const, section: entry.section, entry: entry.index, field }
+        const peers = entries.filter((other) => other.section === entry.section)
         if (entry.bullets.length === 0) {
           // An older additional role can be listed briefly once another
           // role in its section describes the work.
-          const peers = entries.filter((other) => other.section === entry.section)
           const additional = peers.indexOf(entry) > 0 && hasEnded(entry, today) && peers.some((other) => other.bullets.length > 0)
           return [
             {
@@ -304,7 +305,6 @@ const descriptions: Rule = {
         // there is too thin. Older jobs can be brief (above). Generic bullets
         // that already count (above) aren't counted twice.
         const specific = entry.bullets.length - generic.length
-        const peers = entries.filter((other) => other.section === entry.section)
         const recent = entry.section === "Work" && (peers.indexOf(entry) === 0 || !hasEnded(entry, today))
         const genericCounts = generic.length * 2 >= entry.bullets.length
         if (resume.type !== "academic" && recent && !genericCounts && specific > 0 && specific < MIN_SPECIFIC_BULLETS) {

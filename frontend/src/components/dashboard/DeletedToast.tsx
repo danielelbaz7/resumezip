@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { onMac, shortcut, typingIn } from "@/lib/keys"
 
 /** How long the message stays, in milliseconds, unless it's pointed at or has the keyboard's focus. */
-export const UNDO_MS = 6_000
+const UNDO_MS = 6_000
 
 interface DeletedToastProps {
   title: string
@@ -19,10 +19,11 @@ interface DeletedToastProps {
 }
 
 /**
- * Shows a resume was deleted, with a button to undo it, at the bottom of the
- * screen. It waits while it's pointed at or the keyboard is on it, so there's
- * time to read it, and starts its time again afterwards. ⌘Z (Ctrl+Z) undoes
- * too, while it's up. Give it a key per deletion, so each gets its full time.
+ * Says a resume was deleted, or in the editor an entry, with a button to undo
+ * it, at the bottom of the screen. It waits while it's pointed at or the
+ * keyboard is on it, so there's time to read it, and starts its time again
+ * afterwards. ⌘Z (Ctrl+Z) undoes too, while it's up. With a key per deletion,
+ * each one gets its full time.
  */
 export default function DeletedToast({ title, onUndo, onDone, page, className = "", style }: DeletedToastProps) {
   const [held, setHeld] = useState({ pointer: false, keyboard: false })

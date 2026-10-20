@@ -1,8 +1,9 @@
 // Every template's headings are tagged as headings in its PDF (issue #261):
 // the name as H1, then each section's title as H2 (H1 on a resume without a
 // name), in reading order. A screen reader lists a PDF's headings from these
-// tags and moves between them, as it does a web page's. The templates print
-// them as they always have, through `tagged-heading` in templates/common.typ.
+// tags and moves between them, as it does a web page's. The tags don't change
+// how the templates print them: each goes through `tagged-heading` in
+// templates/common.typ.
 
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"

@@ -1,8 +1,9 @@
-// Where each finding is printed, so the review page can mark it on the page:
-// a bullet on the lines the PDF prints it on (printedLayoutBullets), a role's
-// bullets as a whole on all of theirs, and anything else on the first line
-// that holds its text. A finding about a whole entry or section, or the PDF
-// itself, has no line of its own, so it isn't marked; the page lists it below.
+// Where each finding is printed, so the review page and the editor's preview
+// can mark it: a bullet on the lines the PDF prints it on (printedLayoutBullets),
+// a role's bullets as a whole on all of theirs, and anything else on the first
+// line that holds its text. A finding about a whole entry or section, or the
+// PDF itself, has no line of its own, so it isn't marked; the review page
+// lists it under the page.
 
 import type { Finding, PdfReading } from "@/lib/check/engine"
 import type { AiNote } from "./ai/answer"

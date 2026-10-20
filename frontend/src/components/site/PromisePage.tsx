@@ -7,16 +7,11 @@ import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import StructuredData from "@/components/site/StructuredData"
-import { PAPER_FRAME, SHEET } from "@/components/site/sheet"
+import { HEADING, PAPER_FRAME, SECTION, SHEET, TEXT_LINK } from "@/components/site/sheet"
 import { PROMISES } from "@/lib/promises"
 import { breadcrumbs } from "@/lib/structuredData"
 
-const SECTION = "grid gap-6 border-t border-ink pt-6 md:grid-cols-3 md:gap-12"
-const HEADING = "font-serif text-[28px] leading-[1.15] tracking-[-0.02em] md:text-[32px]"
 const PARAGRAPHS = "flex max-w-2xl flex-col gap-4 text-pretty text-[17px] leading-relaxed text-ink-2 md:col-span-2"
-
-/** A link inside a promise page's sentences. */
-export const TEXT_LINK = "text-ink underline underline-offset-4 hover:decoration-2"
 
 /** One part of a promise page: its heading beside its paragraphs. */
 export function PromiseSection({ id, heading, children }: { id: string; heading: string; children: React.ReactNode }) {

@@ -13,10 +13,12 @@ import {
   type ProfileKey,
   type SectionName,
 } from "@/components/editor/sections"
+import { EXPECTED_WORDS, PRESENT_WORDS, US_STATES } from "@/lib/check/settings"
+import { escaped } from "@/lib/check/text"
 import type { CompleteContent, ResumeContent } from "@/lib/resume"
-import { extraKey, resolveSections, type ExtraSections, type SectionRef } from "@/lib/resumeSections"
+import { extraKey, extraRef, resolveSections, type ExtraKind, type ExtraSections, type SectionRef } from "@/lib/resumeSections"
 import { plainText } from "@/lib/typst/resumeData"
-import { PAGE_NUMBER, SOFT_HYPHEN, toLine, type Line, type Part, type Run } from "./lines"
+import { PAGE_NUMBER, SOFT_HYPHEN, toLine, type Line, type Part, type Piece, type Run } from "./lines"
 
 /** An entry's values, keyed by its section's field names. */
 type Fields = Partial<Record<FieldKey, string>>
@@ -32,52 +34,44 @@ export interface FoundSection {
   entries: FoundEntry[]
 }
 
-/** A heading occurrence is an address in this file, never a durable editor ID. */
+/** A heading in the file, and which of the editor's sections it starts, if any. */
 export interface FoundOccurrence {
-  id: string
   heading: string
   headingLine: number
-  lines: number[]
-  sourceLines: number[]
   section: SectionName | null
-  kind: "builtin" | "summary" | "unsupported"
 }
 
-export interface FoundExtraGroup {
+export interface FoundSummary {
   id: string
-  kind: "summary"
   heading: string
   headingLine: number
   lines: number[]
-  sourceLines: number[]
   text: string[]
   /** The same lines with words set in bold or italic in the editor's marks, for the profile's summary. */
   marked: string[]
 }
 
 export interface ParsedResume {
-  /** The lines that entries' `lines` index into: the file's, with side headings split off. */
-  lines: Line[]
+  /** The lines that entries' `lines` index into: the file's, without page numbers and with side headings split off. */
+  lines: SourceLine[]
   profile: Partial<Record<ProfileKey, string>>
   profileLines: number[]
   /** In the order they appear in the file. */
   sections: FoundSection[]
   /** Text that didn't fit anywhere, grouped under the heading it was found under. */
-  unplaced: { id?: string; heading: string; headingLine?: number; lines: number[]; sourceLines?: number[]; text: string[] }[]
-  occurrences?: FoundOccurrence[]
-  extraGroups?: FoundExtraGroup[]
+  unplaced: { id: string; heading: string; headingLine: number; lines: number[]; text: string[] }[]
+  occurrences: FoundOccurrence[]
+  summaries: FoundSummary[]
 }
 
 /** A line being parsed: its place in the file, and lines joined onto it. */
-type ParseLine = Line & {
+type ParseLine = SourceLine & {
   index: number
   /** The right edge of its column: the furthest any line like it reaches. */
   margin?: number
   /** It runs to its column's edge in justified text, as every line of a paragraph but its last does. */
   full?: boolean
   merged?: number[]
-  /** A heading split off a margin column (see `SourceLine`). */
-  side?: boolean
 }
 
 // ---------------------------------------------------------------- patterns
@@ -88,8 +82,11 @@ const SEASON = "(?:spring|summer|fall|autumn|winter)"
 const YEAR = "(?:19|20)\\d{2}"
 // "06/2024" and "6/24", but not "80/20": a month written as a number is 1 to 12.
 const ONE_DATE = `(?:(?:${MONTH}|${SEASON})\\s*,?\\s*(?:${YEAR}|['\u2019]\\d{2})|(?:0?[1-9]|1[0-2])\\s*/\\s*(?:${YEAR}|\\d{2})|${YEAR})`
-const END_DATE = `(?:${ONE_DATE}|present|current|now|ongoing|today)`
-const EXPECTED = "(?:expected|anticipated|exp\\.)"
+// The words for a date that's still going ("Present") or hasn't come yet
+// ("Expected") are the checker's, so the two read dates alike.
+const PRESENT = `(?:${PRESENT_WORDS.map(escaped).join("|")})`
+const END_DATE = `(?:${ONE_DATE}|${PRESENT})`
+const EXPECTED = `(?:${EXPECTED_WORDS.map(escaped).join("|")})`
 const RANGE = `(${ONE_DATE}|${MONTH}|${SEASON})\\s*(?:-|\u2013|\u2014|\u2212|to|until)\\s*((?:${EXPECTED}\\s+)?${END_DATE})`
 // Group 1: the character before the date, 2: "expected" before it, 3-4: a range's
 // start and end, 5: a single date, 6: "(expected)" after it.
@@ -105,19 +102,12 @@ const GITHUB_PROFILE = /(?:https?:\/\/)?(?:www\.)?github\.com\/[A-Za-z0-9-]+\/?(
 const URL =
   /(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|io|dev|me|org|net|co|ai|app|xyz|tech|site|page|us|ca|edu|info|so|sh|gg|design|codes|blog|cc|tv|uk|in|de)(?:\/[^\s|,;)]*)?/i
 
-const US_STATES =
-  "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY"
 // prettier-ignore
 const PLACES = new Set(
   [
-    ...US_STATES.split(" "),
+    ...US_STATES.flat(),
     ..."ON QC BC AB MB NS NB NL PE SK UK US USA UAE".split(" "),
-    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia",
-    "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland",
-    "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire",
-    "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania",
-    "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
-    "West Virginia", "Wisconsin", "Wyoming", "Ontario", "Quebec", "British Columbia", "Alberta",
+    "Ontario", "Quebec", "British Columbia", "Alberta",
     "United States", "Canada", "United Kingdom", "England", "Scotland", "Ireland", "India", "China", "Japan", "Korea",
     "South Korea", "Vietnam", "Singapore", "Australia", "New Zealand", "Germany", "France", "Spain", "Italy",
     "Netherlands", "Belgium", "Switzerland", "Sweden", "Norway", "Denmark", "Finland", "Poland", "Portugal", "Austria",
@@ -367,6 +357,8 @@ interface FoundDate {
   end: string
 }
 
+const EXPECTED_WORD = new RegExp(`^${EXPECTED}$`, "i")
+
 function findDate(text: string): (FoundDate & { index: number; length: number }) | null {
   const match = DATE.exec(text)
   if (!match) return null
@@ -375,7 +367,7 @@ function findDate(text: string): (FoundDate & { index: number; length: number })
   const start = match[3] ? tidy(match[3]) : ""
   // Keep "Expected" as written: before the date or as "(Expected)" after it.
   let end = tidy(match[4] ?? match[5] ?? "")
-  if (match[2] && /expect|anticipat|exp\./i.test(match[2])) end = `${match[2]} ${end}`
+  if (match[2] && EXPECTED_WORD.test(match[2])) end = `${match[2]} ${end}`
   if (match[6]) end = `${end} ${match[6].trim()}`
   return { text: tidy(whole), start, end, index, length: whole.length }
 }
@@ -383,7 +375,7 @@ function findDate(text: string): (FoundDate & { index: number; length: number })
 const hasDate = (line: Line) => DATE.test(line.text)
 
 const CUT_DATE = new RegExp(`${ONE_DATE}\\s*(?:-|\u2013|\u2014|to)\\s*(?:${MONTH}|${SEASON})?\\s*$`, "i")
-const YEAR_FIRST = /^(?:(?:19|20)\d{2}|present|current|now)\b/i
+const YEAR_FIRST = new RegExp(`^(?:${YEAR}|${PRESENT})\\b`, "i")
 
 /** Joins a date range that wrapped onto the next line back together. */
 function joinWrappedDates(lines: ParseLine[]): ParseLine[] {
@@ -416,13 +408,6 @@ function joinWrappedDates(lines: ParseLine[]): ParseLine[] {
 
 // ---------------------------------------------------------------- entries
 
-/** A stretch of text in one style. */
-interface Piece {
-  text: string
-  bold: boolean
-  italic: boolean
-}
-
 interface Item {
   text: string
   /** The same text in plain, bold and italic pieces, for marking styled words in the editor. */
@@ -449,16 +434,15 @@ function continues(line: ParseLine, item: Item, wasBullet: boolean, above: Parse
   return Math.abs(line.x - item.x) <= 3 && (!/[.!?]$/.test(item.text) || /^[a-z]/.test(line.text) || afterFull)
 }
 
-/**
- * A wrapped line joined onto the one above: a word a soft hyphen broke in two
- * joins back up, and so does a link or "and/or" that broke after a slash.
- */
+// A word broken in two at the end of a line joins back up with no space: at a
+// soft hyphen, at a hyphen with more of the word after it, or after a slash,
+// as a link or "and/or" breaks.
+const joinsWithoutSpace = (text: string, next: string) =>
+  text.endsWith(SOFT_HYPHEN) || (/\w-$/.test(text) && /^[a-z]/.test(next)) || /\w\/$/.test(text)
+
+/** A wrapped line joined onto the one above, without the soft hyphen a word broke at. */
 const joinWrapped = (text: string, next: string) =>
-  text.endsWith(SOFT_HYPHEN)
-    ? text.slice(0, -1) + next
-    : (/\w-$/.test(text) && /^[a-z]/.test(next)) || /\w\/$/.test(text)
-      ? text + next
-      : `${text} ${next}`
+  text.endsWith(SOFT_HYPHEN) ? text.slice(0, -1) + next : joinsWithoutSpace(text, next) ? text + next : `${text} ${next}`
 
 /** Adds text in a style, merged into the piece before when the style is the same. */
 function addPiece(pieces: Piece[], text: string, bold: boolean, italic: boolean) {
@@ -486,15 +470,20 @@ function stylePieces(line: Line): Piece[] {
   return pieces
 }
 
+/** Joins a wrapped line onto the text above it as joinWrapped does, and its pieces onto the pieces above. */
+function joinWrappedLine(above: { text: string; pieces: Piece[] }, line: Line) {
+  const soft = above.text.endsWith(SOFT_HYPHEN)
+  const together = joinsWithoutSpace(above.text, line.text)
+  above.text = joinWrapped(above.text, line.text)
+  const last = above.pieces[above.pieces.length - 1]
+  if (soft && last) last.text = last.text.replace(/\u00AD$/, "")
+  if (!together) addPiece(above.pieces, " ", last?.bold ?? false, last?.italic ?? false)
+  for (const piece of stylePieces(line)) addPiece(above.pieces, piece.text, piece.bold, piece.italic)
+}
+
 /** Adds a wrapped line to the item above it. */
 function extendItem(item: Item, line: ParseLine) {
-  const soft = item.text.endsWith(SOFT_HYPHEN)
-  const together = soft || (/\w-$/.test(item.text) && /^[a-z]/.test(line.text))
-  item.text = joinWrapped(item.text, line.text)
-  const last = item.pieces[item.pieces.length - 1]
-  if (soft && last) last.text = last.text.replace(/\u00AD$/, "")
-  if (!together) addPiece(item.pieces, " ", last?.bold ?? false, last?.italic ?? false)
-  for (const piece of stylePieces(line)) addPiece(item.pieces, piece.text, piece.bold, piece.italic)
+  joinWrappedLine(item, line)
   item.lines.push(line.index)
 }
 
@@ -591,14 +580,7 @@ function written(lines: ParseLine[]): { text: string; pieces: Piece[] }[] {
       out.push({ text: line.text, pieces: stylePieces(line) })
       return
     }
-    // Joined as joinWrapped joins the text: a word broken in two with no space.
-    const soft = last.text.endsWith(SOFT_HYPHEN)
-    const together = soft || (/\w-$/.test(last.text) && /^[a-z]/.test(line.text)) || /\w\/$/.test(last.text)
-    last.text = joinWrapped(last.text, line.text)
-    const end = last.pieces[last.pieces.length - 1]
-    if (soft && end) end.text = end.text.replace(/\u00AD$/, "")
-    if (!together) addPiece(last.pieces, " ", end?.bold ?? false, end?.italic ?? false)
-    for (const piece of stylePieces(line)) addPiece(last.pieces, piece.text, piece.bold, piece.italic)
+    joinWrappedLine(last, line)
   })
   return out
 }
@@ -654,16 +636,19 @@ const datesEntry = (line: ParseLine, above: ParseLine | undefined) =>
 const CONNECTOR =
   /(?:[,;:&/\u00AD-]|\b(?:and|or|of|in|for|the|a|an|at|with|to|by|on|from|into|using|via|across|through|as|including|such|than|while|that|which))$/i
 
+/** `b` after `a`, with a space between, as one part where `a` is. */
+function joinParts(a: Part, b: Part): Part {
+  const shift = a.text.length + 1
+  return {
+    ...a,
+    text: `${a.text} ${b.text}`,
+    runs: [...a.runs, ...b.runs.map((run) => ({ ...run, start: run.start + shift, end: run.end + shift }))],
+  }
+}
+
 /** Joins a line onto the end of the one before it. */
 function mergeLines(a: ParseLine, b: ParseLine): ParseLine {
-  const end = a.parts[a.parts.length - 1]
-  const shift = end.text.length + 1
-  const joined: Part = {
-    ...end,
-    text: `${end.text} ${b.parts[0].text}`,
-    runs: [...end.runs, ...b.parts[0].runs.map((run) => ({ ...run, start: run.start + shift, end: run.end + shift }))],
-  }
-  const parts = [...a.parts.slice(0, -1), joined, ...b.parts.slice(1)]
+  const parts = [...a.parts.slice(0, -1), joinParts(a.parts[a.parts.length - 1], b.parts[0]), ...b.parts.slice(1)]
   return {
     ...a,
     parts,
@@ -824,13 +809,7 @@ function joinWrappedTitles(lines: Line[]): Line[] {
       const [a, b] = [leadStyle(above), leadStyle(line)]
       const column = next.x - first.x
       if (Math.abs(above.parts[0].x - first.x) < 3 && a.bold === b.bold && a.italic === b.italic && above.box[2] >= next.x - column * 0.4) {
-        const shift = above.parts[0].text.length + 1
-        const part = {
-          ...first,
-          text: `${above.parts[0].text} ${first.text}`,
-          runs: [...above.parts[0].runs, ...first.runs.map((run) => ({ ...run, start: run.start + shift, end: run.end + shift }))],
-        }
-        const parts = [part, ...line.parts.slice(1)]
+        const parts = [joinParts(above.parts[0], first), ...line.parts.slice(1)]
         joined[joined.length - 1] = { ...line, parts, text: parts.map((p) => p.text).join(" "), links: [...above.links, ...line.links] }
         continue
       }
@@ -1063,10 +1042,9 @@ const bulletField = (items: string[]) =>
     .map((item) => `• ${item}`)
     .join("\n")
 
-const linesOf = (group: Group) => [
-  ...group.header.flatMap((line) => [line.index, ...(line.merged ?? [])]),
-  ...group.body.flatMap((item) => item.lines),
-]
+const lineIndexes = (line: ParseLine) => [line.index, ...(line.merged ?? [])]
+
+const linesOf = (group: Group) => [...group.header.flatMap(lineIndexes), ...group.body.flatMap((item) => item.lines)]
 
 // ---------------------------------------------------------------- sections
 
@@ -1255,13 +1233,16 @@ function splitDegreeAndSchool(fragment: Fragment): Fragment[] {
   return [fragment]
 }
 
+// A label a date comes after ("Expected: May 2027"), or a GPA.
+const DATE_LABEL = new RegExp(`^(?:${EXPECTED}|graduat|gpa)`, "i")
+
 /**
  * "Advisor: Prof. Reyes", "Thesis: …": a detail under a label of a word or
  * two. Not a degree ("Bachelor of Science: …"), a school, or a date ("Expected: …").
  */
 function detailLabel(text: string): boolean {
   const label = text.match(/^([A-Z][a-z]+(?: [A-Za-z][a-z]+){0,2}):\s/)?.[1]
-  return label !== undefined && !isDegree(label) && !SCHOOL_WORDS.test(label) && !/^(?:expected|anticipated|graduat|gpa)/i.test(label)
+  return label !== undefined && !isDegree(label) && !SCHOOL_WORDS.test(label) && !DATE_LABEL.test(label)
 }
 
 function readEducation(lines: ParseLine[]): SectionResult {
@@ -1440,7 +1421,7 @@ function venueAndDetails(after: string): { venue: string; details: string } {
  * "[1] A. Smith and B. Lee, “Title,” Venue, City, 2025, doi: 10.1/x."
  * `italics` is the citation's italic text, which in IEEE style is the venue.
  */
-function readCitation(text: string, italics: string[] = []): Fields {
+function readCitation(text: string, italics: string[]): Fields {
   const fields = blankEntry("Publications")
   let rest = text.replace(NUMBERED, "")
   // Links come out before the date, since DOIs and URLs often hold a year
@@ -1533,7 +1514,7 @@ function readPublications(section: ParseLine[]): SectionResult {
     const items: { text: string; lines: number[]; x: number; italics: string[] }[] = []
     for (const line of lines) {
       const last = items[items.length - 1]
-      const starts = line.bullet || NUMBERED.test(line.text) || !last || line.x <= last.x - 3
+      const starts = startsCitation(line) || !last || line.x <= last.x - 3
       // Italic runs, joined with the one before when it carries on from the end of the line above.
       const italics = line.parts.flatMap((part) =>
         part.runs
@@ -1684,7 +1665,7 @@ function readAwards(lines: ParseLine[]): SectionResult {
             .join(", "),
           awardDate: header.date?.text ?? "",
         },
-        lines: block.flatMap((line) => [line.index, ...(line.merged ?? [])]),
+        lines: block.flatMap(lineIndexes),
       }
     })
     return { entries, leftover }
@@ -1693,7 +1674,7 @@ function readAwards(lines: ParseLine[]): SectionResult {
   let describing = false
   for (const line of lines) {
     const last = entries[entries.length - 1]
-    const wraps = last !== undefined && !line.bullet && (/^[a-z]/.test(line.text) || line.left > (lines[0]?.left ?? 0) + 4)
+    const wraps = last !== undefined && !line.bullet && (/^[a-z]/.test(line.text) || line.left > lines[0].left + 4)
     // A line about the award has no field to go in, nor do the lines it wraps onto.
     if (wraps && (describing || (!hasDate(line) && aboutAward(line)))) {
       if (describing) leftover.text[leftover.text.length - 1] = joinWrapped(leftover.text[leftover.text.length - 1], line.text)
@@ -1710,7 +1691,7 @@ function readAwards(lines: ParseLine[]): SectionResult {
       last.lines.push(line.index)
       continue
     }
-    if (last && !line.bullet && !hasDate(line) && (/^[a-z]/.test(line.text) || line.left > (lines[0]?.left ?? 0) + 4)) {
+    if (wraps && !hasDate(line)) {
       last.fields.awardName = tidy(joinWrapped(last.fields.awardName ?? "", line.text))
       last.lines.push(line.index)
       continue
@@ -1743,8 +1724,6 @@ function readAwards(lines: ParseLine[]): SectionResult {
   }
   return { entries: entries.filter((entry) => entry.fields.awardName || entry.fields.awardOrg), leftover }
 }
-
-const lineIndexes = (line: ParseLine) => [line.index, ...(line.merged ?? [])]
 
 // ---------------------------------------------------------------- profile
 
@@ -1843,11 +1822,8 @@ function readContacts(lines: ParseLine[], isTop: (line: ParseLine) => boolean): 
     result.lines.push(line.index)
     // Link text like "LinkedIn" or "Portfolio" with the address behind it.
     const left = tidy(text.replace(CONTACT_LABEL, " ").replace(/\s*[|\u2022\u00B7\u25AA,]\s*/g, " "))
-    if (!left || !inHeader) {
-      if (!left) result.used.add(line.index)
-    } else {
-      result.remainders.set(line.index, left)
-    }
+    if (!left) result.used.add(line.index)
+    else if (inHeader) result.remainders.set(line.index, left)
   }
   // Link text alone ("LinkedIn | GitHub") leaves nothing behind.
   for (const [index, left] of result.remainders) {
@@ -2188,18 +2164,14 @@ export function parseResume(file: Line[]): ParsedResume {
   }
 
   const unplaced: ParsedResume["unplaced"] = []
-  const provenance = (indexes: number[]) => [
-    ...new Set(indexes.map((index) => input[index]?.sourceIndex).filter((index): index is number => index !== undefined)),
-  ]
-  const addUnplaced = (heading: string, lineIndexes: number[], text: string[], headingLine = lineIndexes[0] ?? -1) => {
+  const addUnplaced = (heading: string, indexes: number[], text: string[], headingLine = indexes[0] ?? -1) => {
     const kept = text.map(tidy).filter(Boolean)
     if (kept.length === 0) return
     unplaced.push({
       id: `unplaced:${headingLine}:${unplaced.length}`,
       heading,
       headingLine,
-      lines: lineIndexes,
-      sourceLines: provenance(lineIndexes),
+      lines: indexes,
       text: kept,
     })
   }
@@ -2226,7 +2198,7 @@ export function parseResume(file: Line[]): ParsedResume {
 
   const starts = lines.filter((line) => headings.has(line.index))
   const occurrences: FoundOccurrence[] = []
-  const extraGroups: FoundExtraGroup[] = []
+  const summaries: FoundSummary[] = []
   const experience: { name: ExperienceName; calls: Map<FoundEntry, RoleCall>; splits: Map<FoundEntry, SplitCall> }[] = []
   starts.forEach((start, i) => {
     const { meaning, label } = headings.get(start.index)!
@@ -2244,22 +2216,18 @@ export function parseResume(file: Line[]): ParsedResume {
     const normalized = normalizeHeading(label)
     // A summary is prose: one in bullets isn't read as one.
     const summary = SUMMARY_HEADINGS.has(normalized) && !sectionLines.some((line) => line.bullet)
-    const kind: FoundOccurrence["kind"] = summary ? "summary" : meaning.section === null ? "unsupported" : "builtin"
     const indexes = sectionLines.flatMap(lineIndexes)
-    const occurrence: FoundOccurrence = {
-      id: `heading:${start.index}`,
-      heading: label,
-      headingLine: start.index,
-      lines: indexes,
-      sourceLines: provenance([start.index, ...indexes]),
-      section: kind === "builtin" ? meaning.section : null,
-      kind,
-    }
-    occurrences.push(occurrence)
+    occurrences.push({ heading: label, headingLine: start.index, section: summary ? null : meaning.section })
     if (sectionLines.length === 0) return
 
-    if (kind === "summary") {
-      extraGroups.push({ ...occurrence, kind, ...summaryLines(sectionLines) })
+    if (summary) {
+      summaries.push({
+        id: `heading:${start.index}`,
+        heading: label,
+        headingLine: start.index,
+        lines: indexes,
+        ...summaryLines(sectionLines),
+      })
       return
     }
 
@@ -2297,8 +2265,9 @@ export function parseResume(file: Line[]): ParsedResume {
   followOtherEntries(experience)
   followCommas(experience)
 
-  // With no headings at all, firstHeading falls back to the 4th line: what's
-  // below the top of the resume couldn't be sorted, so it's listed as it is.
+  // With no headings at all, the first four lines are the top of the resume
+  // (`firstHeading`), and what's below them couldn't be sorted, so it's
+  // listed as it is.
   if (starts.length === 0) {
     const rest = lines.filter((line) => line.index >= firstHeading && content(line))
     addUnplaced(
@@ -2316,21 +2285,21 @@ export function parseResume(file: Line[]): ParsedResume {
     footer.map(textOf),
   )
 
-  return { lines: input, profile, profileLines, sections, unplaced, occurrences, extraGroups }
+  return { lines: input, profile, profileLines, sections, unplaced, occurrences, summaries }
 }
 
-/** Builds a resume for the editor from what was found, leaving out entries the user unticked. */
 export interface ImportChoices {
-  /** Deliberate promotions, initially absent from the review. */
-  keepAs?: Record<string, "text" | "list">
+  /** Groups of "Couldn't place" the person chose to keep, by `unplacedKey`: as a text section or a bullet list. */
+  keepAs?: Record<string, ExtraKind>
 }
 
 /** Groups of "Couldn't place" named for where they are in the file, which has no heading for them. */
 const NAMED_FOR_PLACE = new Set(["Top of the resume", "Everything else", "Page footer"])
 
-export const extraGroupKey = (id: string) => `extra-group:${id}`
-export const unplacedKey = (group: ParsedResume["unplaced"][number], index: number) => group.id ?? `unplaced:${index}`
+export const summaryKey = (id: string) => `summary:${id}`
+export const unplacedKey = (group: ParsedResume["unplaced"][number]) => group.id
 
+/** Builds a resume for the editor from what was found, leaving out the entries and summaries the person unticked. */
 export function toResumeContent(parsed: ParsedResume, skip: Set<string> = new Set(), choices: ImportChoices = {}): CompleteContent {
   const resume: ResumeContent = {
     profileSection: { ...parsed.profile },
@@ -2344,31 +2313,28 @@ export function toResumeContent(parsed: ParsedResume, skip: Set<string> = new Se
   }
   const extras: ExtraSections = {}
   const positions = new Map<SectionRef, number>()
-  for (const occurrence of parsed.occurrences ?? []) {
+  for (const occurrence of parsed.occurrences) {
     if (occurrence.section && !positions.has(occurrence.section)) positions.set(occurrence.section, occurrence.headingLine)
   }
   // The summaries ticked go in the profile's summary, a paragraph each, in the file's order, with their bold and italic words.
-  const summaries = (parsed.extraGroups ?? []).filter((group) => group.kind === "summary" && !skip.has(extraGroupKey(group.id)))
+  const summaries = parsed.summaries.filter((summary) => !skip.has(summaryKey(summary.id)))
   if (summaries.length)
-    resume.profileSection = { ...resume.profileSection, summary: summaries.map((group) => group.marked.join("\n")).join("\n\n") }
-  parsed.unplaced.forEach((group, index) => {
-    const kind = choices.keepAs?.[unplacedKey(group, index)]
+    resume.profileSection = { ...resume.profileSection, summary: summaries.map((summary) => summary.marked.join("\n")).join("\n\n") }
+  parsed.unplaced.forEach((group) => {
+    const kind = choices.keepAs?.[unplacedKey(group)]
     if (!kind) return
     const key = crypto.randomUUID()
     const common = { kind, heading: NAMED_FOR_PLACE.has(group.heading) ? "New section" : group.heading }
     extras[key] =
       kind === "text"
         ? { ...common, kind, text: group.text.join("\n") }
-        : { ...common, kind, bullets: group.text.map((line) => `• ${line.replace(/^[•○]\s*/, "")}`).join("\n") }
-    positions.set(`extra:${key}`, group.headingLine ?? group.lines[0] ?? Number.MAX_SAFE_INTEGER)
+        : { ...common, kind, bullets: group.text.map((line) => `• ${line.replace(/^○\s*/, "")}`).join("\n") }
+    positions.set(extraRef(key), group.headingLine)
   })
   if (Object.keys(extras).length) resume.extraSections = extras
   // The sections found, in the file's order, but an optional one only with an
   // entry ticked; then the core sections the file doesn't have.
-  const authored: SectionRef[] = [
-    ...parsed.sections.map((section) => section.name),
-    ...Object.keys(extras).map((key): SectionRef => `extra:${key}`),
-  ].filter(
+  const authored: SectionRef[] = [...parsed.sections.map((section) => section.name), ...Object.keys(extras).map(extraRef)].filter(
     (ref) => extraKey(ref) !== null || !SECTIONS[ref as SectionName].optional || resume[SECTIONS[ref as SectionName].dataKey]?.length,
   )
   authored.sort((a, b) => (positions.get(a) ?? Number.MAX_SAFE_INTEGER) - (positions.get(b) ?? Number.MAX_SAFE_INTEGER))

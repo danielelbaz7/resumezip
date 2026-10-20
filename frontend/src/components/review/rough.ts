@@ -9,7 +9,7 @@ import type { Box } from "@/lib/review/marks"
 export type { Box }
 
 /** The same numbers for the same seed (Park–Miller). */
-export function seeded(seed: number): () => number {
+function seeded(seed: number): () => number {
   let state = Math.abs(Math.round(seed)) % 2147483647 || 1
   return () => {
     state = (state * 16807) % 2147483647

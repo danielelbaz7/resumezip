@@ -3,11 +3,9 @@
 // Fine-tune sets the margins and the text size, the heading stays in that
 // column, inside the page margin, and on one page.
 
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
 import { describe, expect, test } from "vitest"
-import { readPdf, type PdfPage } from "@/lib/import/lines"
-import { render, samples } from "@/lib/import/testRender"
+import type { PdfPage } from "@/lib/import/lines"
+import { pagesOf, render, samples } from "@/lib/import/testRender"
 import { TEMPLATE_SETTINGS, type Tune } from "@/lib/tune"
 
 const sample: Record<string, unknown> = samples.find((resume) => resume.selectedTemplate === "margin")
@@ -38,16 +36,6 @@ interface Heading {
   text: string
   lines: Item[]
   page: number
-}
-
-async function pagesOf(resume: Record<string, unknown>): Promise<PdfPage[]> {
-  const pdf = await render(resume)
-  const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
-  try {
-    return await readPdf(doc)
-  } finally {
-    await doc.destroy()
-  }
 }
 
 /** Where the page margin, the headings' column and the text start, from the paper's left edge. */
@@ -91,7 +79,7 @@ describe.each<Tune>([
   { margin: 1.4, size: 1.15 },
 ])("with Fine-tune at %o", (tune) => {
   test("keeps headings with words wider than their column in the column, inside the page margin", async () => {
-    const headings = headingsOf(await pagesOf({ ...sample, headings: LONG, tune }), tune)
+    const headings = headingsOf(await pagesOf(await render({ ...sample, headings: LONG, tune })), tune)
     const { page, column } = columnsOf(tune)
     // "Certifications", in the sample's own Awards heading, starts 0.2 pt left
     // of the column, though its first letter's ink is inside it: a word is
@@ -107,7 +95,7 @@ describe.each<Tune>([
 })
 
 test("hyphenates a word wider than the column, at the heading's size, and leaves the rest as they were", async () => {
-  const headings = headingsOf(await pagesOf({ ...sample, headings: LONG }), {})
+  const headings = headingsOf(await pagesOf(await render({ ...sample, headings: LONG })), {})
   for (const word of Object.values(LONG)) {
     const heading = headings.find((heading) => squeezed(heading.text) === word)
     expect(heading?.lines.length, word).toBeGreaterThan(1)
@@ -125,7 +113,7 @@ test("sets a heading smaller when hyphenation can't break a word in it to fit th
   // a word in another alphabet.
   const word = "Профессиональный"
   const tune = { margin: 0.6 }
-  const headings = headingsOf(await pagesOf({ ...sample, headings: { work: `${word} опыт` }, tune }), tune)
+  const headings = headingsOf(await pagesOf(await render({ ...sample, headings: { work: `${word} опыт` }, tune })), tune)
   const heading = headings.find((heading) => heading.text.startsWith(word))
   const { page, column } = columnsOf(tune)
   expect(heading?.lines.map((line) => line.text.trim())).toEqual([word, "опыт"])
@@ -141,7 +129,7 @@ test("keeps a heading's lines together, on the page its section starts on", asyn
   // The last section's heading, seven lines long, starts near the foot of the
   // first page, with room for its section's four lines but not for its own.
   const awards = "Honors, Awards, Grants, Prizes, Fellowships and Certifications"
-  const pages = await pagesOf({ ...sample, headings: { awards } })
+  const pages = await pagesOf(await render({ ...sample, headings: { awards } }))
   const headings = headingsOf(pages, {})
   const heading = headings.find((heading) => heading.text.startsWith("Honors"))
   expect(heading?.text).toBe(awards)

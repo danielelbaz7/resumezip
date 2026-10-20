@@ -28,6 +28,6 @@ test("the other marks fade behind the open note's", () => {
   expect(marked(null)).not.toContain("data-quiet")
 })
 
-test("a note with no mark, as an AI flag pointed at in its list while the checks are drawn, fades nothing", () => {
-  expect(marked("ai:3")).not.toContain("data-quiet")
+test("a note with no mark, as a Check panel row whose finding isn't drawn, fades nothing", () => {
+  expect(marked("check:c")).not.toContain("data-quiet")
 })

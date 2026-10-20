@@ -1,8 +1,9 @@
 "use client"
 
 import { useLayoutEffect, useRef } from "react"
+import { reducedMotion } from "@/components/editor/layout"
 import type { DrawnPage } from "./drawPages"
-import { LABEL_INK, PageMarks, useEscapeCloses, usePlaced, type Note } from "./PageMarks"
+import { LABEL_INK, PageMarks, REWRITE, useEscapeCloses, usePlaced, type Note } from "./PageMarks"
 
 /** Where the first page was on the screen before the result, as the page being read: it flies from there into place. */
 export interface Flight {
@@ -13,31 +14,33 @@ export interface Flight {
   radius: number
 }
 
-// As long as the marks wait to be drawn (--review-marks-wait on the board, in review.css).
+// How long the first page takes to fly into place. The marks wait a little less (--review-marks-wait on
+// the board, in review.css), as the flight eases out: by then the page has all but landed.
 const FLIGHT_MS = 900
 
 /**
- * The resume's pages as its template prints them, scribbled on in pen where
- * each note is, as crackedresume does. Pointing at a scribble, or tabbing to
- * it, shows its note; the notes that aren't on a line are listed below, and
- * so is every note on a page that couldn't be drawn (all of them, with `pages` null).
+ * The resume's pages, the PDF as it came or as its template prints it,
+ * scribbled on in pen where each note is, as crackedresume does. Pointing at
+ * a scribble, or tabbing to it, shows its note; the notes that aren't on a
+ * line are listed below, and so is every note on a page that couldn't be
+ * drawn (all of them, with `pages` null).
  */
 export default function MarkedPages({
   pages,
-  drawing = false,
+  drawing,
   notes,
   open,
   onOpen,
-  from = null,
+  from,
 }: {
   pages: readonly DrawnPage[] | null
   /** Later pages are still being drawn: their notes wait for them, rather than being listed. */
-  drawing?: boolean
+  drawing: boolean
   notes: readonly Note[]
   /** The key of the note that's showing. */
   open: string | null
   onOpen: (key: string | null) => void
-  from?: Flight | null
+  from: Flight | null
 }) {
   const placed = usePlaced(notes)
   const first = useRef<HTMLDivElement>(null)
@@ -53,7 +56,7 @@ export default function MarkedPages({
   useLayoutEffect(() => {
     const page = first.current
     const start = flight.current
-    if (!page || !start || matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    if (!page || !start || reducedMotion()) return
     const end = page.getBoundingClientRect()
     const scale = start.width / end.width
     const fog = "linear-gradient(180deg, #000 30%, transparent 64%)"
@@ -105,7 +108,7 @@ export default function MarkedPages({
                 <span className="font-medium text-ink">{note.title}</span>
                 <span className="text-ink-3"> · {note.place}</span>
                 {note.body && <span className="block text-ink-2">{note.body}</span>}
-                {note.rewrite && <span className="mt-0.5 block border-l-2 border-hairline pl-2 text-ink">{note.rewrite}</span>}
+                {note.rewrite && <span className={`mt-0.5 block ${REWRITE}`}>{note.rewrite}</span>}
               </li>
             ))}
           </ul>

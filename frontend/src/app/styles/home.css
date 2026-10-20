@@ -1,5 +1,5 @@
 /* Styles for the home page (src/components/home), the site-wide header and footer (src/components/site)
-   and the templates page (src/app/templates). */
+   and the templates page (src/app/templates). The footer's lift, zipper and wordmark are in globals.css. */
 @layer components {
   /* The site's glass header. On every page, while the dashboard's search is lifted into the middle
      of the screen (SearchBar.tsx), it slides up out of the way; with the keyboard in it, it's always in sight. */
@@ -24,9 +24,10 @@
   }
 
   /* The home page's story (components/home/HomeStory.tsx): a stage pinned to the screen that
-     the scroll plays. The first screen lifts away as the editor rises out of the grass, and its
-     notes slide in beside it one by one. Positions are set from script (stage.ts); these are the
-     looks. The story starts behind the header's strip, so the meadow runs to the top of the screen. */
+     the scroll plays. The first screen lifts away as the editor rises out of the grass, and what
+     it does is marked on it by hand, a note at a time. Positions are set from script (stage.ts);
+     these are the looks. The story starts behind the header's strip, so the meadow runs to the top
+     of the screen. */
   .home-story,
   .home-still {
     position: relative;
@@ -61,10 +62,11 @@
     pointer-events: none;
     background: #7fbff7;
   }
-  /* Each part is a layer of its own from the start, and is faded, never hidden: Chrome rebuilt
-     the stage's layers whenever a part was hidden or shown, and drew a frame before they were
-     painted again, so pictures flickered out as the story played. What the first screen shows
-     is there before the script runs. */
+  /* Each part is a layer of its own from the start, and is faded, not hidden: Chrome rebuilt the
+     stage's layers whenever a part was hidden or shown, and drew a frame before they were painted
+     again, so pictures flickered out as the story played. The first screen is hidden too once it's
+     gone, to take its links out of the Tab order. What the first screen shows is there before the
+     script runs. */
   .home-stage > * {
     position: absolute;
     left: 0;
@@ -91,7 +93,7 @@
        and its foot is lifted behind the grass (as far as the grass is sunk, short of where its blades
        meet), so the hills stand clear of the grass. The camera's push (HomeStory.tsx) scales on top. */
     scale: 1.18;
-    translate: 0 calc(var(--grass-width) * -0.085 * 941 / 1672);
+    translate: 0 calc(-1 * var(--grass-foot));
   }
 
   /* The sky's top three quarters a deeper blue, so the white words on the first screen read where
@@ -105,8 +107,8 @@
     background: linear-gradient(rgb(10 70 200 / 0.5), rgb(10 70 200 / 0.42) 62%, rgb(10 70 200 / 0));
   }
 
-  /* The first screen: the name, what it is, the way in, and Microsoft for Startups. Clear of the
-     grass at the screen's foot. */
+  /* The first screen: what it gets you, what it is, the way in, and Microsoft for Startups. Clear
+     of the grass at the screen's foot. */
   .home-hero {
     position: relative;
     z-index: 2;
@@ -119,7 +121,6 @@
     text-align: center;
   }
   .home-stage > .home-hero {
-    inset: 0;
     pointer-events: auto;
     transform-origin: 50% 40%;
   }
@@ -231,6 +232,9 @@
   .home-still,
   .footer-ground {
     --grass-width: 100vw;
+    /* grass.webp is 1672×941. */
+    --grass-height: calc(var(--grass-width) * 941 / 1672);
+    --grass-foot: calc(var(--grass-height) * 0.085);
   }
   @media (width < 43.75rem) {
     .home-stage,
@@ -246,7 +250,7 @@
   .home-still > .home-grass {
     left: calc((100vw - var(--grass-width)) / 2);
     top: auto;
-    bottom: calc(var(--grass-width) * -0.085 * 941 / 1672);
+    bottom: calc(-1 * var(--grass-foot));
   }
   .home-grass img {
     display: block;
@@ -256,7 +260,7 @@
     animation: home-sway 7s ease-in-out infinite alternate;
   }
 
-  /* The marker: loops, lines and arrows, and the notes written by hand, in the one blue. */
+  /* The marker: loops and arrows, and the notes written by hand, in the one blue. */
   .home-stage > .home-ink-layer {
     inset: 0;
   }
@@ -329,11 +333,9 @@
      the grass, never from a strip of flat colour. The colour of its last row is only under it in
      case a rounded pixel shows. */
   .footer-ground {
-    --grass-foot: calc(var(--grass-width) * 0.085 * 941 / 1672);
     height: var(--grass-foot);
     background:
-      url("/home/grass.webp") calc((100vw - var(--grass-width)) / 2) calc(var(--grass-width) * -0.915 * 941 / 1672) / var(--grass-width)
-        auto no-repeat,
+      url("/home/grass.webp") calc((100vw - var(--grass-width)) / 2) calc(var(--grass-height) * -0.915) / var(--grass-width) auto no-repeat,
       #3c6f07;
   }
 

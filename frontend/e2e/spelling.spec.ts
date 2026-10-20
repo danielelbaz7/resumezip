@@ -1,5 +1,5 @@
 import { expect, test } from "./test"
-import { pageErrors } from "./helpers"
+import { newResume, pageErrors } from "./helpers"
 
 // Spelling and grammar (issue #66): the grammar checker loads once Check is
 // opened, runs in the browser, and "Add word" clears a word everywhere on the
@@ -10,9 +10,7 @@ test("unknown words are suggestions, and Add word clears them without the text l
   const sent: string[] = []
   page.on("request", (request) => sent.push(`${request.url()} ${request.postData() ?? ""}`))
 
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
+  await newResume(page)
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page
     .getByRole("navigation", { name: "Sections" })

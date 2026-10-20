@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { Menu, Star, X } from "lucide-react"
+import { reducedMotion } from "@/components/editor/layout"
 import { REPO_URL } from "@/lib/site"
 import Logo from "./Logo"
 
@@ -30,14 +31,14 @@ function toTopIfHere(pathname: string, href: string) {
   return (event: React.MouseEvent) => {
     if (pathname !== href || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     event.preventDefault()
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" })
+    window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" })
   }
 }
 
 /** The site's header: a glass pill with the logo, the links and one button, Star on GitHub, glass with a gold star. */
 function SitePill() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuId = useId()
   const headerRef = useRef<HTMLElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const pathname = usePathname()
@@ -120,6 +121,7 @@ function SitePill() {
             className="inline-flex h-10 w-10 items-center justify-center rounded-full md:hidden"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
+            aria-controls={menuId}
             onClick={() => setMenuOpen((open) => !open)}
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -135,6 +137,7 @@ function SitePill() {
           to close, inert keeps the keyboard out of it; once closed, visibility
           (which changes at the end of its transition) hides it too. */}
       <nav
+        id={menuId}
         aria-label="Main"
         inert={!menuOpen}
         data-open={menuOpen || undefined}

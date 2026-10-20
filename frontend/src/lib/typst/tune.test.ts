@@ -1,13 +1,9 @@
 // Fine-tune's settings as each template prints them (lib/tune.ts,
 // templates/common.typ), checked on the printed page.
 
-import { readFileSync } from "node:fs"
-import path from "node:path"
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
 import { describe, expect, test } from "vitest"
-import { readPdf, type PdfPage } from "@/lib/import/lines"
-import { readBack, render, samples } from "@/lib/import/testRender"
+import type { PdfPage } from "@/lib/import/lines"
+import { pagesOf, readBack, render, samples } from "@/lib/import/testRender"
 import { TEMPLATES } from "@/lib/templates"
 import { fitOnePage, pageCount, tighterSteps, type Fitted, type Tune } from "@/lib/tune"
 import { toTemplateData } from "./resumeData"
@@ -15,16 +11,7 @@ import { toTemplateData } from "./resumeData"
 const ids = TEMPLATES.map((template) => template.id)
 const sampleOf = (id: string): Record<string, unknown> => samples.find((sample) => sample.selectedTemplate === id)
 // The Modern Jake's sample runs onto a second page in Jake's and in Harvard.
-const twoPages = JSON.parse(readFileSync(path.resolve("src/lib/typst/preview-samples/modernjack.json"), "utf8"))
-
-async function pagesOf(pdf: Uint8Array): Promise<PdfPage[]> {
-  const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
-  try {
-    return await readPdf(doc)
-  } finally {
-    await doc.destroy()
-  }
-}
+const twoPages = samples.find((sample) => sample.selectedTemplate === "modernjack")
 
 const tuned = async (id: string, tune?: Tune) => pagesOf(await render({ ...sampleOf(id), tune }))
 const items = (pages: PdfPage[]) => pages.flatMap((page) => page.items)

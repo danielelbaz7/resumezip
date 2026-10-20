@@ -95,7 +95,7 @@ describe("reading a PDF", () => {
 
   test("reads a page that nests its marked spans deeply in time linear in them", async () => {
     // 20,000 spans, each inside the one before, each with 50 glyphs: what a
-    // small PDF can hold. Keeping each span's text took about 10 seconds.
+    // small PDF can hold. Keeping each span's text would take about 10 seconds.
     const depth = 20_000
     const glyphs = [Array.from({ length: 50 }, () => ({ unicode: "a" }))]
     const operators = {
@@ -213,7 +213,7 @@ describe("tables in a Word file", () => {
   const left = ["Jordan Lee", skills]
   const right = ["jordan@example.com", "EXPERIENCE", "Software Engineer, Acme Corp", "Jun 2021 – Present", "EDUCATION", "State University"]
 
-  test("with a paragraph a cell are read across, a line a row, as before", async () => {
+  test("with a paragraph a cell are read across, a line a row", async () => {
     const titled: WordTable = [[["Software Engineer, Acme Corp"], ["Jun 2021 – Present"]]]
     // prettier-ignore
     expect(parts(await read([titled, skills]))).toEqual([
@@ -223,7 +223,7 @@ describe("tables in a Word file", () => {
     ])
   })
 
-  test("with a heading beside several paragraphs read it with the first, as before", async () => {
+  test("with a heading beside several paragraphs read it with the first", async () => {
     const margin: WordTable = [[["Experience"], ["Software Engineer, Acme Corp", "Jun 2021 – Present", "• Built the billing service"]]]
     // prettier-ignore
     expect(parts(await read([margin]))).toEqual([
@@ -233,7 +233,7 @@ describe("tables in a Word file", () => {
     ])
   })
 
-  test("with an entry's dates and place beside it read them beside its lines, as before", async () => {
+  test("with an entry's dates and place beside it read them beside its lines", async () => {
     const entry: WordTable = [
       [
         ["Software Engineer, Acme Corp", "• Built the billing service"],

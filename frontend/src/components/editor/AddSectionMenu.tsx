@@ -5,9 +5,10 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import type { ExtraKind } from "@/lib/resumeSections"
-import { reducedMotion, WIDE_SCREEN } from "./layout"
+import { WIDE_SCREEN } from "./layout"
 import { EXTRA_ICONS, SECTION_ICONS } from "./sectionIcons"
 import { SECTIONS, type SectionName } from "./sections"
+import { useMenu } from "./useMenu"
 
 /** What Custom section offers: a section of the person's own, of text or of bullets. */
 const CUSTOM: { kind: ExtraKind; title: string }[] = [
@@ -33,7 +34,7 @@ interface Placement {
   bottom?: number
   maxHeight: number
   above: boolean
-  /** As narrow as the left bar, so the optional sections are in one column rather than two. */
+  /** As narrow as the left bar, so the sections to add are in one column rather than two. */
   narrow: boolean
 }
 
@@ -65,51 +66,30 @@ interface AddSectionMenuProps {
 /**
  * The Add section button, and the menu it opens over the page: the sections
  * the resume doesn't have, then Custom section, which slides over to a text or a bullet list.
- * It's in the page's top layer (a portal), so the left bar's scrolling, and the
- * row of tabs on smaller screens, neither cut it off nor move for it.
+ * It's a portal to document.body, fixed above the page, so the left bar's scrolling,
+ * and the row of tabs on smaller screens, neither cut it off nor move for it.
  */
 export default function AddSectionMenu({ sections, onAdd }: AddSectionMenuProps) {
   const menuId = useId()
-  const button = useRef<HTMLButtonElement>(null)
-  const menu = useRef<HTMLDivElement>(null)
+  const { button, menu, place, closing, open, show, close, onMenuKeyDown } = useMenu(placeBy, {
+    closeMs: CLOSE_MS,
+    followScroll: true,
+    sideways: true,
+  })
   const mainPanel = useRef<HTMLDivElement>(null)
   const customPanel = useRef<HTMLDivElement>(null)
-  // Where the menu is while it's there, or null.
-  const [place, setPlace] = useState<Placement | null>(null)
-  const [closing, setClosing] = useState(false)
   // Whether Custom section's choices have slid in.
   const [custom, setCustom] = useState(false)
   // The menu's height, eased from one panel's to the other's as they slide.
   const [height, setHeight] = useState<number>()
-  const timer = useRef(0)
   // Coming back from Custom section puts the keyboard back on it.
   const backToCustom = useRef(false)
-  const open = place !== null && !closing
 
-  const show = () => {
-    if (!button.current) return
-    window.clearTimeout(timer.current)
-    setClosing(false)
+  const openMenu = () => {
     setCustom(false)
     setHeight(undefined)
-    setPlace(placeBy(button.current))
+    show()
   }
-
-  // It fades away, then goes. `refocus` puts the keyboard back on the button, as Escape does.
-  const close = (refocus = false) => {
-    if (refocus) button.current?.focus()
-    setClosing(true)
-    window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(
-      () => {
-        setPlace(null)
-        setClosing(false)
-      },
-      reducedMotion() ? 0 : CLOSE_MS,
-    )
-  }
-  const latestClose = useRef(close)
-  latestClose.current = close
 
   const choose = (kind: ExtraKind | SectionName) => {
     close()
@@ -120,8 +100,6 @@ export default function AddSectionMenu({ sections, onAdd }: AddSectionMenuProps)
     backToCustom.current = true
     setCustom(false)
   }
-
-  useEffect(() => () => window.clearTimeout(timer.current), [])
 
   // The first choice of the panel showing gets the keyboard, so arrows move through them.
   useEffect(() => {
@@ -139,48 +117,14 @@ export default function AddSectionMenu({ sections, onAdd }: AddSectionMenuProps)
     if (panel) setHeight(panel.offsetHeight)
   }, [place, custom])
 
-  // A click elsewhere closes it, and what was clicked keeps the focus. It
-  // follows the button as the window is resized, or what it's in scrolls.
-  const shown = place !== null
-  useEffect(() => {
-    if (!shown) return
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node
-      if (menu.current?.contains(target) || button.current?.contains(target)) return
-      latestClose.current()
-    }
-    // Only a menu that's still there moves: a scroll in the moment it goes, as the page scrolls to the
-    // section just added, mustn't put it back.
-    const follow = () => setPlace((current) => (current && button.current ? placeBy(button.current) : current))
-    document.addEventListener("pointerdown", onPointerDown)
-    window.addEventListener("resize", follow)
-    window.addEventListener("scroll", follow, true)
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown)
-      window.removeEventListener("resize", follow)
-      window.removeEventListener("scroll", follow, true)
-    }
-  }, [shown])
-
-  // Arrows, Home and End move between the panel's choices (WAI-ARIA menu
-  // pattern). Escape goes back from Custom section, or closes; so does Tab.
+  // The arrows, Home and End move between the choices of the panel showing.
+  // Escape goes back from Custom section, or closes; so does Tab.
   const onKeyDown = (event: React.KeyboardEvent) => {
-    const items = [...((custom ? customPanel : mainPanel).current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
-    const index = items.indexOf(document.activeElement as HTMLElement)
-    const moveTo = (next: number) => {
-      event.preventDefault()
-      items[(next + items.length) % items.length]?.focus()
-    }
-    if (event.key === "ArrowDown" || event.key === "ArrowRight") moveTo(index + 1)
-    else if (event.key === "ArrowUp" || event.key === "ArrowLeft") moveTo(index - 1)
-    else if (event.key === "Home") moveTo(0)
-    else if (event.key === "End") moveTo(items.length - 1)
-    else if (event.key === "Escape" || event.key === "Tab") {
+    if (event.key === "Escape" && custom) {
       event.preventDefault()
       event.stopPropagation()
-      if (event.key === "Escape" && custom) back()
-      else close(true)
-    }
+      back()
+    } else onMenuKeyDown(event, (custom ? customPanel : mainPanel).current)
   }
 
   return (
@@ -191,7 +135,7 @@ export default function AddSectionMenu({ sections, onAdd }: AddSectionMenuProps)
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={() => (open ? close() : show())}
+        onClick={() => (open ? close() : openMenu())}
         // In the list on wide screens, a row of its own, as wide as the sections, which the menu takes; in the row of tabs, a pill.
         className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[15px] font-medium tracking-[-0.01em] text-accent transition-[background-color,scale] duration-150 hover:bg-accent/[0.06] active:scale-[0.98] aria-expanded:bg-accent/[0.06] motion-reduce:transition-none xl:mt-[6px] xl:h-10 xl:w-full xl:justify-start xl:gap-3 xl:rounded-[12px] xl:px-[11px]"
       >

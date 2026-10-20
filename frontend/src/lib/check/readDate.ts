@@ -1,7 +1,8 @@
 // Reads dates the way resumes write them: "Jan 2024", "January 2024",
 // "Sept 2024", "01/2024", "2024", "Fall 2023", "Expected May 2027", "Jan '21",
 // and "Present", plus ranges in one field, like a project's "Jun – Aug 2025".
-// The words match what the resume reader in lib/import/parse.ts finds.
+// The resume reader (lib/import/parse.ts) builds its present and expected
+// date words from the same lists in settings.ts.
 
 import type { FieldKey, FieldKeyOf, SectionName } from "@/components/editor/sections"
 import type { Entry } from "./resume"

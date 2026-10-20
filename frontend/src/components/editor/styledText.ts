@@ -7,7 +7,7 @@
 // rules for Enter, pasting and typing; a box for prose has no bullets.
 
 import { markedPieces } from "@/lib/typst/resumeData"
-import { cursorWithBullets, lineStartOf, newBullet, pastedList, typedList, withBullets } from "./arrange"
+import { cursorWithBullets, lineStartOf, newBullet, pastedList, sameEnd, typedList, withBullets } from "./arrange"
 
 export const BOLD = 1
 export const ITALIC = 2
@@ -39,7 +39,7 @@ export const slice = ({ text, styles }: Styled, start: number, end = text.length
   styles: styles.slice(start, end),
 })
 
-export const concat = (...parts: Styled[]): Styled => ({
+const concat = (...parts: Styled[]): Styled => ({
   text: parts.map((part) => part.text).join(""),
   styles: parts.flatMap((part) => part.styles),
 })
@@ -53,7 +53,7 @@ export function linesOf(s: Styled): Styled[] {
   })
 }
 
-export const joinLines = (lines: Styled[]): Styled => concat(...lines.flatMap((line, index) => (index ? [styled("\n"), line] : [line])))
+const joinLines = (lines: Styled[]): Styled => concat(...lines.flatMap((line, index) => (index ? [styled("\n"), line] : [line])))
 
 export const sameStyled = (a: Styled, b: Styled) => a.text === b.text && a.styles.every((style, index) => style === b.styles[index])
 
@@ -84,7 +84,7 @@ function readLine(typed: string): { line: Styled; at: number[] } {
 }
 
 /** A field's saved text as its box shows it. */
-export const styledOf = (saved: string, kind: Kind = "bullets"): Styled =>
+export const styledOf = (saved: string, kind: Kind): Styled =>
   joinLines(
     lined(saved, kind)
       .split("\n")
@@ -165,8 +165,7 @@ function readTyped(line: Styled, kind: Kind): { line: Styled; at: number[] } {
 
 /** `line` with its start changed to make `text`: the words at its end keep their styles, and what's new is plain. */
 function restyled(line: Styled, text: string): Styled {
-  let same = 0
-  while (same < line.text.length && same < text.length && line.text[line.text.length - 1 - same] === text[text.length - 1 - same]) same++
+  const same = sameEnd(line.text, text)
   return { text, styles: [...styled(text.slice(0, text.length - same)).styles, ...line.styles.slice(line.text.length - same)] }
 }
 
@@ -181,12 +180,11 @@ export interface Settled {
  * An edit as the box shows it and as it's saved: every line starts with a
  * bullet (withBullets), and shows what it prints, so marks typed as words,
  * like "**Rust**", turn bold. The cursor moves with the words, and after a
- * closing mark typed there, what's typed next is outside it, as it was in a
- * text box. Lines that are the same as in `previous`, the saved text before
- * the edit, are saved as they were typed, so an edit only rewrites the lines
- * it changes.
+ * closing mark typed there, what's typed next is outside it. Lines that are
+ * the same as in `previous`, the saved text before the edit, are saved as
+ * they were typed, so an edit only rewrites the lines it changes.
  */
-export function settled(edit: StyledEdit, previous: string, kind: Kind = "bullets"): Settled {
+export function settled(edit: StyledEdit, previous: string, kind: Kind): Settled {
   const kept = new Map<string, string>()
   for (const line of lined(previous, kind).split("\n")) kept.set(keyOf(readLine(line).line), line)
 
@@ -258,7 +256,7 @@ export function settled(edit: StyledEdit, previous: string, kind: Kind = "bullet
  * The style a character typed at `at` gets: the one before it on its line, or
  * at the start of a line's words, the one after it, as in word processors.
  */
-export function styleAt({ text, styles }: Styled, at: number, kind: Kind = "bullets"): Style {
+export function styleAt({ text, styles }: Styled, at: number, kind: Kind): Style {
   const from = lineStartOf(text, at)
   const words = from + wordsStart(text.slice(from), kind)
   if (at > words) return styles[at - 1]
@@ -266,7 +264,7 @@ export function styleAt({ text, styles }: Styled, at: number, kind: Kind = "bull
 }
 
 /** The style words typed over a selection get: its first word's, as in word processors. */
-export function styleOver(s: Styled, start: number, end: number, kind: Kind = "bullets"): Style {
+export function styleOver(s: Styled, start: number, end: number, kind: Kind): Style {
   for (let index = start; index < end; index++) {
     if (!isSpace(s.text[index]) && !inBullet(s.text, index, kind)) return s.styles[index]
   }
@@ -283,7 +281,7 @@ const inBullet = (text: string, at: number, kind: Kind) => {
  * `words` typed from start to end, in `style`. As in arrange.ts, a "- " typed
  * after a bullet goes, as the bullet's there already.
  */
-export function typed(s: Styled, start: number, end: number, words: string, style: Style, kind: Kind = "bullets"): StyledEdit {
+export function typed(s: Styled, start: number, end: number, words: string, style: Style, kind: Kind): StyledEdit {
   const from = lineStartOf(s.text, start)
   const before = slice(s, from, start)
   const typedHere = concat(before, styled(words, style))
@@ -298,7 +296,7 @@ export function typed(s: Styled, start: number, end: number, words: string, styl
  * (`copiedHere`) keep their bullets. Words copied from a box keep their bold
  * and italic words.
  */
-export function pasted(s: Styled, start: number, end: number, words: Styled, copiedHere: boolean, kind: Kind = "bullets"): StyledEdit {
+export function pasted(s: Styled, start: number, end: number, words: Styled, copiedHere: boolean, kind: Kind): StyledEdit {
   const from = lineStartOf(s.text, start)
   const before = slice(s, from, start)
   const given = linesOf(words)
@@ -318,7 +316,7 @@ export function pasted(s: Styled, start: number, end: number, words: Styled, cop
  * What Enter does: in a bullets box, the words after the cursor go on a new
  * bullet below, in their styles (newBullet); in prose, a new line.
  */
-export function split(s: Styled, start: number, end: number, kind: Kind = "bullets"): StyledEdit {
+export function split(s: Styled, start: number, end: number, kind: Kind): StyledEdit {
   if (kind === "prose") return { ...concat(slice(s, 0, start), styled("\n"), slice(s, end)), start: start + 1, end: start + 1 }
   const next = newBullet(s.text, start, end)
   if (start === lineStartOf(s.text, start)) return { ...next, styles: [...s.styles.slice(0, start), ...s.styles.slice(end)] }
@@ -356,7 +354,7 @@ export function joinedForward(text: string, at: number): [number, number] | unde
  * they are, and each line gets its own marks when it's saved. Undefined when
  * there are no words in it.
  */
-export function toggled(s: Styled, start: number, end: number, style: Style, kind: Kind = "bullets"): StyledEdit | undefined {
+export function toggled(s: Styled, start: number, end: number, style: Style, kind: Kind): StyledEdit | undefined {
   const all: number[] = []
   for (let index = start; index < end; index++) {
     if (s.text[index] !== "\n" && !inBullet(s.text, index, kind)) all.push(index)

@@ -89,10 +89,7 @@
     background: rgb(255 255 255 / 0.94);
     box-shadow: none;
   }
-  .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *):hover::before {
-    background: var(--color-sheet);
-  }
-  .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *):focus-within::before {
+  .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *):is(:hover, :focus-within)::before {
     background: var(--color-sheet);
   }
   .dash-toolbar .search-field:not([data-lifted] *, [data-landing] *)::after {
@@ -189,19 +186,13 @@
     width: 100%;
     max-height: min(60vh, 460px);
   }
-  /* The page's main part is a layer of its own (an etched pane), which the
-     footer after it paints over: while the search is lifted, it rises over the
-     footer, so the veil in it covers the whole screen. */
-  [data-spotlight] main {
-    z-index: 45;
-  }
   .search-veil {
     position: fixed;
     inset: 0;
     background: rgb(40 56 100 / 0.16);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
-    animation: veil-in 280ms ease-out;
+    animation: fade-in 280ms ease-out;
   }
   .search-veil.is-leaving {
     animation: veil-out 200ms ease-in forwards;
@@ -215,11 +206,6 @@
     to {
       opacity: 0;
       transform: translateY(-8px) scale(0.98);
-    }
-  }
-  @keyframes veil-in {
-    from {
-      opacity: 0;
     }
   }
   @keyframes veil-out {
@@ -503,7 +489,7 @@
     height: 52px;
     border-radius: 999px;
     color: #fff;
-    background: linear-gradient(180deg, #5b97fb, #2c65e8);
+    background: var(--blue-gradient);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.25),
       0 0 0 6px rgb(59 130 246 / 0.12),
@@ -584,7 +570,7 @@
     box-shadow:
       0 0 0 1px rgb(17 19 24 / 0.16),
       0 2px 4px -1px rgb(17 19 24 / 0.2);
-    animation: toast-page-in 60ms linear 500ms backwards;
+    animation: fade-in 60ms linear 500ms backwards;
   }
 
   /* Switching between the pages and the list (viewSwitch.ts): the new view
@@ -734,11 +720,6 @@
     transform: translateY(calc(100% + 32px));
   }
 }
-@keyframes toast-page-in {
-  from {
-    opacity: 0;
-  }
-}
 @keyframes ball-land {
   from {
     opacity: 0;
@@ -747,11 +728,6 @@
   60% {
     opacity: 1;
     transform: translate(0, 2px) rotate(-10deg) scale(1.04);
-  }
-}
-@keyframes page-in {
-  from {
-    opacity: 0;
   }
 }
 /* As panel-grow: the menu grows from its button, and only what's in it fades. */

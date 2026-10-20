@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest"
 import { CORE_SECTIONS } from "@/components/editor/sections"
-import { entryKey, extraGroupKey, parseResume, toResumeContent, unplacedKey } from "./parse"
+import { entryKey, parseResume, summaryKey, toResumeContent, unplacedKey } from "./parse"
 import { readFile } from "./read"
 import { wordFile } from "./testFiles"
 import type { Line } from "./lines"
@@ -20,8 +20,8 @@ const line = (text: string, heading = false, bullet = false): Line => ({
 const parse = (...rows: (string | [string, boolean, boolean?])[]) =>
   parseResume(rows.map((row) => (typeof row === "string" ? line(row) : line(...row))))
 
-describe("flexible section import review", () => {
-  test("parsing gives stable heading occurrence addresses without generating editor UUIDs", () => {
+describe("sections from a file", () => {
+  test("a file reads the same each time, each summary named by its heading's line, not a random ID", () => {
     const uuid = vi.spyOn(crypto, "randomUUID")
     try {
       const rows: Line[] = [
@@ -33,11 +33,7 @@ describe("flexible section import review", () => {
       ]
       const first = parseResume(rows)
       expect(parseResume(rows).occurrences).toEqual(first.occurrences)
-      expect(first.extraGroups?.map((group) => group.id)).toEqual(["heading:1", "heading:3"])
-      expect(first.extraGroups?.map((group) => group.sourceLines)).toEqual([
-        [1, 2],
-        [3, 4],
-      ])
+      expect(first.summaries.map((summary) => summary.id)).toEqual(["heading:1", "heading:3"])
       expect(uuid).not.toHaveBeenCalled()
     } finally {
       uuid.mockRestore()
@@ -63,9 +59,9 @@ describe("flexible section import review", () => {
     const all = toResumeContent(parsed)
     expect(all.profileSection.summary).toBe("First paragraph.\n\nSecond paragraph.")
     expect(all.extraSections).toBeUndefined()
-    const second = toResumeContent(parsed, new Set([extraGroupKey(parsed.extraGroups![0].id)]))
+    const second = toResumeContent(parsed, new Set([summaryKey(parsed.summaries[0].id)]))
     expect(second.profileSection.summary).toBe("Second paragraph.")
-    const none = toResumeContent(parsed, new Set(parsed.extraGroups!.map((group) => extraGroupKey(group.id))))
+    const none = toResumeContent(parsed, new Set(parsed.summaries.map((summary) => summaryKey(summary.id))))
     expect(none.profileSection.summary).toBe("")
   })
 
@@ -90,7 +86,7 @@ describe("flexible section import review", () => {
     )
   })
 
-  test("page-number removal retains original heading and body provenance", () => {
+  test("page numbers are left out of the lines, and of the summaries above them", () => {
     const rows = [
       line("Mara Lin"),
       line("Summary", true),
@@ -103,18 +99,14 @@ describe("flexible section import review", () => {
     const parsed = parseResume(rows)
     expect(parsed.lines.map((row) => row.text)).not.toContain("1")
     expect(parsed.lines.map((row) => row.text)).not.toContain("2")
-    expect(parsed.extraGroups?.map((group) => group.sourceLines)).toEqual([
-      [1, 2],
-      [4, 5],
-    ])
     expect(toResumeContent(parsed).profileSection.summary).toBe("First paragraph.\n\nSecond paragraph.")
   })
 
-  test("summary prose keeps a literal circle and bullet summaries remain reviewable", () => {
+  test("a summary keeps a ○ it starts with, and one in bullets goes to Couldn't place", () => {
     const prose = parse("Mara Lin", ["Summary", true], "○ This is literal prose.")
     expect(toResumeContent(prose).profileSection.summary).toBe("○ This is literal prose.")
     const bullets = parse("Mara Lin", ["Summary", true], ["Strong collaborator", false, true])
-    expect(bullets.extraGroups).toEqual([])
+    expect(bullets.summaries).toEqual([])
     expect(bullets.unplaced[0].text).toEqual(["Strong collaborator"])
   })
 
@@ -130,7 +122,7 @@ describe("flexible section import review", () => {
     expect(parsed.sections.map((section) => section.name)).toEqual(["Awards"])
     expect(parsed.sections[0].entries[0].fields.awardName).toBe("Community Award")
     expect(parsed.unplaced).toEqual([])
-    expect(parsed.extraGroups).toEqual([])
+    expect(parsed.summaries).toEqual([])
   })
 
   test.each([
@@ -155,7 +147,7 @@ describe("flexible section import review", () => {
       ["Education", true],
       "State University, B.S. in Economics, 2020",
     )
-    expect(parsed.occurrences?.map((occurrence) => occurrence.heading)).toEqual(["Experience", "Education"])
+    expect(parsed.occurrences.map((occurrence) => occurrence.heading)).toEqual(["Experience", "Education"])
   })
 
   test("text it couldn't place is tidied: no soft hyphens, doubled spaces or stray separators", () => {
@@ -165,14 +157,14 @@ describe("flexible section import review", () => {
     expect(top.unplaced[0]).toMatchObject({ heading: "Top of the resume", text: ["Open-source maintainer"] })
   })
 
-  test("repeated unsupported headings remain independently selectable with durable UUIDs only at confirmation", () => {
+  test("two groups under the same heading stay apart, and each becomes a section only when it's kept, as text or a list", () => {
     const parsed = parse("Mara Lin", ["Presentations", true], "First talk", ["Presentations", true], "Second talk")
     expect(parsed.unplaced.map((group) => group.heading)).toEqual(["Presentations", "Presentations"])
     expect(parsed.unplaced[0].id).not.toBe(parsed.unplaced[1].id)
     expect(toResumeContent(parsed).extraSections).toBeUndefined()
-    const keepAs = Object.fromEntries(
-      parsed.unplaced.map((group, index) => [unplacedKey(group, index), index === 0 ? "text" : "list"]),
-    ) as Record<string, "text" | "list">
+    const keepAs: Record<string, "text" | "list"> = Object.fromEntries(
+      parsed.unplaced.map((group, index) => [unplacedKey(group), index === 0 ? "text" : "list"]),
+    )
     const content = toResumeContent(parsed, new Set(), { keepAs })
     expect(Object.keys(content.extraSections ?? {})).toHaveLength(2)
     expect(Object.values(content.extraSections ?? {})).toEqual([
@@ -182,12 +174,12 @@ describe("flexible section import review", () => {
     expect(content.sectionOrder.slice(0, 2)).toEqual(Object.keys(content.extraSections ?? {}).map((key) => `extra:${key}`))
   })
 
-  test("Word parsing preserves recognized groups and uncertain leftover words for review", async () => {
+  test("a Word file's summary is read as one, and a section it doesn't know goes to Couldn't place", async () => {
     const paragraphs = ["Mara Lin", "SUMMARY", "Engineer building useful tools.", "PRESENTATIONS", "Talk on accessible software"]
     const result = await readFile({ kind: "docx", data: new Uint8Array(wordFile(paragraphs)).buffer })
     expect("parsed" in result).toBe(true)
     if (!("parsed" in result)) return
-    expect(result.parsed.extraGroups?.map((group) => group.kind)).toEqual(["summary"])
+    expect(result.parsed.summaries).toHaveLength(1)
     expect(result.parsed.unplaced.flatMap((group) => group.text)).toContain("Talk on accessible software")
   })
 })

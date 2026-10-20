@@ -1,5 +1,6 @@
 import { type APIResponse, expect, test } from "./test"
 import nextConfig from "../next.config.js"
+import { newResume, preview } from "./helpers"
 
 // The security headers (next.config.js) come with everything the site sends:
 // pages, files, and the scripts its workers start from, which take their
@@ -44,9 +45,7 @@ test.describe("security headers", () => {
   }) => {
     const workers = new Set<string>()
     page.on("worker", (worker) => workers.add(worker.url()))
-    await page.goto("/")
-    await page.getByRole("link", { name: "Start writing" }).first().click()
-    await expect(page).toHaveURL(/\/create\/new\//)
+    await newResume(page)
     await page.getByLabel("Full name").fill("Ada Lovelace")
     await page
       .getByRole("navigation", { name: "Sections" })
@@ -56,8 +55,7 @@ test.describe("security headers", () => {
     await page.getByLabel("Company").fill("Analytical Engines")
     await page.getByLabel(/^What you did/).fill("Wrote the first program")
     await expect(
-      page
-        .getByRole("region", { name: "Live preview" })
+      preview(page)
         .getByText(/Analytical Engines/i)
         .first(),
     ).toBeVisible()

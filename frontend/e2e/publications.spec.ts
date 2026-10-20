@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { expect, test, type Page, type Route } from "./test"
-import { editorHeading, pageErrors, seriousAccessibilityProblems } from "./helpers"
+import { editorHeading, pageErrors, preview, saveResumes, savedResume, seriousAccessibilityProblems } from "./helpers"
 
 // Adding publications from their DOIs or links. Crossref and doi.org are
 // stood in for by records saved from real lookups (src/lib/papers/fixtures),
@@ -71,12 +71,7 @@ async function openPublications(page: Page) {
     profileSection: { fullName: "Ralf Gommers" },
     publicationsSection: [EXISTING],
   }
-  await page.addInitScript(
-    ({ key, value }) => {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
-    },
-    { key: "resume:papers", value: JSON.stringify(resume) },
-  )
+  await saveResumes(page, [resume])
   await page.goto("/create/new/papers")
   await page
     .getByRole("navigation", { name: "Sections" })
@@ -85,8 +80,7 @@ async function openPublications(page: Page) {
   await expect(editorHeading(page, "Publications")).toBeVisible()
 }
 
-const saved = (page: Page) =>
-  page.evaluate(() => JSON.parse(localStorage.getItem("resume:papers") ?? "{}").publicationsSection as Record<string, string>[])
+const saved = async (page: Page): Promise<Record<string, string>[]> => (await savedResume(page, "papers")).publicationsSection
 
 test("papers pasted as links are added as new entries, sending only their DOIs", async ({ page }) => {
   const errors = pageErrors(page)
@@ -134,8 +128,7 @@ test("papers pasted as links are added as new entries, sending only their DOIs",
     publicationLink: "10.48550/arXiv.2202.01037",
   })
   await expect(
-    page
-      .getByRole("region", { name: "Live preview" })
+    preview(page)
       .getByText(/Array programming with NumPy/)
       .first(),
   ).toBeVisible()
@@ -221,6 +214,7 @@ test("stopping keeps what wasn't looked up, and closing the box adds nothing", a
   await expect(box).toBeHidden()
   lookups.release()
 
+  // A fixed wait: proving the lookups that come back add nothing.
   await page.waitForTimeout(500)
   expect(await saved(page)).toEqual([EXISTING])
   expect(errors).toEqual([])

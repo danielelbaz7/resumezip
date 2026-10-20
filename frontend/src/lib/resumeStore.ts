@@ -17,10 +17,7 @@ import {
   changedPaths,
   deleteKeptAside,
   EVERY_FIELD,
-  idOf,
   isKeptAside,
-  keyOf,
-  LEGACY_KEY,
   loadSaved,
   mergeResume,
   migrateLegacy,
@@ -33,6 +30,7 @@ import {
   worse,
   type SaveStatus,
 } from "./resumeStorage"
+import { idOf, keyOf, LEGACY_KEY } from "./resumeKeys"
 import { numberDuplicateTitles, uniqueTitle } from "./resumeTitles"
 import { DEFAULT_TEMPLATE, templateById } from "./templates"
 import { withPaper, type Paper } from "./tune"
@@ -40,7 +38,6 @@ import {
   extraKey,
   extraRef,
   newExtraSection,
-  readExtraSections,
   resolveSections,
   type ExtraKind,
   type ExtraPatch,
@@ -103,14 +100,7 @@ const blankResume = (template: string): Resume => ({
   profileSection: {},
   headings: {},
   selectedTemplate: template,
-  educationSection: [],
-  workExperienceSection: [],
-  projectsSection: [],
-  publicationsSection: [],
-  volunteerExperienceSection: [],
-  skillsSection: [],
-  leadershipExperienceSection: [],
-  awardsSection: [],
+  ...Object.fromEntries(Object.values(SECTIONS).map(({ dataKey }) => [dataKey, []])),
   sectionOrder: [...CORE_SECTIONS],
   sectionsChosen: true,
 })
@@ -160,7 +150,7 @@ export function copyHere(
   content: ResumeContent,
 ): { resume: Resume; unchanged: boolean } | undefined {
   const { id } = content
-  if (typeof id !== "string" || !id) return undefined
+  if (!id) return undefined
   const resume = resumes instanceof Map ? resumes.get(id) : Object.hasOwn(resumes, id) ? (resumes as Record<string, Resume>)[id] : undefined
   return resume && { resume, unchanged: resume.updatedAt === content.updatedAt }
 }
@@ -169,7 +159,7 @@ const without = (resumes: Record<string, Resume>, id: string) => Object.fromEntr
 
 export type ResumeStore = ReturnType<typeof createResumeStore>
 
-export function createResumeStore(delay = SAVE_DELAY) {
+export function createResumeStore() {
   let storage: Storage | null = null
   let state = INITIAL_STATE
   const listeners = new Set<() => void>()
@@ -202,7 +192,7 @@ export function createResumeStore(delay = SAVE_DELAY) {
 
   function saveSoon() {
     clearTimeout(timer)
-    timer = setTimeout(flush, delay)
+    timer = setTimeout(flush, SAVE_DELAY)
   }
 
   /** Reads the saved resumes from `from`: localStorage, or null if the browser won't allow it. */
@@ -228,10 +218,10 @@ export function createResumeStore(delay = SAVE_DELAY) {
     saveSoon()
   }
 
-  // Commands read the latest snapshot, preserve untouched member references and
-  // publish one update. A section is one merge unit.
+  // Changes fields in one update, saved like an edit. `paths` name what
+  // changed, as mergeResume takes them: an added section is one path, so a
+  // change in another tab to a different section is kept.
   function commit(id: string, changes: Partial<Resume>, paths: string[]) {
-    if (!has(id) || !paths.length) return
     const [migration, migrationPaths] = migrated(state.resumes[id])
     markChanged(id, ...paths, ...migrationPaths, "updatedAt")
     setState({
@@ -241,8 +231,8 @@ export function createResumeStore(delay = SAVE_DELAY) {
   }
 
   /**
-   * Adds a section at the end, and gives back where it is: an optional one by
-   * its name (where it is already, if it's there), or a new text or bullet list.
+   * Adds a section at the end, and gives back where it is: one of the editor's
+   * by its name (where it is already, if it's there), or a new text or bullet list.
    */
   function addSection(id: string, kind: ExtraKind | SectionName): SectionRef | null {
     if (!has(id)) return null
@@ -262,32 +252,21 @@ export function createResumeStore(delay = SAVE_DELAY) {
     return ref
   }
 
-  function changeSection(id: string, key: string, change: (section: ExtraSection) => ExtraSection) {
+  function editSection(id: string, key: string, patch: ExtraPatch) {
     if (!has(id)) return
     const extras: ExtraSections = state.resumes[id].extraSections ?? {}
     if (!Object.hasOwn(extras, key)) return
     const before = extras[key]
-    const after = change(before)
-    if (after === before || JSON.stringify(after) === JSON.stringify(before)) return
-    if (!readExtraSections({ [key]: after }).complete) return
+    const { heading, leftOut, text, bullets } = patch
+    const after: ExtraSection = {
+      ...before,
+      ...(heading !== undefined && { heading }),
+      ...(leftOut !== undefined && { leftOut }),
+      ...(before.kind === "text" && text !== undefined && { text }),
+      ...(before.kind === "list" && bullets !== undefined && { bullets }),
+    }
+    if (JSON.stringify(after) === JSON.stringify(before)) return
     commit(id, { extraSections: { ...extras, [key]: after } }, [`extraSections.${key}`])
-  }
-
-  function editSection(id: string, key: string, patch: ExtraPatch) {
-    changeSection(id, key, (section) => {
-      const { heading, leftOut, text, bullets } = patch
-      return {
-        ...section,
-        ...(heading !== undefined && { heading }),
-        ...(leftOut !== undefined && { leftOut }),
-        ...(section.kind === "text" && text !== undefined && { text }),
-        ...(section.kind === "list" && bullets !== undefined && { bullets }),
-      }
-    })
-  }
-
-  function includeSection(id: string, key: string, included: boolean) {
-    editSection(id, key, { leftOut: !included })
   }
 
   /** Takes a section off the resume, with its entries, and its title if it was renamed. Add section puts it back. */
@@ -332,7 +311,7 @@ export function createResumeStore(delay = SAVE_DELAY) {
    * recognised as the same resume.
    */
   function importResume(content: ResumeContent, title: string, { keepId = true, tag = "personal" } = {}): string {
-    const id = keepId && typeof content.id === "string" && content.id && !has(content.id) ? content.id : crypto.randomUUID()
+    const id = keepId && content.id && !has(content.id) ? content.id : crypto.randomUUID()
     add(id, title, { ...imported(content, tag), id })
     return id
   }
@@ -347,7 +326,7 @@ export function createResumeStore(delay = SAVE_DELAY) {
   function importAll(files: readonly FileResume[], { replace = false } = {}): { added: number; replaced: number } {
     // A Map, so an id like "__proto__" stays an ordinary key.
     const resumes = new Map(Object.entries(state.resumes))
-    const titles: unknown[] = [...resumes.values()].map((resume) => resume?.resumeTitle)
+    const titles: unknown[] = [...resumes.values()].map((resume) => resume.resumeTitle)
     let added = 0
     let replaced = 0
     for (const { resume: content, title = "", tag = "personal" } of files) {
@@ -360,7 +339,7 @@ export function createResumeStore(delay = SAVE_DELAY) {
         replaced++
         continue
       }
-      const id = !here && typeof content.id === "string" && content.id ? content.id : crypto.randomUUID()
+      const id = !here && content.id ? content.id : crypto.randomUUID()
       const resumeTitle = uniqueTitle(title, titles)
       titles.push(resumeTitle)
       resumes.set(id, { ...imported(content, tag), id, resumeTitle })
@@ -402,7 +381,7 @@ export function createResumeStore(delay = SAVE_DELAY) {
     const others = Object.entries(state.resumes).filter(([key]) => key !== id)
     const resumeTitle = uniqueTitle(
       title,
-      others.map(([, resume]) => resume?.resumeTitle),
+      others.map(([, resume]) => resume.resumeTitle),
     )
     if (resumeTitle !== state.resumes[id].resumeTitle) edit(id, "resumeTitle", resumeTitle)
   }
@@ -411,7 +390,7 @@ export function createResumeStore(delay = SAVE_DELAY) {
   function add(id: string, title: string, resume: Resume) {
     const resumeTitle = uniqueTitle(
       title,
-      Object.values(state.resumes).map((other) => other?.resumeTitle),
+      Object.values(state.resumes).map((other) => other.resumeTitle),
     )
     deleted.delete(id)
     markChanged(id, EVERY_FIELD)
@@ -423,7 +402,7 @@ export function createResumeStore(delay = SAVE_DELAY) {
    * Replaces a resume's content with a file's (see replacedBy). Until the
    * resume changes again, undoReplace puts back the copy it replaced.
    */
-  function replace(id: string, content: ResumeContent, from: Replaced["from"] = "pdf") {
+  function replace(id: string, content: ResumeContent, from: Replaced["from"]) {
     if (!has(id)) return
     const before = state.resumes[id]
     markChanged(id, EVERY_FIELD)
@@ -622,7 +601,6 @@ export function createResumeStore(delay = SAVE_DELAY) {
     edit,
     addSection,
     editSection,
-    includeSection,
     removeSection,
     deleteSection,
     reorderSections,

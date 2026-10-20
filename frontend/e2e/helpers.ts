@@ -1,5 +1,18 @@
+import { readFile } from "node:fs/promises"
 import AxeBuilder from "@axe-core/playwright"
-import { expect, type Locator, type Page } from "@playwright/test"
+import { expect, type Download, type FileChooser, type Locator, type Page } from "@playwright/test"
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
+
+declare global {
+  interface Window {
+    /** Set on the open page by a test. A link that loads a new page loses it; one the app opens in the page keeps it. */
+    marked?: boolean
+    /** How many PDFs the compiler's worker has sent back, counted by holdablePreviews. */
+    previewsBuilt?: number
+    /** Holds resumes on their way to the compiler, or sends the held ones on (holdablePreviews). */
+    holdPreviews?: (hold: boolean) => void
+  }
+}
 
 // Safari logs these when a page is left while something is still loading in
 // the background, and the visitor never sees them: the PDF compiler, its
@@ -215,8 +228,8 @@ export async function holdablePreviews(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const held: (() => void)[] = []
     let holding = false
-    ;(window as any).previewsBuilt = 0
-    ;(window as any).holdPreviews = (hold: boolean) => {
+    window.previewsBuilt = 0
+    window.holdPreviews = (hold: boolean) => {
       holding = hold
       if (!hold) for (const send of held.splice(0)) send()
     }
@@ -225,7 +238,7 @@ export async function holdablePreviews(page: Page): Promise<void> {
       constructor(...args: ConstructorParameters<typeof Worker>) {
         super(...args)
         this.addEventListener("message", (event) => {
-          if (event.data?.pdf !== undefined) (window as any).previewsBuilt++
+          if (event.data?.pdf !== undefined) window.previewsBuilt!++
         })
       }
       postMessage(message: any, options?: any) {
@@ -238,10 +251,130 @@ export async function holdablePreviews(page: Page): Promise<void> {
 }
 
 /** Holds resumes on their way to the compiler, or sends the held ones on. */
-export const holdPreviews = (page: Page, hold: boolean): Promise<void> => page.evaluate((hold) => (window as any).holdPreviews(hold), hold)
+export const holdPreviews = (page: Page, hold: boolean): Promise<void> => page.evaluate((hold) => window.holdPreviews!(hold), hold)
 
 /** How many PDFs the compiler's worker has sent back, with holdablePreviews. */
-export const previewsBuilt = (page: Page): Promise<number> => page.evaluate(() => (window as any).previewsBuilt)
+export const previewsBuilt = (page: Page): Promise<number> => page.evaluate(() => window.previewsBuilt!)
+
+/**
+ * Starts a new resume from the home page's Start writing link, and gives its
+ * id once the editor has it. With `title`, names the resume; with `name`,
+ * types it as the full name and waits for the preview to print it.
+ */
+export async function newResume(page: Page, { title, name }: { title?: string; name?: string } = {}): Promise<string> {
+  await page.goto("/")
+  await page.getByRole("link", { name: "Start writing" }).first().click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  if (title !== undefined) await page.getByLabel("Resume name").fill(title)
+  if (name !== undefined) {
+    await page.getByLabel("Full name").fill(name)
+    await expect(preview(page).getByText(name).first()).toBeVisible()
+  }
+  return new URL(page.url()).pathname.split("/").pop()!
+}
+
+/**
+ * Saves resumes in the browser before each page loads, unless one is saved
+ * under the same id already, so what a test changes stays over a reload.
+ * With `once`, only before the tab's first page, so a test can delete them.
+ */
+export async function saveResumes(
+  page: Page,
+  resumes: readonly { id: string; [field: string]: unknown }[],
+  { once = false } = {},
+): Promise<void> {
+  await page.addInitScript(
+    ({ resumes, once }) => {
+      if (once) {
+        if (sessionStorage.getItem("seeded")) return
+        sessionStorage.setItem("seeded", "yes")
+      }
+      for (const resume of resumes) {
+        const key = `resume:${resume.id}`
+        if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(resume))
+      }
+    },
+    { resumes, once },
+  )
+}
+
+/** A resume as this browser has it saved, or {} if there's none. */
+export const savedResume = (page: Page, id: string): Promise<Record<string, any>> =>
+  page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "{}"), `resume:${id}`)
+
+/** The editor's preview. */
+export const preview = (page: Page): Locator => page.getByRole("region", { name: "Live preview" })
+
+/**
+ * Waits for the preview's first page to be drawn. Tests wait for it before
+ * leaving the editor: Safari reports leaving while the editor still
+ * downloads its PDF compiler as an error.
+ */
+export const previewShown = (page: Page): Promise<void> => expect(preview(page).locator(".react-pdf__Page__canvas").first()).toBeVisible()
+
+/**
+ * The text of the preview's pages, in the order it's printed, or "" while a
+ * page's text is still being laid out (it ends with an "endOfContent" mark),
+ * so that what isn't printed is never missing just because it isn't there yet.
+ */
+export const printed = (page: Page): Promise<string> =>
+  preview(page)
+    .locator(".react-pdf__Page__textContent")
+    .evaluateAll((layers) =>
+      layers.every((layer) => layer.querySelector(".endOfContent")) ? layers.map((layer) => layer.textContent ?? "").join(" ") : "",
+    )
+
+/** The text of a PDF file. */
+export async function pdfText(file: string): Promise<string> {
+  const doc = await getDocument({ data: new Uint8Array(await readFile(file)), isEvalSupported: false }).promise
+  try {
+    const pages = await Promise.all(Array.from({ length: doc.numPages }, (_, index) => doc.getPage(index + 1)))
+    const contents = await Promise.all(pages.map((page) => page.getTextContent()))
+    return contents.flatMap((content) => content.items.map((item) => ("str" in item ? item.str : ""))).join(" ")
+  } finally {
+    await doc.destroy()
+  }
+}
+
+/** The text of a downloaded file. */
+export const downloadText = async (download: Download): Promise<string> => readFile((await download.path())!, "utf8")
+
+/**
+ * The pixels of a screenshot, or of an area of it, a row at a time: four
+ * values to a pixel, its red, green, blue and alpha. The page decodes the PNG.
+ */
+export async function pixelsOf(
+  page: Page,
+  png: Buffer,
+  area?: { x: number; y: number; width: number; height: number },
+): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
+  return page.evaluate(
+    async ({ png, area }) => {
+      const image = new Image()
+      image.src = `data:image/png;base64,${png}`
+      await image.decode()
+      const canvas = document.createElement("canvas")
+      canvas.width = image.width
+      canvas.height = image.height
+      const context = canvas.getContext("2d")!
+      context.drawImage(image, 0, 0)
+      const { x, y, width, height } = area ?? { x: 0, y: 0, width: image.width, height: image.height }
+      return { data: context.getImageData(x, y, width, height).data, width, height }
+    },
+    { png: png.toString("base64"), area },
+  )
+}
+
+/**
+ * Opens files as a person does: with the button that opens a file ("Open a
+ * file" on the dashboard, "Review my resume" on the review page), choosing
+ * them in the browser's file chooser.
+ */
+export async function openFile(button: Locator, files: Parameters<FileChooser["setFiles"]>[0]): Promise<void> {
+  const choosing = button.page().waitForEvent("filechooser")
+  await button.click()
+  await (await choosing).setFiles(files)
+}
 
 /** Chooses a template from the gallery behind the header's Template button, which every screen has. */
 export async function chooseTemplate(page: Page, name: string): Promise<void> {
@@ -263,18 +396,6 @@ export const editorHeading = (page: Page, name: string, options: { exact?: boole
 /** The editor's title, the open section's heading: its own H1, not the preview's, which is the resume's name. */
 export const editorTitle = (page: Page): Locator => page.getByRole("main").getByRole("heading", { level: 1 })
 
-/**
- * What names the resume's template on screen, once the editor is open. On
- * wide screens it's in the left panel's Style tab, so that's opened first;
- * narrower, the header's Template button says it.
- */
-export async function templateChosen(page: Page): Promise<Locator> {
-  const style = page.getByRole("tab", { name: "Style" })
-  await expect(style).toBeVisible()
-  if (await templateShown(page).isHidden()) await style.click()
-  return templateShown(page)
-}
-
 // A box that shows bold and italic words is an editable div that draws a div
 // per line, with bold words in <strong> and italic ones in <em>
 // (src/components/editor/boxDom.ts). Its text counts a character for each line
@@ -282,6 +403,9 @@ export async function templateChosen(page: Page): Promise<Locator> {
 
 /** The text in a box, a line per line, as it shows it: without its bold and italic marks. */
 export const boxText = (box: Locator) => box.evaluate((element) => [...element.children].map((line) => line.textContent ?? "").join("\n"))
+
+/** Waits for a box's text, as boxText reads it, to be `text`. */
+export const expectText = (box: Locator, text: string): Promise<void> => expect.poll(() => boxText(box)).toBe(text)
 
 /** Selects from `start` to `end` in a box's text, or puts the cursor at `start`. */
 export const selectInBox = (box: Locator, start: number, end = start) =>

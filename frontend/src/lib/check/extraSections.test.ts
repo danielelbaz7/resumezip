@@ -29,8 +29,8 @@ const resume: Resume = {
   sectionOrder: [`extra:${first}`, `extra:${third}`],
 }
 
-describe("extra checker views and stable editor addresses", () => {
-  test("keeps builtin semantic order separate, privacy intact and original list offsets", () => {
+describe("the sections the person added", () => {
+  test("are kept apart from the editor's sections, without what's left out of the PDF, and each bullet keeps its line", () => {
     const view = viewOf(resume)
     expect(view.order.every((name) => !name.startsWith("extra:"))).toBe(true)
     expect(hasEnoughToCheck(view)).toBe(true)
@@ -51,7 +51,7 @@ describe("extra checker views and stable editor addresses", () => {
     expect(hasEnoughToCheck(viewOf({ profileSection: resume.profileSection, extraSections: { [second]: hidden } }))).toBe(false)
   })
 
-  test("targets a custom bullet by identity and rejects removed or omitted targets", () => {
+  test("can be pointed at down to a bullet, but not at what's left out, and a finding there keeps its key when they move", () => {
     const view = viewOf(resume)
     const place: Place = { kind: "extra-text", sectionId: first, field: "bullets", line: 2 }
     expect(placeExists(view, place)).toBe(true)
@@ -63,7 +63,7 @@ describe("extra checker views and stable editor addresses", () => {
     expect(findingKey("G1", place, textAt(view, place))).toBe(findingKey("G1", place, textAt(moved, place)))
   })
 
-  test("checks prose and lists for grammar", () => {
+  test("are checked for spelling and grammar, but get none of the advice for a job's bullets", () => {
     const texts = grammarTexts(viewOf(resume))
     expect(texts.some(({ place }) => place.kind === "extra-text" && place.sectionId === third)).toBe(true)
     expect(texts.some(({ place }) => place.kind === "extra-text" && place.field === "bullets")).toBe(true)
@@ -72,8 +72,8 @@ describe("extra checker views and stable editor addresses", () => {
   })
 })
 
-describe("actual extra PDF occurrences", () => {
-  test("matches identical repeated headings and bodies one-to-one", () => {
+describe("finding the sections the person added in the PDF", () => {
+  test("pairs two sections with the same title and text in order", () => {
     const source: Resume = {
       extraSections: {
         [first]: { kind: "text", heading: "Interests", text: "Reading fiction" },
@@ -84,13 +84,15 @@ describe("actual extra PDF occurrences", () => {
       [line("Interests"), line("Reading fiction"), line("Interests"), line("Reading fiction")],
       pdfLayoutOf(viewOf(source)),
     )
-    expect(result.sections.map(({ sectionId, status, lines }) => ({ sectionId, status, lines }))).toEqual([
-      { sectionId: first, status: "matched", lines: [0, 1] },
-      { sectionId: second, status: "matched", lines: [2, 3] },
+    expect(result.sections.map(({ sectionId, status }) => ({ sectionId, status }))).toEqual([
+      { sectionId: first, status: "matched" },
+      { sectionId: second, status: "matched" },
     ])
+    // In the sections' order: the first's lines, then the second's.
+    expect(result.excludedLines).toEqual([0, 1, 2, 3])
   })
 
-  test("missing or changed text is a problem, and ambiguous text only makes R3 partial", () => {
+  test("flags a section whose text is missing or changed, and only makes R3 partial when it can't tell which title is its own", () => {
     const source: Resume = { extraSections: { [first]: { kind: "text", heading: "Interests", text: "Reading fiction" } } }
     for (const lines of [
       [line("Interests"), line("Unexpected text")],
@@ -106,7 +108,7 @@ describe("actual extra PDF occurrences", () => {
     }
   })
 
-  test("does not attribute extraction order inversions to precise custom IDs", () => {
+  test("isn't sure of either section when their titles are read out of order", () => {
     const source: Resume = {
       extraSections: {
         [first]: { kind: "text", heading: "First", text: "One" },
@@ -118,7 +120,7 @@ describe("actual extra PDF occurrences", () => {
     expect(result.excludedLines).toEqual([])
   })
 
-  test("literal prose containing a standalone builtin heading keeps its own occurrence", () => {
+  test("finds a section whose text has one of the editor's titles on a line of its own", () => {
     const source = asSaved({
       extraSections: { [first]: { kind: "text", heading: "Interests", text: "Reading fiction\nAwards\nMore prose" } },
       awardsSection: [{ awardName: "Prize" }],
@@ -133,7 +135,7 @@ describe("actual extra PDF occurrences", () => {
     expect(result.excludedLines).toEqual([0, 1, 2, 3])
   })
 
-  test("a matching prose suffix cannot swallow the only required builtin heading occurrence", () => {
+  test("isn't sure of a section whose text ends with the only Awards title, which Awards needs", () => {
     const source = asSaved({
       extraSections: { [first]: { kind: "text", heading: "Interests", text: "Reading fiction\nAwards\nPrize" } },
       awardsSection: [{ awardName: "Prize" }],
@@ -145,7 +147,7 @@ describe("actual extra PDF occurrences", () => {
     expect(result.excludedLines).toEqual([])
   })
 
-  test("shared builtin defaults bound the preceding custom section", () => {
+  test("ends an added section's text at the title of the editor's section after it, in any template", () => {
     for (const selectedTemplate of ["jake", "referme", "ian"]) {
       const source = asSaved({
         selectedTemplate,
@@ -161,7 +163,7 @@ describe("actual extra PDF occurrences", () => {
     }
   })
 
-  test("unresolved custom builtin-name collisions cannot invent builtin field failures", () => {
+  test("flags nothing in Experience while an added section also called Experience isn't found, and checks only part", () => {
     const source = asSaved({
       extraSections: { [first]: { kind: "text", heading: "Experience", text: "Personal interests" } },
       workExperienceSection: [{ workRole: "Engineer", companyName: "Example" }],
@@ -182,7 +184,7 @@ describe("actual extra PDF occurrences", () => {
     expect(report.results.filter(({ rule }) => ["R2", "R3", "R4"].includes(rule.id)).every(({ partial }) => partial)).toBe(true)
   })
 
-  test("an unresolved custom heading alias cannot invent builtin entry counts either", () => {
+  test("doesn't count Experience's entries while an added Work Experience section isn't found", () => {
     const source = asSaved({
       profileSection: { fullName: "Ada Lovelace" },
       extraSections: { [first]: { kind: "text", heading: "Work Experience", text: "Reading fiction" } },
@@ -202,7 +204,7 @@ describe("actual extra PDF occurrences", () => {
     expect(report.results.every(({ partial }) => partial)).toBe(true)
   })
 
-  test("a custom Experience heading cannot create a builtin job; remaining original line indexes survive", () => {
+  test("doesn't read an added Experience section as a job, and keeps every other line's place in the PDF", () => {
     const source = asSaved({
       profileSection: { fullName: "Ada Lovelace" },
       extraSections: { [first]: { kind: "text", heading: "Experience", text: "My personal interests" } },
@@ -227,7 +229,7 @@ describe("actual extra PDF occurrences", () => {
     expect(report.findings.some(({ text }) => text.includes("personal interests"))).toBe(false)
   })
 
-  test("a wrapped custom list retains original editor offset in physical layout checks", () => {
+  test("keeps the editor's line for an added list's bullet that wraps in the PDF", () => {
     const source: Resume = {
       extraSections: { [first]: { kind: "list", heading: "Interests", bullets: "○ Secret\n• Reading classic fiction" } },
     }

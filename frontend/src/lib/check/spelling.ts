@@ -3,6 +3,7 @@
 // resume's own names and tech words aren't taken for typos. G5 and G6 are our
 // own, and read the form.
 
+import type { FieldKeyOf, ProfileKey } from "@/components/editor/sections"
 import type { GrammarLint, GrammarReading, Problem, Rule } from "./engine"
 import { fieldOf, LINK_FIELDS, type Place } from "./places"
 import { DATE_FIELDS, hasEnded } from "./readDate"
@@ -21,7 +22,7 @@ import {
   LOOSE_VERB_OBJECTS,
   LOST_OBJECTS,
   LOWERCASE_NAMES,
-  MIN_SKILL_SLIP,
+  MIN_CAPITALS_SLIP,
   MIN_TECH_SLIP,
   NAME_FIELDS,
   NUMBER_UNITS,
@@ -44,8 +45,8 @@ import { thirdPersonOf, verbOf } from "./verbs"
 const NOT_WORDS = new Set([
   ...LINK_FIELDS,
   ...Object.values(DATE_FIELDS).flatMap((fields) => ("single" in fields ? [fields.single] : [fields.start, fields.end])),
-  "phoneNumber",
-  "gpa",
+  "phoneNumber" satisfies ProfileKey,
+  "gpa" satisfies FieldKeyOf<"Education">,
 ])
 const NAMES: ReadonlySet<string> = new Set(NAME_FIELDS)
 const SKILLS: ReadonlySet<string> = new Set(SKILL_FIELDS)
@@ -113,7 +114,7 @@ const ALWAYS_KNOWN: ReadonlySet<string> = new Set(
  * added with "Add word", and ALWAYS_KNOWN. Without `skills`, the skills'
  * words aren't among them, so the skills themselves can be checked.
  */
-export function knownWords(view: ResumeView, added: ReadonlySet<string>, skills = true): ReadonlySet<string> {
+function knownWords(view: ResumeView, added: ReadonlySet<string>, skills = true): ReadonlySet<string> {
   const isName = (field: string) => NAMES.has(field) && (skills || !SKILLS.has(field))
   const names = [
     ...Object.entries(view.profile)
@@ -171,8 +172,9 @@ function linted(resume: ResumeView, grammar: GrammarReading, skills: boolean) {
 
 const quoted = (text: string) => text.replace(/`([^`]*)`/g, "“$1”")
 
-// Literal names and instructions keep their spelling and tense. An apostrophe
-// inside a word does not open a quotation.
+// Text in quotes or backticks is written that way on purpose, so G5 and G6
+// leave its spelling and tense alone. An apostrophe inside a word ("don't")
+// doesn't start a quote.
 const LITERAL = /`[^`\n]*`|"[^"\n]*"|“[^”\n]*”|(?<![\p{L}\p{N}])'[^'\n]+'(?![\p{L}\p{N}])|‘[^’\n]*’/gu
 const literalRanges = (text: string) => [...text.matchAll(LITERAL)].map((match) => [match.index, match.index + match[0].length] as const)
 const inLiteral = (at: number, ranges: readonly (readonly [number, number])[]) => ranges.some(([start, end]) => start <= at && at < end)
@@ -195,7 +197,6 @@ function grammarRule(
     ...info,
     reads: "grammar",
     check: ({ resume, grammar, words }) => {
-      if (resume.grammarLanguage === "other") return null
       const { read, partial } = linted(resume, grammar, readsSkills)
       if (read.length === 0) return null
       let known: ReadonlySet<string> | undefined
@@ -236,11 +237,12 @@ const typos = grammarRule(
     // A slip in a tech name ("TypeScirpt") is a typo, though capitals inside make it look like a name.
     const name = slipOfTechName(lint.text, (word) => known().has(word))
     const slip = spellingSlip(lint)
-    // An ordinary misspelling does not become an acronym just by capitalizing it.
-    const capitals = lint.text.length >= MIN_SKILL_SLIP && /^\p{Lu}+$/u.test(lint.text) && !known().has(lint.text.toLowerCase()) && slip
+    // A common misspelling in capitals ("RECIEVED") is a typo too, though isTypo takes words in capitals for acronyms.
+    const capitals = lint.text.length >= MIN_CAPITALS_SLIP && /^\p{Lu}+$/u.test(lint.text) && !known().has(lint.text.toLowerCase()) && slip
     if (!name && !capitals && !isTypo(lint.text, known())) return []
-    // The skills are mostly names Harper doesn't know ("Redux", "Kanban"), so
-    // unfamiliar names there do not need a dictionary warning.
+    // A slip in a tech name, a common misspelling or a likely typing slip
+    // (likelyTypo) is a must-fix. The skills are mostly names Harper doesn't
+    // know ("Redux", "Kanban"), so there only the first two are flagged at all.
     const instead = name ?? slip ?? (inSkills ? undefined : likelyTypo(lint, text))
     if (inSkills && !instead) return []
     if (instead) {
@@ -252,10 +254,12 @@ const typos = grammarRule(
         },
       ]
     }
-    // Any other unknown word may be a typo ("Sofware") or a name the
-    // dictionary lacks ("Pydantic"). It counts as a suggestion, not a
-    // must-fix, so a real name costs a little until it's added or dismissed,
-    // and Harper's guess is offered as a question rather than a correction.
+    // Any other unknown word may be a typo ("Sofware") or a name or term the
+    // dictionary lacks ("Pydantic", "spintronics"), even one close to a
+    // dictionary word, as "Polars" is to "Polaris". It counts as a suggestion,
+    // not a must-fix, so a real name costs a little until it's added or
+    // dismissed, and Harper's guess is offered as a question rather than a
+    // correction.
     const guess = lint.suggestions[0]
     return [
       {
@@ -294,10 +298,7 @@ function likelyTypo(lint: GrammarLint, text: string): string | undefined {
     : undefined
 }
 
-// Similar dictionary words are not proof: Pydantic/Pedantic and Polars/Polaris
-// are legitimate names. Reviewed common errors and likely typing slips
-// (likelyTypo) are must-fixes; other unknown words, including terms such as
-// spintronics, are suggestions.
+// The word a common misspelling (COMMON_MISSPELLINGS) is meant to be, in the same capitals.
 const spellingSlip = (lint: GrammarLint) => {
   const correction = COMMON_MISSPELLINGS[lint.text.toLowerCase()]
   if (!correction) return undefined
@@ -429,7 +430,6 @@ const ledNotLead: Rule = {
   title: "“Led”, not “lead”, for what's done",
   why: "The past tense of “lead” is “led”; “lead” is the metal, or the present.",
   check: ({ resume, today }) => {
-    if (resume.grammarLanguage === "other") return null
     // Bullets about the past: in an entry that has ended, or starting with a verb in the past tense.
     const past = bulletsIn(resume).filter(({ entry, bullet }) => hasEnded(entry, today) || verbOf(firstWord(bullet.text))?.tense === "past")
     if (past.length === 0) return null
@@ -477,11 +477,7 @@ const techNames: Rule = {
   title: "Tech names written the way their makers write them",
   why: "Using a product's usual spelling can make its name easier to recognize.",
   check: ({ resume }) => {
-    if (resume.grammarLanguage === "other") return null
-    const texts = textsOf(resume).filter(({ place }) => {
-      const field = fieldOf(place) ?? ""
-      return !NOT_WORDS.has(field) && (!NAMES.has(field) || SKILLS.has(field))
-    })
+    const texts = grammarTexts(resume)
     if (texts.length === 0) return null
     return {
       checked: texts.length,
@@ -516,7 +512,7 @@ const otherGrammar = grammarRule(
     category: "spelling",
     level: "look",
     title: "Other English grammar to review",
-    why: "The English grammar checker found something to review in context.",
+    why: "The grammar checker found this; read it in its sentence to be sure.",
   },
   (lint) => {
     if (OURS.has(lint.rule) || KINDS_OFF.has(lint.kind)) return []

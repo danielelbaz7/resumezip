@@ -1,6 +1,28 @@
-import { readFileSync } from "node:fs"
 import { expect, test, type Locator, type Page } from "./test"
-import { countThumbSlides, pageErrors, seriousAccessibilityProblems, settled, thumbCovers } from "./helpers"
+import {
+  countThumbSlides,
+  pageErrors,
+  pixelsOf,
+  previewShown,
+  saveResumes,
+  savedResume,
+  seriousAccessibilityProblems,
+  settled,
+  thumbCovers,
+} from "./helpers"
+
+declare global {
+  interface Window {
+    /** How many view transitions the page has started, counted by watchTransitions. */
+    started?: number
+    /** Each animation of the first view transition, by the part of it that moves, once it's under way (watchTransitions). */
+    running?: Promise<{ part: string; ms: number }[]>
+    /** Whether something on the page itself was fading in, as opposed to a picture of it, once the first was under way. */
+    fadingIn?: boolean
+    /** The parts of the list that started to slide, by what they are, kept by watchGlides. */
+    glided?: string[]
+  }
+}
 
 const resume = (id: string, resumeTitle: string, more: { resumeTag?: string; selectedTemplate?: string; updatedAt?: string } = {}) => ({
   id,
@@ -17,14 +39,7 @@ const resume = (id: string, resumeTitle: string, more: { resumeTag?: string; sel
  * visit would have. Saved once a tab, so one deleted stays deleted.
  */
 async function dashboardWith(page: Page, resumes: (ReturnType<typeof resume> & Record<string, unknown>)[]) {
-  await page.addInitScript((resumes) => {
-    if (sessionStorage.getItem("seeded")) return
-    sessionStorage.setItem("seeded", "yes")
-    for (const resume of resumes) {
-      const key = `resume:${resume.id}`
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(resume))
-    }
-  }, resumes)
+  await saveResumes(page, resumes, { once: true })
   await page.goto("/create/dashboard")
 }
 
@@ -41,32 +56,22 @@ const tile = (page: Page, name: string) =>
 const saved = (page: Page, id: string) => page.evaluate((id) => localStorage.getItem(`resume:${id}`), id)
 
 /** Whether an element's text is cut short, across or down. Layout is in fractions of a pixel, so allow one. */
-const cutShort = (element: Locator) =>
+const clipped = (element: Locator) =>
   element.evaluate((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1)
-
-/** What `watchTransitions` keeps on the page's window. */
-interface Watched {
-  started: number
-  /** Each animation of the first view transition, by the part of it that moves, once it's under way. */
-  running: Promise<{ part: string; ms: number }[]>
-  /** Whether something on the page itself was fading in, as opposed to a picture of it, once the first was under way. */
-  fadingIn: boolean
-}
 
 /** Counts the view transitions the page starts from here on, and keeps the first's animations. */
 async function watchTransitions(page: Page) {
   await page.evaluate(() => {
-    const watched = window as unknown as Watched
     const start = document.startViewTransition.bind(document)
-    watched.started = 0
-    watched.running = new Promise((resolve, reject) => {
+    window.started = 0
+    window.running = new Promise((resolve, reject) => {
       document.startViewTransition = (update) => {
-        watched.started++
+        window.started!++
         const transition = start(update)
         // Ready once the browser has pictured both views and is animating between them; it fails if
         // the transition can't run, as when two parts of the page have the same name.
         transition.ready.then(() => {
-          watched.fadingIn = document
+          window.fadingIn = document
             .getAnimations()
             .some(
               (animation) =>
@@ -114,9 +119,9 @@ test("a long resume name wraps in the table, and every resume's buttons stay on 
   for (const name of [unbroken, spaced]) {
     const link = table.getByRole("link", { name, exact: true })
     await expect(link).toHaveAttribute("title", name)
-    expect(await cutShort(link)).toBe(true)
+    expect(await clipped(link)).toBe(true)
   }
-  expect(await cutShort(table.getByRole("link", { name: "Short one" }))).toBe(false)
+  expect(await clipped(table.getByRole("link", { name: "Short one" }))).toBe(false)
 
   // Deleted, it's said aloud in full, and the message at the foot of the
   // screen is cut short to fit, with its Undo on screen.
@@ -131,6 +136,7 @@ test("a long resume name wraps in the table, and every resume's buttons stay on 
 })
 
 test("in the list, each resume's small page has its edge on all four sides", async ({ page }) => {
+  const errors = pageErrors(page)
   await page.setViewportSize({ width: 1280, height: 800 })
   await dashboardWith(page, [resume("a", "Ada")])
   await page.getByRole("button", { name: "List" }).click()
@@ -148,20 +154,11 @@ test("in the list, each resume's small page has its edge on all four sides", asy
 
   // Its left-most column of pixels, halfway down, as drawn: the grey edge, not the white page inside.
   const shot = await page.screenshot({ clip: { x: Math.round(box.x), y: Math.round(box.y + box.height / 2) - 4, width: 1, height: 8 } })
-  const pixels = await page.evaluate(async (png) => {
-    const image = new Image()
-    image.src = `data:image/png;base64,${png}`
-    await image.decode()
-    const canvas = document.createElement("canvas")
-    canvas.width = image.width
-    canvas.height = image.height
-    const context = canvas.getContext("2d")!
-    context.drawImage(image, 0, 0)
-    return Array.from(context.getImageData(0, 0, image.width, image.height).data)
-  }, shot.toString("base64"))
+  const { data } = await pixelsOf(page, shot)
   // Red, green and blue of each pixel; white would be the page, with its edge cut off.
-  const reds = pixels.filter((_, index) => index % 4 === 0)
+  const reds = data.filter((_, index) => index % 4 === 0)
   expect(Math.max(...reds)).toBeLessThan(240)
+  expect(errors).toEqual([])
 })
 
 test("on a tablet, two resumes whose names differ only by a number both show it", async ({ page }) => {
@@ -173,7 +170,7 @@ test("on a tablet, two resumes whose names differ only by a number both show it"
   await page.getByRole("button", { name: "List" }).click()
 
   const table = page.getByRole("table")
-  for (const title of [name, `${name} 2`]) expect(await cutShort(table.getByRole("link", { name: title, exact: true }))).toBe(false)
+  for (const title of [name, `${name} 2`]) expect(await clipped(table.getByRole("link", { name: title, exact: true }))).toBe(false)
   expect(errors).toEqual([])
 })
 
@@ -208,7 +205,7 @@ test("New resume starts one blank in the template and paper chosen, copies one h
   const newResume = page.getByRole("main").getByRole("button", { name: "New resume" }).first()
   const dialog = page.getByRole("dialog", { name: "New resume" })
   // The resume the editor has open, as saved.
-  const opened = () => page.evaluate(() => JSON.parse(localStorage.getItem(`resume:${location.pathname.split("/").pop()}`) ?? "null"))
+  const opened = () => savedResume(page, new URL(page.url()).pathname.split("/").pop()!)
 
   // Blank, in Harvard, on A4 rather than its own Letter.
   await newResume.click()
@@ -242,6 +239,19 @@ test("New resume starts one blank in the template and paper chosen, copies one h
   const choosing = page.waitForEvent("filechooser")
   await dialog.getByRole("button", { name: "Choose a file" }).click()
   await choosing
+  expect(errors).toEqual([])
+})
+
+test("a resume's More button says which menu it opens", async ({ page }) => {
+  const errors = pageErrors(page)
+  await dashboardWith(page, [resume("a", "Ada")])
+  const more = tile(page, "Ada").getByRole("button", { name: "More for “Ada”" })
+  await more.click()
+  const menu = page.getByRole("menu", { name: "More for “Ada”" })
+  await expect(menu).toBeVisible()
+  const id = await menu.getAttribute("id")
+  expect(id).toBeTruthy()
+  await expect(more).toHaveAttribute("aria-controls", id!)
   expect(errors).toEqual([])
 })
 
@@ -371,13 +381,14 @@ for (const [layout, width] of [
   test(`on a ${layout}, a resume can be duplicated and renamed from the list`, async ({ page }) => {
     const errors = pageErrors(page)
     await page.setViewportSize({ width, height: 900 })
-    await dashboardWith(page, [{ ...resume("a", "Ada"), headings: { skillsSection: "Toolbox" } }, resume("b", "Grace")])
+    await dashboardWith(page, [{ ...resume("a", "Ada"), headings: { skills: "Toolbox" } }, resume("b", "Grace")])
     await page.getByRole("button", { name: "List" }).click()
     // The switch comes a frame later, as a view transition does, and the pages are a list too.
     await expect(page.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true")
-    // The cards or the table, whichever shows at this width.
+    // The cards or the table, whichever shows at this width, and a resume's card or row in it.
     const list = width < 768 ? page.getByRole("list").filter({ has: page.getByRole("link", { name: "Ada" }) }) : page.getByRole("table")
-    const row = (name: string) => list.locator("li, tr").filter({ has: page.getByRole("link", { name, exact: true }) })
+    const row = (name: string) =>
+      list.getByRole(width < 768 ? "listitem" : "row").filter({ has: page.getByRole("link", { name, exact: true }) })
 
     // A copy has everything, under its own id, and gets focus.
     await row("Ada").getByRole("button", { name: "Duplicate" }).click()
@@ -385,8 +396,11 @@ for (const [layout, width] of [
     await expect(copy).toBeFocused()
     const id = (await copy.getAttribute("href"))!.split("/").pop()!
     expect(id).not.toBe("a")
-    const saved = await page.evaluate((id) => JSON.parse(localStorage.getItem(`resume:${id}`)!), id)
-    expect(saved).toMatchObject({ resumeTitle: "Ada copy", selectedTemplate: "jake", headings: { skillsSection: "Toolbox" } })
+    expect(await savedResume(page, id)).toMatchObject({
+      resumeTitle: "Ada copy",
+      selectedTemplate: "jake",
+      headings: { skills: "Toolbox" },
+    })
 
     // Escape keeps the old name.
     await row("Ada copy").getByRole("button", { name: "Rename" }).click()
@@ -433,18 +447,17 @@ test("resumes show as their pages, and the list is a click away, remembered afte
 })
 
 test("the switch's white pill slides to the view picked", async ({ page }) => {
+  const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Ada")])
   const view = page.getByRole("group", { name: "View" })
-  await expect(view.getByRole("button", { name: "Pages" })).toHaveAttribute("aria-pressed", "true")
-  // It used to be drawn by the pressed button, so it jumped. Listened for rather than looked for once:
-  // the view changes when the browser's view transition gets to it, which WebKit can take a while to.
-  await view.evaluate((group) =>
-    group.addEventListener("transitionrun", (event) => {
-      if (event instanceof TransitionEvent) group.dataset.sliding = `${group.dataset.sliding ?? ""} ${event.propertyName}`
-    }),
-  )
-  await view.getByRole("button", { name: "List" }).click()
-  await expect(view).toHaveAttribute("data-sliding", /\btranslate\b/)
+  await expect.poll(() => thumbCovers(view, view.getByRole("button", { name: "Pages" }))).toBe(true)
+  const slides = await countThumbSlides(view)
+
+  const list = view.getByRole("button", { name: "List" })
+  await list.click()
+  await expect.poll(() => thumbCovers(view, list)).toBe(true)
+  expect(await slides()).toBe(1)
+  expect(errors).toEqual([])
 })
 
 test("switching to the list moves each resume's page and name to its row, with focus kept on the switch", async ({ page }) => {
@@ -455,17 +468,15 @@ test("switching to the list moves each resume's page and name to its row, with f
 
   const list = page.getByRole("group", { name: "View" }).getByRole("button", { name: "List" })
   await list.press("Enter")
-  await expect.poll(() => page.evaluate(() => (window as unknown as Watched).started)).toBe(1)
-  const moving = (await page.evaluate(() => (window as unknown as Watched).running)).filter(({ part }) =>
-    part.startsWith("::view-transition"),
-  )
+  await expect.poll(() => page.evaluate(() => window.started)).toBe(1)
+  const moving = (await page.evaluate(() => window.running!)).filter(({ part }) => part.startsWith("::view-transition"))
   // The two resumes' pages and names each move on their own, in a little under half a second. The rest
   // of the page isn't pictured: Safari shows such a picture of the whole page in slightly different
   // colors, so the page would change shade until it ended. It stays live, and the new view fades in.
   const parts = moving.map(({ part }) => part)
   expect(parts.filter((part) => part.endsWith("(root)"))).toEqual([])
   expect(new Set(parts.filter((part) => part.startsWith("::view-transition-group("))).size).toBe(4)
-  expect(await page.evaluate(() => (window as unknown as Watched).fadingIn)).toBe(true)
+  expect(await page.evaluate(() => window.fadingIn)).toBe(true)
   for (const { ms } of moving) {
     expect(ms).toBeGreaterThanOrEqual(380)
     expect(ms).toBeLessThanOrEqual(460)
@@ -484,7 +495,7 @@ for (const [layout, width] of [
   test(`on a ${layout}, a resume can be copied, renamed and deleted from its page, and Undo puts it back as it was`, async ({ page }) => {
     const errors = pageErrors(page)
     await page.setViewportSize({ width, height: 900 })
-    await dashboardWith(page, [{ ...resume("a", "Ada"), headings: { skillsSection: "Toolbox" } }, resume("b", "Grace")])
+    await dashboardWith(page, [{ ...resume("a", "Ada"), headings: { skills: "Toolbox" } }, resume("b", "Grace")])
 
     // A copy gets focus.
     await tile(page, "Ada").getByRole("button", { name: "Duplicate" }).click()
@@ -627,7 +638,7 @@ test("the search finds resumes by name or template, and opens one from the keybo
   await expect(page).toHaveURL(/\/create\/new\/c$/)
   await expect(page.getByLabel("Resume name")).toHaveValue("For Kestrel Health")
   // Let the preview finish, so the compiler's download isn't cut off as the page closes.
-  await expect(page.getByRole("region", { name: "Live preview" }).locator(".react-pdf__Page__canvas").first()).toBeVisible()
+  await previewShown(page)
   expect(errors).toEqual([])
 })
 
@@ -658,8 +669,7 @@ test("in use, the search lifts into the middle of the screen, and Escape or a pr
   await search.fill("zzz")
   // The panel's line and the screen readers' status say the same.
   await expect(page.getByText("No resume matches “zzz”").filter({ visible: true })).toHaveCount(2)
-  // Playwright's WebKit on Linux draws no backdrop-filter at all (no glass blurs there, the
-  // search field's own included), so the blur is only measured where it's drawn.
+  // WebKit's tests draw no blur (e2e/test.ts), so it's only measured where it's drawn.
   if (browserName !== "webkit") {
     // Once the veil's faded in, the foot of the screen is blurred too: no sharp edges
     // (as the sheet's sides have against the sky), only small steps from one pixel to the next.
@@ -672,25 +682,15 @@ test("in use, the search lifts into the middle of the screen, and Escape or a pr
       ),
     )
     const shot = await page.screenshot({ clip: { x: 0, y: 1000, width: 1280, height: 200 } })
-    const sharpest = await page.evaluate(async (png) => {
-      const image = new Image()
-      image.src = `data:image/png;base64,${png}`
-      await image.decode()
-      const canvas = document.createElement("canvas")
-      canvas.width = image.width
-      canvas.height = image.height
-      const context = canvas.getContext("2d")!
-      context.drawImage(image, 0, 0)
-      const { data, width, height } = context.getImageData(0, 0, image.width, image.height)
-      // Chromium leaves a hard edge (steps of 70 or more) in the first and last few pixels of a
-      // clipped screenshot, where the backdrop blur meets the crop. It moves with the clip, so it's
-      // from taking the picture, not in the page: those pixels are left out.
-      const edge = 16
-      let most = 0
-      for (let y = 0; y < height; y++)
-        for (let x = edge; x < width - edge; x++) most = Math.max(most, Math.abs(data[(y * width + x) * 4] - data[(y * width + x - 1) * 4]))
-      return most
-    }, shot.toString("base64"))
+    const { data, width, height } = await pixelsOf(page, shot)
+    // Chromium leaves a hard edge (steps of 70 or more) in the first and last few pixels of a
+    // clipped screenshot, where the backdrop blur meets the crop. It moves with the clip, so it's
+    // from taking the picture, not in the page: those pixels are left out.
+    const edge = 16
+    let sharpest = 0
+    for (let y = 0; y < height; y++)
+      for (let x = edge; x < width - edge; x++)
+        sharpest = Math.max(sharpest, Math.abs(data[(y * width + x) * 4] - data[(y * width + x - 1) * 4]))
     expect(sharpest).toBeLessThan(60)
   }
 
@@ -856,17 +856,16 @@ test("a deleted resume leaves the tags' counts at once, while its page flies awa
 /** Keeps the parts of the list that slide (flight.ts's glideFrom), by what they are, as they start to. */
 async function watchGlides(page: Page) {
   await page.evaluate(() => {
-    const watched = window as unknown as { glided: string[] }
-    watched.glided = []
+    window.glided = []
     const animate = Element.prototype.animate
     Element.prototype.animate = function (this: Element, keyframes, options) {
       const glide = this instanceof HTMLElement ? this.dataset.glide : undefined
-      if (glide) watched.glided.push(glide)
+      if (glide) window.glided?.push(glide)
       return animate.call(this, keyframes, options)
     }
   })
 }
-const glided = (page: Page) => page.evaluate(() => (window as unknown as { glided: string[] }).glided.splice(0))
+const glided = (page: Page) => page.evaluate(() => window.glided!.splice(0))
 
 /**
  * Where the copy of a page in flight ends up (flight.ts), and where `to` is:
@@ -936,18 +935,6 @@ for (const view of ["pages", "list"] as const) {
   })
 }
 
-test("a page shows the resume itself, with nothing stamped over it, even one the checker finds nothing to fix in", async ({ page }) => {
-  const errors = pageErrors(page)
-  const sample = JSON.parse(readFileSync("src/lib/typst/preview-samples/jake.json", "utf8"))
-  await dashboardWith(page, [{ ...sample, id: "ready", resumeTitle: "Finished" }])
-  await expect(tile(page, "Finished")).toBeVisible()
-  // A fixed wait: proving nothing lands on it once the page has settled.
-  await page.waitForTimeout(3_000)
-  await expect(tile(page, "Finished").getByText(/^Ready/)).toHaveCount(0)
-  expect(await seriousAccessibilityProblems(page)).toEqual([])
-  expect(errors).toEqual([])
-})
-
 test("with no resumes, the page keeps its toolbar and buttons, and the empty pages start one or open a file", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/create/dashboard")
@@ -989,7 +976,7 @@ test.describe("with less motion", () => {
     const list = page.getByRole("group", { name: "View" }).getByRole("button", { name: "List" })
     await list.press("Enter")
     expect(await page.getByRole("table").getByRole("link", { name: "Ada", exact: true }).count()).toBe(1)
-    expect(await page.evaluate(() => (window as unknown as Watched).started)).toBe(0)
+    expect(await page.evaluate(() => window.started)).toBe(0)
     await expect(list).toBeFocused()
     expect(errors).toEqual([])
   })

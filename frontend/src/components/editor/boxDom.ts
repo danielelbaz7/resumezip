@@ -3,6 +3,7 @@
 // after the browser changed it itself, and where the cursor is, as an offset
 // in the text.
 
+import { offsetOfLine } from "./arrange"
 import { BOLD, bulletLength, ITALIC, linesOf, sameStyled, type Style, type Styled } from "./styledText"
 
 interface Point {
@@ -205,7 +206,7 @@ function pointAt(root: HTMLElement, offset: number): Point {
   const lines = [...root.children]
   let rest = offset
   for (const [index, line] of lines.entries()) {
-    const length = line.textContent?.length ?? 0
+    const length = line.textContent.length
     if (rest <= length || index === lines.length - 1) {
       let column = Math.min(rest, length)
       const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT)
@@ -222,7 +223,7 @@ function pointAt(root: HTMLElement, offset: number): Point {
 }
 
 /** Selects from `start` to `end` in the box, or puts the cursor at `start`. */
-export function selectIn(root: HTMLElement, start: number, end = start) {
+export function selectIn(root: HTMLElement, start: number, end: number) {
   const from = pointAt(root, start)
   const to = end === start ? from : pointAt(root, end)
   root.ownerDocument.getSelection()?.setBaseAndExtent(from.node, from.offset, to.node, to.offset)
@@ -232,7 +233,7 @@ export function selectIn(root: HTMLElement, start: number, end = start) {
 export function selectLineIn(root: HTMLElement, line: number) {
   const lines = readBox(root).styled.text.split("\n")
   if (line < 0 || line >= lines.length) return
-  const start = lines.slice(0, line).reduce((total, words) => total + words.length + 1, 0)
+  const start = offsetOfLine(lines, line)
   selectIn(root, start + bulletLength(lines[line]), start + lines[line].length)
 }
 

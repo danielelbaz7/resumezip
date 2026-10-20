@@ -18,6 +18,27 @@ for (const path of ["/", "/terms"]) {
   })
 }
 
+test("on a phone, the home page's menu asks for the star", async ({ page }) => {
+  await page.setViewportSize(PHONE)
+  await page.goto("/")
+  await page.getByRole("button", { name: "Open menu" }).click()
+  await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Star on GitHub" })).toHaveAttribute(
+    "href",
+    "https://github.com/ian-hoang/resumezip",
+  )
+})
+
+test("the menu's button says which menu it opens", async ({ page }) => {
+  await page.setViewportSize(PHONE)
+  await page.goto("/")
+  await page.getByRole("button", { name: "Open menu" }).click()
+  const menu = page.getByRole("navigation", { name: "Main" })
+  await expect(menu).toBeVisible()
+  const id = await menu.getAttribute("id")
+  expect(id).toBeTruthy()
+  await expect(page.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-controls", id!)
+})
+
 test("the menu closes on Escape or a tap elsewhere, and Tab skips it while it fades out", async ({ page }) => {
   await page.setViewportSize(PHONE)
   await page.goto("/terms")

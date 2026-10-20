@@ -1,6 +1,8 @@
 import type { CSSProperties, MouseEvent } from "react"
 import { flushSync } from "react-dom"
 import { useRouter } from "next/navigation"
+import { reducedMotion } from "@/components/editor/layout"
+import { canTransition, waitFor } from "@/components/site/rise"
 
 /** The view transition type that dashboard.css times and shapes the switch by. */
 const SWITCH_TYPE = "resume-view"
@@ -13,7 +15,7 @@ const SWITCH_TYPE = "resume-view"
  * "instant": with less motion, where nothing moves at all (dashboard.css).
  */
 export function switchView(update: () => void): "morph" | "fade" | "instant" {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (reducedMotion()) {
     update()
     return "instant"
   }
@@ -43,12 +45,10 @@ export const morph = (part: "page" | "name", index: number): CSSProperties => ({
   viewTransitionClass: `resume-${part}`,
 })
 
-/** The view transition type for opening a resume from the dashboard (dashboard.css). */
+/** The view transition type for opening a resume from the dashboard (globals.css). */
 const OPEN_TYPE = "resume-open"
 /** What a resume's page on the dashboard and the editor's page are both called while one becomes the other. */
 export const OPEN_NAME = "resume-open-page"
-/** How long the dashboard waits for the editor's page before it lets the transition go on without it, in milliseconds. */
-const OPEN_WAIT_MS = 2500
 
 /**
  * Opens a resume from its page on the dashboard: where the browser has view
@@ -58,9 +58,8 @@ const OPEN_WAIT_MS = 2500
  * a moment, and the rest crossfades). Returns false where it doesn't run, for
  * the link to go as usual.
  */
-export function openResume(go: () => void, page: HTMLElement | null): boolean {
-  if (!page || !("startViewTransition" in document) || !("types" in ViewTransition.prototype)) return false
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false
+function openResume(go: () => void, page: HTMLElement | null): boolean {
+  if (!page || !canTransition()) return false
   // Its usual name pairs it with the other dashboard view; for this, it pairs with the editor's page.
   const usual = page.style.viewTransitionName
   page.style.viewTransitionName = OPEN_NAME
@@ -69,7 +68,7 @@ export function openResume(go: () => void, page: HTMLElement | null): boolean {
     update: async () => {
       page.style.viewTransitionName = usual
       go()
-      await editorPage()
+      await waitFor(() => document.querySelector("[data-open-target]") !== null)
     },
   })
   transition.finished.finally(() => {
@@ -79,27 +78,11 @@ export function openResume(go: () => void, page: HTMLElement | null): boolean {
 }
 
 /**
- * Resolves once the editor's page is there, or after OPEN_WAIT_MS. Polled
- * with timers: the browser runs no animation frames while it waits for the
- * new page, so requestAnimationFrame would never come back.
- */
-function editorPage(): Promise<void> {
-  const until = performance.now() + OPEN_WAIT_MS
-  return new Promise((done) => {
-    const look = () => {
-      if (document.querySelector("[data-open-target]") || performance.now() > until) done()
-      else setTimeout(look, 16)
-    }
-    look()
-  })
-}
-
-/**
  * A link's click handler that opens its resume with `openResume`, growing the
  * page in the same card or row (marked data-resume-page) into the editor's.
  * A click with a modifier, as to open a new tab, goes as usual.
  */
-export function useOpenResume(): (event: MouseEvent<HTMLAnchorElement>) => void {
+export function useOpenOnClick(): (event: MouseEvent<HTMLAnchorElement>) => void {
   const router = useRouter()
   return (event) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return

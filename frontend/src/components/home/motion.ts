@@ -39,7 +39,7 @@ const LAST_NOTE = FIRST_NOTE + (NOTE_COUNT - 1) * NOTE_STEP
  */
 const CLOSING = 16
 
-/** The last menu closes a little after its note is written; then every mark shows, closed, before the way in. */
+/** The last menu closes a little after its note is written; then, beside the editor, every mark shows, closed, before the way in. */
 const LAST_CLOSE = LAST_NOTE + NOTE_IN + 8
 const WAY_IN = LAST_CLOSE + CLOSING + 20
 
@@ -63,7 +63,7 @@ export const BEATS = {
     const end = i < NOTE_COUNT - 1 ? FIRST_NOTE + (i + 1) * NOTE_STEP - 4 : LAST_CLOSE + CLOSING
     return [end - CLOSING, end]
   }),
-  /** The last note steps back, and the editor softens, for the way in. */
+  /** The marks and notes step back, and the editor softens, for the way in. */
   wrap: [WAY_IN, WAY_IN + 30] as Range,
   cta: [WAY_IN + 10, WAY_IN + 54] as Range,
 }

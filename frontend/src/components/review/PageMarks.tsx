@@ -90,6 +90,9 @@ const percent = (part: number, whole: number) => `${(part / whole) * 100}%`
 
 export const LABEL_INK: Record<Ink, string> = { fix: "text-alert", look: "text-accent", red: "text-alert", good: "text-accent" }
 
+/** How a note's rewrite is set apart under it: a line down its left. */
+export const REWRITE = "border-l-2 border-hairline pl-2 text-ink"
+
 /** The note for the scribble that's pointed at: what's wrong or what works, and what to write instead. */
 function Tip({ note, area, size, describe }: { note: Note; area: Box; size: PageSize; describe: string }) {
   const [left, top, right, bottom] = area
@@ -111,7 +114,7 @@ function Tip({ note, area, size, describe }: { note: Note; area: Box; size: Page
       {(note.body || note.rewrite) && (
         <div id={describe}>
           {note.body && <p className="mt-0.5 text-ink-2">{note.body}</p>}
-          {note.rewrite && <p className="mt-1.5 border-l-2 border-hairline pl-2 text-ink">{note.rewrite}</p>}
+          {note.rewrite && <p className={`mt-1.5 ${REWRITE}`}>{note.rewrite}</p>}
         </div>
       )}
     </div>
@@ -150,7 +153,7 @@ export function PageMarks({
   const here = placed.filter((scribble) => scribble.page === page)
   const showing = here.find(({ note }) => note.key === open)
   // The others fade behind the open note's mark, on any page; a note with no
-  // mark (an AI flag pointed at in its list while the checks are drawn) fades nothing.
+  // mark (a row pointed at in the Check panel whose finding isn't drawn) fades nothing.
   const fading = open !== null && placed.some(({ note }) => note.key === open)
   const leave = (key: string) => {
     if (open === key) onOpen(null)

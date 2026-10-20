@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "./test"
-import { chooseTemplate, pageErrors } from "./helpers"
+import { chooseTemplate, newResume, pageErrors, preview } from "./helpers"
 
 declare global {
   interface Window {
@@ -34,15 +34,12 @@ const alpha = (color: string) => {
 
 test("selecting and copying text in the preview", async ({ page }) => {
   const errors = pageErrors(page)
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
+  await newResume(page)
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page.getByLabel("Location").fill("Effingham, Illinois")
   await page.getByLabel("Email").fill("ada@example.com")
 
-  const preview = page.getByRole("region", { name: "Live preview" })
-  const email = preview.locator(".textLayer span[role=presentation]", { hasText: "ada@example.com" })
+  const email = preview(page).locator(".textLayer span[role=presentation]", { hasText: "ada@example.com" })
   await expect(email).toBeVisible()
   await selectThrough(email)
 
@@ -81,67 +78,62 @@ test("renaming doesn't rebuild the preview, and fast typing ends on the latest t
       return send.call(this, message, options)
     }
   })
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  await page.getByLabel("Full name").fill("Ada Lovelace")
-  const preview = page.getByRole("region", { name: "Live preview" })
-  await expect(preview.getByText(/Ada Lovelace/i).first()).toBeVisible()
+  await newResume(page, { name: "Ada Lovelace" })
 
   // The resume's name isn't printed, so renaming compiles nothing.
   const compiles = await page.evaluate(() => window.compiles)
   await page.getByLabel("Resume name").fill("Ada's resume")
+  // A fixed wait: proving nothing is sent to the compiler.
   await page.waitForTimeout(1_000)
   expect(await page.evaluate(() => window.compiles)).toBe(compiles)
 
   // Typing quickly ends on what was typed last.
   await page.getByLabel("Email").pressSequentially("ada@example.com", { delay: 20 })
-  await expect(preview.getByText("ada@example.com").first()).toBeVisible()
+  await expect(preview(page).getByText("ada@example.com").first()).toBeVisible()
 
   expect(errors).toEqual([])
 })
 
 test("what a change prints lights up on the preview for a moment", async ({ page }) => {
   const errors = pageErrors(page)
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
+  await newResume(page)
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page.getByLabel("Location").fill("Effingham, Illinois")
-  const preview = page.getByRole("region", { name: "Live preview" })
-  await expect(preview.getByText("Effingham, Illinois").first()).toBeVisible()
+  await expect(preview(page).getByText("Effingham, Illinois").first()).toBeVisible()
 
   await page.getByLabel("Location").fill("London, England")
-  const changed = preview.getByText("London, England").first()
+  const changed = preview(page).getByText("London, England").first()
   const lit = async () => alpha(await changed.evaluate((span) => getComputedStyle(span).backgroundColor))
   await expect(changed).toHaveAttribute("data-changed")
   // Lit by the fade-out animation (read as its name, as a slow machine can be past the light by now).
   expect(await changed.evaluate((span) => getComputedStyle(span).animationName)).toBe("changed")
   // The rest of the page doesn't.
-  await expect(preview.getByText(/Ada Lovelace/i).first()).not.toHaveAttribute("data-changed")
+  await expect(
+    preview(page)
+      .getByText(/Ada Lovelace/i)
+      .first(),
+  ).not.toHaveAttribute("data-changed")
   // It fades away.
   await expect.poll(lit).toBe(0)
 
   // A new template restyles the page rather than changing what it says, so
   // nothing lights up, though Harvard prints the name in capitals.
-  await preview
+  await preview(page)
     .locator(".textLayer")
     .first()
     .evaluate((layer) => (layer.dataset.replaced = ""))
   await chooseTemplate(page, "Harvard")
   // Its text, drawn in full: react-pdf ends a text layer with .endOfContent.
-  await expect(preview.locator(".textLayer:not([data-replaced]) > .endOfContent")).toBeAttached()
-  await expect(preview.getByText("ADA LOVELACE", { exact: true })).toBeAttached()
-  await expect(preview.locator("[data-changed]")).toHaveCount(0)
+  await expect(preview(page).locator(".textLayer:not([data-replaced]) > .endOfContent")).toBeAttached()
+  await expect(preview(page).getByText("ADA LOVELACE", { exact: true })).toBeAttached()
+  await expect(preview(page).locator("[data-changed]")).toHaveCount(0)
 
   expect(errors).toEqual([])
 })
 
 test("a second copy of a line already on the page lights up too", async ({ page }) => {
   const errors = pageErrors(page)
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
+  await newResume(page)
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page
     .getByRole("navigation", { name: "Sections" })
@@ -151,7 +143,7 @@ test("a second copy of a line already on the page lights up too", async ({ page 
   await page.getByLabel("Role", { exact: true }).fill("Engineer")
   const bullets = page.getByLabel(/^What you did/)
   await bullets.fill("• Wrote the tests")
-  const lines = page.getByRole("region", { name: "Live preview" }).getByText("Wrote the tests")
+  const lines = preview(page).getByText("Wrote the tests")
   await expect(lines).toHaveCount(1)
 
   await bullets.fill("• Wrote the tests\n• Wrote the tests")
@@ -174,14 +166,11 @@ test("the preview starts pdf.js's worker once, not for each new PDF", async ({ p
       }
     }
   })
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
-  const preview = page.getByRole("region", { name: "Live preview" })
+  await newResume(page)
   // Each name is a new PDF, on screen once its text is.
   for (const name of ["Ada Lovelace", "Grace Hopper", "Mary Somerville"]) {
     await page.getByLabel("Full name").fill(name)
-    await expect(preview.getByText(new RegExp(name, "i")).first()).toBeVisible()
+    await expect(preview(page).getByText(new RegExp(name, "i")).first()).toBeVisible()
   }
   expect(await page.evaluate(() => window.pdfWorkers)).toBe(1)
   expect(errors).toEqual([])
@@ -189,18 +178,15 @@ test("the preview starts pdf.js's worker once, not for each new PDF", async ({ p
 
 /** Starts a resume with a name and email, and waits for the email in the preview. */
 async function startResume(page: Page) {
-  await page.goto("/")
-  await page.getByRole("link", { name: "Start writing" }).first().click()
-  await expect(page).toHaveURL(/\/create\/new\//)
+  await newResume(page)
   await page.getByLabel("Full name").fill("Ada Lovelace")
   await page.getByLabel("Email").fill("ada@example.com")
-  const preview = page.getByRole("region", { name: "Live preview" })
   // Narrower than 1280px, the preview is behind the Edit / Preview switch.
   const toPreview = page.getByRole("group", { name: "View" }).getByRole("button", { name: "Preview" })
   if (await toPreview.isVisible()) await toPreview.click()
-  const email = preview.locator(".textLayer span[role=presentation]", { hasText: "ada@example.com" })
+  const email = preview(page).locator(".textLayer span[role=presentation]", { hasText: "ada@example.com" })
   await expect(email).toBeVisible()
-  return { preview, email }
+  return email
 }
 
 /** The middle of an element on screen, or null while it isn't there, as while the text layer is redrawn. */
@@ -219,7 +205,7 @@ for (const { width, layout } of [
   test(`zooming with Ctrl + scroll keeps what's under the cursor there, with the preview ${layout}`, async ({ page }) => {
     const errors = pageErrors(page)
     await page.setViewportSize({ width, height: 720 })
-    const { preview, email } = await startResume(page)
+    const email = await startResume(page)
 
     // All the way in, a step at a time. Each step scrolls by whole pixels, and
     // the rounding mustn't add up.
@@ -228,14 +214,14 @@ for (const { width, layout } of [
     await page.keyboard.down("Control")
     for (let i = 0; i < 15; i++) await page.mouse.wheel(0, -100)
     await page.keyboard.up("Control")
-    await expect(preview.getByRole("button", { name: "250%" })).toBeVisible()
+    await expect(preview(page).getByRole("button", { name: "250%" })).toBeVisible()
     await expect.poll(async () => apart(await middleOf(email), cursor), { message: "the email is still under the cursor" }).toBeLessThan(3)
 
     // And back out again: 250% ÷ 1.1¹⁰.
     await page.keyboard.down("Control")
     for (let i = 0; i < 10; i++) await page.mouse.wheel(0, 100)
     await page.keyboard.up("Control")
-    await expect(preview.getByRole("button", { name: "96%" })).toBeVisible()
+    await expect(preview(page).getByRole("button", { name: "96%" })).toBeVisible()
     await expect.poll(async () => apart(await middleOf(email), cursor), { message: "the email is still under the cursor" }).toBeLessThan(3)
 
     expect(errors).toEqual([])
@@ -247,7 +233,7 @@ test("the zoom buttons keep what's in the middle of the preview there", async ({
   // Beside the form, where no pinned bar covers the panel. Short enough that
   // the page runs past the panel, so there's room to scroll it as it grows.
   await page.setViewportSize({ width: 1280, height: 640 })
-  const { preview, email } = await startResume(page)
+  const email = await startResume(page)
 
   // The middle of what shows of the panel the pages scroll in.
   const middle = await email.evaluate((span) => {
@@ -256,8 +242,8 @@ test("the zoom buttons keep what's in the middle of the preview there", async ({
     return { x: box.left + panel.clientWidth / 2, y: box.top + Math.min(panel.clientHeight, innerHeight - box.top) / 2 }
   })
   const before = (await middleOf(email))!
-  await preview.getByRole("button", { name: "Zoom in" }).click()
-  await expect(preview.getByRole("button", { name: "110%" })).toBeVisible()
+  await preview(page).getByRole("button", { name: "Zoom in" }).click()
+  await expect(preview(page).getByRole("button", { name: "110%" })).toBeVisible()
 
   // Everything spreads out from the middle, which stays where it is.
   const expected = { x: middle.x + (before.x - middle.x) * 1.1, y: middle.y + (before.y - middle.y) * 1.1 }
@@ -299,27 +285,27 @@ const pageWidths = (preview: Locator) =>
 test("zooming keeps the page on screen, and draws it sharp at the new size", async ({ page }) => {
   const errors = pageErrors(page)
   await page.setViewportSize({ width: 1280, height: 720 })
-  const { preview } = await startResume(page)
-  const fullSize = (await pageWidths(preview))!.shown
+  await startResume(page)
+  const fullSize = (await pageWidths(preview(page)))!.shown
   const drawnAt = (zoom: number) =>
     expect
       .poll(
         async () => {
-          const widths = await pageWidths(preview)
+          const widths = await pageWidths(preview(page))
           return !!widths && Math.abs(widths.shown - fullSize * zoom) < 2 && Math.abs(widths.drawn - widths.shown) < 2
         },
         { message: `the page is drawn sharp at ${zoom * 100}%` },
       )
       .toBe(true)
-  await countBlankFrames(preview)
+  await countBlankFrames(preview(page))
 
   // Two quick steps in, then back.
-  const zoomIn = preview.getByRole("button", { name: "Zoom in" })
+  const zoomIn = preview(page).getByRole("button", { name: "Zoom in" })
   await zoomIn.click()
   await zoomIn.click()
-  await expect(preview.getByRole("button", { name: "120%" })).toBeVisible()
+  await expect(preview(page).getByRole("button", { name: "120%" })).toBeVisible()
   await drawnAt(1.2)
-  await preview.getByRole("button", { name: "120%" }).click()
+  await preview(page).getByRole("button", { name: "120%" }).click()
   await drawnAt(1)
 
   const painted = (await page.evaluate(() => window.painted))!
@@ -331,29 +317,29 @@ test("zooming keeps the page on screen, and draws it sharp at the new size", asy
 test("a pinch zooms as far as the fingers move, and a mouse wheel's notch a tenth", async ({ page }) => {
   const errors = pageErrors(page)
   await page.setViewportSize({ width: 1280, height: 720 })
-  const { preview, email } = await startResume(page)
+  const email = await startResume(page)
   const cursor = (await middleOf(email))!
   await page.mouse.move(cursor.x, cursor.y)
-  await countBlankFrames(preview)
+  await countBlankFrames(preview(page))
 
   // Chrome and Firefox send a pinch as a run of small Ctrl + scrolls, each of
   // -100 × ln(scale) pixels. These make e^0.36, or 143%.
   await page.keyboard.down("Control")
   for (let i = 0; i < 12; i++) await page.mouse.wheel(0, -3)
   await page.keyboard.up("Control")
-  await expect(preview.getByRole("button", { name: "143%" })).toBeVisible()
+  await expect(preview(page).getByRole("button", { name: "143%" })).toBeVisible()
 
   // A notch scrolls 100 pixels at once: 143% × 1.1.
   await page.keyboard.down("Control")
   await page.mouse.wheel(0, -100)
   await page.keyboard.up("Control")
-  await expect(preview.getByRole("button", { name: "158%" })).toBeVisible()
+  await expect(preview(page).getByRole("button", { name: "158%" })).toBeVisible()
 
   // The buttons go to the next tenth either way.
-  await preview.getByRole("button", { name: "Zoom out" }).click()
-  await expect(preview.getByRole("button", { name: "150%" })).toBeVisible()
-  await preview.getByRole("button", { name: "Zoom in" }).click()
-  await expect(preview.getByRole("button", { name: "160%" })).toBeVisible()
+  await preview(page).getByRole("button", { name: "Zoom out" }).click()
+  await expect(preview(page).getByRole("button", { name: "150%" })).toBeVisible()
+  await preview(page).getByRole("button", { name: "Zoom in" }).click()
+  await expect(preview(page).getByRole("button", { name: "160%" })).toBeVisible()
 
   expect((await page.evaluate(() => window.painted))!.blank).toBe(0)
   expect(errors).toEqual([])

@@ -4,6 +4,7 @@
 // same careful way as the rest of the resume. Downloaded PDFs leave it out,
 // as they only carry what's printed (lib/resumeFile.ts).
 
+import { isObject } from "@/lib/isObject"
 import type { Resume } from "@/lib/resume"
 import type { Finding, Report } from "./engine"
 import { ruleOfKey } from "./places"
@@ -13,7 +14,7 @@ import { MAX_DISMISSED, MAX_WORD_LENGTH, MAX_WORDS } from "./settings"
 export const CHECK_FIELD = "check"
 
 export interface CheckState {
-  /** Harper supports English; other languages can opt out of its checks. */
+  /** Harper supports English. Older versions let other languages opt out of its checks, and their saves still do. */
   grammarLanguage?: "english" | "other"
   /** The keys of the dismissed findings, oldest first. */
   dismissed: string[]
@@ -30,8 +31,8 @@ const strings = (value: unknown, max: number, longest: number) =>
     .slice(-max)
 
 const savedOn = (resume: Resume): Record<string, unknown> => {
-  const saved = resume?.[CHECK_FIELD]
-  return typeof saved === "object" && saved !== null && !Array.isArray(saved) ? saved : {}
+  const saved = resume[CHECK_FIELD]
+  return isObject(saved) ? saved : {}
 }
 
 // Far longer than any finding's key (see findingKey in places.ts).
@@ -62,7 +63,6 @@ export function changeCheck(resume: Resume, change: (state: CheckState) => Check
     ...savedOn(resume),
     ...(after.dismissed !== before.dismissed && { dismissed: after.dismissed }),
     ...(after.words !== before.words && { words: after.words }),
-    ...(after.grammarLanguage !== before.grammarLanguage && { grammarLanguage: after.grammarLanguage }),
   }
 }
 
@@ -104,11 +104,4 @@ export function addWord(state: CheckState, word: string): CheckState {
     return state
   }
   return { ...state, words: [...state.words, added].slice(-MAX_WORDS) }
-}
-
-/** Removes an added word, whatever its case. */
-export function removeWord(state: CheckState, word: string): CheckState {
-  const lower = word.trim().toLowerCase()
-  const words = state.words.filter((known) => known.toLowerCase() !== lower)
-  return words.length === state.words.length ? state : { ...state, words }
 }

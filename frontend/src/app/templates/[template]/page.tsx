@@ -6,21 +6,12 @@ import { ArrowLeft, ArrowRight, BookOpen, Check, X } from "lucide-react"
 import { BLUE_PILL, sheetPill } from "@/components/pills"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
-import { PAPER_FRAME } from "@/components/site/sheet"
+import { CARD_SHEET, PAPER_FRAME } from "@/components/site/sheet"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import StructuredData from "@/components/site/StructuredData"
 import { pageMetadata, SHARE_IMAGE_SIZE } from "@/lib/site"
 import { breadcrumbs, TEMPLATES_CRUMB } from "@/lib/structuredData"
-import {
-  fontsOf,
-  printedName,
-  type Template,
-  TEMPLATES,
-  templateBySlug,
-  templateImageAlt,
-  templatePath,
-  templateSlug,
-} from "@/lib/templates"
+import { printedName, type Template, TEMPLATES, templateBySlug, templateImageAlt, templatePath, templateSlug } from "@/lib/templates"
 import { checksPassed, READING_CHECKS, READING_RESULTS, WHY_NOT } from "../how-they-read/checks"
 import { ABOUT } from "./about"
 
@@ -67,7 +58,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
       <StructuredData data={breadcrumbs([TEMPLATES_CRUMB, { name: titleOf(template), path: templatePath(template) }])} />
 
       <div className={PAPER_FRAME}>
-        <main className="paper paper-sky flex flex-1 flex-col px-4 pb-10 pt-4 sm:px-6 sm:pt-6 md:px-9 md:pb-12 md:pt-[30px]">
+        <main className={CARD_SHEET}>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-3 text-[15px]">
               <Link href="/templates" className="group inline-flex items-center gap-3 text-ink-3 hover:text-ink">
@@ -104,7 +95,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
                   alt={templateImageAlt(template)}
                   fill
                   priority
-                  sizes="(min-width: 1024px) 45vw, (min-width: 768px) 45vw, 100vw"
+                  sizes="(min-width: 768px) 45vw, 100vw"
                   className="object-cover object-top"
                 />
               </div>
@@ -115,7 +106,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
               <h1 className="mt-3.5 text-balance font-serif text-[44px] leading-[1.02] tracking-[-0.035em] sm:text-[56px] lg:text-[64px]">
                 {printedName(template)} resume <em className="pr-[0.04em] text-accent">template</em>
               </h1>
-              <p className="mt-3 text-[16px] text-ink-3">Set in {fontsOf(template)[0].family} · Letter or A4</p>
+              <p className="mt-3 text-[16px] text-ink-3">Set in {template.font} · Letter or A4</p>
               {about.text.map((paragraph) => (
                 <p key={paragraph} className="mt-4 max-w-[620px] text-pretty text-[16px] leading-relaxed text-ink-2">
                   {paragraph}
@@ -199,7 +190,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
             <h2 id="other-templates" className="label-mono text-ink-3">
               Other templates
             </h2>
-            {/* Names only: a picture of every other template drew the eye away from this one's. */}
+            {/* Names only: a picture of every other template would draw the eye away from this one's. */}
             <ul className="flex flex-wrap items-baseline gap-y-1 font-serif text-[28px] leading-[1.25] tracking-[-0.03em] sm:text-[36px]">
               {TEMPLATES.filter((other) => other.id !== template.id).map((other, i, others) => (
                 <li key={other.id} className="whitespace-nowrap">

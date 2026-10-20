@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "./test"
-import { countThumbSlides, instantScrolling, pageErrors, seriousAccessibilityProblems, templateChosen, thumbCovers } from "./helpers"
+import { countThumbSlides, instantScrolling, pageErrors, seriousAccessibilityProblems, templateShown, thumbCovers } from "./helpers"
 import { TEMPLATES } from "../src/lib/templates"
 
 // The templates page's search and style chips. Each card's picture leads to its template's page.
@@ -96,7 +96,7 @@ test("the page is the dashboard's sheet: a title on the left, the search and sty
   // Start blank starts a resume in the template every resume starts in.
   await main.getByRole("link", { name: "Start blank" }).click()
   await expect(page).toHaveURL(/\/create\/new\//)
-  await expect(await templateChosen(page)).toContainText("Jake's")
+  await expect(templateShown(page)).toContainText("Jake's")
   expect(errors).toEqual([])
 })
 
@@ -152,8 +152,8 @@ test("pointed at, a card's Use plate whitens gradually, and its Use stays lit wi
   const plate = page.getByRole("link", { name: "Use Jake's", exact: true })
   const use = plate.getByText("Use", { exact: true })
 
-  // Its fade, stopped halfway as it starts. The fill used to snap, and passed in as --search-fill,
-  // Chrome painted the fallback fill during the fade.
+  // Its fade, stopped halfway as it starts. The fill is drawn from --plate-top (home.css), so halfway its top
+  // is part way from the plate's white to the whiter one it fades to.
   await plate.evaluate((el) =>
     el.addEventListener("transitionrun", (event) => {
       if (!(event instanceof TransitionEvent) || event.propertyName !== "--plate-top") return
@@ -182,6 +182,7 @@ test("pointed at, a card's Use plate whitens gradually, and its Use stays lit wi
   await expect(use).toHaveCSS("filter", "brightness(1.06)")
   const box = (await use.boundingBox())!
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  // A fixed wait: proving it doesn't dim.
   await page.waitForTimeout(400)
   await expect(use).toHaveCSS("filter", "brightness(1.06)")
 
@@ -189,7 +190,7 @@ test("pointed at, a card's Use plate whitens gradually, and its Use stays lit wi
   await page.mouse.down()
   await page.mouse.up()
   await expect(page).toHaveURL(/\/create\/new\//)
-  await expect(await templateChosen(page)).toContainText("Jake's")
+  await expect(templateShown(page)).toContainText("Jake's")
 })
 
 test("a card's picture leads to its template's page, whose Use starts a resume with it", async ({ page }) => {
@@ -209,7 +210,7 @@ test("a card's picture leads to its template's page, whose Use starts a resume w
   await expect(page.getByRole("link", { name: "Use Harvard" })).toHaveCount(2)
   await page.getByRole("link", { name: "Use Harvard" }).last().click()
   await expect(page).toHaveURL(/\/create\/new\//)
-  await expect(await templateChosen(page)).toContainText("Harvard")
+  await expect(templateShown(page)).toContainText("Harvard")
   expect(errors).toEqual([])
 })
 
@@ -279,7 +280,7 @@ test.describe("on a touch screen", () => {
 
     await use.tap()
     await expect(page).toHaveURL(/\/create\/new\//)
-    await expect(await templateChosen(page)).toContainText("Compact")
+    await expect(templateShown(page)).toContainText("Compact")
     expect(errors).toEqual([])
   })
 })
