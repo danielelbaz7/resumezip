@@ -326,6 +326,15 @@ describe("a resume another tab saved that can't all be read", () => {
   })
 })
 
+describe("a saved name or type that isn't text", () => {
+  test("is left out, so the list still loads, and the resume is named as one without a name", () => {
+    const storage = memoryStorage(saved({ id: "u", resumeTitle: "" }, { id: "n", resumeTitle: 42, resumeTag: ["Academic"] }))
+    const { resumes } = openTab(storage).getState()
+    expect(resumes.n.resumeTitle).toBe("Untitled resume 2")
+    expect(resumes.n).not.toHaveProperty("resumeTag")
+  })
+})
+
 describe("when storage doesn't work", () => {
   test("blocked, resumes still work in memory and the status says so", () => {
     const tab = openTab(null)

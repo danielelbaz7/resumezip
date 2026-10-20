@@ -281,6 +281,8 @@ function readField(key: string, value: unknown): { value: unknown; complete: boo
     return { value: tune, complete }
   }
   if (key === "sectionsChosen" && value !== true) return null
+  // The dashboard names, numbers and sorts resumes by these as text.
+  if ((key === "resumeTitle" || key === "resumeTag") && typeof value !== "string") return null
   return { value, complete: true }
 }
 

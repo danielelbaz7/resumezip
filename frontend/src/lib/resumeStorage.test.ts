@@ -46,6 +46,7 @@ describe("what the editor can show of a saved resume", () => {
     ["checker settings that aren't an object", "check", ["B1|a|b"]],
     ["a mark that the sections were chosen that isn't true", "sectionsChosen", "yes"],
     ["Fine-tune's settings that aren't an object", "tune", "small"],
+    ["a type that isn't text", "resumeTag", 3],
   ])("leaves out a field in a shape it can't show (%s)", (_, field, value) => {
     const { resume, complete } = readResume(JSON.stringify({ ...ada, [field]: value }))
     expect(complete).toBe(false)
