@@ -144,6 +144,49 @@ test("on npm run dev, asks Gemini first when it has a key, and Azure only when G
   expect(asked().slice(1)).toEqual([GEMINI, AZURE])
 })
 
+// Gemini's quota error, as its OpenAI-compatible endpoint sends it: the quota that ran out comes after a long message.
+const geminiQuota = (quotaId: string) =>
+  Response.json(
+    [
+      {
+        error: {
+          code: 429,
+          message: `You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ${"\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, model: gemini-3.5-flash-lite".repeat(3)}`,
+          status: "RESOURCE_EXHAUSTED",
+          details: [
+            {
+              "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+              violations: [{ quotaMetric: "generativelanguage.googleapis.com/generate_content_free_tier_requests", quotaId }],
+            },
+          ],
+        },
+      },
+    ],
+    { status: 429 },
+  )
+
+test("on npm run dev, passes Gemini over for an hour once its free day is used up, but a minute for a busy minute", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] })
+  vi.stubEnv("NODE_ENV", "development")
+  vi.stubEnv("GEMINI_API_KEY", "gemini-key")
+  fetched
+    .mockResolvedValueOnce(geminiQuota("GenerateRequestsPerMinutePerProjectPerModel-FreeTier"))
+    .mockImplementationOnce(answering())
+    .mockImplementationOnce(answering())
+    .mockResolvedValueOnce(geminiQuota("GenerateRequestsPerDayPerProjectPerModel-FreeTier"))
+    .mockImplementation(answering())
+  expect((await post()).status).toBe(200)
+  vi.setSystemTime(Date.now() + 2 * 60_000)
+  expect((await post()).status).toBe(200)
+  expect(asked()).toEqual([GEMINI, AZURE, GEMINI])
+
+  vi.setSystemTime(Date.now() + 2 * 60_000)
+  expect((await post()).status).toBe(200)
+  vi.setSystemTime(Date.now() + 30 * 60_000)
+  expect((await post()).status).toBe(200)
+  expect(asked().slice(3)).toEqual([GEMINI, AZURE, AZURE])
+})
+
 test("never asks Gemini on the live site, even with a key", async () => {
   vi.stubEnv("NODE_ENV", "production")
   vi.stubEnv("GEMINI_API_KEY", "gemini-key")

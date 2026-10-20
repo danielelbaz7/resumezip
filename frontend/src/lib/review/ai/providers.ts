@@ -171,7 +171,8 @@ async function askChat(provider: ChatProvider, system: string, user: string, { s
   }
   if (!response.ok) {
     // The body says why (quota, bad request); it never holds the key.
-    const detail = (await response.text().catch(() => "")).slice(0, 500)
+    // Long enough for Gemini's quota details, which come after its message.
+    const detail = (await response.text().catch(() => "")).slice(0, 2_000)
     throw new ProviderError(provider.name, response.status, detail)
   }
   const body = (await response.json()) as {
@@ -212,10 +213,12 @@ export const BUDGET_MS = 55_000
 const LEAST_MS = 10_000
 // How long a provider that failed is passed over, so a visitor doesn't wait on one that's busy or down.
 const REST_MS = 60_000
-// How long one whose credit or spend limit has run out is passed over: it
-// won't answer again until the credit is renewed or the limit raised.
+// How long one whose credit, spend limit or free day has run out is passed
+// over: it won't answer again until the credit is renewed, the limit raised or
+// the day over. Gemini says which quota ran out: "PerDay" is the free day, and
+// "PerMinute" only needs the usual minute.
 const SPENT_MS = 60 * 60_000
-const spent = (error: ProviderError) => /credit balance is too low|usage limits|insufficient_quota/i.test(error.message)
+const spent = (error: ProviderError) => /credit balance is too low|usage limits|insufficient_quota|PerDay/i.test(error.message)
 const resting = new Map<Provider["name"], number>()
 
 /**
