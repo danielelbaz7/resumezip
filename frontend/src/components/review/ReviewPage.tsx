@@ -230,7 +230,7 @@ function Result({
     [shown, show],
   )
   const red = state?.step === "done" ? state.notes.filter((note) => note.ink === "red").length : 0
-  const green = state?.step === "done" ? state.notes.length - red : 0
+  const good = state?.step === "done" ? state.notes.length - red : 0
   const withAi = units && state && !(state.step === "problem" && state.reason === "off")
 
   return (
@@ -303,7 +303,7 @@ function Result({
               <p>
                 {red} red {red === 1 ? "flag" : "flags"}
                 <span aria-hidden="true"> · </span>
-                {green} green {green === 1 ? "flag" : "flags"}
+                {good} done well
               </p>
             ) : shown === "ai" ? (
               <p>{state?.step === "asking" ? "Getting notes from AI…" : "No AI notes yet"}</p>

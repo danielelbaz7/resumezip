@@ -3,12 +3,8 @@
    cloud, and the reviewed resume in a frosted frame, scribbled on in pen. */
 @layer components {
   :root {
-    /* The pens the notes are drawn in, besides the accent's blue. */
+    /* The pens the notes are drawn in, besides the accent's blue (done well) and the caution yellow (worth a look). */
     --review-red: #d92d4a;
-    --review-green: #17944a;
-  }
-  .review-good {
-    color: #12773b;
   }
   /* The sky behind it all, a little blurred and washed, brightest in the middle. */
   .review-haze {
@@ -363,22 +359,21 @@
   .review-flag[data-ink="red"]::before {
     color: var(--review-red);
   }
-  .review-flag[data-ink="green"]::before {
-    color: var(--review-green);
+  .review-flag[data-ink="good"]::before {
+    color: var(--color-accent);
   }
 
   /* A pen mark on the page, drawn in one after another. Its paths are one long
      (pathLength), so a dash as long as the path can draw it. */
   .review-scribble {
-    color: var(--color-accent);
     transition: opacity 200ms;
   }
   .review-scribble[data-ink="fix"],
   .review-scribble[data-ink="red"] {
     color: var(--review-red);
   }
-  .review-scribble[data-ink="green"] {
-    color: var(--review-green);
+  .review-scribble[data-ink="good"] {
+    color: var(--color-accent);
   }
   /* The checks' worth-a-look marks, in the Check panel's yellow; a little heavier, as yellow is faint on white. */
   .review-scribble[data-ink="look"] {

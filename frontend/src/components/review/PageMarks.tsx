@@ -4,14 +4,14 @@ import { useEffect, useId, useMemo } from "react"
 import type { Box, Scribble } from "@/lib/review/marks"
 import { bracket, circle, rectangle, strike, underline } from "./rough"
 
-/** The pen a note is drawn in: the checker's must-fix and look, and the AI's red and green flags. */
-export type Ink = "fix" | "look" | "red" | "green"
+/** The pen a note is drawn in: the checker's must-fix and look, and the AI's red flags and what's done well. */
+export type Ink = "fix" | "look" | "red" | "good"
 
 /** A note on the resume, the checker's or the AI's, and where it's drawn. */
 export interface Note {
   key: string
   ink: Ink
-  /** Above the title: "Must fix", "Red flag", "Green flag". */
+  /** Above the title: "Must fix", "Red flag", "Done well". */
   label: string | null
   title: string
   body: string | null
@@ -88,7 +88,7 @@ const seedOf = (key: string) => [...key].reduce((hash, char) => (hash * 31 + cha
 
 const percent = (part: number, whole: number) => `${(part / whole) * 100}%`
 
-export const LABEL_INK: Record<Ink, string> = { fix: "text-alert", look: "text-accent", red: "text-alert", green: "review-good" }
+export const LABEL_INK: Record<Ink, string> = { fix: "text-alert", look: "text-accent", red: "text-alert", good: "text-accent" }
 
 /** The note for the scribble that's pointed at: what's wrong or what works, and what to write instead. */
 function Tip({ note, area, size, describe }: { note: Note; area: Box; size: PageSize; describe: string }) {

@@ -85,8 +85,8 @@ function Flags({
 }
 
 /**
- * The AI's notes, beside the page: its red and green flags, each pointing at
- * its mark. They're asked for as soon as the resume is printed, and the page
+ * The AI's notes, beside the page: its red flags and what's done well, each
+ * pointing at its mark. They're asked for as soon as the resume is printed, and the page
  * opens with them; "asking" shows only when they were long coming, or asked again.
  */
 export default function AiNotes({
@@ -104,11 +104,11 @@ export default function AiNotes({
 }) {
   if (state.step === "done") {
     const red = state.notes.filter((note) => note.ink === "red")
-    const green = state.notes.filter((note) => note.ink === "green")
+    const good = state.notes.filter((note) => note.ink === "good")
     return (
       <div className="review-ai flex flex-col gap-3">
         <Flags title="Red flags" empty="None found. Nice." notes={red} open={open} onOpen={onOpen} onPick={onPick} />
-        <Flags title="Green flags" empty="None stood out." notes={green} open={open} onOpen={onOpen} onPick={onPick} />
+        <Flags title="Done well" empty="None stood out." notes={good} open={open} onOpen={onOpen} onPick={onPick} />
       </div>
     )
   }
