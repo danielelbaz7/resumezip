@@ -20,6 +20,7 @@ import { kindOf, OpenFileError, openResumeFile, until } from "@/lib/import/open"
 import { toResumeContent } from "@/lib/import/parse"
 import type { Resume, ResumeContent } from "@/lib/resume"
 import { imported } from "@/lib/resumeStore"
+import { templateById } from "@/lib/templates"
 import { compileResume } from "@/lib/typst/compile"
 
 /** What's done, in the order the page lists them: the file opened, the PDF read, the text checked. */
@@ -40,6 +41,8 @@ export interface Review {
   reading: PdfReading | null
   /** Whether the grammar checker ran; when it couldn't load, spelling doesn't count. */
   spelled: boolean
+  /** The template a Word file from elsewhere was printed in to be reviewed; null when the file's own pages, or its own template, were. */
+  setIn: string | null
 }
 
 /** Whether `file` is reviewed as it is, its own pages read and marked: a PDF is. */
@@ -70,6 +73,7 @@ export async function reviewFile(
   const content = opened.kind === "parsed" ? toResumeContent(opened.parsed) : opened.resume
   const resume = imported(content, "personal")
   const asIs = reviewedAsIs(file)
+  const setIn = !asIs && opened.kind === "parsed" ? templateById(resume.selectedTemplate).name : null
   const view = viewOf(resume)
   if (!hasEnoughToCheck(view)) throw new OpenFileError("There’s no name and no section in this file to check. Is it a resume?")
   onDone("open")
@@ -107,5 +111,15 @@ export async function reviewFile(
   const report = runChecks(resume, { pdf: reading ?? undefined, grammar })
   const score = scoreOf(report)
   // hasEnoughToCheck held, so there's a total.
-  return { title: opened.title, content, resume, report, score: { ...score, total: score.total ?? 0 }, pdf, reading, spelled: !!grammar }
+  return {
+    title: opened.title,
+    content,
+    resume,
+    report,
+    score: { ...score, total: score.total ?? 0 },
+    pdf,
+    reading,
+    spelled: !!grammar,
+    setIn,
+  }
 }

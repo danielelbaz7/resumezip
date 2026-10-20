@@ -1,5 +1,5 @@
 import { expect, test } from "./test"
-import { textPdf } from "../src/lib/import/testFiles"
+import { textPdf, wordFile } from "../src/lib/import/testFiles"
 import { instantScrolling, pageErrors, seriousAccessibilityProblems } from "./helpers"
 
 // A resume from elsewhere: plain text, with a bullet that's a duty rather than a contribution.
@@ -45,7 +45,7 @@ test("reviews a resume in the browser, scribbles its notes on the page, and open
   expect(sent.filter((request) => !request.endsWith("/api/review"))).toEqual([])
 
   // Fix it in the editor: the resume is added, and opens in Check. Printed in its template there, a PDF
-  // from elsewhere can score differently; a file the review prints scores the same.
+  // from elsewhere can score differently; a file the review prints scores the same (the Word file's test).
   await page.getByRole("button", { name: "Fix it in the editor" }).click()
   await expect(page).toHaveURL(/\/create\/new\//)
   await expect(page.getByRole("tablist", { name: "Write, check or style" }).getByRole("tab", { name: /^Check/ })).toHaveAttribute(
@@ -140,6 +140,26 @@ test("a PDF from elsewhere is reviewed as it is: its own pages, not a reprint of
   // It came on three pages; its template would print it on two.
   await expect(page.getByRole("img", { name: "Page 3 of your resume, with the notes marked" })).toBeVisible()
   await expect(page.getByText(/so this is how it prints in/)).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+test("a Word file, which has no pages of its own, is printed in Jake's to be reviewed, says so, and scores the same in Check", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  await page.goto("/review")
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "Mara Lin.docx",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    buffer: wordFile(RESUME),
+  })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByText("A Word file has no pages of its own, so this is how it prints in Jake's.")).toBeVisible()
+  await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
+  const reviewed = (await page.getByText(/^\d+\/100$/).innerText()).replace("/100", "")
+  await page.getByRole("button", { name: "Fix it in the editor" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  await expect(page.getByRole("region", { name: "ATS score" }).getByText(/^\d+$/)).toHaveText(reviewed)
   expect(errors).toEqual([])
 })
 

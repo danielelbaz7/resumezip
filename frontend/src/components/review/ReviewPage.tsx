@@ -255,6 +255,7 @@ function Result({
             )}
             {!reading && " The printed copy couldn’t be read back, so how hiring software reads it isn’t scored."}
             {!review.spelled && " Spelling wasn’t checked: the spelling checker couldn’t load."}
+            {review.setIn && ` A Word file has no pages of its own, so this is how it prints in ${review.setIn}.`}
           </p>
           {withAi && (
             <AiNotes
