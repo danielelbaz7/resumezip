@@ -114,6 +114,34 @@
     /* Hollow, but nothing on the line shows through it: it's filled with the footer's color. */
     background: var(--zipper-bg);
   }
+  /* What the footer's wordmark link is hovered and clicked by: the shape of
+     its letters, a band at x-height with the i above it and the p's tail below,
+     a hair outside the ink. The link's box is a rectangle well past them (the
+     font's ascent spills above its tight line, and the room for the p's tail is
+     padding), so the link itself takes no pointer. Measured from Outfit at the
+     wordmark's weight and tracking, in em from the start of its line, whose
+     foot (0.74em) is the baseline; a clip-path, as it clips the hit area with
+     the paint, and this paints nothing. */
+  .footer-wordmark-hit {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4.1em;
+    height: 1em;
+    pointer-events: auto;
+    clip-path: polygon(
+      0.04em 0.23em,
+      3.37em 0.23em,
+      3.37em 0.02em,
+      3.54em 0.02em,
+      3.54em 0.23em,
+      4.08em 0.23em,
+      4.08em 0.96em,
+      3.56em 0.96em,
+      3.56em 0.77em,
+      0.04em 0.77em
+    );
+  }
 }
 
 /* Fonts are loaded by next/font in app/layout.tsx. Every page, the home page
