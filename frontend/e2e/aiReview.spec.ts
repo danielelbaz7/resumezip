@@ -3,6 +3,13 @@ import { textPdf } from "../src/lib/import/testFiles"
 import { openFile, pageErrors, seriousAccessibilityProblems } from "./helpers"
 import { FROM_ELSEWHERE } from "./resumes"
 
+declare global {
+  interface Window {
+    /** How many times the page has measured an SVG element's box (getBBox), counted by a test. */
+    measured?: number
+  }
+}
+
 // The AI's notes, with /api/review answered here: tests never ask a real AI.
 
 const pdf = { name: "Mara Lin.pdf", mimeType: "application/pdf", buffer: textPdf([FROM_ELSEWHERE]) }
@@ -296,6 +303,33 @@ test("a page that never finishes drawing doesn't hold the result: after the wait
   await page.clock.fastForward(26_000)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
   await expect(page.getByRole("listitem").filter({ hasText: "Red flag: Says what you did, not what changed" })).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test("the verdict's cloud is measured as it's drawn, not again each time the page changes", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.addInitScript(() => {
+    const getBBox = SVGGraphicsElement.prototype.getBBox
+    window.measured = 0
+    SVGGraphicsElement.prototype.getBBox = function (this: SVGGraphicsElement, options?: SVGBoundingBoxOptions) {
+      window.measured!++
+      return getBBox.call(this, options)
+    }
+  })
+  await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
+  await reviewed(page)
+  await page.evaluate(() => document.fonts.ready)
+  const measured = await page.evaluate(() => window.measured!)
+  expect(measured).toBeGreaterThan(0)
+  // Pointing at a flag in the list opens its mark on the page, which renders the page again.
+  const flag = page.getByRole("list", { name: "Red flags" }).getByRole("button", { name: "Says what you did, not what changed" })
+  for (let time = 0; time < 3; time++) {
+    await flag.hover()
+    await expect(flag).toHaveAttribute("data-open", "")
+    await page.mouse.move(0, 0)
+    await expect(flag).not.toHaveAttribute("data-open")
+  }
+  expect(await page.evaluate(() => window.measured)).toBe(measured)
   expect(errors).toEqual([])
 })
 

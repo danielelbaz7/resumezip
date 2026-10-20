@@ -28,6 +28,8 @@ export default function CloudWord({ lines, className }: { lines: readonly string
   // Where the words are, which the picture is framed round.
   const [box, setBox] = useState<Measured | null>(null)
   const height = lines.length * SIZE * LEADING + 200
+  // The same words can come in a new list on every render, and only new words need measuring again.
+  const words = lines.join("\n")
 
   // The word's size is only known once its font has loaded, so it's measured again then.
   useLayoutEffect(() => {
@@ -42,7 +44,7 @@ export default function CloudWord({ lines, className }: { lines: readonly string
     return () => {
       live = false
     }
-  }, [lines])
+  }, [words])
 
   // Each line on its own baseline.
   const text = (extra: React.SVGProps<SVGTextElement> = {}) => (
