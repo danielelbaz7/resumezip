@@ -72,7 +72,7 @@ export default function OpenSource() {
                 GitHub
               </a>
               , or{" "}
-              <Link href="/#contact" className={TEXT_LINK}>
+              <Link href="/contact" className={TEXT_LINK}>
                 write to us
               </Link>
               .

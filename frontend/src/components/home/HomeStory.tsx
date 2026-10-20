@@ -3,10 +3,10 @@
 import type React from "react"
 import { Fragment, type RefObject, useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ArrowUpRight } from "lucide-react"
 import LiquidLens from "@/components/LiquidLens"
 import { INK_GLASS_PILL } from "@/components/pills"
-import EmailContact from "@/components/site/EmailContact"
 import { StartWritingLink } from "@/components/site/StartWriting"
 import FloatingStart from "./FloatingStart"
 import { BEATS, CLICK, STORY_LENGTH, clamp, glide, inOut, lerp, out3, smooth, span, storyAt } from "./motion"
@@ -41,6 +41,14 @@ const TIP = [5 / 24, 3 / 24] as const
  * a note and an arrow, its menus clicked open to be marked, and then the way in.
  */
 export default function HomeStory({ hero }: { hero: React.ReactNode }) {
+  const router = useRouter()
+  // The address to write to was at the story's end, and links were made to it there (/#contact, and
+  // /about#contact, which /about's redirect keeps): they go to the contact page. Replaced in the app,
+  // not by location.replace(): a browser that kept /contact's old permanent redirect to /#contact
+  // would go round in a loop.
+  useEffect(() => {
+    if (window.location.hash === "#contact") router.replace("/contact")
+  }, [router])
   return useLessMotion() ? <StillStory hero={hero} /> : <MovingStory hero={hero} />
 }
 
@@ -147,22 +155,20 @@ interface WayInProps {
   ref?: RefObject<HTMLElement | null>
   copyRef?: RefObject<HTMLDivElement | null>
   onFocus?: () => void
-  /** Where /#contact lands, when it's here rather than at the story's end. */
-  contactId?: string
 }
 
-/** The way in, at the end: over the editor, in the site's frosted glass, with the address to write to. */
-function WayIn({ ref, copyRef, onFocus, contactId }: WayInProps) {
+/** The way in, at the end: over the editor, in the site's frosted glass. */
+function WayIn({ ref, copyRef, onFocus }: WayInProps) {
   return (
     <section ref={ref} aria-labelledby="way-in" className="home-cta glass glass-float" onFocus={onFocus}>
       <span aria-hidden="true" className="home-cta-shadow" />
       <LiquidLens bevel={26} strength={1.25} />
-      <div ref={copyRef} className="home-cta-copy">
+      <div ref={copyRef} className="home-cta-copy text-center">
         <p className="label-mono text-ink-2">Your turn</p>
         <h2 id="way-in" className="mt-3 text-balance font-serif text-[clamp(36px,3.5vw,50px)] leading-[1.02] tracking-[-0.035em]">
-          Your resume, on <em className="text-accent">your own computer.</em>
+          Ready when <em className="text-accent">you are.</em>
         </h2>
-        <p className="mt-3.5 text-pretty text-[15.5px] leading-normal text-ink-2 sm:text-[17px]">
+        <p className="mt-3.5 text-balance text-[15.5px] leading-normal text-ink-2 sm:text-[17px]">
           Every template is free, and{" "}
           <Link href="/private-resume-builder" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
             your resume stays in your browser
@@ -172,11 +178,6 @@ function WayIn({ ref, copyRef, onFocus, contactId }: WayInProps) {
         <StartWritingLink className={`${INK_GLASS_PILL} mt-6`} preloadOnHover>
           Start writing <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </StartWritingLink>
-        <div id={contactId} className="mt-6 border-t border-ink/10 pt-5">
-          <h3 className="sr-only">Get in touch</h3>
-          <p className="mb-3 text-sm text-ink-2">Found a bug or have an idea? I read every message.</p>
-          <EmailContact />
-        </div>
       </div>
     </section>
   )
@@ -405,12 +406,6 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
     }
 
     measure()
-    // /#contact (the footer's Contact, and the old /about#contact and /contact) lands on the
-    // story's end at once, where the address is, rather than playing the whole story to get there.
-    if (window.location.hash === "#contact") {
-      const box = el.story.getBoundingClientRect()
-      window.scrollTo({ top: window.scrollY + box.top + box.height - window.innerHeight, behavior: "instant" })
-    }
     snap()
     // The way in is kept on screen by its height, which changes when its text reflows: once its
     // fonts arrive after it was first measured, as well as with its width.
@@ -442,8 +437,6 @@ function MovingStory({ hero }: { hero: React.ReactNode }) {
 
   return (
     <div ref={story} className="home-story" style={{ height: `calc(${STORY_LENGTH}vh + 100svh)` }}>
-      {/* Where /#contact lands: the story's last screen, where the way in shows the address. */}
-      <div id="contact" aria-hidden="true" className="home-story-end" />
       <div ref={stage} className="home-stage">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img ref={meadow} src="/home/meadow.webp" alt="" className="home-meadow" />
@@ -561,7 +554,7 @@ function StillStory({ hero }: { hero: React.ReactNode }) {
         ))}
       </div>
       <Said />
-      <WayIn contactId="contact" />
+      <WayIn />
       <div aria-hidden="true" className="home-grass">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/home/grass.webp" alt="" />

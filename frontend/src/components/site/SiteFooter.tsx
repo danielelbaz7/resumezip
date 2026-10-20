@@ -3,7 +3,7 @@ import { PROMISES } from "@/lib/promises"
 
 const LINKS = [
   { href: "/terms", label: "Terms & privacy" },
-  { href: "/#contact", label: "Contact" },
+  { href: "/contact", label: "Contact" },
 ]
 
 /**

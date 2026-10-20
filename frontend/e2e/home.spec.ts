@@ -12,7 +12,7 @@ const PHONE = { width: 390, height: 844 }
 
 /** Each handwritten note, by its first line. */
 const notes = (page: Page) => MARKS.map((mark) => page.getByText(mark.note[0], { exact: true }))
-const wayIn = (page: Page) => page.getByRole("region", { name: "Your resume, on your own computer." })
+const wayIn = (page: Page) => page.getByRole("region", { name: "Ready when you are." })
 const floatingStart = (page: Page) => page.getByRole("link", { name: "Start writing. It’s free." })
 
 /** How much of it shows: the story fades its parts rather than hiding them. */
@@ -200,7 +200,7 @@ test("on a wide screen each note is over what it's about, left to right across t
   for (const { y } of notes) expect(Math.abs(y - notes[0].y)).toBeLessThan(12)
 })
 
-test("the story ends on the way in, with Start writing and the address to write to", async ({ page }) => {
+test("the story ends on the way in, its words and Start writing in its middle, and not the address to write to", async ({ page }) => {
   const errors = pageErrors(page)
   await page.goto("/")
   await page.mouse.move(400, 400)
@@ -209,23 +209,36 @@ test("the story ends on the way in, with Start writing and the address to write 
   // It only takes a click once it has arrived.
   await start.click({ trial: true })
   await expect(start).toHaveAttribute("href", "/create/dashboard")
-  await expect(wayIn(page).getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toBeInViewport()
+  // Its words and the button, each in the middle of the way in: where they're drawn, which a
+  // left-aligned line's own box, as wide as the way in, wouldn't show.
+  const drawnMiddle = (target: Locator) =>
+    target.evaluate((element) => {
+      const range = document.createRange()
+      range.selectNodeContents(element)
+      const box = range.getBoundingClientRect()
+      return box.x + box.width / 2
+    })
+  const box = (await wayIn(page).boundingBox())!
+  for (const part of [
+    wayIn(page).getByText("Your turn", { exact: true }),
+    wayIn(page).getByRole("heading", { name: "Ready when you are." }),
+    wayIn(page).getByText("Every template is free"),
+    start,
+  ]) {
+    await expect.poll(async () => Math.abs((await drawnMiddle(part)) - (box.x + box.width / 2))).toBeLessThan(1)
+  }
+  // That's on the contact page, which the footer links to.
+  await expect(page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
-// The footer's Contact, and the old About page and its contact address, land here: the story's last
-// screen, where the way in has the address to write to.
+// The address to write to was at the story's end, and links were made to it there: the footer's
+// Contact, and the old About page's contact address. They go to the contact page now.
 for (const from of ["/#contact", "/about#contact"]) {
-  test(`${from} lands on the story's last screen, with the address and Start writing`, async ({ page }) => {
+  test(`${from} goes to the contact page`, async ({ page }) => {
     await page.goto(from)
-    await expect(page).toHaveURL(/\/#contact$/)
-    // The story is all the main part holds, so on its last screen their foot is the window's. Checked
-    // before the click, which would scroll to Start writing itself if it had to.
-    await expect
-      .poll(() => page.getByRole("main").evaluate((main) => Math.abs(main.getBoundingClientRect().bottom - window.innerHeight)))
-      .toBeLessThan(1.5)
-    await wayIn(page).getByRole("link", { name: "Start writing" }).click({ trial: true })
-    await expect(page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toBeInViewport()
+    await expect(page).toHaveURL(/\/contact$/)
+    await expect(page.getByRole("main").getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toBeVisible()
   })
 }
 
@@ -257,13 +270,13 @@ test("Start writing stays on screen when the way in's words reflow taller", asyn
   await expect.poll(async () => (await start.boundingBox())!.y + (await start.boundingBox())!.height).toBeLessThanOrEqual(620)
 
   // Half as big again as it's set at this width: taller, but still shorter than the window.
-  await page.getByRole("heading", { name: "Your resume, on your own computer." }).evaluate((heading) => (heading.style.fontSize = "64px"))
+  await page.getByRole("heading", { name: "Ready when you are." }).evaluate((heading) => (heading.style.fontSize = "64px"))
   await expect.poll(async () => (await start.boundingBox())!.y + (await start.boundingBox())!.height).toBeLessThanOrEqual(620)
 })
 
 // The stage is 100svh, the height a phone shows with its toolbar out. Scrolled down, the toolbar
 // tucks away and the window is taller than the stage, and the way in has to stay on the stage then.
-test("on a phone with its toolbar tucked away, Start writing and the address stay on the stage", async ({ page }) => {
+test("on a phone with its toolbar tucked away, Start writing stays on the stage", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   // The window as a phone's is then: 120px taller than the stage, which is all that shows.
   await page.addInitScript(() => {
@@ -274,20 +287,17 @@ test("on a phone with its toolbar tucked away, Start writing and the address sta
   await page.goto("/")
   await page.mouse.move(200, 300)
   await playStoryTo(page, STORY_LENGTH)
-  // What's under the middle of each is it: the stage clips what's past its foot.
-  for (const link of [
-    wayIn(page).getByRole("link", { name: "Start writing" }),
-    wayIn(page).getByRole("link", { name: "hello@tryresumezip.com", exact: true }),
-  ]) {
-    await expect
-      .poll(() =>
-        link.evaluate((link) => {
+  // What's under its middle is it: the stage clips what's past its foot.
+  await expect
+    .poll(() =>
+      wayIn(page)
+        .getByRole("link", { name: "Start writing" })
+        .evaluate((link) => {
           const box = link.getBoundingClientRect()
           return link.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2))
         }),
-      )
-      .toBe(true)
-  }
+    )
+    .toBe(true)
 })
 
 // The page ends with the story, then the footer: nothing slides over the story's last screen.

@@ -210,7 +210,7 @@ export default function TermsAndPrivacy() {
             <h2 className={HEADING}>Questions?</h2>
             <div className="md:col-span-2">
               <p className="max-w-2xl text-[17px] leading-relaxed text-ink-2">Ask us anything about these terms or your privacy.</p>
-              <Link href="/#contact" className={`${INK_PILL} mt-6`}>
+              <Link href="/contact" className={`${INK_PILL} mt-6`}>
                 Contact us
               </Link>
             </div>

@@ -40,16 +40,6 @@
     }
   }
 
-  /* Where /#contact lands: a screen above the story's foot, so scrolled to the top of the screen
-     it shows the story's last screen, the way in with the address on it. */
-  .home-story-end {
-    position: absolute;
-    left: 0;
-    top: calc(100% - 100svh);
-    height: 1px;
-    width: 1px;
-  }
-
   /* The stage: pinned to the screen for the story's length, layers stacked in order. Nothing
      sets opacity or filter on an ancestor of the glass, or the glass loses what's behind it. */
   .home-stage {
