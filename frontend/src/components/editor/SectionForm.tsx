@@ -49,8 +49,10 @@ const LIT_MS = 900
 // The id of those animations, to tell them from the CSS transitions on the same elements.
 const MOVING = "moving"
 
-// An entry's card lit up: lifted off the sheet a little, on a deeper shadow.
-const LIT: Keyframe = { boxShadow: "0 18px 36px -16px rgb(17 19 24 / 0.4)" }
+// An entry's card lit up: lifted off the sheet, as when it's picked up (--shadow-card-lifted in globals.css).
+const LIT: Keyframe = {
+  boxShadow: "0 2px 4px rgb(17 19 24 / 0.06), 0 8px 18px -4px rgb(17 19 24 / 0.08), 0 24px 48px -10px rgb(17 19 24 / 0.18)",
+}
 
 // The fields in an open card: closer together than the profile's, as there are several cards.
 const CARD_GRID = "grid grid-cols-1 gap-x-7 gap-y-5 @sm:grid-cols-2"
@@ -103,9 +105,8 @@ function slide(entries: Map<number, HTMLElement>, list: HTMLElement | null, move
     }
     const card = id === moved ? element.querySelector<HTMLElement>("[data-card]") : null
     if (card) {
-      // It settles back to the shadow it has at rest, an open card's or none.
-      const resting = getComputedStyle(card).boxShadow
-      const unlit: Keyframe = { boxShadow: resting === "none" ? "0 18px 36px -16px rgb(17 19 24 / 0)" : resting }
+      // It settles back to the shadow it has at rest, an open card's or a folded one's.
+      const unlit: Keyframe = { boxShadow: getComputedStyle(card).boxShadow }
       card.animate([LIT, LIT, unlit], { id: MOVING, duration: (sliding ? MOVE_MS : 0) + LIT_MS, easing: "ease-in" })
     }
   }
@@ -471,19 +472,22 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
           entry.id === removingId ? "grid-rows-[0fr] pb-0 opacity-0" : "grid-rows-[1fr]"
         }`}
       >
-        {/* Room round it, so its ring and focus aren't clipped while it slides. */}
-        <section className="-m-1.5 min-h-0 overflow-hidden p-1.5">
+        {/* Clipped only while it folds away, as clipping it always would cut its shadow off. The
+            room round it keeps its ring and focus in view then. */}
+        <section className={`-m-1.5 min-h-0 p-1.5 ${entry.id === removingId ? "overflow-hidden" : ""}`}>
           {/* Asked whether to delete it, its edge turns red, its name stays, and its fields fade,
-              so it's clear what would go. Open, its edge darkens and it stands off the sheet a little. */}
+              so it's clear what would go. Open, it stands off the sheet; picked up, further. */}
           <div
             data-card
             className={`rounded-[18px] border bg-sheet transition-[border-color,box-shadow] duration-300 motion-reduce:transition-none ${
               confirming
                 ? "border-alert shadow-[0_0_0_1px_var(--color-alert)]"
-                : isOpen
-                  ? "border-[#dcdfe5] shadow-[0_12px_30px_-18px_rgb(17_19_24/0.3)]"
-                  : "border-hairline hover:border-[#dcdfe5]"
-            } ${dragging ? "shadow-[0_18px_36px_-14px_rgb(17_19_24/0.35)]" : ""}`}
+                : dragging
+                  ? "border-[#e3e5ea] shadow-card-lifted"
+                  : isOpen
+                    ? "border-[#e3e5ea] shadow-card-open"
+                    : "border-hairline shadow-card-rest hover:border-[#dcdfe5]"
+            }`}
           >
             <div className={`flex items-center gap-1 px-2 ${isOpen ? "pb-2.5 pt-3.5" : "py-[11px]"}`}>
               <span
