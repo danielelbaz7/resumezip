@@ -270,6 +270,28 @@ test("when the AI is long coming, the result opens without its notes, and a view
   expect(errors).toEqual([])
 })
 
+test("a page that never finishes drawing doesn't hold the result: after the wait it opens with the notes listed", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.clock.install()
+  // A browser whose pictures never come back.
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.toBlob = () => {}
+  })
+  let ask = () => {}
+  const asked = new Promise<void>((resolve) => (ask = resolve))
+  await page.route("**/api/review", async (route) => {
+    ask()
+    await route.fulfill({ json: { notes: NOTES } })
+  })
+  await page.goto("/review")
+  await page.locator('input[type="file"]').setInputFiles(pdf)
+  await asked
+  await page.clock.fastForward(26_000)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("listitem").filter({ hasText: "Red flag: Says what you did, not what changed" })).toBeVisible()
+  expect(errors).toEqual([])
+})
+
 test("the drop zone's note that AI notes are paused goes when the pause is over", async ({ page }) => {
   await page.clock.install()
   await page.goto("/review")

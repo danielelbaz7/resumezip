@@ -394,16 +394,18 @@ export default function ReviewPage() {
           })
         },
       )
-      // The result waits for the AI's notes, though not for ever.
-      if (asked.answer) await Promise.race([asked.answer, wait(asked.at + AI_PATIENCE_MS - Date.now())])
-      const page = await first
+      // The result waits for the AI's notes, and for page 1 to fly in from, though not for ever:
+      // past the wait, a page still being drawn joins the result once it is.
+      const until = () => wait(asked.at + AI_PATIENCE_MS - Date.now())
+      if (asked.answer) await Promise.race([asked.answer, until()])
+      const page = await Promise.race([first, until().then(() => null)])
       if (!live()) return
       // The review stays the running one until it's left, which stops its drawing if that's still going.
       const box = page && reading.current?.getBoundingClientRect()
       setState({
         step: "done",
         review: result,
-        pages: page ? [page] : await drawing,
+        pages: page ? [page] : null,
         from: box ? { left: box.left, top: box.top, width: box.width, radius: SHEET_RADIUS } : null,
       })
       window.scrollTo({ top: 0 })
