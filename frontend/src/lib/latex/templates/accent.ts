@@ -186,11 +186,12 @@ ${ROW}
 
 /**
  * A heading's first three letters and the rest, each escaped. Split before
- * escaping, as the escapes are several characters long; composed first, so
- * an accent stays with its letter.
+ * escaping, as the escapes are several characters long. A letter is what the
+ * PDF counts as one (clusters() in accent.typ): with its accents, or a
+ * conjunct or an emoji as a whole.
  */
 function splitHeading(heading: string): [string, string] {
-  const letters = [...heading.normalize("NFC")]
+  const letters = Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(heading), ({ segment }) => segment)
   return [latex(letters.slice(0, 3).join("")), latex(letters.slice(3).join(""))]
 }
 
