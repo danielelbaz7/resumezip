@@ -285,9 +285,12 @@ function Editor({ id }: { id: string }) {
   // can be clicked while a field has focus.
   useEffect(() => {
     const touch = window.matchMedia("(pointer: coarse)")
-    // A box to tick or a choice to pick doesn't bring the keyboard up.
+    // A box to tick or a choice to pick doesn't bring the keyboard up. Bullets and the summary are typed in a
+    // contenteditable box (StyledBox), which does.
     const isField = (target: EventTarget | null) =>
-      target instanceof HTMLTextAreaElement || (target instanceof HTMLInputElement && target.type !== "checkbox" && target.type !== "radio")
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof HTMLInputElement && target.type !== "checkbox" && target.type !== "radio") ||
+      (target instanceof HTMLElement && target.isContentEditable)
     const onFocusIn = (event: FocusEvent) => setTyping(touch.matches && isField(event.target))
     const onFocusOut = (event: FocusEvent) => {
       if (isField(event.target) && !isField(event.relatedTarget)) setTyping(false)
