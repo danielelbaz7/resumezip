@@ -5,19 +5,14 @@
 
 import { describe, expect, test } from "vitest"
 import { cleanResume } from "@/lib/resumeFile"
-import { toTemplateData } from "@/lib/typst/resumeData"
-import { differences, readBack, render, samples } from "./testRender"
+import { differences, printedData, readBack, render, samples } from "./testRender"
 
 const sample = samples.find((resume) => resume.selectedTemplate === "margin")
 
-// What a resume prints, as roundtrip.test.ts compares it: GPAs without spaces.
-// Without the sections' order and headings, which aren't read back for a
-// section under a heading the importer doesn't know.
-function printed(resume: Record<string, unknown>) {
-  const data = toTemplateData(resume)
-  for (const school of data.education) school.gpa = school.gpa.replace(/\s+/g, "")
-  return { ...data, order: [], headings: {} }
-}
+// What a resume prints, as roundtrip.test.ts compares it, without the
+// sections' order and headings, which aren't read back for a section under a
+// heading the importer doesn't know.
+const printed = (resume: Record<string, unknown>) => ({ ...printedData(resume), order: [], headings: {} })
 
 async function read(resume: Record<string, unknown>) {
   const { parsed, resume: got } = await readBack(await render(resume))

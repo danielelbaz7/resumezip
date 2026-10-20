@@ -8,9 +8,10 @@ import { CompileFormatEnum, createTypstCompiler, type TypstCompiler } from "@myr
 import { loadFonts } from "@myriaddreamin/typst.ts/options.init"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { PDFDocumentProxy } from "pdfjs-dist"
+import type { TextItem } from "pdfjs-dist/types/src/display/api"
 import { firstColumnOf, templateById } from "@/lib/templates"
 import { printedSections, toTemplateData, type TemplateData } from "@/lib/typst/resumeData"
-import { linesFromPages, readPdf, type PageSize } from "./lines"
+import { linesFromPages, readPdf, type PageSize, type PdfPage } from "./lines"
 import { parseResume, toResumeContent } from "./parse"
 
 const TYPST = path.resolve("src/lib/typst")
@@ -73,6 +74,16 @@ export function printedHeadings(resume: Record<string, unknown>, data: TemplateD
   ].map(({ heading }) => heading)
 }
 
+/**
+ * What a resume prints, minus differences that print the same or are
+ * deliberate: the parser writes GPAs without spaces ("3.9/4.0").
+ */
+export function printedData(resume: Record<string, unknown>): TemplateData {
+  const data = toTemplateData(resume)
+  for (const school of data.education) school.gpa = school.gpa.replace(/\s+/g, "")
+  return data
+}
+
 /** Paths ("work[0].role") where two values differ. */
 export function differences(want: unknown, got: unknown, at = ""): string[] {
   if (Array.isArray(want) || Array.isArray(got)) {
@@ -92,15 +103,43 @@ export function differences(want: unknown, got: unknown, at = ""): string[] {
   return want === got ? [] : [at]
 }
 
-/** A PDF read back: its pages, what the resume reader found, and that as a resume. */
-export async function readBack(pdf: Uint8Array) {
+/** `pdf` opened with pdf.js as "Open a file" opens it, for `read`, and closed after. */
+async function withPdf<T>(pdf: Uint8Array, read: (doc: PDFDocumentProxy) => Promise<T>): Promise<T> {
   const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
   try {
-    const pdfPages = await readPdf(doc)
-    const parsed = parseResume(linesFromPages(pdfPages))
-    const pages: PageSize[] = pdfPages.map(({ width, height }) => ({ width, height }))
-    return { parsed, pages, resume: toResumeContent(parsed) }
+    return await read(doc)
   } finally {
     await doc.destroy()
   }
 }
+
+/** A PDF's pages, as "Open a file" reads them before putting their text in lines. */
+export const pagesOf = (pdf: Uint8Array): Promise<PdfPage[]> => withPdf(pdf, (doc) => readPdf(doc))
+
+/** A PDF read back: its pages, what the resume reader found, and that as a resume. */
+export async function readBack(pdf: Uint8Array) {
+  const pdfPages = await pagesOf(pdf)
+  const parsed = parseResume(linesFromPages(pdfPages))
+  const pages: PageSize[] = pdfPages.map(({ width, height }) => ({ width, height }))
+  return { parsed, pages, resume: toResumeContent(parsed) }
+}
+
+/** Each piece of text a PDF prints, with the font pdf.js says it's drawn in, without the subset's tag ("Lato-Bold"). */
+export function textWithFonts(pdf: Uint8Array): Promise<{ text: string; font: string }[]> {
+  return withPdf(pdf, async (doc) => {
+    const pieces: { text: string; font: string }[] = []
+    for (let number = 1; number <= doc.numPages; number++) {
+      const page = await doc.getPage(number)
+      // The fonts' names are only there once the page's fonts are loaded.
+      await page.getOperatorList()
+      for (const item of (await page.getTextContent()).items as TextItem[]) {
+        const name = String((page.commonObjs.get(item.fontName) as { name?: string }).name)
+        pieces.push({ text: item.str, font: name.replace(/^[A-Z]{6}\+/, "") })
+      }
+    }
+    return pieces
+  })
+}
+
+/** The letters in `text`, each once. */
+export const lettersOf = (text: string) => [...new Set(text.match(/\p{L}/gu))]

@@ -1,7 +1,6 @@
-import { readdirSync, readFileSync } from "node:fs"
-import path from "node:path"
 import { afterEach, describe, expect, test, vi } from "vitest"
 import { SECTION_NAMES } from "@/components/editor/sections"
+import { samples } from "@/lib/import/testRender"
 import type { Resume } from "@/lib/resume"
 import { asSaved } from "@/lib/testResume"
 import {
@@ -19,9 +18,6 @@ import { textsOf } from "./resume"
 import { RULES } from "./rules"
 import { CATEGORIES, LEVELS, type CategoryId, type Level } from "./settings"
 import { CHECK_FIELD, dismiss, readCheckState } from "./state"
-
-const SAMPLES = path.resolve("src/lib/typst/preview-samples")
-const samples = readdirSync(SAMPLES).map((file) => JSON.parse(readFileSync(path.join(SAMPLES, file), "utf8")))
 
 const ada = {
   resumeTag: "professional",

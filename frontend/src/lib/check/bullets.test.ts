@@ -1,6 +1,5 @@
-import { readdirSync, readFileSync } from "node:fs"
-import path from "node:path"
 import { describe, expect, test } from "vitest"
+import { samples } from "@/lib/import/testRender"
 import type { Resume } from "@/lib/resume"
 import { pronounIn } from "./bullets"
 import { runChecks } from "./engine"
@@ -467,10 +466,7 @@ describe("B9 repeated bullets", () => {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, " ")
         .trim()
-    const folder = path.resolve("src/lib/typst/preview-samples")
-    const samples = readdirSync(folder).flatMap((file) =>
-      bulletsIn(viewOf(JSON.parse(readFileSync(path.join(folder, file), "utf8")))).map(({ bullet }) => plain(bullet.text)),
-    )
+    const sampleBullets = samples.flatMap((sample) => bulletsIn(viewOf(sample)).map(({ bullet }) => plain(bullet.text)))
     // A seeded random generator, so a failure can be seen again.
     let seed = 3
     const random = () => {
@@ -490,7 +486,7 @@ describe("B9 repeated bullets", () => {
     // After about half of them, a copy of one so far: the same, a letter
     // in 25 from it or less, or further.
     const bullets: string[] = []
-    for (const text of samples) {
+    for (const text of sampleBullets) {
       bullets.push(text)
       if (random() < 0.5) continue
       const copied = bullets[Math.floor(random() * bullets.length)]

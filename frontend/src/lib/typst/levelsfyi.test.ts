@@ -3,11 +3,9 @@
 // readable and apart, however long the company and place are; and Blueprint
 // hyphenates its text, but never a link or the name.
 
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
 import { expect, test } from "vitest"
-import { readPdf, type PdfPage } from "@/lib/import/lines"
-import { render, samples } from "@/lib/import/testRender"
+import type { PdfPage } from "@/lib/import/lines"
+import { pagesOf, render, samples } from "@/lib/import/testRender"
 
 type Item = PdfPage["items"][number]
 
@@ -15,13 +13,8 @@ const sample = samples.find((resume) => resume.selectedTemplate === "levelsfyi")
 
 /** The first page of the sample as printed, with `changes` made to it. */
 async function firstPage(changes: Record<string, unknown> = {}): Promise<PdfPage> {
-  const pdf = await render({ ...sample, ...changes })
-  const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
-  try {
-    return (await readPdf(doc))[0]
-  } finally {
-    await doc.destroy()
-  }
+  const [page] = await pagesOf(await render({ ...sample, ...changes }))
+  return page
 }
 
 const withJob = (job: Record<string, string>) => {

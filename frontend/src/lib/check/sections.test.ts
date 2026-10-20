@@ -497,9 +497,10 @@ describe("S10 locations", () => {
     expect(fixed.results[0]).toMatchObject({ status: "passed", scoring: { credit: 1 } })
   })
 
-  test("leaves the profile location to C4 and skips sections without location fields", () => {
+  test("leaves the profile location to C4, and skips sections without location fields and empty entries", () => {
     const resume: Resume = {
       profileSection: { fullName: "Ada Lovelace" },
+      workExperienceSection: [{ id: 1, workRole: " " }],
       projectsSection: [{ id: 1, projectName: "Engine" }],
       awardsSection: [{ id: 1, awardName: "Scholarship" }],
       skillsSection: [{ id: 1, skillName: "Languages", skillDetails: "Python" }],
@@ -524,15 +525,5 @@ describe("S10 locations", () => {
       { place: { kind: "entry", section: "Work", entry: 0, field: "workLocation" }, level: "look", message: "No location" },
       { place: { kind: "entry", section: "Leadership", entry: 0, field: "leadershipLocation" }, level: "look", message: "No location" },
     ])
-  })
-
-  test("leaves projects, awards and empty entries alone", () => {
-    const resume = {
-      ...jake,
-      educationSection: [],
-      workExperienceSection: [{ id: 1, workRole: " " }],
-      awardsSection: [{ id: 1, awardName: "Dean's List" }],
-    }
-    expect(check("S10", resume).status).toBe("skipped")
   })
 })

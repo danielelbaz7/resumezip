@@ -1,7 +1,6 @@
-import { readdirSync, readFileSync } from "node:fs"
-import path from "node:path"
 import { describe, expect, test } from "vitest"
 import { PROFILE_FIELDS, SECTION_NAMES, SECTIONS, type SectionName } from "@/components/editor/sections"
+import { samples } from "@/lib/import/testRender"
 import type { Resume, ResumeContent } from "./resume"
 import {
   AttachmentError,
@@ -17,9 +16,6 @@ import {
   TooLongError,
 } from "./resumeFile"
 import { asSaved } from "./testResume"
-
-const SAMPLES = path.resolve("src/lib/typst/preview-samples")
-const samples = readdirSync(SAMPLES).map((file) => JSON.parse(readFileSync(path.join(SAMPLES, file), "utf8")))
 
 /** `count` entries for a section, in the editor's shape, each field `length` characters long. */
 const entries = (name: SectionName, count: number, length = 10) =>

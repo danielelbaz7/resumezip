@@ -40,8 +40,7 @@ function tagged({ text, styles }: Styled): string {
 /** The edit settled after `saved`, as it's saved and as the box shows it (with "|" at the cursor). */
 function settle(edit: StyledEdit, saved: string) {
   const { edit: next, saved: text } = settled(edit, saved, "bullets")
-  const shown = tagged(next)
-  return { saved: text, shown: `${tagged(slice(next, 0, next.start))}|${tagged(slice(next, next.start))}`, plain: shown }
+  return { saved: text, shown: `${tagged(slice(next, 0, next.start))}|${tagged(slice(next, next.start))}` }
 }
 
 /** Types `words` one character at a time at the end of the saved text, as the box does, and gives what's saved. */
@@ -61,6 +60,14 @@ function typeAtEnd(saved: string, words: string): { saved: string; styled: Style
 
 /** As `tagged`, with spaces plain, as they print: a mark can't hold them. */
 const printed = (s: Styled) => tagged({ text: s.text, styles: s.styles.map((style, index) => (/\s/.test(s.text[index]) ? 0 : style)) })
+
+/** A seeded random generator, so a failure can be seen again. */
+function seeded(seed: number): () => number {
+  return () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648
+    return seed / 2147483648
+  }
+}
 
 describe("what the box shows", () => {
   test("bold and italic words without their marks, as they print", () => {
@@ -99,12 +106,7 @@ describe("saving", () => {
   })
 
   test("styled words in any order read back as they were styled", () => {
-    // A seeded random generator, so a failure can be seen again.
-    let seed = 7
-    const random = () => {
-      seed = (seed * 1103515245 + 12345) % 2147483648
-      return seed / 2147483648
-    }
+    const random = seeded(7)
     const characters = "ab c,.-%()1  é"
     for (let round = 0; round < 500; round++) {
       const length = 1 + Math.floor(random() * 24)
@@ -127,11 +129,7 @@ describe("saving", () => {
   })
 
   test("whatever's typed, the box shows what the PDF prints", () => {
-    let seed = 11
-    const random = () => {
-      seed = (seed * 1103515245 + 12345) % 2147483648
-      return seed / 2147483648
-    }
+    const random = seeded(11)
     const characters = "a* b**"
     for (let round = 0; round < 500; round++) {
       const length = 1 + Math.floor(random() * 12)

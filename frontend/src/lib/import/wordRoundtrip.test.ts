@@ -4,11 +4,10 @@
 
 import { describe, expect, test } from "vitest"
 import { cleanResume } from "@/lib/resumeFile"
-import { toTemplateData } from "@/lib/typst/resumeData"
 import { toWordFile } from "@/lib/word"
 import { linesFromDocx } from "./lines"
 import { parseResume, toResumeContent, unplacedKey } from "./parse"
-import { differences, samples } from "./testRender"
+import { differences, printedData, samples } from "./testRender"
 
 const first = "11111111-1111-4111-8111-111111111111"
 const second = "22222222-2222-4222-8222-222222222222"
@@ -35,14 +34,6 @@ const KNOWN_GAPS: Record<string, string[]> = {
   zero2sudo: [],
 }
 
-// What a resume prints, minus differences that print the same or are
-// deliberate: the parser writes GPAs without spaces ("3.9/4.0").
-function printed(resume: Record<string, unknown>) {
-  const data = toTemplateData(resume)
-  for (const school of data.education) school.gpa = school.gpa.replace(/\s+/g, "")
-  return data
-}
-
 async function readBack(resume: Record<string, unknown>) {
   const parsed = parseResume(await linesFromDocx(toWordFile(resume).buffer))
   return { parsed, resume: toResumeContent(parsed) }
@@ -51,8 +42,8 @@ async function readBack(resume: Record<string, unknown>) {
 describe.each(samples.map((sample) => [sample.selectedTemplate as string, sample]))("the %s sample's Word file", (template, sample) => {
   test("reads back as it was written", async () => {
     const { parsed, resume } = await readBack(sample)
-    const want = printed(cleanResume(sample))
-    const got = printed(resume)
+    const want = printedData(cleanResume(sample))
+    const got = printedData(resume)
 
     expect(parsed.unplaced).toEqual([])
     expect(got.order.filter((name) => parsed.sections.some((section) => section.name === name))).toEqual(

@@ -3,23 +3,12 @@
 // It adds 0.6em to the space between two lines (prose in
 // templates/common.typ), whatever paragraph spacing the template sets.
 
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
 import { expect, test } from "vitest"
-import { readPdf, type PdfPage } from "@/lib/import/lines"
-import { render } from "@/lib/import/testRender"
+import type { PdfPage } from "@/lib/import/lines"
+import { pagesOf, render } from "@/lib/import/testRender"
 import { TEMPLATES } from "@/lib/templates"
 
 const NOTES = "b8911364-19cb-4f20-82c1-421bdbe40f7d"
-
-async function pagesOf(pdf: Uint8Array): Promise<PdfPage[]> {
-  const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
-  try {
-    return await readPdf(doc)
-  } finally {
-    await doc.destroy()
-  }
-}
 
 /** The printed piece of text starting with `text`. Throws unless all of them are on the first page. */
 function find([page, ...rest]: PdfPage[], text: string): PdfPage["items"][number] {

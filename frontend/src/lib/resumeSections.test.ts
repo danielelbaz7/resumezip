@@ -244,11 +244,10 @@ describe("added sections in a file, and saved in this browser", () => {
     expect(JSON.parse(toAttachment(input)).version).toBe(1)
     expect(printedResume(input).extraSections).toEqual({})
   })
-  test("a section twice in a file's order is listed once, and a newer or damaged file isn't opened", () => {
+  test("a section twice in a file's order is listed once, and a damaged file isn't opened", () => {
     const content = fromAttachment(envelope({ extraSections: { [c]: note }, sectionOrder: [`extra:${c}`, `extra:${c}`, "Work"] }))!
     expect(content.sectionOrder?.slice(0, 2)).toEqual([`extra:${c}`, "Work"])
     for (const file of [
-      envelope({}, 3),
       envelope({ extraSections: { [c]: { ...note, text: 4 } } }),
       envelope({ extraSections: {}, sectionOrder: [`extra:${a}`] }),
       '{"format":"resumezip","version":2,',

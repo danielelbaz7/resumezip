@@ -1,8 +1,6 @@
 import { describe, expect, test } from "vitest"
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
-import { render } from "@/lib/import/testRender"
-import { readPdf, linesFromPages } from "@/lib/import/lines"
+import { pagesOf, render } from "@/lib/import/testRender"
+import { linesFromPages } from "@/lib/import/lines"
 import { TEMPLATES } from "@/lib/templates"
 import { asSaved } from "@/lib/testResume"
 import { toTemplateData } from "./resumeData"
@@ -49,14 +47,8 @@ describe("template data with added sections", () => {
 })
 
 async function printed(resume: Record<string, unknown>) {
-  const doc = (await getDocument({ data: await render(resume), isEvalSupported: false, fontExtraProperties: true })
-    .promise) as unknown as PDFDocumentProxy
-  try {
-    const pages = await readPdf(doc)
-    return { pages, lines: linesFromPages(pages) }
-  } finally {
-    await doc.destroy()
-  }
+  const pages = await pagesOf(await render(resume))
+  return { pages, lines: linesFromPages(pages) }
 }
 
 describe.each(TEMPLATES)("$id with added sections", ({ id }) => {

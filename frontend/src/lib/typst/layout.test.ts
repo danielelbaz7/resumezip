@@ -2,11 +2,9 @@
 // flush right, checked on the printed page: however long the text gets, it
 // never runs into them or over them.
 
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
 import { expect, test } from "vitest"
-import { readPdf, type PdfPage } from "@/lib/import/lines"
-import { render } from "@/lib/import/testRender"
+import type { PdfPage } from "@/lib/import/lines"
+import { pagesOf, render } from "@/lib/import/testRender"
 import { TEMPLATES } from "@/lib/templates"
 
 const TEXT = "Senior Software Engineering Intern on the Payments Platform and Data Infrastructure Reliability Team for Cloud Services"
@@ -14,15 +12,6 @@ const TEXT = "Senior Software Engineering Intern on the Payments Platform and Da
 // The text a letter longer in each entry, so in one of them it fills its line
 // exactly. Each entry's dates and GPA are told apart by their year.
 const entries = Array.from({ length: TEXT.length - 29 }, (_, i) => ({ text: TEXT.slice(0, 30 + i).trim(), year: 1930 + i }))
-
-async function pagesOf(pdf: Uint8Array): Promise<PdfPage[]> {
-  const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
-  try {
-    return await readPdf(doc)
-  } finally {
-    await doc.destroy()
-  }
-}
 
 type Item = PdfPage["items"][number]
 

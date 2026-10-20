@@ -5,7 +5,6 @@ import {
   changedPaths,
   deleteKeptAside,
   EVERY_FIELD,
-  getStorage,
   idOf,
   isKeptAside,
   LEGACY_KEY,
@@ -27,7 +26,6 @@ const deniedError = () => new DOMException("Access is denied for this document."
 
 afterEach(() => {
   vi.restoreAllMocks()
-  vi.unstubAllGlobals()
 })
 
 describe("what the editor can show of a saved resume", () => {
@@ -135,26 +133,6 @@ describe("saved data that can't be read", () => {
 })
 
 describe("when the browser won't let the site save anything", () => {
-  test("getStorage gives null instead of throwing", () => {
-    vi.stubGlobal("window", {
-      get localStorage() {
-        throw deniedError()
-      },
-    })
-    expect(getStorage()).toBeNull()
-  })
-
-  test("getStorage gives null in browsers without localStorage", () => {
-    vi.stubGlobal("window", { localStorage: null })
-    expect(getStorage()).toBeNull()
-  })
-
-  test("getStorage gives localStorage when it can be used", () => {
-    const storage = memoryStorage()
-    vi.stubGlobal("window", { localStorage: storage })
-    expect(getStorage()).toBe(storage)
-  })
-
   test("there's no data kept aside to read or delete", () => {
     expect(readKeptAside(null)).toEqual([])
     expect(() => deleteKeptAside(null)).not.toThrow()

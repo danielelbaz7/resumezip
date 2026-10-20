@@ -2,11 +2,8 @@
 // or keeping to one page, sets the space between sections, the first heading
 // stays clear of the contact line above it.
 
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
 import { expect, test } from "vitest"
-import { readPdf, type PdfPage } from "@/lib/import/lines"
-import { render, samples } from "@/lib/import/testRender"
+import { pagesOf, render, samples } from "@/lib/import/testRender"
 import type { Tune } from "@/lib/tune"
 
 const sample: Record<string, unknown> = samples.find((resume) => resume.selectedTemplate === "resumeworded")
@@ -23,22 +20,13 @@ const DESCENDER = 0.298
 // the contact line.
 const CLEAR = 5.78 / 10.8 - DESCENDER
 
-async function firstPage(pdf: Uint8Array): Promise<PdfPage> {
-  const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
-  try {
-    return (await readPdf(doc))[0]
-  } finally {
-    await doc.destroy()
-  }
-}
-
 /**
  * Where the sample's first heading and the line above it, the contact line,
  * are printed: their baselines, the contact line's text size, and the space
  * between the bottom of its descenders and the top of the heading's capitals.
  */
 async function header(tune?: Tune) {
-  const page = await firstPage(await render({ ...sample, tune }))
+  const [page] = await pagesOf(await render({ ...sample, tune }))
   const heading = page.items.find((item) => item.text === "EDUCATION")
   if (!heading) throw new Error("EDUCATION isn't printed on the first page")
   const contact = Math.min(...page.items.filter((item) => item.baseline > heading.baseline + 1).map((item) => item.baseline))

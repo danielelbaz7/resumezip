@@ -1,8 +1,6 @@
 import { describe, expect, test } from "vitest"
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
-import { linesFromPages, readPdf } from "@/lib/import/lines"
-import { render } from "@/lib/import/testRender"
+import { linesFromPages } from "@/lib/import/lines"
+import { pagesOf, render } from "@/lib/import/testRender"
 import { TEMPLATES } from "@/lib/templates"
 import { asSaved } from "@/lib/testResume"
 import { toTemplateData } from "./resumeData"
@@ -14,15 +12,9 @@ const LOW_HALF = "\ude80"
 const extra = "b8911364-19cb-4f20-82c1-421bdbe40f7d"
 
 async function printedText(resume: Record<string, unknown>): Promise<string> {
-  const doc = (await getDocument({ data: await render(resume), isEvalSupported: false, fontExtraProperties: true })
-    .promise) as unknown as PDFDocumentProxy
-  try {
-    return linesFromPages(await readPdf(doc))
-      .map((line) => line.text)
-      .join("\n")
-  } finally {
-    await doc.destroy()
-  }
+  return linesFromPages(await pagesOf(await render(resume)))
+    .map((line) => line.text)
+    .join("\n")
 }
 
 describe("half of an emoji", () => {

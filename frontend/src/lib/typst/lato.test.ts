@@ -3,11 +3,8 @@
 // come from a serif (Charis SIL or EB Garamond) in the middle of a word, even
 // in the bold name at the top.
 
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
-import type { PDFDocumentProxy } from "pdfjs-dist"
-import type { TextItem } from "pdfjs-dist/types/src/display/api"
 import { describe, expect, test } from "vitest"
-import { render } from "@/lib/import/testRender"
+import { lettersOf, render, textWithFonts } from "@/lib/import/testRender"
 import { TEMPLATES } from "@/lib/templates"
 import { covers, filesOf, FONT_INFO } from "./fontFiles"
 import { toTemplateData } from "./resumeData"
@@ -24,28 +21,6 @@ const resumeWith = (template: string, name: string) => ({
   workExperienceSection: [{ id: 1, companyName: name, workDescription: `• ${name}\n• **${name}**` }],
 })
 
-/** Each piece of text the PDF prints, with the font pdf.js says it's drawn in, without the subset's tag ("Lato-Bold"). */
-async function printed(pdf: Uint8Array): Promise<{ text: string; font: string }[]> {
-  const doc = (await getDocument({ data: pdf, isEvalSupported: false, fontExtraProperties: true }).promise) as unknown as PDFDocumentProxy
-  try {
-    const pieces: { text: string; font: string }[] = []
-    for (let number = 1; number <= doc.numPages; number++) {
-      const page = await doc.getPage(number)
-      // The fonts' names are only there once the page's fonts are loaded.
-      await page.getOperatorList()
-      for (const item of (await page.getTextContent()).items as TextItem[]) {
-        const name = String((page.commonObjs.get(item.fontName) as { name?: string }).name)
-        pieces.push({ text: item.str, font: name.replace(/^[A-Z]{6}\+/, "") })
-      }
-    }
-    return pieces
-  } finally {
-    await doc.destroy()
-  }
-}
-
-const lettersOf = (text: string) => [...new Set(text.match(/\p{L}/gu))]
-
 test("the Lato templates are the ones tested", () => {
   expect(LATO_TEMPLATES.sort()).toEqual(["deedy", "ian", "modernjack"])
 })
@@ -53,7 +28,7 @@ test("the Lato templates are the ones tested", () => {
 describe.each(LATO_TEMPLATES)("%s", (template) => {
   test.each(NAMES)("prints %s in Lato, bold and regular", async (name) => {
     expect(toTemplateData(resumeWith(template, name)).work).toHaveLength(1)
-    const pieces = await printed(await render(resumeWith(template, name)))
+    const pieces = await textWithFonts(await render(resumeWith(template, name)))
 
     // No letter is drawn from another font, like Charis SIL or EB Garamond.
     const elsewhere = pieces.filter(({ text, font }) => /\p{L}/u.test(text) && !font.startsWith("Lato-"))
