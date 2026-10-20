@@ -1,6 +1,7 @@
 "use client"
 
-import { Clock, RotateCcw, Sparkles } from "lucide-react"
+import { Clock, RotateCcw } from "lucide-react"
+import { Squares } from "@/components/site/Loader"
 import type { Problem } from "@/lib/review/ai/askForNotes"
 import type { Note } from "./PageMarks"
 
@@ -84,8 +85,9 @@ function Flags({
 }
 
 /**
- * The AI's notes, beside the page: asked for as soon as the resume is read,
- * then its red and green flags, each pointing at its mark.
+ * The AI's notes, beside the page: its red and green flags, each pointing at
+ * its mark. They're asked for as soon as the resume is printed, and the page
+ * opens with them; "asking" shows only when they were long coming, or asked again.
  */
 export default function AiNotes({
   state,
@@ -113,11 +115,11 @@ export default function AiNotes({
   if (state.step === "asking") {
     return (
       <div role="status" className="review-ai">
-        <p className="flex items-center gap-2 font-medium text-ink">
-          <Sparkles aria-hidden="true" className="h-4 w-4 animate-pulse text-accent" />
-          Reading it like a recruiter…
+        <p className="flex items-center gap-2.5 font-medium text-ink">
+          <Squares />
+          Getting notes from AI
         </p>
-        <p className="mt-0.5 text-ink-2">This takes about 10 seconds.</p>
+        <p className="mt-0.5 text-ink-2">They’ll show here when they come.</p>
       </div>
     )
   }
