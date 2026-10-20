@@ -45,7 +45,7 @@ export default function SiteFooter({ ground = false, bare = false }: { ground?: 
           aria-label="Why resumezip"
           className="mx-auto flex max-w-[1440px] flex-wrap items-baseline gap-x-6 gap-y-2 px-5 pt-4 text-[14px] md:px-10"
         >
-          <span className="label-mono normal-case text-white/60">Why resumezip</span>
+          <span className="font-mono tracking-[-0.01em] text-white/60">Why resumezip</span>
           {PROMISES.map((promise) => (
             <Link
               key={promise.path}
