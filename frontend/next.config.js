@@ -96,9 +96,9 @@ module.exports = {
   },
   // The About page is part of the home page now. Old links, and messages
   // already sent with its address, still land there: /about#contact keeps its
-  // #contact, which the home page's story takes to its end, where the address
-  // is. Here rather than in a page, whose redirect() answers 307 (temporary),
-  // so search engines list the home page instead.
+  // #contact, which the home page sends on to /contact. Here rather than in a
+  // page, whose redirect() answers 307 (temporary), so search engines list the
+  // home page instead.
   async redirects() {
     return [
       { source: "/about", destination: "/", permanent: true },

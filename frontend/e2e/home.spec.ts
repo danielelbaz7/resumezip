@@ -213,19 +213,13 @@ test("the story ends on the way in, with Start writing and the address to write 
   expect(errors).toEqual([])
 })
 
-// The footer's Contact, and the old About page and its contact address, land here: the story's last
-// screen, where the way in has the address to write to.
+// The address to write to was at the story's end, and links were made to it there: the footer's
+// Contact, and the old About page's contact address. They go to the contact page now.
 for (const from of ["/#contact", "/about#contact"]) {
-  test(`${from} lands on the story's last screen, with the address and Start writing`, async ({ page }) => {
+  test(`${from} goes to the contact page`, async ({ page }) => {
     await page.goto(from)
-    await expect(page).toHaveURL(/\/#contact$/)
-    // The story is all the main part holds, so on its last screen their foot is the window's. Checked
-    // before the click, which would scroll to Start writing itself if it had to.
-    await expect
-      .poll(() => page.getByRole("main").evaluate((main) => Math.abs(main.getBoundingClientRect().bottom - window.innerHeight)))
-      .toBeLessThan(1.5)
-    await wayIn(page).getByRole("link", { name: "Start writing" }).click({ trial: true })
-    await expect(page.getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toBeInViewport()
+    await expect(page).toHaveURL(/\/contact$/)
+    await expect(page.getByRole("main").getByRole("link", { name: "hello@tryresumezip.com", exact: true })).toBeVisible()
   })
 }
 
