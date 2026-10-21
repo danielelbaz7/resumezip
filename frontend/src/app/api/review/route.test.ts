@@ -249,6 +249,25 @@ test("turns away another site's pages, what the page wouldn't send, and too many
   expect((await again()).status).toBe(429)
 })
 
+test("counts reviews per browser, so people sharing one address each get their own", async () => {
+  fetched.mockImplementation(answering())
+  const browser = (reviewer: string, address: string) => post(undefined, { "x-forwarded-for": address, "x-reviewer": reviewer })
+  const first = "0f8b2c4e-1a3d-4c5b-9e7f-2a6b8c0d1e3f"
+  const second = "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d"
+  for (let review = 0; review < 6; review++) expect((await browser(first, "10.7.7.7")).status).toBe(200)
+  expect((await browser(first, "10.7.7.7")).status).toBe(429)
+  expect((await browser(second, "10.7.7.7")).status).toBe(200)
+  // A new address doesn't reset a browser's count.
+  expect((await browser(first, "10.7.7.8")).status).toBe(429)
+})
+
+test("counts by address when the browser named isn't one the page would send", async () => {
+  fetched.mockImplementation(answering())
+  const odd = (reviewer: string) => post(undefined, { "x-forwarded-for": "10.6.6.6", "x-reviewer": reviewer })
+  for (let review = 0; review < 6; review++) expect((await odd(`not-a-uuid-${review}`)).status).toBe(200)
+  expect((await odd("x".repeat(5_000))).status).toBe(429)
+})
+
 test("is off without keys", async () => {
   vi.stubEnv("ANTHROPIC_API_KEY", "")
   vi.stubEnv("AZURE_OPENAI_API_KEY", "")

@@ -4,6 +4,7 @@ import { keptNotesOf } from "./answer"
 import { pauseAi, resumeAi } from "./paused"
 import { NO_CONNECTION, PROBLEMS, type Problem } from "./problems"
 import { sentOf } from "./request"
+import { REVIEWER_HEADER, reviewerId } from "./reviewer"
 import { savedNotesOf, type SavedNote } from "./saved"
 import type { Unit } from "./units"
 
@@ -17,12 +18,17 @@ export class AiReviewError extends Error {
   }
 }
 
+function reviewerHeader(): Record<string, string> {
+  const reviewer = reviewerId()
+  return reviewer ? { [REVIEWER_HEADER]: reviewer } : {}
+}
+
 export async function askForNotes(units: readonly Unit[], signal?: AbortSignal): Promise<SavedNote[]> {
   let response: Response
   try {
     response = await fetch("/api/review", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...reviewerHeader() },
       body: JSON.stringify({ lines: sentOf(units) }),
       signal,
     })
