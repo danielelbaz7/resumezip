@@ -87,13 +87,25 @@ export default function MarkedPages({
     }
     animation.onfinish = land
     animation.oncancel = land
-    return () => animation.cancel()
+    // Should neither come (a tab in the background may hold its animations), the box clips and scrolls again all the same.
+    const backstop = setTimeout(land, FLIGHT_MS + 500)
+    return () => {
+      clearTimeout(backstop)
+      animation.cancel()
+    }
   }, [])
 
   return (
-    // Its own scroll box, as tall as the screen has room for, so a long resume doesn't run the page on and on.
+    // Its own scroll box, one page tall, so a long resume doesn't run the page on and on.
     // Focusable, so it scrolls from the keyboard too.
-    <div ref={box} role="region" aria-label="Your resume" tabIndex={0} className="review-pages">
+    <div
+      ref={box}
+      role="region"
+      aria-label="Your resume"
+      tabIndex={0}
+      className="review-pages"
+      style={pages?.[0] ? ({ "--page-ratio": pages[0].height / pages[0].width } as React.CSSProperties) : undefined}
+    >
       {pages?.map((page, index) => (
         <div key={page.url} ref={index === 0 ? first : undefined} className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element -- a picture drawn in the browser, which next/image can't optimize */}

@@ -246,12 +246,12 @@ function Result({
   return (
     // Arriving with the page that was read flying into it, the board stays put and what's round the page fades in.
     <section className={`review-board ${from ? "no-page-in" : ""}`} data-flight={from ? "" : undefined}>
-      <div className="mb-3 flex flex-col items-center text-center">
+      <div className="mb-2 flex flex-col items-center text-center">
         {reviewedAt !== null && <p className="label-mono mb-2 text-ink-2">{reviewedPhrase(reviewedAt)}</p>}
-        <h1 className="font-serif text-[20px] tracking-[-0.01em] text-ink-2 md:text-[24px]">
+        <h1 className="font-serif text-[18px] tracking-[-0.01em] text-ink-2 md:text-[20px]">
           Your resume is<span className="sr-only"> {VERDICT_WORDS[verdict].toLowerCase()}</span>
         </h1>
-        <CloudWord lines={[VERDICT_WORDS[verdict]]} className="hidden w-[min(600px,80vw)] sm:block" />
+        <CloudWord lines={[VERDICT_WORDS[verdict]]} className="hidden w-[min(440px,70vw)] sm:block" />
         <CloudWord lines={NARROW_LINES[verdict]} className="w-[min(300px,80vw)] sm:hidden" />
       </div>
       <div className="relative mx-auto w-full max-w-[700px]">
