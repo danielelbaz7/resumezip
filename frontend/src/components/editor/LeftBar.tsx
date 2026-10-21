@@ -126,7 +126,7 @@ function LeftBar({ hidden, tabs, children, style }: LeftBarProps) {
     <aside
       data-covers="top"
       data-mode={mode}
-      className={`shrink-0 border-b border-hairline bg-sheet xl:flex xl:w-[270px] xl:flex-col xl:overflow-hidden xl:rounded-bl-[28px] xl:border-b-0 xl:border-r xl:bg-transparent ${
+      className={`shrink-0 border-b border-hairline bg-sheet xl:flex xl:w-[270px] xl:flex-col xl:overflow-clip xl:rounded-bl-[28px] xl:border-b-0 xl:border-r xl:bg-transparent ${
         mode === "write" ? "max-xl:sticky max-xl:top-0 max-xl:z-20" : ""
       } ${hidden ? "hidden" : ""}`}
     >
@@ -136,12 +136,13 @@ function LeftBar({ hidden, tabs, children, style }: LeftBarProps) {
         </div>
       )}
       {/* On wide screens it scrolls inside the column, fading at its foot as a sign there's
-          more; the padding lets the last row clear the fade. */}
+          more; the padding lets the last row clear the fade. Positioned, so the findings'
+          screen-reader text (absolute) stays in it rather than stretching the window below. */}
       <div
         role="tabpanel"
         id={PANEL_ID}
         aria-labelledby={tabId(mode)}
-        className="xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:px-4 xl:pb-8 xl:pt-6 xl:[mask-image:linear-gradient(to_bottom,#000_calc(100%-24px),transparent)]"
+        className="xl:relative xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:px-4 xl:pb-8 xl:pt-6 xl:[mask-image:linear-gradient(to_bottom,#000_calc(100%-24px),transparent)]"
       >
         {/* Switching fades the other one in (`starting:` is CSS @starting-style). */}
         <div key={mode} className="transition-opacity duration-200 ease-out motion-reduce:transition-none starting:opacity-0">
