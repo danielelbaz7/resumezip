@@ -28,10 +28,10 @@ async function resumeToCheck(page: Page) {
   await previewShown(page)
 }
 
-/** The Jake template's sample resume, which passes every check, saved with these changes to its profile, and opened. */
-async function openSample(page: Page, id: string, profile: Record<string, string> = {}) {
+/** The Jake template's sample resume, which passes every check, saved with these changes to its profile and sections, and opened. */
+async function openSample(page: Page, id: string, profile: Record<string, string> = {}, changes: Record<string, unknown> = {}) {
   const sample = JSON.parse(readFileSync("src/lib/typst/preview-samples/jake.json", "utf8"))
-  const resume = { ...sample, id, resumeTitle: "Marcus", profileSection: { ...sample.profileSection, ...profile } }
+  const resume = { ...sample, ...changes, id, resumeTitle: "Marcus", profileSection: { ...sample.profileSection, ...profile } }
   await saveResumes(page, [resume])
   await page.goto(`/create/new/${id}`)
 }
@@ -351,6 +351,41 @@ test("the score's word says how it reads, and a perfect score's scale turns to a
   await expect.poll(() => animationNamesIn(score)).toContain("score-glint")
   await expect.poll(() => animationsIn(score)).toBe(0)
   expect(await seriousAccessibilityProblems(page, [".react-pdf__Page"])).toEqual([])
+
+  expect(errors).toEqual([])
+})
+
+test("a line under the score says how much weak bullets take off it", async ({ page }) => {
+  const errors = pageErrors(page)
+  // Every role's bullets say what was done, but none what it came to.
+  const sample = JSON.parse(readFileSync("src/lib/typst/preview-samples/jake.json", "utf8"))
+  const describe = (entries: Record<string, unknown>[], field: string, bullets: string[][]) =>
+    entries.map((entry, index) => ({ ...entry, [field]: bullets[index].map((bullet) => `• ${bullet}`).join("\n") }))
+  await openSample(
+    page,
+    "no-results",
+    {},
+    {
+      workExperienceSection: describe(sample.workExperienceSection, "workDescription", [
+        ["Built a Go service for Google Maps that merges edits to business hours", "Added tracing to the edit pipeline"],
+        ["Built a React dashboard that tracks over-the-air software updates", "Wrote Python checks for vehicle telemetry records"],
+        ["Led lab sections on pointers, graphs and recursion in C++", "Wrote autograder tests for hash table assignments"],
+      ]),
+      leadershipExperienceSection: describe(sample.leadershipExperienceSection, "leadershipDescription", [
+        ["Run a monthly workshop series on Git, web APIs and Docker"],
+      ]),
+    },
+  )
+  await page.getByRole("tab", { name: /^Check/ }).click()
+  const panel = page.getByRole("tabpanel", { name: /^Check/ })
+  const score = panel.getByRole("region", { name: "ATS score" })
+  await expect(panel.getByRole("status")).toBeHidden()
+  await expect(score).toContainText(/Your bullets take \d+ off until they earn 75% of their points\./)
+
+  // The sample's own bullets say what they achieved, so nothing's taken off (Check stays open for the visit).
+  await openSample(page, "with-results")
+  await expect(score.getByText(/^\d+$/)).toHaveText("100")
+  await expect(score).not.toContainText("Your bullets take")
 
   expect(errors).toEqual([])
 })

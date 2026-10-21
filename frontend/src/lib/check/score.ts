@@ -116,15 +116,17 @@ const hasMustFix = (categories: readonly CategoryScore[]) => categories.some((ca
 /**
  * Out of 100: what the categories that apply earned, of what they're worth,
  * scaled down while the bullets earn little (`contentShare`), and no more
- * than `mustFixMax` while a must-fix is left. Null when none apply.
+ * than `mustFixMax` while a must-fix is left. Null when none apply. Without
+ * `scaled`, it's the total the bullets would leave if they didn't scale it,
+ * for saying how much they take off (`shownScore`).
  */
-export function totalOf(categories: readonly CategoryScore[]): number | null {
+export function totalOf(categories: readonly CategoryScore[], { scaled = true } = {}): number | null {
   const counted = categories.filter((category) => category.applies)
   const possible = counted.reduce((sum, category) => sum + category.points, 0)
   if (possible === 0) return null
   const earned = (100 * counted.reduce((sum, category) => sum + category.earned, 0)) / possible
   const bullets = counted.find((category) => category.id === "bullets")
-  const total = bullets ? earned * contentShare(bullets) : earned
+  const total = bullets && scaled ? earned * contentShare(bullets) : earned
   return wholePoints(hasMustFix(counted) ? Math.min(total, mustFixMax(fixesOf(counted))) : total)
 }
 
@@ -221,18 +223,23 @@ export function shownFixes(report: Report, kept: ReadonlyMap<CategoryId, number>
  * once, the total waits ("checking"), and so does a category's bar (null).
  * `mustFix` says whether a must-fix is left, as last checked or as found
  * since, as by a form rule while the PDF is read again; either holds the
- * total down at once.
+ * total down at once. `bulletsTake` is how many points the bullets take off
+ * the total while they earn little of theirs, so the categories' points and
+ * the total can be told apart: none when a must-fix holds it lower anyway.
  */
 export function shownScore(
   now: Score,
   kept: ReadonlyMap<CategoryId, CategoryScore>,
   checking: ReadonlyMap<CategoryId, unknown>,
-): { total: number | "checking" | null; categories: (CategoryScore | null)[]; mustFix: boolean } {
+): { total: number | "checking" | null; categories: (CategoryScore | null)[]; mustFix: boolean; bulletsTake: number } {
   const categories = now.categories.map((category) => (checking.has(category.id) ? (kept.get(category.id) ?? null) : category))
   const shown = categories.filter((category): category is CategoryScore => category !== null)
-  if (now.total === null) return { total: null, categories, mustFix: false }
+  if (now.total === null) return { total: null, categories, mustFix: false, bulletsTake: 0 }
   const mustFix = hasMustFix(shown) || hasMustFix(now.categories)
-  const total = shown.length === categories.length ? totalOf(shown) : "checking"
+  if (shown.length < categories.length) return { total: "checking", categories, mustFix, bulletsTake: 0 }
   const cap = mustFixMax(Math.max(fixesOf(shown), fixesOf(now.categories)))
-  return { total: typeof total === "number" && mustFix ? Math.min(total, cap) : total, categories, mustFix }
+  const held = (total: number | null) => (total !== null && mustFix ? Math.min(total, cap) : total)
+  const total = held(totalOf(shown))
+  const unscaled = held(totalOf(shown, { scaled: false }))
+  return { total, categories, mustFix, bulletsTake: total !== null && unscaled !== null ? unscaled - total : 0 }
 }

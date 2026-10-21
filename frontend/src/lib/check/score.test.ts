@@ -221,6 +221,24 @@ describe("the resume score", () => {
     expect(strong.total).toBe(wholePoints(100 - 30 * 0.35 * 0.505))
   })
 
+  test("says how many points weak bullets take off the total, and none when a must-fix holds it lower anyway", () => {
+    const elsewhere = CATEGORIES.filter(({ id }) => id !== "bullets" && id !== "spelling").flatMap(({ id }) => passing(id, 1))
+    // No bullet says what it achieved: Bullets earns 65% of its points, and the rest earn all of theirs.
+    const bullets = [...passing("bullets"), rule("B3", "bullets", "look", found(4))]
+    const shownWith = (typos: number) =>
+      shownScore(scoreWith([...elsewhere, ...bullets, rule("G1", "spelling", "fix", found(100, typos))]), new Map(), new Map())
+    // 89 earned, scaled down to 81.
+    expect(shownWith(0)).toMatchObject({ total: 81, bulletsTake: 8 })
+    // Four typos hold it at 80 or below, and the bullets take it from there to 77.
+    expect(shownWith(4)).toMatchObject({ total: 77, bulletsTake: 3 })
+    // Six hold it at 74, under what the bullets leave, so they take nothing off what's shown.
+    expect(shownWith(6)).toMatchObject({ total: 74, bulletsTake: 0 })
+    // Bullets that earn enough of their points take nothing.
+    expect(shownScore(scoreWith([...elsewhere, ...passing("bullets"), ...passing("spelling", 1)]), new Map(), new Map()).bulletsTake).toBe(
+      0,
+    )
+  })
+
   test("leaves out rules that don't apply, broke, or are still waiting, and a category without any gives its points to the others", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {})
     const broken = rule("B2", "bullets", "look", () => {
