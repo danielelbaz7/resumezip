@@ -42,14 +42,14 @@ test("places each note on its line, by its quote when the id is wrong", () => {
   expect(notes[1].suggestion).toBeNull()
 })
 
-test("keeps one note of each kind per line, and at most 10 red and 6 green", () => {
+test("keeps one note of each kind per line, and at most 9 red and 7 green", () => {
   expect(
     notesOf({ notes: [note({ line: "u1", quote: "Responsible" }), note({ line: "u1", quote: "backend services" })] }, units),
   ).toHaveLength(1)
   const many = Array.from({ length: 12 }, (_, index) => [note({ line: `u${index}` }), note({ line: `u${index}`, tone: "green" })]).flat()
   const notes = notesOf({ notes: many }, units)
-  expect(notes.filter((each) => each.tone === "red")).toHaveLength(10)
-  expect(notes.filter((each) => each.tone === "green")).toHaveLength(6)
+  expect(notes.filter((each) => each.tone === "red")).toHaveLength(9)
+  expect(notes.filter((each) => each.tone === "green")).toHaveLength(7)
 })
 
 test("leaves out what isn't a note", () => {
