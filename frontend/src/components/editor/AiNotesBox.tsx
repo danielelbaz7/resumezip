@@ -7,8 +7,11 @@ import { findingOf } from "@/lib/review/ai/place"
 import type { SavedNote } from "@/lib/review/ai/saved"
 import { aiKeyOf, TONE_NAMES } from "@/components/review/notes"
 import { REWRITE } from "@/components/review/PageMarks"
+import { GAZE_MS } from "@/components/review/gaze"
+import { useTicking } from "@/components/review/useTicking"
 import { STORM, SUN, type Picture } from "@/components/review/weather/pictures"
 import TextPicture from "@/components/review/weather/TextPicture"
+import { Squares } from "@/components/site/Loader"
 import { useCheckActions } from "./CheckContext"
 import { useMarks, usePointAt } from "./MarksContext"
 
@@ -19,9 +22,6 @@ const TONE_DOT: Record<Tone, string> = { red: "var(--review-red)", green: "var(-
 // The review page's pictures for each kind: a storm over the red flags, the sun over what's done well.
 const TONE_PICTURE: Record<Tone, Picture> = { red: STORM, green: SUN }
 const TONES = ["red", "green"] as const
-
-const button =
-  "inline-flex h-9 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[13px] font-medium text-white transition-colors hover:bg-ink/85 disabled:opacity-60"
 
 function Dot({ tone }: { tone: Tone }) {
   return <span aria-hidden="true" className="block h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: TONE_DOT[tone] }} />
@@ -95,35 +95,87 @@ function Note({
 }
 
 /**
+ * While the AI is asked, the review page's wait: the seconds of a
+ * recruiter's look, counted while their eyes skim page 1 of the preview
+ * (PreviewGaze), then the AI reading the rest. A screen reader hears that
+ * it's reading once, not the count.
+ */
+function Reading({ eyesFrom }: { eyesFrom: number | null }) {
+  const eyes = eyesFrom !== null && performance.now() < eyesFrom + GAZE_MS
+  useTicking(eyes)
+  const seconds = eyesFrom === null ? 0 : Math.min(GAZE_MS, Math.max(0, performance.now() - eyesFrom)) / 1000
+  return (
+    <div className="flex flex-col gap-3">
+      <p role="status" className="label-mono flex items-center gap-2 text-ink">
+        <Squares />
+        Reading it like a recruiter
+      </p>
+      <div aria-hidden="true" className="flex flex-col gap-3 border-t border-ink pt-3.5">
+        {eyes ? (
+          <>
+            <p className="flex items-baseline gap-2.5">
+              <span className="font-serif text-[64px] leading-[0.85] tracking-[-0.045em] tabular-nums text-ink">{seconds.toFixed(1)}</span>
+              <span className="label-mono text-ink">seconds</span>
+            </p>
+            <p className="text-[13px] leading-snug text-ink-2">Where a recruiter’s eyes go first.</p>
+          </>
+        ) : (
+          <>
+            <p className="text-balance font-serif text-[30px] leading-[1.02] tracking-[-0.03em] text-ink">
+              The AI reads <em className="text-accent">{eyesFrom === null ? "every line…" : "the rest…"}</em>
+            </p>
+            {eyesFrom !== null && <p className="text-[13px] leading-snug text-ink-2">Every line, not just the first seven seconds.</p>}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
  * The AI's notes in the Check panel: the ones from the review, or asked for
  * here, kept in this browser so they're shown again without asking. A count
  * of each kind under its picture, then the notes, red flags first, one open
  * at a time to say why and what to write instead. Choosing one opens the
  * field its words are in, and pointing at it shows its mark on the preview.
+ * Before there are any, what a recruiter notices, and the way to ask.
  */
 export default function AiNotesBox() {
   const { aiNotes, aiPlaces, ai, canAsk, askAi } = useMarks()
   const heading = useId()
   const [chosen, setChosen] = useState<number | null>(null)
-  const asking = ai.step === "asking"
   const problem = ai.step === "problem" && (
     <p role="alert" className="text-[13px] leading-snug text-alert">
       {ai.message}
     </p>
   )
 
-  if (!aiNotes || aiNotes.length === 0) {
+  if (ai.step === "asking") {
     return (
-      <section aria-labelledby={heading} className="check-box glass flex flex-col gap-2.5 rounded-panel px-3.5 py-3.5">
-        <h2 id={heading} className="text-sm font-medium text-ink">
+      <section aria-labelledby={heading}>
+        <h2 id={heading} className="sr-only">
           AI notes
         </h2>
+        <Reading eyesFrom={ai.eyesFrom} />
+      </section>
+    )
+  }
+
+  if (!aiNotes || aiNotes.length === 0) {
+    return (
+      <section aria-labelledby={heading} className="flex flex-col gap-3">
+        <h2 id={heading} className="label-mono text-ink-2">
+          AI notes
+        </h2>
+        <p className="font-serif text-[30px] leading-[1.02] tracking-[-0.03em] text-ink">
+          What a recruiter <em className="text-accent">notices</em>
+        </p>
         <p className="text-[13px] leading-snug text-ink-2">
-          An AI reads it like a recruiter and marks red flags and what’s done well on the page.
+          An AI skims it like a recruiter, then marks red flags and what’s done well on the page.
         </p>
         {problem}
-        <button type="button" onClick={askAi} disabled={!canAsk || asking} className={`${button} self-start`}>
-          {asking ? "Reading it like a recruiter…" : ai.step === "problem" ? "Try again" : "Get AI notes"}
+        <button type="button" onClick={askAi} disabled={!canAsk} className="ai-ask glass mt-1">
+          {ai.step === "problem" ? "Try again" : "Get AI notes"}
         </button>
         {!canAsk && <p className="text-[12px] leading-snug text-ink-3">Waiting for the preview…</p>}
       </section>
@@ -173,11 +225,11 @@ export default function AiNotesBox() {
         <button
           type="button"
           onClick={askAi}
-          disabled={!canAsk || asking}
+          disabled={!canAsk}
           className="inline-flex items-center gap-1.5 self-start text-[13px] font-medium text-accent hover:underline disabled:opacity-60"
         >
           <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-          {asking ? "Reading it like a recruiter…" : "Get new notes for this version"}
+          Get new notes for this version
         </button>
       </div>
     </section>
