@@ -26,35 +26,33 @@ export default function SiteFooter({ ground = false, bare = false }: { ground?: 
         !bare && <div aria-hidden="true" className="desk relative h-16 md:h-20" />
       )}
       <footer className="zip-footer text-white">
-        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-8 gap-y-3 px-5 pt-6 md:px-10 md:pt-7">
-          <nav aria-label="Footer" className="flex flex-wrap gap-x-8 gap-y-3">
+        {/* One row from 768px. Narrower, wrapping would leave a word alone on a line, so both lists take the same two
+            columns and their links line up. */}
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-y-3 px-5 pt-6 text-[15px] tracking-[-0.01em] md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-x-8 md:px-10 md:pt-7">
+          <nav aria-label="Footer" className="grid grid-cols-2 gap-x-8 gap-y-3 md:flex md:flex-wrap">
             {LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="nav-underline text-[15px] tracking-[-0.01em] text-white/85 [--underline:var(--color-accent-soft)] hover:text-white"
+                className="nav-underline w-fit text-white/85 [--underline:var(--color-accent-soft)] hover:text-white"
               >
                 {link.label}
               </Link>
             ))}
           </nav>
+          {/* For search engines more than visitors, who know these already: the pages each say why one of them is true. */}
+          <nav aria-label="Why resumezip" className="grid grid-cols-2 gap-x-8 gap-y-3 md:flex md:flex-wrap">
+            {PROMISES.map((promise) => (
+              <Link
+                key={promise.path}
+                href={promise.path}
+                className="nav-underline w-fit text-white/70 [--underline:var(--color-accent-soft)] hover:text-white"
+              >
+                {promise.name}
+              </Link>
+            ))}
+          </nav>
         </div>
-        {/* For search engines more than visitors, who know these already: the pages each say why one of them is true. */}
-        <nav
-          aria-label="Why resumezip"
-          className="mx-auto flex max-w-[1440px] flex-wrap items-baseline gap-x-6 gap-y-2 px-5 pt-4 text-[14px] md:px-10"
-        >
-          <span className="font-mono tracking-[-0.01em] text-white/60">Why resumezip</span>
-          {PROMISES.map((promise) => (
-            <Link
-              key={promise.path}
-              href={promise.path}
-              className="nav-underline tracking-[-0.01em] text-white/70 [--underline:var(--color-accent-soft)] hover:text-white"
-            >
-              {promise.name}
-            </Link>
-          ))}
-        </nav>
         <div className="mx-auto max-w-[1440px] px-5 md:px-10">
           {/* Up to 150px at 1440px, and no smaller than 56px on a phone. Pulled left by the r's side bearing, so its stem
               lines up with the links; the room under it is in em, as the p's tail hangs below its tight line height.
