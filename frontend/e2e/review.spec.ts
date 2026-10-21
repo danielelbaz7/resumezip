@@ -103,6 +103,11 @@ test("the result opens once page 1 is drawn, and later pages join it as they're 
   await expect.poll(() => page.evaluate(() => "drawPage2" in window)).toBe(true)
   await page.evaluate(() => window.drawPage2!())
   await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toBeVisible()
+  // The pages scroll in a box that fits the screen, rather than running the page on.
+  const pages = page.getByRole("region", { name: "Your resume" })
+  const { height, scrolls } = await pages.evaluate((box) => ({ height: box.clientHeight, scrolls: box.scrollHeight > box.clientHeight }))
+  expect(height).toBeLessThan(page.viewportSize()!.height)
+  expect(scrolls).toBe(true)
   expect(errors).toEqual([])
 })
 
