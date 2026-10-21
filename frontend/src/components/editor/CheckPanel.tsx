@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useEffect, useId, useMemo, useRef, useState } from "react"
-import { Check, ChevronDown, LoaderCircle, Lock } from "lucide-react"
+import { Check, ChevronDown, LoaderCircle, Lock, TrendingDown } from "lucide-react"
 import { checkKeyOf } from "@/components/review/notes"
 import type { Finding, Report, Rule } from "@/lib/check/engine"
 import { describePlace, hasEnoughToCheck } from "@/lib/check/labels"
@@ -21,7 +21,7 @@ import {
   type KeptFixes,
   type KeptScores,
 } from "@/lib/check/score"
-import { CATEGORIES, MUST_FIX_MAX, SCORE_BANDS, type CategoryId } from "@/lib/check/settings"
+import { CATEGORIES, CONTENT_FULL, MUST_FIX_MAX, SCORE_BANDS, type CategoryId } from "@/lib/check/settings"
 import { hasLeftOut } from "@/lib/leftOut"
 import AiNotesBox from "./AiNotesBox"
 import { useCheck, useCheckActions } from "./CheckContext"
@@ -88,7 +88,7 @@ export default function CheckPanel() {
   return (
     <div className="flex flex-col gap-5 px-3 py-4 xl:p-0">
       <MarksSwitch />
-      <ScoreHeader total={score.total} mustFix={score.mustFix} fixes={fixes} updating={checking.size > 0} />
+      <ScoreHeader total={score.total} mustFix={score.mustFix} fixes={fixes} bulletsTake={score.bulletsTake} updating={checking.size > 0} />
       {(waitingFor("pdf") || checkingGrammar) && (
         <div role="status" className="flex flex-col gap-1 text-sm text-ink-2">
           {waitingFor("pdf") && (
@@ -191,18 +191,22 @@ function useCategoriesWithFindings(findings: readonly Finding[], checking: Reado
 
 /**
  * The resume score as a big number, a word for how it reads, a scale with
- * where each word starts, and whether a must-fix is holding it down. A perfect score's number glows
+ * where each word starts, and whether a must-fix or weak bullets are holding
+ * it down. A perfect score's number glows
  * (`[data-perfect] .score-number` in styles/editor.css).
  */
 function ScoreHeader({
   total,
   mustFix = false,
   fixes = 0,
+  bulletsTake = 0,
   updating = false,
 }: {
   total: number | "checking" | null
   mustFix?: boolean
   fixes?: number
+  /** How many points weak bullets take off the total (`shownScore`). */
+  bulletsTake?: number
   /** Whether some categories are being checked, so the score may change. */
   updating?: boolean
 }) {
@@ -254,14 +258,25 @@ function ScoreHeader({
         {band && <p className="ml-auto font-serif text-2xl italic leading-none tracking-[-0.01em] text-accent">{band.name}</p>}
       </div>
       <ScoreScale total={total} />
-      {mustFix && (
-        <p className="mt-3.5 flex items-start gap-2 text-balance text-[13px] leading-snug text-ink">
-          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {/* The count follows the cap (`shownFixes`); the wording without one is only a fallback. */}
-          {fixes > 0
-            ? `Capped at ${mustFixMax(fixes)} until you fix ${fixes === 1 ? "1 item" : `${fixes} items`}.`
-            : `Capped at ${MUST_FIX_MAX} while something's left to fix.`}
-        </p>
+      {(mustFix || bulletsTake > 0) && (
+        <div className="mt-3.5 flex flex-col gap-1.5 text-balance text-[13px] leading-snug text-ink">
+          {mustFix && (
+            <p className="flex items-start gap-2">
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              {/* The count follows the cap (`shownFixes`); the wording without one is only a fallback. */}
+              {fixes > 0
+                ? `Capped at ${mustFixMax(fixes)} until you fix ${fixes === 1 ? "1 item" : `${fixes} items`}.`
+                : `Capped at ${MUST_FIX_MAX} while something's left to fix.`}
+            </p>
+          )}
+          {/* Why the total is under what the categories' points add up to (`contentShare` in lib/check/score.ts). */}
+          {bulletsTake > 0 && (
+            <p className="flex items-start gap-2">
+              <TrendingDown className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              {`Your bullets take ${bulletsTake} off until they earn ${Math.round(CONTENT_FULL * 100)}% of their points.`}
+            </p>
+          )}
+        </div>
       )}
     </section>
   )
