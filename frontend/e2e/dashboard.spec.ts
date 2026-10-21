@@ -174,6 +174,43 @@ test("on a tablet, two resumes whose names differ only by a number both show it"
   expect(errors).toEqual([])
 })
 
+// A box to type in, put in place of the name, would make the name's column its
+// own width: narrower than a long name, wider than a short one.
+for (const [length, title] of [
+  ["short", "Ada"],
+  ["long", Array.from({ length: 5 }, (_, index) => `Senior Staff Engineer ${index}`).join(" ")],
+] as const) {
+  test(`renaming a ${length} name in the table moves nothing else in it`, async ({ page }) => {
+    const errors = pageErrors(page)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    // Edited last, so it's the first row, with another under it.
+    await dashboardWith(page, [resume("a", title), resume("b", "Grace", { updatedAt: "2026-10-01T12:00:00.000Z" })])
+    await page.getByRole("button", { name: "List" }).click()
+    const table = page.getByRole("table")
+    const row = table.getByRole("row").filter({ has: page.getByRole("link", { name: title, exact: true }) })
+    await settled(row.locator("[data-resume-page]"))
+    // Where each column starts, and where the row under it does: a long name is on two lines.
+    const layout = () =>
+      table.evaluate((table: HTMLTableElement) => ({
+        columns: [...table.rows[0].cells].map((cell) => cell.getBoundingClientRect().left),
+        under: table.rows[2].getBoundingClientRect().top,
+      }))
+    const before = await layout()
+
+    await row.getByRole("button", { name: "Rename" }).click()
+    const box = table.getByRole("textbox", { name: "Resume name" })
+    await expect(box).toBeFocused()
+    expect(await layout()).toEqual(before)
+    // Nor does what's typed, however long.
+    await box.pressSequentially("A name longer than any column of the table could hold on one line")
+    expect(await layout()).toEqual(before)
+    await box.press("Escape")
+    await expect(row.getByRole("button", { name: "Rename" })).toBeFocused()
+    expect(await layout()).toEqual(before)
+    expect(errors).toEqual([])
+  })
+}
+
 test("closing a dialog puts focus back on what opened it, however it's closed", async ({ page }) => {
   const errors = pageErrors(page)
   await dashboardWith(page, [resume("a", "Short one")])

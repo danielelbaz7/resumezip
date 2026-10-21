@@ -50,39 +50,47 @@ export default function ResumeTable({ resumes, actions, onDelete, onRetype, leav
     </Link>
   )
 
-  // The name, which opens the resume, and a pencil to rename it; or, while
-  // renaming, a box to type the name in. On wide screens the pencil shows
-  // when the row is pointed at, or it's focused.
-  const name = (resume: ResumeWithId, index: number, className: string) =>
-    renaming?.id === resume.id ? (
-      <RenameInput
-        resume={resume}
-        draft={renaming.draft}
-        actions={actions}
-        className="w-full min-w-0 border-0 border-b border-accent bg-transparent py-0.5 font-serif text-[21px] leading-tight text-ink outline-none placeholder:text-ink-2 focus-visible:outline-none"
-      />
-    ) : (
-      <div className="flex min-w-0 items-start gap-0.5">
-        <Link
-          href={`/create/new/${resume.id}`}
-          onClick={open}
-          title={nameOf(resume)}
-          data-resume-link={resume.id}
-          style={morph("name", index)}
-          className={className}
-        >
-          {nameOf(resume)}
-        </Link>
-        <RowAction
-          label="Rename"
-          data-rename={resume.id}
-          onClick={() => setRenaming({ id: resume.id, draft: resume.resumeTitle ?? "" })}
-          className="-my-2 transition-opacity motion-reduce:transition-none md:opacity-0 md:focus-visible:opacity-100 md:group-hover/row:opacity-100"
-        >
-          <PencilIcon />
-        </RowAction>
+  // The name, which opens the resume, and a pencil to rename it. On wide
+  // screens the pencil shows when the row is pointed at, or it's focused.
+  // While renaming, the box to type the name in lies over them, and they keep
+  // their place unseen: the table sizes its columns from what's in them, so
+  // the box in their stead would move the other columns, and a name on two
+  // lines would take the rows under it up a line.
+  const name = (resume: ResumeWithId, index: number, className: string) => {
+    const typing = renaming?.id === resume.id
+    return (
+      <div className="grid min-w-0">
+        <div className={`col-start-1 row-start-1 flex min-w-0 items-start gap-0.5 ${typing ? "invisible" : ""}`}>
+          <Link
+            href={`/create/new/${resume.id}`}
+            onClick={open}
+            title={nameOf(resume)}
+            data-resume-link={resume.id}
+            style={morph("name", index)}
+            className={className}
+          >
+            {nameOf(resume)}
+          </Link>
+          <RowAction
+            label="Rename"
+            data-rename={resume.id}
+            onClick={() => setRenaming({ id: resume.id, draft: resume.resumeTitle ?? "" })}
+            className="-my-2 transition-opacity motion-reduce:transition-none md:opacity-0 md:focus-visible:opacity-100 md:group-hover/row:opacity-100"
+          >
+            <PencilIcon />
+          </RowAction>
+        </div>
+        {typing && (
+          <RenameInput
+            resume={resume}
+            draft={renaming.draft}
+            actions={actions}
+            className="col-start-1 row-start-1 w-full min-w-0 self-start border-0 border-b border-accent bg-transparent py-0.5 font-serif text-[21px] leading-tight text-ink outline-none placeholder:text-ink-2 focus-visible:outline-none"
+          />
+        )}
       </div>
     )
+  }
 
   const buttons = (resume: ResumeWithId) => (
     <>
@@ -208,6 +216,8 @@ export function RenameInput({ resume, draft, actions: { setRenaming, finishRenam
       value={draft}
       placeholder="Untitled resume"
       maxLength={200}
+      // The least a box can be, so what it fills, not its own width, sizes the list's column.
+      size={1}
       autoFocus
       onFocus={(event) => event.currentTarget.select()}
       onChange={(event) => setRenaming({ id: resume.id, draft: event.target.value })}
