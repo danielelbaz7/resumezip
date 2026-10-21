@@ -7,6 +7,7 @@ import type { Problem } from "@/lib/review/ai/problems"
 import { TONE_NAMES } from "./notes"
 import type { Ink, Note } from "./PageMarks"
 import { STORM, SUN, type Picture } from "./weather/pictures"
+import TextPicture from "./weather/TextPicture"
 
 export type AiState =
   { step: "asking" } | { step: "done"; notes: Note[] } | { step: "problem"; reason: Exclude<Problem, "off">; message: string }
@@ -49,15 +50,6 @@ const TILES: Record<AiInk, { title: string; line: string; empty: string; picture
   good: { title: TONE_NAMES.green.many, line: "Lines that land. Keep them.", empty: "None stood out.", picture: SUN },
 }
 
-// Each color of a picture is one layer of the whole grid, blank but for its own
-// glyphs, and the layers are laid on each other: a few text nodes, not a span a glyph.
-const layersOf = ({ palette, glyphs, inks }: Picture) =>
-  palette.map((color, ink) => ({
-    color,
-    text: glyphs.map((row, r) => row.replace(/./g, (glyph, c) => (inks[r][c] === String(ink) ? glyph : " "))).join("\n"),
-  }))
-const LAYERS: Record<AiInk, { color: string; text: string }[]> = { red: layersOf(TILES.red.picture), good: layersOf(TILES.good.picture) }
-
 /** A tile for one kind of flag: its count, and its picture in text. Pressed, it's tall and its flags are listed. */
 function Tile({ tone, count, pressed, onPress }: { tone: AiInk; count: number; pressed: boolean; onPress: () => void }) {
   const line = useId()
@@ -79,13 +71,7 @@ function Tile({ tone, count, pressed, onPress }: { tone: AiInk; count: number; p
       <span id={line} className="review-tile-line">
         {words}
       </span>
-      <span className="review-tile-picture" aria-hidden="true">
-        {LAYERS[tone].map(({ color, text }) => (
-          <span key={color} style={{ color }}>
-            {text}
-          </span>
-        ))}
-      </span>
+      <TextPicture picture={TILES[tone].picture} className="review-tile-picture" />
     </button>
   )
 }

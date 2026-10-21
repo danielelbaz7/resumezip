@@ -1,55 +1,94 @@
 "use client"
 
-import { useId } from "react"
-import { RotateCcw, Sparkles } from "lucide-react"
-import { describePlace } from "@/lib/check/labels"
+import { useId, useState } from "react"
+import { RotateCcw } from "lucide-react"
 import type { Place } from "@/lib/check/places"
-import type { ResumeView } from "@/lib/check/resume"
 import { findingOf } from "@/lib/review/ai/place"
 import type { SavedNote } from "@/lib/review/ai/saved"
 import { aiKeyOf, TONE_NAMES } from "@/components/review/notes"
 import { REWRITE } from "@/components/review/PageMarks"
+import { STORM, SUN, type Picture } from "@/components/review/weather/pictures"
+import TextPicture from "@/components/review/weather/TextPicture"
 import { useCheckActions } from "./CheckContext"
 import { useMarks, usePointAt } from "./MarksContext"
 
-// The line down a note's left side, and its dot: the review page's pens, red for a red flag and blue for done well.
-const TONE_LINE = {
-  red: "shadow-[inset_3px_0_0_var(--review-red)]",
-  green: "shadow-[inset_3px_0_0_var(--color-accent)]",
-} as const
-const TONE_DOT = { red: "var(--review-red)", green: "var(--color-accent)" } as const
+type Tone = SavedNote["tone"]
+
+// A note's dot, the colors of the review page's pens: red for a red flag and blue for done well.
+const TONE_DOT: Record<Tone, string> = { red: "var(--review-red)", green: "var(--color-accent)" }
+// The review page's pictures for each kind: a storm over the red flags, the sun over what's done well.
+const TONE_PICTURE: Record<Tone, Picture> = { red: STORM, green: SUN }
+const TONES = ["red", "green"] as const
 
 const button =
   "inline-flex h-9 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[13px] font-medium text-white transition-colors hover:bg-ink/85 disabled:opacity-60"
 
-function Note({ note, index, place, view }: { note: SavedNote; index: number; place: Place | null; view: ResumeView }) {
+function Dot({ tone }: { tone: Tone }) {
+  return <span aria-hidden="true" className="block h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: TONE_DOT[tone] }} />
+}
+
+/** How many notes there are of one kind, under its picture. */
+function Tally({ tone, count }: { tone: Tone; count: number }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-2 py-3.5 first:border-r first:border-rule first:pr-3 last:pl-3">
+      <TextPicture picture={TONE_PICTURE[tone]} className="ai-tally-picture" />
+      <p className="flex items-baseline gap-2">
+        <span className="font-serif text-[36px] leading-[0.9] tracking-[-0.04em] text-ink">{count}</span>
+        <span className="label-mono flex items-center gap-1.5 whitespace-nowrap text-ink">
+          <Dot tone={tone} />
+          {TONE_NAMES[tone].many}
+        </span>
+      </p>
+    </div>
+  )
+}
+
+function Note({
+  note,
+  index,
+  place,
+  opened,
+  onOpen,
+}: {
+  note: SavedNote
+  index: number
+  place: Place | null
+  opened: boolean
+  onOpen: () => void
+}) {
   const { open } = useCheckActions()
   const point = usePointAt(aiKeyOf(index))
-  const body = (
-    <>
-      <span className="w-full truncate font-mono text-[11px] text-ink-2">
-        {/* One that was never on a line (text: null) hasn't changed: it's about the whole resume. */}
-        {place ? describePlace(view, place) : note.text === null ? "On your resume" : "Changed since the notes"}
-      </span>
-      <span className={`text-sm leading-snug ${place ? "text-ink" : "text-ink-2"}`}>{note.title}</span>
-      <span className="text-[13px] leading-snug text-ink-2">{note.why}</span>
-      {note.suggestion && <span className={`mt-0.5 ${REWRITE} text-[13px] leading-snug`}>{note.suggestion}</span>}
-    </>
-  )
+  const details = useId()
   return (
-    <li className={`flex flex-col border-t border-rule ${TONE_LINE[note.tone]}`} {...(place ? point : {})}>
-      {place ? (
-        <button
-          type="button"
-          onClick={() => open(findingOf(note, place, index))}
-          onFocus={point.onMouseEnter}
-          onBlur={point.onMouseLeave}
-          className="flex flex-col items-start gap-1 px-3.5 py-2.5 text-left transition-colors hover:bg-ink/[0.02] focus-visible:outline-offset-[-2px]"
-        >
-          {body}
-        </button>
-      ) : (
-        <div className="flex flex-col items-start gap-1 px-3.5 py-2.5">{body}</div>
+    <li className="flex flex-col border-t border-rule first:border-t-0" {...(place ? point : {})}>
+      <button
+        type="button"
+        aria-expanded={opened}
+        aria-controls={opened ? details : undefined}
+        onClick={() => {
+          onOpen()
+          if (place) open(findingOf(note, place, index))
+        }}
+        onFocus={place ? point.onMouseEnter : undefined}
+        onBlur={place ? point.onMouseLeave : undefined}
+        className="flex items-start gap-2.5 px-0.5 py-3 text-left transition-colors hover:bg-ink/[0.02] focus-visible:outline-offset-[-2px]"
+      >
+        <span className="mt-[7px]">
+          <Dot tone={note.tone} />
+        </span>
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className={`text-sm leading-snug ${place ? "text-ink" : "text-ink-2"}`}>{note.title}</span>
+          {/* One that was never on a line (text: null) hasn't changed: it's about the whole resume. */}
+          {!place && (
+            <span className="text-[12px] leading-snug text-ink-3">{note.text === null ? "On your resume" : "Changed since the notes"}</span>
+          )}
+        </span>
+      </button>
+      {opened && (
+        <div id={details} className="flex flex-col gap-2.5 pb-3.5 pl-[19px] pr-0.5">
+          <p className="text-[13px] leading-snug text-ink-2">{note.why}</p>
+          {note.suggestion && <p className={`${REWRITE} text-[13px] leading-snug`}>{note.suggestion}</p>}
+        </div>
       )}
     </li>
   )
@@ -57,13 +96,15 @@ function Note({ note, index, place, view }: { note: SavedNote; index: number; pl
 
 /**
  * The AI's notes in the Check panel: the ones from the review, or asked for
- * here, kept in this browser so they're shown again without asking. Each
- * opens the field its words are in, and pointing at it shows its mark on the
- * preview; one whose words have been rewritten says so.
+ * here, kept in this browser so they're shown again without asking. A count
+ * of each kind under its picture, then the notes, red flags first, one open
+ * at a time to say why and what to write instead. Choosing one opens the
+ * field its words are in, and pointing at it shows its mark on the preview.
  */
-export default function AiNotesBox({ view }: { view: ResumeView }) {
+export default function AiNotesBox() {
   const { aiNotes, aiPlaces, ai, canAsk, askAi } = useMarks()
   const heading = useId()
+  const [chosen, setChosen] = useState<number | null>(null)
   const asking = ai.step === "asking"
   const problem = ai.step === "problem" && (
     <p role="alert" className="text-[13px] leading-snug text-alert">
@@ -74,8 +115,7 @@ export default function AiNotesBox({ view }: { view: ResumeView }) {
   if (!aiNotes || aiNotes.length === 0) {
     return (
       <section aria-labelledby={heading} className="check-box glass flex flex-col gap-2.5 rounded-panel px-3.5 py-3.5">
-        <h2 id={heading} className="flex items-center gap-2 text-sm font-medium text-ink">
-          <Sparkles className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+        <h2 id={heading} className="text-sm font-medium text-ink">
           AI notes
         </h2>
         <p className="text-[13px] leading-snug text-ink-2">
@@ -83,7 +123,6 @@ export default function AiNotesBox({ view }: { view: ResumeView }) {
         </p>
         {problem}
         <button type="button" onClick={askAi} disabled={!canAsk || asking} className={`${button} self-start`}>
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
           {asking ? "Reading it like a recruiter…" : ai.step === "problem" ? "Try again" : "Get AI notes"}
         </button>
         {!canAsk && <p className="text-[12px] leading-snug text-ink-3">Waiting for the preview…</p>}
@@ -91,38 +130,44 @@ export default function AiNotesBox({ view }: { view: ResumeView }) {
     )
   }
 
+  const byTone = TONES.map((tone) => ({
+    tone,
+    notes: aiNotes.map((note, index) => ({ note, index })).filter(({ note }) => note.tone === tone),
+  }))
+  // The first listed is open until another is chosen: the top red flag, or what's done well if nothing was flagged.
+  const listed = byTone.flatMap(({ notes }) => notes.map(({ index }) => index))
+  const opened = chosen !== null && listed.includes(chosen) ? chosen : listed[0]
+
   return (
-    <section aria-labelledby={heading} className="check-box glass flex flex-col overflow-hidden rounded-panel">
-      <div className="flex items-start gap-2.5 px-3.5 pb-3 pt-3.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.05] text-ink" aria-hidden="true">
-          <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-        </span>
-        <span className="flex flex-col gap-0.5">
-          <h2 id={heading} className="text-sm font-medium leading-snug text-ink">
-            AI notes
-          </h2>
-          <span className="text-[12px] leading-snug text-ink-2">Read like a recruiter would. Point at one to see it on the page.</span>
-        </span>
+    <section aria-labelledby={heading} className="flex flex-col">
+      {/* The switch above says "AI notes"; the heading names the region for a screen reader. */}
+      <h2 id={heading} className="sr-only">
+        AI notes
+      </h2>
+      <div className="grid grid-cols-2 border-y border-b-rule border-t-ink">
+        {byTone.map(({ tone, notes }) => (
+          <Tally key={tone} tone={tone} count={notes.length} />
+        ))}
       </div>
-      {(["red", "green"] as const).map((tone) => {
-        const some = aiNotes.map((note, index) => ({ note, index })).filter(({ note }) => note.tone === tone)
-        if (some.length === 0) return null
-        const title = TONE_NAMES[tone].many
-        return (
-          <section key={tone} aria-label={`${title}, ${some.length}`} className="flex flex-col">
-            <h3 className="label-mono flex items-center gap-2 border-t border-rule px-3.5 pb-1.5 pt-3 text-ink-2">
-              <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ background: TONE_DOT[tone] }} />
-              {title} · {some.length}
-            </h3>
+      {byTone.map(({ tone, notes }) =>
+        notes.length === 0 ? null : (
+          <section key={tone} aria-label={`${TONE_NAMES[tone].many}, ${notes.length}`} className="border-b border-rule">
             <ul className="flex flex-col">
-              {some.map(({ note, index }) => (
-                <Note key={index} note={note} index={index} place={aiPlaces[index] ?? null} view={view} />
+              {notes.map(({ note, index }) => (
+                <Note
+                  key={index}
+                  note={note}
+                  index={index}
+                  place={aiPlaces[index] ?? null}
+                  opened={index === opened}
+                  onOpen={() => setChosen(index)}
+                />
               ))}
             </ul>
           </section>
-        )
-      })}
-      <div className="flex flex-col gap-2 border-t border-rule px-3.5 py-3">
+        ),
+      )}
+      <div className="flex flex-col gap-2 py-3.5">
         {problem}
         {/* The notes are of the resume as it was: for what's been rewritten since, the AI can be asked again. */}
         <button
