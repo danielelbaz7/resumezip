@@ -39,10 +39,15 @@ export type Level = keyof typeof LEVELS
 
 /**
  * A rule that finds anything takes at least this share of its penalty,
- * however little of the resume it's about: one typo in thirty fields is still
- * a typo. The rest of the penalty grows with how much of the resume fails it.
+ * however little of the resume it's about. The rest of the penalty grows with
+ * how much of the resume fails it. A must-fix is clearly wrong, so one is
+ * already much of the problem: one typo in thirty fields is still a typo. A
+ * suggestion is about how much of the resume does it, so one weak bullet in a
+ * dozen costs a little, and two such suggestions on different rules don't
+ * pull a strong resume's bullets under CONTENT_FULL, where the whole total
+ * would be scaled down for them.
  */
-export const LEAST_PENALTY = 0.5
+export const LEAST_PENALTY: Record<Level, number> = { fix: 0.5, look: 0.2 }
 
 /** The most a resume can score while a must-fix problem is left. */
 export const MUST_FIX_MAX = 89

@@ -144,12 +144,27 @@ describe("the resume score", () => {
     expect(category(scoreWith([...passing("contact", 30), broken]), "contact").earned).toBe(5)
   })
 
-  test("takes at least half the penalty for finding anything, and the rest by how much of the resume fails", () => {
-    // 1 bullet in 4: half of 35%, and a quarter of the other half.
+  test("takes at least half the penalty for a must-fix it finds and a fifth for a suggestion, and the rest by how much of the resume fails", () => {
+    // 1 email in 4: half of 50%, and a quarter of the other half.
+    expect(category(scoreWith([...passing("contact"), rule("C2", "contact", "fix", found(4, 1))]), "contact").earned).toBe(6.875)
+    // 1 bullet in 4: a fifth of 35%, and a quarter of the other four fifths.
     const score = scoreWith([...passing("bullets"), rule("B1", "bullets", "look", found(4, 1))])
-    expect(category(score, "bullets").earned).toBe(23.4375)
-    expect(score.total).toBe(78)
+    expect(category(score, "bullets").earned).toBe(25.8)
+    expect(score.total).toBe(86)
     expect(category(scoreWith([...passing("bullets"), rule("B1", "bullets", "look", found(4))]), "bullets").earned).toBe(19.5)
+  })
+
+  test("keeps a strong resume strong with two small suggestions on different rules", () => {
+    const elsewhere = CATEGORIES.filter(({ id }) => id !== "bullets").flatMap(({ id }) => passing(id, 1))
+    // A weak start on one bullet of 13, and "I" on another.
+    const score = scoreWith([
+      ...elsewhere,
+      ...passing("bullets"),
+      rule("B1", "bullets", "look", found(13, 1)),
+      rule("B4", "bullets", "look", found(13, 1)),
+    ])
+    expect(score.total).toBe(94)
+    expect(bandOf(score.total!).name).toBe("Strong")
   })
 
   test("earns no more than the share of a category's rules that pass, so one whose only rules fail earns nothing", () => {
@@ -175,7 +190,7 @@ describe("the resume score", () => {
     const typo = scoreWith([...elsewhere, rule("G1", "spelling", "fix", found(100, 1))])
     expect(typo.total).toBe(MUST_FIX_MAX)
     // A suggestion as small isn't held.
-    expect(scoreWith([...elsewhere, rule("G7", "spelling", "look", found(100, 1))]).total).toBe(97)
+    expect(scoreWith([...elsewhere, rule("G7", "spelling", "look", found(100, 1))]).total).toBe(98)
   })
 
   test("is never below 0, and fixing something on a new resume with no bullets still raises it", () => {
@@ -218,7 +233,7 @@ describe("the resume score", () => {
     expect(alsoDates.total).toBe(wholePoints((100 - 21 - 3.5) * share))
     // Bullets that earn most of their points cost only those points.
     const strong = scoreWith([...elsewhere, rule("B3", "bullets", "look", found(100, 1))])
-    expect(strong.total).toBe(wholePoints(100 - 30 * 0.35 * 0.505))
+    expect(strong.total).toBe(wholePoints(100 - 30 * 0.35 * 0.208))
   })
 
   test("says how many points weak bullets take off the total, and none when a must-fix holds it lower anyway", () => {
@@ -275,7 +290,7 @@ describe("the resume score", () => {
 
   test("is 100 only when everything passes", () => {
     // One problem in a thousand still costs points.
-    expect(scoreWith([rule("B3", "bullets", "look", found(1000, 1))]).total).toBe(82)
+    expect(scoreWith([rule("B3", "bullets", "look", found(1000, 1))]).total).toBe(92)
     // Points that come to a whole number, give or take how computers add, count as whole.
     expect(wholePoints(0.1 * 3 * 10)).toBe(3)
     expect(wholePoints(2.9999999999)).toBe(3)

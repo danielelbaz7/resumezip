@@ -2,9 +2,10 @@
 // rules, out of 100. It says nothing about whether a resume gets anyone
 // hired. Each category is worth its points (CATEGORIES) and starts with all
 // of them. Each rule that finds something takes some away: a must-fix up to
-// half of them, a suggestion up to 35% (LEVELS), at least half of that
-// for finding anything (LEAST_PENALTY), and the rest by how much of the
-// resume fails it, with dismissed suggestions counting as passing
+// half of them, a suggestion up to 35% (LEVELS), at least part of that for
+// finding anything (LEAST_PENALTY: half for a must-fix, a fifth for a
+// suggestion), and the rest by how much of the resume fails it, with
+// dismissed suggestions counting as passing
 // (engine.ts). Rules that pass earn nothing, so easy passes can't make up for
 // a real problem. Nor can a category earn more than the share of its rules
 // that pass, so one whose only rules that apply fail, as with no bullets at
@@ -61,11 +62,13 @@ const counts = (result: RuleResult): result is Scored =>
 /**
  * What a rule takes from its category, as a share of its points: nothing when
  * it passes, and when it finds something, its level's penalty, at least
- * LEAST_PENALTY of it and the rest by how much of the resume fails it.
+ * its level's LEAST_PENALTY of it and the rest by how much of the resume
+ * fails it.
  */
 function penaltyOf({ scoring }: Scored): number {
   if (!scoring.failed) return 0
-  return LEVELS[scoring.level].penalty * (LEAST_PENALTY + (1 - LEAST_PENALTY) * (1 - scoring.credit))
+  const least = LEAST_PENALTY[scoring.level]
+  return LEVELS[scoring.level].penalty * (least + (1 - least) * (1 - scoring.credit))
 }
 
 /**

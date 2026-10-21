@@ -136,10 +136,12 @@ nothing is sent anywhere. (The AI notes beside it in Check are separate:
   resume follows these checks, not whether it gets anyone hired. Each
   category starts with all its points (`settings.ts`), and each rule that
   finds something takes some away: a must-fix up to half of them, a
-  suggestion up to 35%. Finding anything at all takes at least half of
-  that, so one typo in thirty fields still costs, and the rest grows with how
-  much of the resume fails the rule. Passing earns nothing, so easy passes
-  can't make up for a real problem, and dismissed suggestions count as
+  suggestion up to 35%. Finding anything at all takes at least part of
+  that: half for a must-fix, so one typo in thirty fields still costs, and a
+  fifth for a suggestion, which is about how much of the resume does it, so
+  one weak bullet in a dozen costs a little (`LEAST_PENALTY`). The rest grows
+  with how much of the resume fails the rule. Passing earns nothing, so easy
+  passes can't make up for a real problem, and dismissed suggestions count as
   passing. Advisory rules and findings are excluded from grading. Nor does a
   category earn more than the share of its scored rules that pass, so one
   whose only rules that apply fail, as with no bullets at all,
