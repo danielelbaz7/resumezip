@@ -244,8 +244,13 @@
     outline: 2px solid var(--color-accent);
     outline-offset: 3px;
   }
+  /* Flying in from above the box, the first page isn't clipped by it; what's under the page
+     waits until it has landed, rather than showing below the box meanwhile. */
   .review-pages[data-flying] {
     overflow: visible;
+  }
+  .review-pages[data-flying] > :not(:first-child) {
+    visibility: hidden;
   }
 
   /* Beside the card where there's room, else above it: a note on how the

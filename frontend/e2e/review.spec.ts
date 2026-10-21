@@ -111,6 +111,22 @@ test("the result opens once page 1 is drawn, and later pages join it as they're 
   expect(errors).toEqual([])
 })
 
+test("while page 1 flies into the result, what's under it waits, rather than showing below the box", async ({ page }) => {
+  await page.goto("/review")
+  await openFile(page.getByRole("button", { name: "Review my resume" }), LONG)
+  const pages = page.getByRole("region", { name: "Your resume" })
+  // The box lets page 1 fly in from above it, unclipped, for the length of its flight.
+  await page.locator("[data-flying]").waitFor({ state: "attached", timeout: 90_000 })
+  const during = await pages.evaluate((box) => [...box.children].slice(1).map((child) => getComputedStyle(child).visibility))
+  expect(during.length).toBeGreaterThan(0)
+  expect(during.every((visibility) => visibility === "hidden")).toBe(true)
+  // Landed, the box clips and scrolls again, and page 2 is under page 1.
+  await expect(page.locator("[data-flying]")).toHaveCount(0)
+  await expect(pages).toHaveCSS("overflow-y", "auto")
+  await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toBeAttached()
+  await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toHaveCSS("visibility", "visible")
+})
+
 test("a page that can't be drawn after page 1 leaves page 1 shown, with its own notes listed under it", async ({ page }) => {
   const errors = pageErrors(page)
   // Page 2's picture can't be made.

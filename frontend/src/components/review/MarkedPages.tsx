@@ -87,7 +87,12 @@ export default function MarkedPages({
     }
     animation.onfinish = land
     animation.oncancel = land
-    return () => animation.cancel()
+    // Should neither come (a tab in the background may hold its animations), the box clips and scrolls again all the same.
+    const backstop = setTimeout(land, FLIGHT_MS + 500)
+    return () => {
+      clearTimeout(backstop)
+      animation.cancel()
+    }
   }, [])
 
   return (
