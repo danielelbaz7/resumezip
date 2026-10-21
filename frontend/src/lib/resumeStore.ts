@@ -23,7 +23,6 @@ import {
   migrateLegacy,
   readKeptAside,
   readResume,
-  readSaved,
   removeResume,
   saveResume,
   supersedes,
@@ -511,24 +510,19 @@ export function createResumeStore() {
       return
     }
     const theirs = readResume(text)
-    if (!theirs.complete || !theirs.resume) {
+    if (!theirs.resume) {
+      // Not a resume at all. This tab keeps its own version, and saves it
+      // back once that text is kept aside.
       if (ours) {
-        // Saved by something this tab can't fully read. This tab keeps its
-        // own version, and saves it back once that text is kept aside.
         markChanged(id, EVERY_FIELD)
         saveSoon()
-      } else {
-        const saved = readSaved(storage, id)
-        if (saved.resume && saved.text !== null) {
-          seen.set(id, saved.text)
-          setState({ resumes: { ...state.resumes, [id]: saved.resume } })
-        }
-        // It couldn't be kept aside, and is left as it is: show why.
-        if (saved.status !== "saved") setState({ saveStatus: worse(state.saveStatus, saved.status) })
       }
-      setState({ unreadable: readKeptAside(storage) })
       return
     }
+    // Text this version can't fully read, as from a tab already on a newer
+    // one, is taken in as far as it can be read and left as it is: saving
+    // over it would undo that tab's change. It's kept aside before this tab's
+    // next save of the resume replaces it (see saveResume).
     seen.set(id, text)
     // Changes here that aren't saved yet stay on top, and are saved soon.
     const resume = ours && changed ? mergeResume(theirs.resume, ours, changed) : theirs.resume

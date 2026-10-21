@@ -313,17 +313,50 @@ describe("something another tab saved that can't be read", () => {
   })
 })
 
-describe("a resume another tab saved that can't all be read", () => {
-  test("shows why when it can't be kept aside, and loads what can be read", () => {
+describe("a resume another tab saved that can't all be read, as from a tab on a newer version", () => {
+  // A Fine-tune setting this version doesn't know.
+  const newer = { ...ada, resumeTitle: "Ada, from a newer tab", tune: { size: 1.1, newSetting: true } }
+
+  test("is taken in as far as it can be read, and an idle tab doesn't save over it", () => {
     const storage = memoryStorage(saved(ada))
     const tab = openTab(storage)
-    storage.setItem(keyOf("x"), JSON.stringify({ id: "x", resumeTitle: "X", educationSection: { schoolName: "MIT" } }))
-    vi.spyOn(storage, "setItem").mockImplementation(() => {
-      throw new DOMException("The quota has been exceeded.", "QuotaExceededError")
-    })
+    const setItem = vi.spyOn(storage, "setItem")
+    storage.setItem(keyOf("a"), JSON.stringify(newer))
+    setItem.mockClear()
+
+    tab.receive(keyOf("a"))
+    expect(tab.getState().resumes.a).toMatchObject({ resumeTitle: "Ada, from a newer tab", tune: { size: 1.1 } })
+    vi.advanceTimersByTime(SAVE_DELAY * 2)
+    tab.flush()
+    expect(setItem).not.toHaveBeenCalled()
+    expect(storage.getItem(keyOf("a"))).toBe(JSON.stringify(newer))
+  })
+
+  test("is kept aside once this tab changes that resume, and the change is saved with what could be read", () => {
+    const storage = memoryStorage(saved(ada))
+    const tab = openTab(storage)
+    storage.setItem(keyOf("a"), JSON.stringify(newer))
+    tab.receive(keyOf("a"))
+
+    tab.edit("a", "profileSection", { fullName: "Ada King" })
+    vi.advanceTimersByTime(SAVE_DELAY)
+    expect(stored(storage, "a")).toMatchObject({ resumeTitle: "Ada, from a newer tab", profileSection: { fullName: "Ada King" } })
+    expect(tab.getState().unreadable).toEqual([JSON.stringify(newer)])
+  })
+
+  test("that this tab doesn't have yet is taken in without saving anything", () => {
+    const storage = memoryStorage(saved(ada))
+    const tab = openTab(storage)
+    const text = JSON.stringify({ id: "x", resumeTitle: "X", educationSection: { schoolName: "MIT" } })
+    storage.setItem(keyOf("x"), text)
+    const setItem = vi.spyOn(storage, "setItem")
     tab.receive(keyOf("x"))
     expect(tab.getState().resumes.x).toEqual({ id: "x", resumeTitle: "X" })
-    expect(tab.getState().saveStatus).toBe("full")
+    vi.advanceTimersByTime(SAVE_DELAY * 2)
+    tab.flush()
+    expect(setItem).not.toHaveBeenCalled()
+    expect(storage.getItem(keyOf("x"))).toBe(text)
+    expect(tab.getState().unreadable).toEqual([])
   })
 })
 
