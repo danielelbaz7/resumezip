@@ -15,6 +15,14 @@ const SAMPLE_MARKS: { kind: "circle" | "highlight" | "underline"; box: Box }[] =
   { kind: "circle", box: [145, 679, 334, 702] },
 ]
 
+// The fog's bands: how much each blurs, and where it fades in, in % of the fog's height. Each masked
+// backdrop blur is redrawn whenever what's under it moves (scrolling, the scan, the eyes): six bands
+// dropped Chrome to ~47fps on a Retina screen, two keep it at 60 and look much the same.
+const FOG = [
+  { blur: 2.5, from: 0, to: 30 },
+  { blur: 14, from: 26, to: 70 },
+]
+
 /** How long after their page shows the eyes start on it, in ms: once it has faded in over the sample. */
 export const GAZE_DELAY = 400
 /** The page's corners where it's being read (`.review-sheet > *` in review.css), which it flies from. */
@@ -144,11 +152,8 @@ export default function Backdrop({
         </div>
       </div>
       <div className="review-fog top-[calc(var(--sheet)*0.22)] bottom-0">
-        {[0.6, 1.2, 2.4, 4.8, 9.6, 19.2].map((blur, index) => (
-          <span
-            key={blur}
-            style={{ "--blur": `${blur}px`, "--from": `${index * 12}%`, "--to": `${index * 12 + 14}%` } as React.CSSProperties}
-          />
+        {FOG.map(({ blur, from, to }) => (
+          <span key={blur} style={{ "--blur": `${blur}px`, "--from": `${from}%`, "--to": `${to}%` } as React.CSSProperties} />
         ))}
       </div>
     </div>

@@ -44,9 +44,9 @@
     mask-image: linear-gradient(180deg, #000 30%, transparent 64%);
   }
 
-  /* Fog: each band blurs what's behind it twice as much as the one above, so
-     the page and the sky go soft gradually rather than at a line; then white
-     rises over them. */
+  /* Fog: a light blur, then a heavy one fading in over it (FOG in
+     Backdrop.tsx), so the page and the sky go soft gradually rather than at a
+     line; then white rises over them. */
   .review-fog {
     position: absolute;
     left: 0;
