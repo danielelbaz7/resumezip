@@ -300,6 +300,7 @@ test("a reviewed file is kept as a past review, which opens as it was reviewed, 
   // Deleted, it's gone from the list, and from the browser.
   await page.goto("/review")
   await past.getByRole("button", { name: "Delete the review of Mara Lin" }).click()
+  await past.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(past).toHaveCount(0)
   await page.reload()
   await expect(page.getByRole("button", { name: "Review my resume" })).toBeVisible()
@@ -364,12 +365,67 @@ test("a past review that can't be deleted stays listed, and says so", async ({ p
     IDBObjectStore.prototype.clear = refuse
   })
   await past.getByRole("button", { name: "Delete the review of Mara Lin" }).click()
+  await past.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(past.getByRole("alert")).toHaveText("That couldn’t be deleted. Try again.")
+  // The question stays, to try again.
+  await expect(past.getByRole("status")).toHaveText("Delete this review?")
   await past.getByRole("button", { name: "Clear all" }).click()
   await past.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(past.getByRole("alert")).toHaveText("That couldn’t be deleted. Try again.")
   await page.reload()
   await expect(past.getByRole("button", { name: /^Mara Lin/ })).toBeVisible()
+})
+
+/** How many past reviews are kept in the browser's storage, read from IndexedDB itself. */
+const keptReviews = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const request = indexedDB.open("resumezip")
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const count = request.result.transaction("pastReviews").objectStore("pastReviews").count()
+          count.onerror = () => reject(count.error)
+          count.onsuccess = () => {
+            request.result.close()
+            resolve(count.result)
+          }
+        }
+      }),
+  )
+
+test("deleting a past review asks first", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
+  await reviewed(page)
+  await page.goto("/review")
+  const past = page.getByRole("region", { name: "Past reviews" })
+  const bin = past.getByRole("button", { name: "Delete the review of Mara Lin" })
+  const keep = past.getByRole("button", { name: "Keep" })
+
+  // The bin only asks. Escape or Keep backs out, giving the bin the focus again, and nothing's deleted.
+  await bin.click()
+  await expect(past.getByRole("status")).toHaveText("Delete this review?")
+  await expect(keep).toBeFocused()
+  await page.keyboard.press("Escape")
+  await expect(past.getByRole("status")).toHaveCount(0)
+  await expect(bin).toBeFocused()
+  await bin.click()
+  await keep.click()
+  await expect(bin).toBeFocused()
+  // Clear all asks the same way.
+  await past.getByRole("button", { name: "Clear all" }).click()
+  await expect(past.getByRole("status")).toHaveText("Delete all?")
+  await keep.click()
+  await expect(past.getByRole("button", { name: "Clear all" })).toBeFocused()
+  expect(await keptReviews(page)).toBe(1)
+
+  // Deleted once that's said, it's gone from the browser at once.
+  await bin.click()
+  await past.getByRole("button", { name: "Delete", exact: true }).click()
+  await expect(past).toHaveCount(0)
+  expect(await keptReviews(page)).toBe(0)
+  expect(errors).toEqual([])
 })
 
 /**

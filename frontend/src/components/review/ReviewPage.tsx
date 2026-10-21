@@ -623,11 +623,13 @@ export default function ReviewPage() {
     const deleted = await deletePastReview(review.id)
     setPastProblem(deleted ? null : COULDNT_DELETE)
     if (deleted) setPast((list) => list?.filter((each) => each.id !== review.id) ?? null)
+    return deleted
   }
   const deleteAllPast = async () => {
     const deleted = await deleteAllPastReviews()
     setPastProblem(deleted ? null : COULDNT_DELETE)
     if (deleted) setPast([])
+    return deleted
   }
 
   // Adds the reviewed resume to this browser's, unless it's here already as
@@ -742,8 +744,8 @@ export default function ReviewPage() {
                       reviews={past}
                       onOpen={(review) => void reopen(review.id)}
                       problem={pastProblem}
-                      onDelete={(review) => void deletePast(review)}
-                      onDeleteAll={() => void deleteAllPast()}
+                      onDelete={deletePast}
+                      onDeleteAll={deleteAllPast}
                     />
                   )}
                   {paused && (
