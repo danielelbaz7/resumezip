@@ -158,6 +158,25 @@ const RESUMES: { name: string; resume: Record<string, unknown>; least: number; m
     least: 90,
     most: 100,
   },
+  {
+    // Two suggestions on different rules, one bullet each: still a strong resume.
+    name: "the template's own sample with two small slips",
+    resume: rewritten({
+      work: [
+        [
+          "Responsible for a Go service for Google Maps that merges edits to business hours from owners and reviewers, cutting the time before an approved change shows up in search from about six hours to under 30 minutes",
+          "Added tracing to the edit pipeline and found a slow storage lookup that added 900 ms to every request",
+          "Wrote a load test that replays a busy holiday weekend of edits, now run before every release of the service",
+        ],
+        [
+          "Built a React dashboard that tracks over-the-air software updates by vehicle model for 40 release engineers",
+          "I wrote Python checks that scan 2 million vehicle telemetry records each night for missing or out-of-range fields, replacing a weekly manual spot check and catching two bad sensor firmware builds",
+        ],
+      ],
+    }),
+    least: 90,
+    most: 100,
+  },
   { name: "the template's own sample", resume: jake, least: 95, most: 100 },
 ]
 
