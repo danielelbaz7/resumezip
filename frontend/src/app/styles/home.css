@@ -290,6 +290,12 @@
     width: var(--cta-width, 560px);
     --glass-in: 0;
     box-shadow: none;
+    pointer-events: none;
+  }
+  /* Hidden until the story first draws it: till then it's at the stage's top left, over the first
+     screen. The story sets its own opacity and pointer-events from then on. */
+  .home-stage > .home-cta .home-cta-copy {
+    opacity: 0;
   }
   .home-cta::before,
   .home-cta::after,

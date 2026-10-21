@@ -366,6 +366,19 @@ for (const [screen, size] of [
   })
 }
 
+// The way in waits at the stage's top left until the story's script places it, which on a slow
+// phone can be a second after the first screen shows.
+test("before the story's script runs, the way in doesn't show over the first screen", async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false })
+  const page = await context.newPage()
+  await page.goto("/")
+  // Once the page has faded in, as it does on arriving.
+  await expect.poll(() => opacity(page.getByRole("heading", { level: 1 }))).toBe(1)
+  expect(await opacity(wayIn(page).getByRole("heading", { name: "Ready when you are." }))).toBe(0)
+  await expect(wayIn(page)).toHaveCSS("pointer-events", "none")
+  await context.close()
+})
+
 test("with less motion, the story is told still: every note and the way in, already there", async ({ browser }) => {
   const context = await browser.newContext({ reducedMotion: "reduce" })
   const page = await context.newPage()
