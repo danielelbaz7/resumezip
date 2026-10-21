@@ -429,7 +429,9 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
           else elements.current.delete(entry.id)
         }}
         {...drag?.draggableProps}
-        className={`grid pb-3 transition-[grid-template-rows,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${
+        // One column as wide as the list (grid-cols-1 is minmax(0, 1fr)). Its own width, an auto
+        // column, would grow to fit a long name, and the card would run past the form.
+        className={`grid grid-cols-1 pb-3 transition-[grid-template-rows,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${
           entry.id === removingId ? "grid-rows-[0fr] pb-0 opacity-0" : "grid-rows-[1fr]"
         }`}
       >
