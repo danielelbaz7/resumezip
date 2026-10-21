@@ -1,9 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { PenLine, RotateCcw, Upload } from "lucide-react"
+import DeletedToast from "@/components/dashboard/DeletedToast"
 import { reducedMotion } from "@/components/editor/layout"
 import { Squares } from "@/components/site/Loader"
 import SiteFooter from "@/components/site/SiteFooter"
@@ -14,7 +16,16 @@ import { notesNowOf, notesOf } from "@/lib/review/ai/answer"
 import { aiPaused, aiPausedUntil } from "@/lib/review/ai/paused"
 import { tieToResume, type SavedNote } from "@/lib/review/ai/saved"
 import { unitsToSend } from "@/lib/review/ai/units"
-import { deleteAllPastReviews, deletePastReview, idOf, keepPastReview, pastReview, pastReviews, type PastReview } from "@/lib/review/past"
+import {
+  deleteAllPastReviews,
+  deletePastReview,
+  idOf,
+  keepPastReview,
+  pastReview,
+  pastReviews,
+  type KeptReview,
+  type PastReview,
+} from "@/lib/review/past"
 import { reviewedAsIs, type Review, type ReviewStep } from "@/lib/review/review"
 import { countsLabel, countsOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import AiNotes, { Pill, PILL_WORDS, type AiState } from "./AiNotes"
@@ -335,6 +346,7 @@ function reviewedPhrase(at: number): string {
 }
 
 const COULDNT_DELETE = "That couldn’t be deleted. Try again."
+const COULDNT_PUT_BACK = "That couldn’t be put back."
 
 /** The page's address names the past review that's open, so it opens again on reload; the drop zone's has none. */
 function showPast(id: string | null) {
@@ -396,6 +408,11 @@ export default function ReviewPage() {
   const [past, setPast] = useState<PastReview[] | null>(null)
   // Why a past review couldn't be deleted, said under the list.
   const [pastProblem, setPastProblem] = useState<string | null>(null)
+  // The past review deleted last, with its file, while Undo can put it back. It's gone from the browser already.
+  const [deleted, setDeleted] = useState<{ kept: KeptReview; key: number } | null>(null)
+  const deletions = useRef(0)
+  // What's said aloud about the last past review deleted or put back.
+  const [announcement, setAnnouncement] = useState("")
   // The running review being kept as a past review, resolving to its id (null if it couldn't be): "Fix it in the editor" waits for it.
   const keeping = useRef<Promise<string | null> | null>(null)
   // The AI's notes on the running review, once they're back, for what's kept as they're read.
@@ -422,6 +439,8 @@ export default function ReviewPage() {
     leave()
     showPast(past?.id ?? null)
     keeping.current = null
+    // Undo is for the list, which the review takes the place of.
+    setDeleted(null)
     const current = new AbortController()
     running.current = current
     const live = () => running.current === current
@@ -618,18 +637,49 @@ export default function ReviewPage() {
 
   const chooseFile = () => fileInput.current?.click()
 
+  const announce = (text: string) => {
+    // Cleared first, so the same words twice in a row are said aloud again.
+    setAnnouncement("")
+    requestAnimationFrame(() => setAnnouncement(text))
+  }
+
   // Gone from the list once it's gone from storage, which is a moment: a page closed straight after would otherwise list it again.
+  // It's read first, file and all, so Undo can put it back as it was; one that can't be read is deleted without an Undo.
   const deletePast = async (review: PastReview) => {
-    const deleted = await deletePastReview(review.id)
-    setPastProblem(deleted ? null : COULDNT_DELETE)
-    if (deleted) setPast((list) => list?.filter((each) => each.id !== review.id) ?? null)
-    return deleted
+    const kept = await pastReview(review.id)
+    const gone = await deletePastReview(review.id)
+    setPastProblem(gone ? null : COULDNT_DELETE)
+    if (!gone) return false
+    setPast((list) => list?.filter((each) => each.id !== review.id) ?? null)
+    setDeleted(kept && { kept, key: ++deletions.current })
+    announce(`“${review.title}” deleted`)
+    return true
   }
   const deleteAllPast = async () => {
-    const deleted = await deleteAllPastReviews()
-    setPastProblem(deleted ? null : COULDNT_DELETE)
-    if (deleted) setPast([])
-    return deleted
+    const gone = await deleteAllPastReviews()
+    setPastProblem(gone ? null : COULDNT_DELETE)
+    if (!gone) return false
+    setPast([])
+    setDeleted(null)
+    return true
+  }
+  // Kept again with its file, as it was, and listed in its place, with the focus on it, as Undo is gone.
+  const undoDelete = async () => {
+    if (!deleted) return
+    const { review, bytes } = deleted.kept
+    setDeleted(null)
+    if (!(await keepPastReview(review.id, (before) => before ?? review, bytes))) {
+      setPastProblem(COULDNT_PUT_BACK)
+      announce(COULDNT_PUT_BACK)
+      return
+    }
+    const reviews = await pastReviews()
+    flushSync(() => {
+      setPastProblem(null)
+      setPast(reviews)
+    })
+    document.querySelector<HTMLElement>(`[data-past-review="${CSS.escape(review.id)}"]`)?.focus()
+    announce(`“${review.title}” is back`)
   }
 
   // Adds the reviewed resume to this browser's, unless it's here already as
@@ -759,6 +809,18 @@ export default function ReviewPage() {
           </section>
         )}
       </main>
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
+      {atDropZone && deleted && (
+        <DeletedToast
+          key={deleted.key}
+          title={deleted.kept.review.title}
+          className="on-review"
+          onUndo={() => void undoDelete()}
+          onDone={() => setDeleted(null)}
+        />
+      )}
       <SiteFooter bare />
       <input
         ref={fileInput}

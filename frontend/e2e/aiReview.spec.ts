@@ -394,12 +394,13 @@ const keptReviews = (page: Page) =>
       }),
   )
 
-test("deleting a past review asks first", async ({ page }) => {
+test("deleting a past review asks first, and Undo puts it back, file and all", async ({ page }) => {
   const errors = pageErrors(page)
   await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
   await reviewed(page)
   await page.goto("/review")
   const past = page.getByRole("region", { name: "Past reviews" })
+  const review = past.getByRole("button", { name: /^Mara Lin/ })
   const bin = past.getByRole("button", { name: "Delete the review of Mara Lin" })
   const keep = past.getByRole("button", { name: "Keep" })
 
@@ -420,11 +421,21 @@ test("deleting a past review asks first", async ({ page }) => {
   await expect(past.getByRole("button", { name: "Clear all" })).toBeFocused()
   expect(await keptReviews(page)).toBe(1)
 
-  // Deleted once that's said, it's gone from the browser at once.
+  // Deleted, it's gone from the browser at once; Undo puts it back, with the focus on it.
   await bin.click()
   await past.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(past).toHaveCount(0)
+  await expect(page.getByRole("status")).toHaveText("“Mara Lin” deleted")
   expect(await keptReviews(page)).toBe(0)
+  await page.getByRole("button", { name: "Undo" }).click()
+  await expect(review).toBeFocused()
+  await expect(page.getByRole("status")).toHaveText("“Mara Lin” is back")
+  expect(await keptReviews(page)).toBe(1)
+
+  // Its file came back with it: it opens as it was reviewed, after a reload too.
+  await page.reload()
+  await review.click()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
   expect(errors).toEqual([])
 })
 
