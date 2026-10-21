@@ -54,7 +54,8 @@ export default function Private() {
           <Link href="/review" className={TEXT_LINK}>
             review page
           </Link>{" "}
-          reads your file in your browser too. Only its text goes to the AI for its notes, and that isn’t kept.
+          reads your file in your browser too, and keeps it there so you can open its review again. Only its text goes to the AI for its
+          notes, and the AI doesn’t keep it.
         </p>
       </PromiseSection>
 
@@ -67,7 +68,7 @@ export default function Private() {
         <p>
           Open your browser’s developer tools and choose Network, then write. You’ll see the site and its tools load, and nothing go out
           with what you typed until you ask for AI notes. Under Application in Chrome, or Storage in Firefox and Safari, Local storage holds
-          your resumes, each under “resume:” and an id.
+          your resumes, each under “resume:” and an id, and IndexedDB holds the files you’ve reviewed.
         </p>
         <p>
           Or read the code:{" "}
