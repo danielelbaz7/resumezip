@@ -1,5 +1,5 @@
 import { expect, test } from "vitest"
-import { MOST_KEPT, idOf, overflowOf, pastReviewOf, summariesOf, type PastReview } from "./past"
+import { MOST_KEPT, idOf, overflowOf, pastReviewOf, type PastReview } from "./past"
 
 const REVIEW: PastReview = {
   id: "abc",
@@ -7,7 +7,6 @@ const REVIEW: PastReview = {
   fileName: "Mara Lin.pdf",
   type: "application/pdf",
   savedAt: 1_000,
-  bytes: new Uint8Array([37, 80, 68, 70]).buffer,
   total: 74,
   notes: [
     { tone: "red", line: "u2", quote: "Responsible for", title: "Vague", why: "No result.", suggestion: null, text: "Responsible for it" },
@@ -22,20 +21,10 @@ test("a past review read back keeps what it should, and what isn't one is left",
   expect(pastReviewOf({ ...REVIEW, notes: null })?.notes).toBeNull()
   expect(pastReviewOf({ ...REVIEW, notes: "lots" })?.notes).toBeNull()
   expect(pastReviewOf({ ...REVIEW, resumeId: 7 })).not.toHaveProperty("resumeId")
-  // The file must be there to open it again.
-  expect(pastReviewOf({ ...REVIEW, bytes: "JVBERg==" })).toBeNull()
   expect(pastReviewOf({ ...REVIEW, total: "74" })).toBeNull()
   expect(pastReviewOf({ ...REVIEW, id: undefined })).toBeNull()
   expect(pastReviewOf(null)).toBeNull()
   expect(pastReviewOf("review")).toBeNull()
-})
-
-test("the list is newest first, without the files", () => {
-  const older = { ...REVIEW, id: "old", savedAt: 500 }
-  const newer = { ...REVIEW, id: "new", savedAt: 2_000 }
-  const list = summariesOf([older, newer, REVIEW])
-  expect(list.map(({ id }) => id)).toEqual(["new", "abc", "old"])
-  expect(list[0]).not.toHaveProperty("bytes")
 })
 
 test("past the most kept, the oldest go", () => {

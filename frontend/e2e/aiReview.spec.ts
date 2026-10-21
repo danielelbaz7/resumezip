@@ -132,7 +132,7 @@ test("when the AI turns a review away, the page shows the checks and says why, a
   await expect(page.getByText("AI notes are paused for a few minutes")).toHaveCount(0)
 
   // Back on the drop zone in this tab, the pause is said before a file is chosen, and another resume doesn't ask.
-  await page.reload()
+  await page.goto("/review")
   await expect(page.getByRole("status").filter({ hasText: "AI notes are paused for a few minutes" })).toBeVisible()
   await openFile(page.getByRole("button", { name: "Review my resume" }), {
     ...pdf,
@@ -148,7 +148,7 @@ test("when the AI turns a review away, the page shows the checks and says why, a
   await page.getByRole("button", { name: "Done well, 0" }).click()
   await expect(page.getByText("None stood out.")).toBeVisible()
   await expect(page.getByRole("button", { name: "AI Reviews", pressed: true })).toBeVisible()
-  await page.reload()
+  await page.goto("/review")
   await expect(page.getByRole("button", { name: "Review my resume" })).toBeVisible()
   await expect(page.getByText("AI notes are paused for a few minutes")).toHaveCount(0)
   // The browser logs the refused request itself; nothing else went wrong.
@@ -166,7 +166,7 @@ test("AI notes are kept in the browser: the same resume shows them again without
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
 
   // Reviewed again, as a file with another name: the same notes, with no call.
-  await page.reload()
+  await page.goto("/review")
   await openFile(page.getByRole("button", { name: "Review my resume" }), { ...pdf, name: "Mara Lin (2).pdf" })
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
   expect(calls).toBe(1)
@@ -303,6 +303,71 @@ test("a reviewed file is kept as a past review, which opens as it was reviewed, 
   await expect(page.getByRole("button", { name: "Review my resume" })).toBeVisible()
   await expect(past).toHaveCount(0)
   expect(errors).toEqual([])
+})
+
+test("a new review's address opens it again, and one opened in the editor straight away, while it's still being kept, is tied to its resume", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
+  // Storage that's slow to open: the result is up, and the editor chosen, before the review is kept.
+  await page.addInitScript(() => {
+    const open = IDBFactory.prototype.open
+    IDBFactory.prototype.open = function (...args: Parameters<typeof open>) {
+      const request = open.apply(this, args)
+      Object.defineProperty(request, "onsuccess", {
+        set(handler: (event: Event) => void) {
+          request.addEventListener("success", (event) => setTimeout(() => handler(event), 2_000))
+        },
+      })
+      return request
+    }
+  })
+  await reviewed(page)
+  await page.getByRole("button", { name: "Fix it in the editor" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//, { timeout: 30_000 })
+  const made = new URL(page.url()).pathname
+
+  // Back on the review page, the past review opens the resume it became, not another copy of it.
+  await page.goto("/review")
+  await page
+    .getByRole("region", { name: "Past reviews" })
+    .getByRole("button", { name: /^Mara Lin/ })
+    .click()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
+  await page.getByRole("button", { name: "Fix it in the editor" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//, { timeout: 30_000 })
+  expect(new URL(page.url()).pathname).toBe(made)
+
+  // A file just reviewed is named in the address once it's kept, so a reload opens it again.
+  await page.goto("/review")
+  await openFile(page.getByRole("button", { name: "Review my resume" }), { ...pdf, name: "Mara Lin (2).pdf" })
+  await expect(page).toHaveURL(/\/review\?past=[0-9a-f]{64}$/, { timeout: 90_000 })
+  await page.reload()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
+  expect(errors).toEqual([])
+})
+
+test("a past review that can't be deleted stays listed, and says so", async ({ page }) => {
+  await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
+  await reviewed(page)
+  await page.goto("/review")
+  const past = page.getByRole("region", { name: "Past reviews" })
+  await expect(past.getByRole("button", { name: /^Mara Lin/ })).toBeVisible()
+  await page.evaluate(() => {
+    const refuse = () => {
+      throw new DOMException("Refused", "UnknownError")
+    }
+    IDBObjectStore.prototype.delete = refuse
+    IDBObjectStore.prototype.clear = refuse
+  })
+  await past.getByRole("button", { name: "Delete the review of Mara Lin" }).click()
+  await expect(past.getByRole("alert")).toHaveText("That couldn’t be deleted. Try again.")
+  await past.getByRole("button", { name: "Clear all" }).click()
+  await past.getByRole("button", { name: "Delete", exact: true }).click()
+  await expect(past.getByRole("alert")).toHaveText("That couldn’t be deleted. Try again.")
+  await page.reload()
+  await expect(past.getByRole("button", { name: /^Mara Lin/ })).toBeVisible()
 })
 
 /** Answers /api/review only once `answer()` is called; `asked` settles when the page has asked. */

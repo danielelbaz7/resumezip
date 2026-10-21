@@ -3,10 +3,10 @@
 import { useState } from "react"
 import { Trash2 } from "lucide-react"
 import { ago } from "@/lib/ago"
-import type { PastReviewSummary } from "@/lib/review/past"
+import type { PastReview } from "@/lib/review/past"
 import { verdictOf, VERDICT_WORDS } from "@/lib/review/verdict"
 
-function details(review: PastReviewSummary): string {
+function details(review: PastReview): string {
   const red = review.notes?.filter((note) => note.tone === "red").length
   return [
     ago(new Date(review.savedAt).toISOString()),
@@ -25,13 +25,16 @@ function details(review: PastReviewSummary): string {
  */
 export default function PastReviews({
   reviews,
+  problem,
   onOpen,
   onDelete,
   onDeleteAll,
 }: {
-  reviews: readonly PastReviewSummary[]
-  onOpen: (review: PastReviewSummary) => void
-  onDelete: (review: PastReviewSummary) => void
+  reviews: readonly PastReview[]
+  /** Why one couldn't be deleted, if it couldn't. */
+  problem: string | null
+  onOpen: (review: PastReview) => void
+  onDelete: (review: PastReview) => void
   onDeleteAll: () => void
 }) {
   const [asking, setAsking] = useState(false)
@@ -90,6 +93,11 @@ export default function PastReviews({
           </li>
         ))}
       </ul>
+      {problem && (
+        <p role="alert" className="border-t border-rule px-4 py-2.5 text-[13px] text-alert">
+          {problem}
+        </p>
+      )}
     </section>
   )
 }
