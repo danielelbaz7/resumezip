@@ -13,7 +13,7 @@ import { compilerStatus, onCompilerStatus } from "@/lib/typst/compile"
 import { scrollerOf, uncovered } from "./layout"
 import PrintingPage from "./PrintingPage"
 import { OPEN_NAME } from "@/components/dashboard/viewSwitch"
-import { PreviewMarks } from "./MarksContext"
+import { PreviewGaze, PreviewMarks } from "./MarksContext"
 
 type ReactPdf = typeof import("./reactPdf")
 
@@ -478,8 +478,13 @@ function PdfPreview({ pdfUrl, error, updating, template }: PdfPreviewProps) {
                                 onRenderTextLayerSuccess={lightUpChanges}
                               />
                             </div>
-                            {/* In Check mode, the checks' or the AI's pen marks, over the page that's shown. */}
-                            {drawing === shownDrawing && drawing.ready && <PreviewMarks page={index + 1} file={drawing.file} />}
+                            {/* In Check mode, the checks' or the AI's pen marks, over the page that's shown, and a recruiter's eyes while the AI is asked. */}
+                            {drawing === shownDrawing && drawing.ready && (
+                              <>
+                                <PreviewMarks page={index + 1} file={drawing.file} />
+                                <PreviewGaze page={index + 1} file={drawing.file} />
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>
