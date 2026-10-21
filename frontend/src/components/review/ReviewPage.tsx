@@ -9,10 +9,21 @@ import { Squares } from "@/components/site/Loader"
 import SiteFooter from "@/components/site/SiteFooter"
 import SiteHeader from "@/components/site/SiteHeader"
 import { headlineFont } from "@/components/site/headlineFont"
-import { notesOf } from "@/lib/review/ai/answer"
+import { ago } from "@/lib/ago"
+import { notesNowOf, notesOf } from "@/lib/review/ai/answer"
 import { aiPaused, aiPausedUntil } from "@/lib/review/ai/paused"
 import { tieToResume } from "@/lib/review/ai/saved"
 import { unitsToSend } from "@/lib/review/ai/units"
+import {
+  deleteAllPastReviews,
+  deletePastReview,
+  idOf,
+  keepPastReview,
+  pastReview,
+  pastReviews,
+  type PastReview,
+  type PastReviewSummary,
+} from "@/lib/review/past"
 import { reviewedAsIs, type Review, type ReviewStep } from "@/lib/review/review"
 import { countsLabel, countsOf, verdictOf, VERDICT_WORDS, type Verdict } from "@/lib/review/verdict"
 import AiNotes, { Pill, PILL_WORDS, type AiState } from "./AiNotes"
@@ -23,6 +34,7 @@ import { GAZE_MS, gazeOf, type Stop } from "./gaze"
 import MarkedPages, { type Flight } from "./MarkedPages"
 import { aiNotesOf, checkNotesOf } from "./notes"
 import { measurer, type Note } from "./PageMarks"
+import PastReviews from "./PastReviews"
 import { useAiNotes, type AiSide } from "./useAiNotes"
 
 const ACCEPTED_FILES =
@@ -50,6 +62,10 @@ type State =
       /** Later pages are still being drawn. */
       drawing: boolean
       from: Flight | null
+      /** The past review it's kept as (lib/review/past.ts), once it is; null until then, or if it can't be. */
+      pastId: string | null
+      /** When it was first reviewed, if it's a past review opened again. */
+      reviewedAt: number | null
     }
   | { step: "problem"; message: string }
 
@@ -155,6 +171,7 @@ function Result({
   drawing,
   ai,
   from,
+  reviewedAt,
   onFix,
   onAnother,
 }: {
@@ -164,6 +181,8 @@ function Result({
   ai: AiSide
   /** Where page 1 was as it was read, which it flies from. */
   from: Flight | null
+  /** When it was first reviewed, if it's a past review opened again. */
+  reviewedAt: number | null
   onFix: () => void
   onAnother: () => void
 }) {
@@ -176,9 +195,13 @@ function Result({
   // Null when the page has no AI side: the AI isn't asked, or is off on this site.
   const state = useMemo<AiState | null>(() => {
     if (!answer || answer.step === "asking") return answer
-    if (answer.step === "done") return { step: "done", notes: units ? aiNotesOf(notesOf({ notes: answer.notes }, units), measure) : [] }
+    if (answer.step === "done") {
+      // A past review's notes are found by their lines' words: a file printed again (a Word file) may number its lines differently.
+      const placed = units ? (reviewedAt === null ? notesOf({ notes: answer.notes }, units) : notesNowOf(answer.notes, units)) : []
+      return { step: "done", notes: aiNotesOf(placed, measure) }
+    }
     return answer.reason === "off" ? null : { step: "problem", reason: answer.reason, message: answer.message }
-  }, [answer, units, measure])
+  }, [answer, units, measure, reviewedAt])
   // The page opens on the AI's notes, or on the checks when there are none to be had.
   const [shown, setShown] = useState<Shown>(answer && answer.step !== "problem" ? "ai" : "checks")
   const [open, setOpen] = useState<string | null>(null)
@@ -233,6 +256,7 @@ function Result({
     // Arriving with the page that was read flying into it, the board stays put and what's round the page fades in.
     <section className={`review-board ${from ? "no-page-in" : ""}`} data-flight={from ? "" : undefined}>
       <div className="mb-3 flex flex-col items-center text-center">
+        {reviewedAt !== null && <p className="label-mono mb-2 text-ink-2">{reviewedPhrase(reviewedAt)}</p>}
         <h1 className="font-serif text-[20px] tracking-[-0.01em] text-ink-2 md:text-[24px]">
           Your resume is<span className="sr-only"> {VERDICT_WORDS[verdict].toLowerCase()}</span>
         </h1>
@@ -322,6 +346,48 @@ function Result({
   )
 }
 
+/** "Reviewed just now", "Reviewed 5 min ago", "Reviewed 2 Oct". */
+function reviewedPhrase(at: number): string {
+  const when = ago(new Date(at).toISOString())
+  return `Reviewed ${when === "Just now" || when === "Yesterday" ? when.toLowerCase() : when}`
+}
+
+/** The page's address names the past review that's open, so it opens again on reload; the drop zone's has none. */
+function showPast(id: string | null) {
+  const url = new URL(window.location.href)
+  if (id) url.searchParams.set("past", id)
+  else url.searchParams.delete("past")
+  if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url)
+}
+
+/**
+ * Keeps a review as a past review, or updates the one it was opened from:
+ * the file, the name, the score. Resolves to its id, or null if it couldn't be kept.
+ * Its notes join it as they come (ReviewPage).
+ */
+async function keep(file: File, result: Review, past: PastReview | null): Promise<string | null> {
+  try {
+    const bytes = past?.bytes ?? (await file.arrayBuffer())
+    const id = past?.id ?? (await idOf(bytes))
+    const kept = await keepPastReview(id, (before) => ({
+      id,
+      title: result.title,
+      fileName: file.name,
+      type: file.type,
+      bytes,
+      total: result.score.total,
+      // Opened again, it keeps the day it was reviewed; dropped again, it's reviewed today.
+      savedAt: past ? (before?.savedAt ?? past.savedAt) : Date.now(),
+      notes: before?.notes ?? null,
+      ...(before?.resumeId && { resumeId: before.resumeId }),
+    }))
+    return kept ? id : null
+  } catch {
+    // No crypto.subtle (a page not served securely), or the file can't be read again: it's just not kept.
+    return null
+  }
+}
+
 /**
  * The review page: drop a resume, and see what a recruiter would skip, marked
  * on the page, with a score from the editor's checks. While it's read, its own
@@ -337,6 +403,8 @@ export default function ReviewPage() {
   // Whether to say, before a file is dropped, that the AI turned this tab away moments ago.
   // Read after the first paint: the page is prerendered, with no tab to ask.
   const [paused, setPaused] = useState(false)
+  // The past reviews kept in this browser, which the drop zone lists; null until they're read.
+  const [past, setPast] = useState<PastReviewSummary[] | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const running = useRef<AbortController | null>(null)
   // The page being read, which the result's first page flies from.
@@ -353,8 +421,10 @@ export default function ReviewPage() {
     drawn.current = null
   }, [stopAi])
 
-  const review = async (file: File) => {
+  // Reviews `file`, or a past review's file opened again (`past`), and keeps it as a past review once it's done.
+  const review = async (file: File, past: PastReview | null = null) => {
     leave()
+    showPast(past?.id ?? null)
     const current = new AbortController()
     running.current = current
     const live = () => running.current === current
@@ -378,7 +448,7 @@ export default function ReviewPage() {
         // Printed: the AI is asked now, while the spelling's still checked, and the page is drawn to take the sample's place.
         ({ pdf, reading: read, view }) => {
           if (!live()) return
-          asked.answer = askAi(unitsToSend(view, read))
+          asked.answer = askAi(unitsToSend(view, read), past?.notes)
           asked.at = Date.now()
           let firstDrawn: (page: DrawnPage | null) => void = () => {}
           first = new Promise((resolve) => (firstDrawn = resolve))
@@ -413,8 +483,13 @@ export default function ReviewPage() {
         pages: page ? [page] : null,
         drawing: !drawnAll,
         from: box ? { left: box.left, top: box.top, width: box.width, radius: SHEET_RADIUS } : null,
+        pastId: null,
+        reviewedAt: past?.savedAt ?? null,
       })
       window.scrollTo({ top: 0 })
+      void keep(file, result, past).then((id) => {
+        if (id && live()) setState((state) => (state.step === "done" && state.review === result ? { ...state, pastId: id } : state))
+      })
       void drawing.then((pages) => {
         if (live()) setState((state) => (state.step === "done" && state.review === result ? { ...state, pages, drawing: false } : state))
       })
@@ -434,6 +509,46 @@ export default function ReviewPage() {
   }
   const reviewRef = useRef(review)
   reviewRef.current = review
+
+  // Opens a past review: its file, reviewed again, with the notes the AI gave it.
+  const reopen = async (id: string) => {
+    const past = await pastReview(id)
+    if (!past) {
+      setPast((list) => list?.filter((each) => each.id !== id) ?? null)
+      showPast(null)
+      setState({ step: "problem", message: "That review isn’t kept in this browser any more." })
+      return
+    }
+    await reviewRef.current(new File([past.bytes], past.fileName, { type: past.type }), past)
+  }
+  const reopenRef = useRef(reopen)
+  reopenRef.current = reopen
+
+  // A link to a past review (/review?past=…, from the editor) opens it. Read once the page is in the browser: it's prerendered.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("past")
+    if (id) void reopenRef.current(id)
+  }, [])
+
+  // The AI's notes join the past review as they come, and again if it's asked again.
+  const pastId = state.step === "done" ? state.pastId : null
+  const notes = ai.answer?.step === "done" ? ai.answer.notes : null
+  useEffect(() => {
+    if (pastId && notes) void keepPastReview(pastId, (before) => before && { ...before, notes })
+  }, [pastId, notes])
+
+  // The past reviews, read on the drop zone, and again when it's come back to.
+  const atDropZone = state.step === "idle" || state.step === "problem"
+  useEffect(() => {
+    if (!atDropZone) return
+    let current = true
+    void pastReviews().then((reviews) => {
+      if (current) setPast(reviews)
+    })
+    return () => {
+      current = false
+    }
+  }, [atDropZone])
 
   // Leaving the page stops a review on its way, and frees its pages.
   useEffect(() => leave, [leave])
@@ -503,20 +618,35 @@ export default function ReviewPage() {
 
   const chooseFile = () => fileInput.current?.click()
 
+  // Gone from the list once it's gone from storage, which is a moment: a page closed straight after would otherwise list it again.
+  const deletePast = async (review: PastReviewSummary) => {
+    await deletePastReview(review.id)
+    setPast((list) => list?.filter((each) => each.id !== review.id) ?? null)
+  }
+
   // Adds the reviewed resume to this browser's, unless it's here already as
   // it is, and opens it in the editor's Check, where the notes are. The AI's
   // notes, if it was asked, go with it: the editor finds them by its id.
-  const fix = async (reviewed: Review, hash: string | null) => {
+  // A past review that was opened in the editor before opens the resume it
+  // became, as it's been edited since, with the notes it has now.
+  const fix = async (reviewed: Review, hash: string | null, pastId: string | null) => {
     const [{ openResumes }, { copyHere }, { saveMode }] = await Promise.all([
       import("@/context/ResumeContext"),
       import("@/lib/resumeStore"),
       import("@/components/editor/CheckContext"),
     ])
     const store = openResumes()
-    const here = copyHere(store.getState().resumes, reviewed.content)
-    // A different version of a resume that's here is added beside it, as a copy.
-    const id = here?.unchanged ? here.resume.id! : store.importResume(reviewed.content, reviewed.title, { keepId: !here })
-    if (hash) tieToResume(hash, id)
+    const { resumes } = store.getState()
+    const became = pastId ? (await pastReview(pastId))?.resumeId : undefined
+    let id: string
+    if (became && Object.hasOwn(resumes, became)) id = became
+    else {
+      const here = copyHere(resumes, reviewed.content)
+      // A different version of a resume that's here is added beside it, as a copy.
+      id = here?.unchanged ? here.resume.id! : store.importResume(reviewed.content, reviewed.title, { keepId: !here })
+      if (hash) tieToResume(hash, id)
+      if (pastId) await keepPastReview(pastId, (before) => before && { ...before, resumeId: id })
+    }
     saveMode("check")
     router.push(`/create/new/${id}`)
   }
@@ -535,9 +665,11 @@ export default function ReviewPage() {
             drawing={state.drawing}
             ai={ai}
             from={state.from}
-            onFix={() => void fix(state.review, ai.hash)}
+            reviewedAt={state.reviewedAt}
+            onFix={() => void fix(state.review, ai.hash, state.pastId)}
             onAnother={() => {
               leave()
+              showPast(null)
               setState({ step: "idle" })
               chooseFile()
             }}
@@ -589,12 +721,20 @@ export default function ReviewPage() {
                     </button>
                   )}
                   <p className="mt-[22px] text-[12px] text-ink-2">
-                    PDF or Word · Free · Resume is sent to AI for review.{" "}
+                    PDF or Word · Free · Resume is sent to AI for review, and{" "}
                     <Link href="/private-resume-builder" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
-                      Nothing is kept
+                      kept only in this browser
                     </Link>
                     .
                   </p>
+                  {past && (
+                    <PastReviews
+                      reviews={past}
+                      onOpen={(review) => void reopen(review.id)}
+                      onDelete={(review) => void deletePast(review)}
+                      onDeleteAll={() => void deleteAllPastReviews().then(() => setPast([]))}
+                    />
+                  )}
                   {paused && (
                     <div className="review-pill-float">
                       <Pill onClose={() => setPaused(false)}>AI notes are paused for a few minutes. You’ll still get the ATS checks.</Pill>

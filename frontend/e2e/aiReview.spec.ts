@@ -60,7 +60,7 @@ test("AI notes are asked for once the resume is read, sent as the printed lines,
   })
   await page.goto("/review")
   // The page says, before a file is chosen, that the resume goes to an AI.
-  await expect(page.getByText("Resume is sent to AI for review. Nothing is kept.")).toBeVisible()
+  await expect(page.getByText("Resume is sent to AI for review, and kept only in this browser.")).toBeVisible()
   await reviewed(page)
   // A tile for each kind, the red flags pressed and listed.
   await expect(page.getByRole("button", { name: "Red flags, 2", pressed: true })).toBeVisible()
@@ -233,6 +233,75 @@ test("a review that found nothing can be asked again from the editor", async ({ 
   await ask.click()
   await expect(page.getByRole("region", { name: "AI notes" }).getByRole("region", { name: "Red flags, 2" })).toBeVisible()
   expect(calls).toBe(2)
+  expect(errors).toEqual([])
+})
+
+test("a reviewed file is kept as a past review, which opens as it was reviewed, again on reload, and outlives the resume made of it", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  let calls = 0
+  await page.route("**/api/review", async (route) => {
+    calls++
+    await route.fulfill({ json: { notes: calls === 1 ? NOTES : [NOTES[1]] } })
+  })
+  await reviewed(page)
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
+
+  // In the editor, it's rewritten and new notes are asked for: the review it came from keeps its own.
+  await page.getByRole("button", { name: "Fix it in the editor" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  const id = decodeURIComponent(new URL(page.url()).pathname.split("/").pop()!)
+  const notes = page.getByRole("region", { name: "AI notes" })
+  await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toBeAttached({ timeout: 60_000 })
+  await notes.getByRole("button", { name: /Says what you did, not what changed/ }).click()
+  const bullets = page.getByLabel(/^What you did/)
+  await expect(bullets).toBeFocused()
+  await bullets.fill("• Built a deploy tool that cut release time from two hours to ten minutes for 40 engineers")
+  const again = notes.getByRole("button", { name: "Get new notes for this version" })
+  await expect(again).toBeEnabled({ timeout: 60_000 })
+  await again.click()
+  await expect(notes.getByRole("region", { name: "Red flags, 2" })).toHaveCount(0, { timeout: 60_000 })
+  expect(calls).toBe(2)
+
+  // Listed under the drop zone, it opens as the file was, with the notes it got then, without asking again, and again on reload.
+  await page.goto("/review")
+  const past = page.getByRole("region", { name: "Past reviews" })
+  await past.getByRole("button", { name: /^Mara Lin/ }).click()
+  await expect(page).toHaveURL(/\/review\?past=[0-9a-f]{64}$/)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByText("Reviewed just now")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toBeAttached()
+  await page.reload()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
+  expect(calls).toBe(2)
+
+  // The resume made of it is deleted; the past review stays, listed under the drop zone.
+  await page.goto("/create/dashboard")
+  await page.getByRole("button", { name: "More for “Mara Lin”" }).first().click()
+  await page.getByRole("menuitem", { name: "Delete" }).click()
+  await expect(page.getByRole("button", { name: "Undo" })).toBeVisible()
+  await page.goto("/review")
+  expect(await page.evaluate((id) => localStorage.getItem(`resume:${id}`), id)).toBeNull()
+  await expect(past.getByRole("button", { name: /^Mara Lin/ })).toBeVisible()
+  await expect(past).toContainText("2 red flags")
+  await past.getByRole("button", { name: /^Mara Lin/ }).click()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
+  expect(calls).toBe(2)
+
+  // Opened in the editor again, it's added as a resume again, since the one it became is gone.
+  await page.getByRole("button", { name: "Fix it in the editor" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  await expect(notes.getByRole("region", { name: "Red flags, 2" })).toBeVisible()
+
+  // Deleted, it's gone from the list, and from the browser.
+  await page.goto("/review")
+  await past.getByRole("button", { name: "Delete the review of Mara Lin" }).click()
+  await expect(past).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole("button", { name: "Review my resume" })).toBeVisible()
+  await expect(past).toHaveCount(0)
   expect(errors).toEqual([])
 })
 

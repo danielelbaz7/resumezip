@@ -18,8 +18,11 @@ export interface AiSide {
   hash: string | null
   /** Null when the AI isn't asked. */
   answer: AiAnswer | null
-  /** Asks about `units` (or finds the notes kept from before), settling once there's an answer or a reason there isn't. */
-  start: (units: Unit[] | null) => Promise<void>
+  /**
+   * Asks about `units` (or finds the notes kept from before), settling once there's an answer or a reason there isn't.
+   * A past review opened again brings its own notes (`kept`), which are shown without asking.
+   */
+  start: (units: Unit[] | null, kept?: SavedNote[] | null) => Promise<void>
   /** Asks again, as Try again does. */
   retry: () => void
   /** Stops asking: the review it was for was left. */
@@ -65,7 +68,7 @@ export function useAiNotes(): AiSide {
   }, [])
 
   const start = useCallback(
-    async (units: Unit[] | null) => {
+    async (units: Unit[] | null, kept: SavedNote[] | null = null) => {
       const current = begin()
       asked.current = null
       setUnits(units)
@@ -79,7 +82,11 @@ export function useAiNotes(): AiSide {
       setHash(hashed)
       // A resume reviewed in this browser before shows the notes it got then, without asking again.
       const saved = hashed ? savedByHash(hashed) : null
-      if (saved) setAnswer({ step: "done", notes: saved.notes })
+      if (kept) {
+        // Kept again by the lines' hash, so "Fix it in the editor" can hand them on: the editor finds them there.
+        if (hashed && !saved) saveNotes(hashed, kept)
+        setAnswer({ step: "done", notes: kept })
+      } else if (saved) setAnswer({ step: "done", notes: saved.notes })
       // Unless it turned this tab away moments ago: asking again would only be turned away.
       else if (aiPaused()) setAnswer({ step: "problem", reason: "limit", message: PROBLEMS.limit })
       else await request(units, hashed, current)
