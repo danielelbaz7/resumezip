@@ -93,6 +93,22 @@ test("a page on what resumezip promises starts writing, and every page's footer 
   await expect(page).toHaveURL(/\/create\/new\//)
 })
 
+test("the footer's links fit on one line on a wide screen, and line up in two columns on a phone", async ({ page }) => {
+  const links = page.getByRole("navigation", { name: /^(Footer|Why resumezip)$/ }).getByRole("link")
+  const boxes = async () => Promise.all((await links.all()).map(async (link) => (await link.boundingBox())!))
+  // Lefts more than a pixel apart, so a sub-pixel difference between engines isn't a column of its own.
+  const columns = (lefts: number[]) => lefts.sort((a, b) => a - b).filter((left, i, all) => i === 0 || left - all[i - 1] > 1).length
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto("/terms")
+  const wide = await boxes()
+  expect(wide).toHaveLength(2 + PROMISES.length)
+  for (const box of wide) expect(Math.abs(box.y - wide[0].y)).toBeLessThan(1)
+
+  await page.setViewportSize({ width: 375, height: 812 })
+  expect(columns((await boxes()).map((box) => box.x))).toBe(2)
+})
+
 // What a search engine reads: the HTML as served, before any script runs. The
 // same in every browser, so it's read once.
 test.describe("search engines", () => {
