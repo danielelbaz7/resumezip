@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useId, useMemo, useRef } from "react"
 import type { DrawnPage } from "./drawPages"
-import { GAZE_MS, glideOf, pathOf, type Stop } from "./gaze"
+import GazeSpot from "./GazeSpot"
+import type { Stop } from "./gaze"
 import { circle, highlight, underline, type Box } from "./rough"
 
 // The sample resume on the first screen (Jake's template's picture), and
@@ -27,69 +27,6 @@ const FOG = [
 export const GAZE_DELAY = 400
 /** The page's corners where it's being read (`.review-sheet > *` in review.css), which it flies from. */
 export const SHEET_RADIUS = 30
-
-/**
- * A recruiter's eyes on the page: a soft blue spot that stops where they go
- * first (gazeOf) and leaves a little warmth at each stop, then lets go.
- */
-function Gaze({ stops, size }: { stops: readonly Stop[]; size: { width: number; height: number } }) {
-  const id = `gaze${useId().replace(/[^\w-]/g, "")}`
-  const spot = useRef<SVGEllipseElement>(null)
-  // When the eyes reach each stop, in ms from the start.
-  const starts = useMemo(() => {
-    let at = 0
-    return stops.map(({ ms }) => {
-      const start = at
-      at += ms
-      return start
-    })
-  }, [stops])
-
-  // Held at each stop, then a quick glide to the next, as eyes move.
-  useEffect(() => {
-    const node = spot.current
-    if (!node) return
-    const animation = node.animate(pathOf(stops), { duration: GAZE_MS, delay: GAZE_DELAY, fill: "both" })
-    return () => animation.cancel()
-  }, [stops])
-
-  return (
-    <svg
-      viewBox={`0 0 ${size.width} ${size.height}`}
-      className="review-gaze absolute inset-0 h-full w-full"
-      style={{ animationDuration: `${GAZE_MS + 900}ms`, animationDelay: `${GAZE_DELAY}ms` }}
-    >
-      <defs>
-        <radialGradient id={`${id}heat`}>
-          <stop offset="0" stopColor="#2e5be6" stopOpacity={0.5} />
-          <stop offset="1" stopColor="#2e5be6" stopOpacity={0} />
-        </radialGradient>
-        <radialGradient id={`${id}spot`}>
-          <stop offset="0" stopColor="#2e5be6" stopOpacity={0.55} />
-          <stop offset="0.55" stopColor="#5a85ff" stopOpacity={0.22} />
-          <stop offset="1" stopColor="#5a85ff" stopOpacity={0} />
-        </radialGradient>
-      </defs>
-      {stops.map((stop, index) => (
-        <ellipse
-          key={index}
-          cx={stop.x}
-          cy={stop.y}
-          rx={52}
-          ry={20}
-          fill={`url(#${id}heat)`}
-          opacity={0.8}
-          className="review-heat"
-          style={{
-            animationDuration: `${Math.max(1, stop.ms - glideOf(stop))}ms`,
-            animationDelay: `${GAZE_DELAY + starts[index] + glideOf(stop)}ms`,
-          }}
-        />
-      ))}
-      <ellipse ref={spot} rx={40} ry={17} fill={`url(#${id}spot)`} />
-    </svg>
-  )
-}
 
 /**
  * The page on the first screen, going soft into the fog the words stand on:
@@ -145,7 +82,7 @@ export default function Backdrop({
             <>
               {/* eslint-disable-next-line @next/next/no-img-element -- a picture drawn in the browser, which next/image can't optimize */}
               <img src={page.url} alt="" className="review-theirs relative block h-auto w-full" />
-              {gaze && gaze.length > 0 && <Gaze stops={gaze} size={page} />}
+              {gaze && gaze.length > 0 && <GazeSpot stops={gaze} size={page} delay={GAZE_DELAY} />}
             </>
           )}
           {scanning && <div className="review-scan" />}
