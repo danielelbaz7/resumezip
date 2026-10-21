@@ -457,7 +457,10 @@ test("choosing a finding far down a long list opens its field without pushing th
 
   const last = page.getByRole("tabpanel", { name: /^Check/ }).getByRole("button", { name: /Experience → Company 7 · bullet 2/ })
   await last.click()
-  await expect(page.getByRole("textbox", { name: "What you did" }).last()).toBeFocused()
+  // Its field opens, marked with the finding, and is scrolled to: it started below the form's foot.
+  const field = page.getByRole("textbox", { name: "What you did" }).last()
+  await expect(field).toHaveAccessibleDescription(/Same as another bullet/)
+  await expect(field).toBeInViewport()
   // The top bar stays where it was: nothing scrolled the frame it's in, which no wheel scrolls back.
   expect((await back.boundingBox())!.y).toBe(top)
 })
