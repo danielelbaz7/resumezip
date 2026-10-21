@@ -38,7 +38,6 @@ export default function SiteFooter({ ground = false, bare = false }: { ground?: 
               </Link>
             ))}
           </nav>
-          <span className="text-[15px] tracking-[-0.01em] text-white/60">Free, private and open source.</span>
         </div>
         {/* For search engines more than visitors, who know these already: the pages each say why one of them is true. */}
         <nav
