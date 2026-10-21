@@ -419,6 +419,49 @@ test("choosing a finding opens its field, where it shows while Check is open, fi
   expect(errors).toEqual([])
 })
 
+test("choosing a finding far down a long list opens its field without pushing the sheet up", async ({ page }) => {
+  // Seven jobs with the same bullets: a list of findings taller than the window, and fields
+  // low in the form, where centering one needs more room than the form's own scroll has.
+  const bullets = [
+    "• Designed and built a payments service that many teams across the company relied on every day",
+    "• Cut deploy time from two hours to ten minutes for forty engineers",
+  ].join("\n")
+  const jobs = Array.from({ length: 7 }, (_, at) => ({
+    id: at + 1,
+    workRole: "Engineer",
+    companyName: `Company ${at + 1}`,
+    workStartDate: "Jun 2020",
+    workEndDate: "Present",
+    workDescription: bullets,
+  }))
+  await saveResumes(page, [
+    {
+      id: "long-check",
+      resumeTitle: "Long check",
+      selectedTemplate: "jake",
+      sectionOrder: ["Work", "Education", "Skills"],
+      sectionsChosen: true,
+      profileSection: { fullName: "Ada Lovelace", email: "ada@example.com" },
+      workExperienceSection: jobs,
+    },
+  ])
+  // Without motion the form scrolls at once, so the bar's place can be read straight after.
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto("/create/new/long-check")
+  await page
+    .getByRole("tablist", { name: "Write, check or style" })
+    .getByRole("tab", { name: /^Check/ })
+    .click()
+  const back = page.getByRole("link", { name: "Dashboard" })
+  const top = (await back.boundingBox())!.y
+
+  const last = page.getByRole("tabpanel", { name: /^Check/ }).getByRole("button", { name: /Experience → Company 7 · bullet 2/ })
+  await last.click()
+  await expect(page.getByRole("textbox", { name: "What you did" }).last()).toBeFocused()
+  // The top bar stays where it was: nothing scrolled the frame it's in, which no wheel scrolls back.
+  expect((await back.boundingBox())!.y).toBe(top)
+})
+
 test("with Check open, the PDF is read too: a bullet that runs three lines is flagged and opens", async ({ page }) => {
   const errors = pageErrors(page)
   await newResume(page)

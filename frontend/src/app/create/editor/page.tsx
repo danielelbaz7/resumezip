@@ -523,8 +523,11 @@ function Editor({ id }: { id: string }) {
     // it fills the window: a top bar over three columns, the sections (or what Check found, or
     // Style) on the left, the form in the middle, and the page on the right. Narrower, the same
     // parts stack on the sheet: the top bar, the left bar's tabs, the form, and an Edit / Preview
-    // switch for the page.
-    <div className="desk desk-bright flex min-h-screen flex-col p-2 pb-24 sm:p-6 sm:pb-24 xl:h-screen xl:overflow-hidden xl:pb-6">
+    // switch for the page. On wide screens it and the columns clip (overflow: clip) rather than
+    // hide: a hidden box is still a scroll box, and choosing a finding scrolls its field into view
+    // through every scroll box around it, which would shift the sheet up where no wheel can bring
+    // it back.
+    <div className="desk desk-bright flex min-h-screen flex-col p-2 pb-24 sm:p-6 sm:pb-24 xl:h-screen xl:overflow-clip xl:pb-6">
       {/* All of it shares what the checker found: the left bar lists it and the forms point at it. */}
       <CheckProvider onSelect={select} preview={preview} unbuilt={unbuilt}>
         <div className="paper-frame flex flex-1 flex-col xl:min-h-0">
@@ -692,7 +695,7 @@ function Editor({ id }: { id: string }) {
                   In Style mode on narrower screens, Style takes its place. */}
               <div
                 ref={formRef}
-                className={`editor-form xl:flex xl:w-[clamp(480px,39vw,560px)] xl:shrink-0 xl:flex-col xl:overflow-hidden ${
+                className={`editor-form xl:flex xl:w-[clamp(480px,39vw,560px)] xl:shrink-0 xl:flex-col xl:overflow-clip ${
                   view === "preview" ? "hidden" : ""
                 }`}
               >
@@ -728,7 +731,7 @@ function Editor({ id }: { id: string }) {
               {/* The page, on a grey panel: on wide screens in the room the columns leave. */}
               <section
                 aria-label="Live preview"
-                className={`min-w-0 flex-col p-3 xl:flex xl:flex-1 xl:overflow-hidden xl:pl-0 ${view === "preview" ? "flex max-xl:flex-1" : "hidden"}`}
+                className={`min-w-0 flex-col p-3 xl:flex xl:flex-1 xl:overflow-clip xl:pl-0 ${view === "preview" ? "flex max-xl:flex-1" : "hidden"}`}
               >
                 <div className="flex min-h-0 flex-1 flex-col rounded-[22px] bg-[#eef0f4] xl:rounded-[24px]">
                   <PdfPreview pdfUrl={pdfUrl} template={shownTemplate} error={compileError} updating={switchingTemplate && !compileError} />
