@@ -67,7 +67,7 @@ type State =
 const AI_PATIENCE_MS = 25_000
 
 // How each verdict breaks on a phone.
-const NARROW_LINES: Record<Verdict, string[]> = { ready: ["Ready", "to send"], almost: ["Almost", "there"], drafts: ["Back to", "drafts"] }
+const NARROW_LINES: Record<Verdict, string[]> = { ready: ["Ready"], almost: ["Almost", "there"], drafts: ["Needs", "work"] }
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, ms)))
 
@@ -240,7 +240,7 @@ function Result({
       <div className="mb-2 flex flex-col items-center text-center">
         {reviewedAt !== null && <p className="label-mono mb-2 text-ink-2">{reviewedPhrase(reviewedAt)}</p>}
         <h1 className="font-serif text-[18px] tracking-[-0.01em] text-ink-2 md:text-[20px]">
-          Your resume is<span className="sr-only"> {VERDICT_WORDS[verdict].toLowerCase()}</span>
+          ATS checks:<span className="sr-only"> {VERDICT_WORDS[verdict].toLowerCase()}</span>
         </h1>
         <CloudWord lines={[VERDICT_WORDS[verdict]]} className="hidden w-[min(440px,70vw)] sm:block" />
         <CloudWord lines={NARROW_LINES[verdict]} className="w-[min(300px,80vw)] sm:hidden" />

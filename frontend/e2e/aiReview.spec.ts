@@ -45,7 +45,7 @@ const NOTES = [
 async function reviewed(page: Page) {
   await page.goto("/review")
   await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
 }
 
@@ -138,7 +138,7 @@ test("when the AI turns a review away, the page shows the checks and says why, a
     ...pdf,
     buffer: textPdf([[...FROM_ELSEWHERE, "Volunteer tutor, 2022"]]),
   })
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   await expect(page.getByText("Give it a few minutes.")).toBeVisible()
   expect(calls).toBe(1)
 
@@ -271,7 +271,7 @@ test("a reviewed file is kept as a past review, which opens as it was reviewed, 
   const past = page.getByRole("region", { name: "Past reviews" })
   await past.getByRole("button", { name: /^Mara Lin/ }).click()
   await expect(page).toHaveURL(/\/review\?past=[0-9a-f]{64}$/)
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   await expect(page.getByText("Reviewed just now")).toBeVisible()
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })).toBeAttached()
@@ -287,7 +287,8 @@ test("a reviewed file is kept as a past review, which opens as it was reviewed, 
   await page.goto("/review")
   expect(await page.evaluate((id) => localStorage.getItem(`resume:${id}`), id)).toBeNull()
   await expect(past.getByRole("button", { name: /^Mara Lin/ })).toBeVisible()
-  await expect(past).toContainText("2 red flags")
+  await expect(past).toContainText("ATS checks:")
+  await expect(past).toContainText("AI: 2 red flags")
   await past.getByRole("button", { name: /^Mara Lin/ }).click()
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
   expect(calls).toBe(2)
@@ -455,7 +456,7 @@ test("the AI is asked as soon as the resume's pages are read, and the result wai
   await expect(page.getByText(/^\d\.\d seconds$/)).toBeVisible({ timeout: 30_000 })
   await expect(page.getByRole("status").getByText("Getting notes from AI")).toBeVisible()
   answer()
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   // It opens with the notes in: nothing says they're on their way.
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible()
   await expect(page.getByText("Getting notes from AI")).toHaveCount(0)
@@ -473,7 +474,7 @@ test("when the AI is long coming, the result opens without its notes, and a view
   await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
   await asked
   await page.clock.fastForward(26_000)
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   await expect(page.getByRole("status").filter({ hasText: "Getting notes from AI" })).toBeVisible()
   await page.getByRole("button", { name: "ATS Checks" }).click()
   answer()
@@ -500,7 +501,7 @@ test("a page that never finishes drawing doesn't hold the result: after the wait
   await openFile(page.getByRole("button", { name: "Review my resume" }), pdf)
   await asked
   await page.clock.fastForward(26_000)
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   await expect(page.getByRole("listitem").filter({ hasText: "Red flag: Says what you did, not what changed" })).toBeVisible()
   expect(errors).toEqual([])
 })

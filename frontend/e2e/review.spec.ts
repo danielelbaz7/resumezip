@@ -26,7 +26,7 @@ test("reviews a resume in the browser, scribbles its notes on the page, and open
 
   // The first review downloads the PDF engine and the grammar checker.
   const verdict = page.getByRole("heading", { level: 1 })
-  await expect(verdict).toHaveText(/^Your resume is (ready to send|almost there|back to drafts)$/, { timeout: 90_000 })
+  await expect(verdict).toHaveText(/^ATS checks: (ready|almost there|needs work)$/, { timeout: 90_000 })
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
   // Pointing at a scribble shows its note, and Esc puts it away.
   const scribble = page.getByRole("button", { name: "“Responsible for” is a weak start" })
@@ -60,7 +60,7 @@ test("when the resume can't be drawn, every note is listed under where it would 
   })
   await page.goto("/review")
   await openFile(page.getByRole("button", { name: "Review my resume" }), pdf(FROM_ELSEWHERE))
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   await expect(page.getByRole("listitem").filter({ hasText: "“Responsible for” is a weak start" })).toBeVisible()
   await expect(page.getByRole("img", { name: /^Page 1 of your resume/ })).toHaveCount(0)
   expect(errors).toEqual([])
@@ -97,7 +97,7 @@ test("the result opens once page 1 is drawn, and later pages join it as they're 
   })
   await page.goto("/review")
   await openFile(page.getByRole("button", { name: "Review my resume" }), LONG)
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
   await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => "drawPage2" in window)).toBe(true)
@@ -141,7 +141,7 @@ test("a page that can't be drawn after page 1 leaves page 1 shown, with its own 
   })
   await page.goto("/review")
   await openFile(page.getByRole("button", { name: "Review my resume" }), LONG)
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   await expect(page.getByText("Notes on your resume")).toBeVisible()
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
   await expect(page.getByRole("img", { name: "Page 2 of your resume, with the notes marked" })).toHaveCount(0)
@@ -152,7 +152,7 @@ test("a PDF from elsewhere is reviewed as it is: its own pages, not a reprint of
   const errors = pageErrors(page)
   await page.goto("/review")
   await openFile(page.getByRole("button", { name: "Review my resume" }), LONG)
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   // It came on three pages; its template would print it on two.
   await expect(page.getByRole("img", { name: "Page 3 of your resume, with the notes marked" })).toBeVisible()
   await expect(page.getByText(/so this is how it prints in/)).toHaveCount(0)
@@ -169,7 +169,7 @@ test("a Word file, which has no pages of its own, is printed in Jake's to be rev
     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     buffer: wordFile(FROM_ELSEWHERE),
   })
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   await expect(page.getByText("A Word file has no pages of its own, so this is how it prints in Jake's.")).toBeVisible()
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
   const reviewed = (await page.getByText(/^\d+\/100$/).innerText()).replace("/100", "")
@@ -189,7 +189,7 @@ test("a PDF that turns its own pages is printed in Jake's to be reviewed, as its
     mimeType: "application/pdf",
     buffer: textPdf([FROM_ELSEWHERE], { rotate: 90 }),
   })
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Your resume is/, { timeout: 90_000 })
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^ATS checks:/, { timeout: 90_000 })
   await expect(page.getByText("This PDF turns its pages, which can’t be marked, so this is how it prints in Jake's.")).toBeVisible()
   await expect(page.getByRole("img", { name: "Page 1 of your resume, with the notes marked" })).toBeVisible()
   expect(errors).toEqual([])

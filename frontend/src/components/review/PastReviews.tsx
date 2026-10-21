@@ -10,9 +10,9 @@ function details(review: PastReview): string {
   const red = review.notes?.filter((note) => note.tone === "red").length
   return [
     ago(new Date(review.savedAt).toISOString()),
-    VERDICT_WORDS[verdictOf(review.total)],
+    `ATS checks: ${VERDICT_WORDS[verdictOf(review.total)].toLowerCase()}`,
     `${review.total}/100`,
-    red !== undefined && (red === 1 ? "1 red flag" : `${red} red flags`),
+    red === undefined ? "AI: not included" : red === 0 ? "AI: no red flags" : red === 1 ? "AI: 1 red flag" : `AI: ${red} red flags`,
   ]
     .filter(Boolean)
     .join(" · ")
@@ -80,7 +80,7 @@ export default function PastReviews({
               className="flex min-w-0 flex-1 flex-col gap-0.5 px-4 py-3 text-left transition-colors hover:bg-ink/[0.03] focus-visible:outline-offset-[-2px]"
             >
               <span className="truncate text-[15px] text-ink">{review.title}</span>
-              <span className="truncate text-[12.5px] tabular-nums text-ink-2">{details(review)}</span>
+              <span className="text-pretty text-[12.5px] tabular-nums text-ink-2">{details(review)}</span>
             </button>
             <button
               type="button"
