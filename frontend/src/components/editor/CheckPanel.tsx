@@ -81,7 +81,7 @@ export default function CheckPanel() {
     return (
       <div className="flex flex-col gap-5 px-3 py-4 xl:p-0">
         <MarksSwitch />
-        <AiNotesBox view={view} />
+        <AiNotesBox />
       </div>
     )
   }

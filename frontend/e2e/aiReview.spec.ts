@@ -178,6 +178,9 @@ test("AI notes are kept in the browser: the same resume shows them again without
   const notes = page.getByRole("region", { name: "AI notes" })
   await expect(notes.getByRole("region", { name: "Red flags, 2" })).toBeVisible()
   await expect(notes.getByRole("region", { name: "Done well, 1" })).toBeVisible()
+  // One note is open at a time, the top red flag first: it says why, and the others only their titles.
+  await expect(notes.getByText("A recruiter can't tell what your testing caught.")).toBeVisible()
+  await expect(notes.getByText("Before and after, with who it helped.")).toHaveCount(0)
   const mark = page.getByRole("button", { name: "Red flag: Says what you did, not what changed" })
   await expect(mark).toBeAttached({ timeout: 60_000 })
   // Pointing at its row shows its note on the preview.
@@ -199,6 +202,10 @@ test("AI notes are kept in the browser: the same resume shows them again without
   await expect(notes.getByText("Changed since the notes")).toBeVisible({ timeout: 60_000 })
   await expect(mark).toHaveCount(0, { timeout: 60_000 })
   await expect(page.getByRole("button", { name: "Done well: A result anyone can picture" })).toBeAttached()
+  // Choosing another note opens it, and the one that was open closes.
+  await notes.getByRole("button", { name: "A result anyone can picture" }).click()
+  await expect(notes.getByText("Before and after, with who it helped.")).toBeVisible()
+  await expect(notes.getByText("A recruiter can't tell what your testing caught.")).toHaveCount(0)
   // The checks' marks are a switch away, and never drawn with the AI's.
   await page.getByRole("button", { name: "ATS checks" }).click()
   await expect(page.getByRole("button", { name: "“Responsible for” is a weak start", exact: true })).toBeAttached()

@@ -23,6 +23,24 @@
       0 1px 3px -1px rgb(17 19 24 / 0.1);
   }
 
+  /* The storm and sun over the AI notes' counts (AiNotesBox.tsx): the review
+     page's tile pictures (TextPicture.tsx), smaller, to fit half the panel. */
+  .ai-tally-picture {
+    display: grid;
+    place-content: center;
+    height: 96px;
+    overflow: hidden;
+  }
+  .ai-tally-picture > span {
+    grid-area: 1 / 1;
+    font-family: var(--font-mono);
+    font-size: 3px;
+    font-weight: 600;
+    line-height: 3px;
+    letter-spacing: 0;
+    white-space: pre;
+  }
+
   /* A category's name in the Check tab's index (CheckPanel.tsx), with dotted
      leaders from the end of its last line to its points, as in a book's
      contents. The dots are a zero-width float, so they start at the left of
