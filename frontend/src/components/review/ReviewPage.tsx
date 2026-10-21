@@ -27,6 +27,7 @@ import { aiNotesOf, checkNotesOf } from "./notes"
 import { measurer, type Note } from "./PageMarks"
 import PastReviews from "./PastReviews"
 import { useAiNotes, type AiSide } from "./useAiNotes"
+import { useTicking } from "./useTicking"
 
 const ACCEPTED_FILES =
   ".pdf,.docx,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/json"
@@ -69,16 +70,6 @@ const AI_PATIENCE_MS = 25_000
 const NARROW_LINES: Record<Verdict, string[]> = { ready: ["Ready", "to send"], almost: ["Almost", "there"], drafts: ["Back to", "drafts"] }
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, ms)))
-
-/** Re-renders every 100 ms while `on`, for words that count. */
-function useTicking(on: boolean) {
-  const [, setTick] = useState(0)
-  useEffect(() => {
-    if (!on) return
-    const timer = setInterval(() => setTick((tick) => tick + 1), 100)
-    return () => clearInterval(timer)
-  }, [on])
-}
 
 /**
  * The words while a resume is read: what's going on, and once its page is up,

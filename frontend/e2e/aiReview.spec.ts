@@ -261,7 +261,9 @@ test("a reviewed file is kept as a past review, which opens as it was reviewed, 
   const again = notes.getByRole("button", { name: "Get new notes for this version" })
   await expect(again).toBeEnabled({ timeout: 60_000 })
   await again.click()
-  await expect(notes.getByRole("region", { name: "Red flags, 2" })).toHaveCount(0, { timeout: 60_000 })
+  // The new notes are in once there's the one done well they're answered with: the old ones go as soon as it's asked.
+  await expect(notes.getByRole("region", { name: "Done well, 1" })).toBeVisible({ timeout: 60_000 })
+  await expect(notes.getByRole("region", { name: "Red flags, 2" })).toHaveCount(0)
   expect(calls).toBe(2)
 
   // Listed under the drop zone, it opens as the file was, with the notes it got then, without asking again, and again on reload.
@@ -368,6 +370,62 @@ test("a past review that can't be deleted stays listed, and says so", async ({ p
   await expect(past.getByRole("alert")).toHaveText("That couldn’t be deleted. Try again.")
   await page.reload()
   await expect(past.getByRole("button", { name: /^Mara Lin/ })).toBeVisible()
+})
+
+/**
+ * Opens a resume whose review found nothing in the editor, on its AI notes,
+ * and asks the AI there, which answers only once `answer()` is called.
+ */
+async function askedFromTheEditor(page: Page) {
+  let calls = 0
+  let answer = () => {}
+  const answered = new Promise<void>((resolve) => (answer = resolve))
+  await page.route("**/api/review", async (route) => {
+    calls++
+    if (calls > 1) await answered
+    await route.fulfill({ json: { notes: calls === 1 ? [] : NOTES } })
+  })
+  await reviewed(page)
+  await page.getByRole("button", { name: "Fix it in the editor" }).click()
+  await expect(page).toHaveURL(/\/create\/new\//)
+  await page.getByRole("button", { name: "AI notes", pressed: false }).click()
+  const ask = page.getByRole("button", { name: "Get AI notes" })
+  await expect(ask).toBeEnabled({ timeout: 60_000 })
+  await ask.click()
+  return { answer, calls: () => calls }
+}
+
+test("while the editor asks the AI, it counts a recruiter's seven seconds, then says the AI reads the rest, until the notes come", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  const { answer, calls } = await askedFromTheEditor(page)
+  const notes = page.getByRole("region", { name: "AI notes" })
+  await expect(notes.getByRole("status")).toHaveText("Reading it like a recruiter")
+  await expect(notes.getByRole("button", { name: "Get AI notes" })).toHaveCount(0)
+  await expect(notes.getByText(/^\d\.\d$/)).toBeVisible()
+  await expect(notes.getByText("Where a recruiter’s eyes go first.")).toBeVisible()
+  // Past the seven seconds, the eyes are done: the rest of the wait is the AI's.
+  await expect(notes.getByText("The AI reads the rest…")).toBeVisible({ timeout: 15_000 })
+  await expect(notes.getByText(/^\d\.\d$/)).toHaveCount(0)
+  answer()
+  await expect(notes.getByRole("region", { name: "Red flags, 2" })).toBeVisible()
+  await expect(notes.getByRole("status")).toHaveCount(0)
+  expect(calls()).toBe(2)
+  expect(errors).toEqual([])
+})
+
+test("with less motion, the editor's wait for the AI counts no seconds", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const { answer } = await askedFromTheEditor(page)
+  const notes = page.getByRole("region", { name: "AI notes" })
+  await expect(notes.getByRole("status")).toHaveText("Reading it like a recruiter")
+  await expect(notes.getByText("The AI reads every line…")).toBeVisible()
+  await expect(notes.getByText(/^\d\.\d$/)).toHaveCount(0)
+  answer()
+  await expect(notes.getByRole("region", { name: "Red flags, 2" })).toBeVisible()
+  expect(errors).toEqual([])
 })
 
 /** Answers /api/review only once `answer()` is called; `asked` settles when the page has asked. */

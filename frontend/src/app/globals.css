@@ -204,8 +204,7 @@
 }
 
 /* rounded-panel: the corners of a menu, and of a panel or box made like one
-   (the search's matches, the template gallery, the Check tab's boxes, the
-   Undo message). */
+   (the search's matches, the template gallery, the Undo message). */
 @theme {
   --radius-panel: 20px;
   /* A row inside a panel, as a menu's items: the panel's corner less its

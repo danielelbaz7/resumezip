@@ -17,6 +17,8 @@ import { PROBLEMS } from "@/lib/review/ai/problems"
 import { sentOf } from "@/lib/review/ai/request"
 import { hashOf, saveNotes, savedByHash, savedForResume, tieToResume, type SavedNote } from "@/lib/review/ai/saved"
 import { unitsToSend } from "@/lib/review/ai/units"
+import GazeSpot from "@/components/review/GazeSpot"
+import { gazeOf, type Stop } from "@/components/review/gaze"
 import { measurer, PageMarks, useEscapeCloses, usePlaced, type Note, type PageSize, type Placed } from "@/components/review/PageMarks"
 import { aiNotesOf, checkKeyOf, checkNotesOf } from "@/components/review/notes"
 import type { Mode } from "./CheckContext"
@@ -25,7 +27,15 @@ import { reducedMotion } from "./layout"
 /** Which notes mark the preview. */
 export type Shown = "checks" | "ai"
 
-export type AiAsk = { step: "idle" } | { step: "asking" } | { step: "problem"; message: string }
+/**
+ * Asking the AI: while it's asked, a recruiter's eyes skim page 1 of the
+ * preview from `eyesFrom` (performance.now()), as on the review page, and the
+ * Check panel counts their seconds; null with less motion, when there are none.
+ */
+export type AiAsk = { step: "idle" } | { step: "asking"; eyesFrom: number | null } | { step: "problem"; message: string }
+
+/** How long after the AI is asked the eyes start on the page, in ms: once the Check panel has said it's reading. */
+const EYES_DELAY = 150
 
 interface MarksValue {
   shown: Shown
@@ -38,6 +48,8 @@ interface MarksValue {
   /** The PDF the marks were measured on: they're drawn over that one alone. */
   file: string | null
   pages: readonly PageSize[] | null
+  /** Where a recruiter's eyes go first on page 1 of the preview, as read. */
+  gaze: readonly Stop[]
   /** The AI's notes for this resume, kept in this browser; null when it has none. */
   aiNotes: SavedNote[] | null
   /** The field each of aiNotes is about, by its place in aiNotes; null once its words have been rewritten. */
@@ -100,6 +112,7 @@ export function MarksProvider({
     return aiNotesOf(now, measure)
   }, [mode, report, reading, shown, aiNotes, aiPlaces, units, measure])
   const placed = usePlaced(notes)
+  const gaze = useMemo(() => (reading?.pages[0] ? gazeOf(reading.lines, reading.pages[0]) : []), [reading])
   useEscapeCloses(open, setOpen)
 
   // Opening another resume, or leaving the editor, stops the AI on its way:
@@ -112,7 +125,7 @@ export function MarksProvider({
     asking.current?.abort()
     const current = new AbortController()
     asking.current = current
-    setAi({ step: "asking" })
+    setAi({ step: "asking", eyesFrom: reducedMotion() ? null : performance.now() + EYES_DELAY })
     void (async () => {
       // Without a hash (no crypto.subtle, on a page that isn't served securely) the notes are still asked for, just not kept.
       const hash = await hashOf(sentOf(units)).catch(() => null)
@@ -169,6 +182,7 @@ export function MarksProvider({
       placed,
       file,
       pages: reading?.pages ?? null,
+      gaze,
       aiNotes,
       aiPlaces,
       ai,
@@ -176,7 +190,7 @@ export function MarksProvider({
       askAi,
       choose,
     }),
-    [shown, show, open, placed, file, reading, aiNotes, aiPlaces, ai, units, askAi, choose],
+    [shown, show, open, placed, file, reading, gaze, aiNotes, aiPlaces, ai, units, askAi, choose],
   )
   return <MarksContext.Provider value={value}>{children}</MarksContext.Provider>
 }
@@ -226,4 +240,17 @@ export function PreviewMarks({ page, file }: { page: number; file: string }) {
   if (file !== measured) return null
   if (!size || !placed.some((each) => each.page === page)) return null
   return <PageMarks page={page} size={size} placed={placed} open={open} onOpen={setOpen} onChoose={choose} />
+}
+
+/**
+ * While the AI is asked, a recruiter's eyes on page 1 of the preview, as the
+ * review page shows them while it waits (over the page, in a `relative` box
+ * its size), and only over the PDF they were placed on.
+ */
+export function PreviewGaze({ page, file }: { page: number; file: string }) {
+  const { ai, gaze, file: measured, pages } = useMarks()
+  const size = pages?.[0]
+  if (page !== 1 || file !== measured || !size || gaze.length === 0) return null
+  if (ai.step !== "asking" || ai.eyesFrom === null) return null
+  return <GazeSpot stops={gaze} size={size} delay={EYES_DELAY} />
 }
