@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "./test"
 import { WIDE_SCREEN } from "../src/components/editor/layout"
-import { editorHeading, newResume, pageErrors, preview, settled } from "./helpers"
+import { editorHeading, newResume, pageErrors, preview, saveResumes, settled } from "./helpers"
 
 // The editor puts the form beside the preview only where both have room
 // (components/editor/layout.ts). Narrower, an Edit / Preview switch shows one
@@ -223,5 +223,50 @@ test("on a wide screen, the section list says how many entries each section has"
   // Sections with nothing in them have no number.
   await expect(page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: /^Projects$/ })).toHaveText(/Projects$/)
   await expect(preview(page).getByText("Analyst").first()).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test("a folded entry with a long name stays as wide as the form, its name cut short", async ({ page }) => {
+  const errors = pageErrors(page)
+  // Check's panel makes the form narrower, so these don't fit on one line.
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const paper = (id: number, publicationTitle: string, publicationVenue: string) => ({ id, publicationTitle, publicationVenue })
+  await saveResumes(page, [
+    {
+      id: "long-names",
+      resumeTitle: "Long names",
+      updatedAt: "2026-10-20T12:00:00.000Z",
+      selectedTemplate: "jake",
+      profileSection: { fullName: "Ada Lovelace" },
+      publicationsSection: [
+        paper(
+          1,
+          "Integrating Safe Exam Browser with Canvas LMS for proctored programming exams",
+          "Computer Science Capstone Project Report",
+        ),
+        paper(2, "Rethinking pedagogy in the AI age: what students actually do with chat assistants", "B.S. honors thesis"),
+      ],
+    },
+  ])
+  await page.goto("/create/new/long-names")
+  await page
+    .getByRole("navigation", { name: "Sections" })
+    .getByRole("button", { name: /^Publications$/ })
+    .click()
+  await expect(editorHeading(page, "Publications")).toBeVisible()
+  await page
+    .getByRole("tablist", { name: "Write, check or style" })
+    .getByRole("tab", { name: /^Check/ })
+    .click()
+  await expect(page.getByRole("tabpanel", { name: /^Check/ })).toBeVisible()
+
+  // Each card, open or folded, ends where the Add button under the list does, so its buttons stay in view.
+  const add = await page.getByRole("button", { name: "Add publication" }).boundingBox()
+  const toggles = page.getByRole("button", { name: /^(Edit|Done editing) entry \d$/ })
+  await expect(toggles).toHaveCount(2)
+  for (const toggle of await toggles.all()) {
+    const box = await toggle.boundingBox()
+    expect(box!.x + box!.width).toBeLessThanOrEqual(add!.x + add!.width)
+  }
   expect(errors).toEqual([])
 })
