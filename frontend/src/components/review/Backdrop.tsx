@@ -15,14 +15,12 @@ const SAMPLE_MARKS: { kind: "circle" | "highlight" | "underline"; box: Box }[] =
   { kind: "circle", box: [145, 679, 334, 702] },
 ]
 
-// The fog's bands: how much each blurs, and where it fades in, in % of the fog's height.
+// The fog's bands: how much each blurs, and where it fades in, in % of the fog's height. Each masked
+// backdrop blur is redrawn whenever what's under it moves (scrolling, the scan, the eyes): six bands
+// dropped Chrome to ~47fps on a Retina screen, two keep it at 60 and look much the same.
 const FOG = [
-  { blur: 0.6, from: 0, to: 14 },
-  { blur: 1.2, from: 12, to: 26 },
-  { blur: 2.4, from: 24, to: 38 },
-  { blur: 4.8, from: 36, to: 50 },
-  { blur: 9.6, from: 48, to: 62 },
-  { blur: 19.2, from: 60, to: 74 },
+  { blur: 2.5, from: 0, to: 30 },
+  { blur: 14, from: 26, to: 70 },
 ]
 
 /** How long after their page shows the eyes start on it, in ms: once it has faded in over the sample. */
