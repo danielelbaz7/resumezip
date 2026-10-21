@@ -224,18 +224,21 @@
   .review-card {
     position: relative;
     isolation: isolate;
+    /* The pages' box is measured by its width (cqw). */
+    container-type: inline-size;
     padding: 0 8px 8px;
     border-radius: 28px;
   }
 
-  /* The pages, scrolled in a box that fits the screen between the header and the dock's keys
-     (with the card's head), rather than running on down the page. Not contained: at its ends
-     a scroll carries on to the page, as a phone's would. */
+  /* The pages, scrolled in a box one page tall (--page-ratio, the first page's height over its
+     width, from MarkedPages.tsx), so a one-page resume is seen whole as the page scrolls and a
+     longer one doesn't run the page on and on. Not contained: at its ends a scroll carries on to
+     the page, so the foot of a box taller than the screen is still reached. */
   .review-pages {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    max-height: max(400px, calc(100svh - 240px));
+    max-height: calc(100cqw * var(--page-ratio, 1.2941));
     overflow-y: auto;
     border-radius: 12px;
     scrollbar-width: thin;
