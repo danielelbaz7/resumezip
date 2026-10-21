@@ -53,10 +53,14 @@ export default function MarkedPages({
   // The first page flies from the page that was being read to its place here, losing the fog it stood in.
   // Before the first paint, so it's never seen in its place first; only once, as the result opens.
   const flight = useRef(from)
+  const box = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const page = first.current
     const start = flight.current
-    if (!page || !start || reducedMotion()) return
+    const scroller = box.current
+    if (!page || !start || !scroller || reducedMotion()) return
+    // The pages' box scrolls, which would clip the page flying in from above it.
+    scroller.dataset.flying = ""
     const end = page.getBoundingClientRect()
     const scale = start.width / end.width
     const fog = "linear-gradient(180deg, #000 30%, transparent 64%)"
@@ -77,6 +81,7 @@ export default function MarkedPages({
       { duration: FLIGHT_MS, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
     )
     const land = () => {
+      delete scroller.dataset.flying
       page.style.removeProperty("mask-image")
       page.style.removeProperty("-webkit-mask-image")
     }
@@ -86,7 +91,9 @@ export default function MarkedPages({
   }, [])
 
   return (
-    <div className="flex flex-col gap-3">
+    // Its own scroll box, as tall as the screen has room for, so a long resume doesn't run the page on and on.
+    // Focusable, so it scrolls from the keyboard too.
+    <div ref={box} role="region" aria-label="Your resume" tabIndex={0} className="review-pages">
       {pages?.map((page, index) => (
         <div key={page.url} ref={index === 0 ? first : undefined} className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element -- a picture drawn in the browser, which next/image can't optimize */}
