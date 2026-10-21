@@ -300,7 +300,6 @@ test("a reviewed file is kept as a past review, which opens as it was reviewed, 
   // Deleted, it's gone from the list, and from the browser.
   await page.goto("/review")
   await past.getByRole("button", { name: "Delete the review of Mara Lin" }).click()
-  await past.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(past).toHaveCount(0)
   await page.reload()
   await expect(page.getByRole("button", { name: "Review my resume" })).toBeVisible()
@@ -365,13 +364,13 @@ test("a past review that can't be deleted stays listed, and says so", async ({ p
     IDBObjectStore.prototype.clear = refuse
   })
   await past.getByRole("button", { name: "Delete the review of Mara Lin" }).click()
-  await past.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(past.getByRole("alert")).toHaveText("That couldn’t be deleted. Try again.")
-  // The question stays, to try again.
-  await expect(past.getByRole("status")).toHaveText("Delete this review?")
+  await expect(page.getByRole("button", { name: "Undo" })).toHaveCount(0)
   await past.getByRole("button", { name: "Clear all" }).click()
   await past.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(past.getByRole("alert")).toHaveText("That couldn’t be deleted. Try again.")
+  // The question stays, to try again.
+  await expect(past.getByRole("status")).toHaveText("Delete all?")
   await page.reload()
   await expect(past.getByRole("button", { name: /^Mara Lin/ })).toBeVisible()
 })
@@ -394,7 +393,7 @@ const keptReviews = (page: Page) =>
       }),
   )
 
-test("deleting a past review asks first, and Undo puts it back, file and all", async ({ page }) => {
+test("a past review is deleted at once, and Undo puts it back, file and all; Clear all asks first", async ({ page }) => {
   const errors = pageErrors(page)
   await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
   await reviewed(page)
@@ -402,28 +401,11 @@ test("deleting a past review asks first, and Undo puts it back, file and all", a
   const past = page.getByRole("region", { name: "Past reviews" })
   const review = past.getByRole("button", { name: /^Mara Lin/ })
   const bin = past.getByRole("button", { name: "Delete the review of Mara Lin" })
+  const clearAll = past.getByRole("button", { name: "Clear all" })
   const keep = past.getByRole("button", { name: "Keep" })
 
-  // The bin only asks. Escape or Keep backs out, giving the bin the focus again, and nothing's deleted.
+  // The bin deletes it from the browser at once; Undo puts it back, with the focus on it.
   await bin.click()
-  await expect(past.getByRole("status")).toHaveText("Delete this review?")
-  await expect(keep).toBeFocused()
-  await page.keyboard.press("Escape")
-  await expect(past.getByRole("status")).toHaveCount(0)
-  await expect(bin).toBeFocused()
-  await bin.click()
-  await keep.click()
-  await expect(bin).toBeFocused()
-  // Clear all asks the same way.
-  await past.getByRole("button", { name: "Clear all" }).click()
-  await expect(past.getByRole("status")).toHaveText("Delete all?")
-  await keep.click()
-  await expect(past.getByRole("button", { name: "Clear all" })).toBeFocused()
-  expect(await keptReviews(page)).toBe(1)
-
-  // Deleted, it's gone from the browser at once; Undo puts it back, with the focus on it.
-  await bin.click()
-  await past.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(past).toHaveCount(0)
   await expect(page.getByRole("status")).toHaveText("“Mara Lin” deleted")
   expect(await keptReviews(page)).toBe(0)
@@ -432,10 +414,29 @@ test("deleting a past review asks first, and Undo puts it back, file and all", a
   await expect(page.getByRole("status")).toHaveText("“Mara Lin” is back")
   expect(await keptReviews(page)).toBe(1)
 
-  // Its file came back with it: it opens as it was reviewed, after a reload too.
+  // Clear all only asks. Escape or Keep backs out, giving it the focus again, and nothing's deleted.
+  await clearAll.click()
+  await expect(past.getByRole("status")).toHaveText("Delete all?")
+  await expect(keep).toBeFocused()
+  await page.keyboard.press("Escape")
+  await expect(past.getByRole("status")).toHaveCount(0)
+  await expect(clearAll).toBeFocused()
+  await clearAll.click()
+  await keep.click()
+  await expect(clearAll).toBeFocused()
+  expect(await keptReviews(page)).toBe(1)
+
+  // The review put back came back with its file: it opens as it was reviewed, after a reload too.
   await page.reload()
   await review.click()
   await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
+
+  // Deleted once that's said, they're all gone from the browser.
+  await page.goto("/review")
+  await clearAll.click()
+  await past.getByRole("button", { name: "Delete", exact: true }).click()
+  await expect(past).toHaveCount(0)
+  expect(await keptReviews(page)).toBe(0)
   expect(errors).toEqual([])
 })
 
