@@ -1,16 +1,19 @@
 <a href="https://www.tryresumezip.com">
-  <img src=".github/assets/banner.webp" width="100%" alt="resumezip: Your resume. Not our data. The editor, with a resume's fields on the left and its live PDF on the right, floating in a blue sky">
+  <img src=".github/assets/banner.webp" width="100%" alt="resumezip: Make the resume that gets you the interview. The editor, with a resume's sections and fields on the left and its live PDF on the right, rising out of a meadow">
 </a>
 
 <p align="center">
   <b>A free, open-source resume builder that runs in your browser.</b><br>
-  Pick a template, write, and download the PDF. No account, and no copy on our side.
+  Make your resume ATS-friendly and catch what you missed before a recruiter does.<br>
+  No account, and no copy on our side.
 </p>
 
 <p align="center">
   <a href="https://www.tryresumezip.com"><b>Start writing →</b></a>
   &nbsp;·&nbsp;
   <a href="https://www.tryresumezip.com/templates">Templates</a>
+  &nbsp;·&nbsp;
+  <a href="https://www.tryresumezip.com/review">Review a resume</a>
   &nbsp;·&nbsp;
   <a href="#run-it-yourself">Run it yourself</a>
   &nbsp;·&nbsp;
@@ -45,19 +48,32 @@
 <table>
   <tr>
     <td width="33%" align="center" valign="top">
-      <img src=".github/assets/write.webp" width="100%" alt="The Write tab: the resume's sections, numbered, with a handle to drag each one and an Add section button"><br>
+      <img src=".github/assets/write.webp" width="100%" alt="The Write tab: the resume's sections with how many entries each has, an Add section button, and a note that sections can be dragged into place"><br>
       <b>Write</b><br>
       <sub>Fill in each section beside the live page. Drag sections into any order, add your own, and leave out what doesn't fit this job.</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <img src=".github/assets/check.webp" width="100%" alt="The Check tab: a resume score of 96 out of 100, Strong, with the Bullets checks and one optional suggestion"><br>
+      <img src=".github/assets/check.webp" width="100%" alt="The Check tab: ATS checks and AI notes, an ATS score of 98 out of 100, Strong, and the checks, one open with a suggestion"><br>
       <b>Check</b><br>
-      <sub>A score out of 100 and what to fix, and where: weak bullets, dates, missing sections, and spelling and grammar, all checked in your browser.</sub>
+      <sub>An ATS score out of 100 and what to fix, marked on the page: weak bullets, dates, missing sections, spelling and grammar, all checked in your browser. Or ask for AI notes.</sub>
     </td>
     <td width="33%" align="center" valign="top">
-      <img src=".github/assets/style.webp" width="100%" alt="The Style tab: sliders for text size, line spacing, margins and space between sections, Letter or A4, and Keep it to one page"><br>
+      <img src=".github/assets/style.webp" width="100%" alt="The Style tab, Fine-tune: sliders for text size, line spacing, margins and space between sections, Letter or A4, and Keep it to one page"><br>
       <b>Style</b><br>
       <sub>Text size, line spacing, margins and the space between sections, Letter or A4, and a switch that keeps it to one page.</sub>
+    </td>
+  </tr>
+</table>
+
+## Review a resume you already have
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><a href="https://www.tryresumezip.com/review"><img src=".github/assets/review.webp" width="100%" alt="The review page: a sample resume with marks circled and underlined in blue, under the headline Your resume has 7 seconds. Will it make the cut?"></a></td>
+    <td width="50%" valign="middle">
+      <b>Your resume has 7 seconds.</b><br><br>
+      Drop a PDF or Word file on the <a href="https://www.tryresumezip.com/review">review page</a> and see what a recruiter would skip, marked right on the page, with an ATS check beside it. It's free.<br><br>
+      <sub>The resume's text goes to AI for the review. Past reviews are kept only in your browser.</sub>
     </td>
   </tr>
 </table>
@@ -109,6 +125,7 @@ resumezip has no accounts and no analytics, and keeps no copy of your resume. It
 | What | Where it happens |
 | --- | --- |
 | Your resumes | Saved in this browser's storage. That's the only copy. |
+| Past reviews | Kept in this browser, with the file you reviewed: the latest 20 |
 | Making the PDF | On your device, with [Typst](https://typst.app) running as WebAssembly |
 | Spelling and grammar | On your device, with [Harper](https://github.com/Automattic/harper) |
 | Opening a PDF or Word file | On your device. Nothing is uploaded. |
