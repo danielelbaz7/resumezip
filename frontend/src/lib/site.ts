@@ -41,10 +41,10 @@ export interface ShareImage {
 
 /** The picture a link to the site shows when it's shared. */
 export const SHARE_IMAGE: ShareImage = {
-  // The logo's key drawn as a zipper, with the home page headline.
+  // The home page's sky and grass, with its headline. Its source is brand-meadow/banner.html, outside the repo.
   url: "/og.png",
   ...SHARE_IMAGE_SIZE,
-  alt: "resumezip: Your resume. Not our data.",
+  alt: "resumezip: Make the resume that gets you the interview.",
 }
 
 interface PageInfo {
