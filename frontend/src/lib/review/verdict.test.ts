@@ -4,11 +4,11 @@ import { mustFixMax } from "@/lib/check/score"
 import { countsLabel, countsOf, verdictOf } from "./verdict"
 
 describe("verdictOf", () => {
-  test("follows the editor's bands: Strong and up is ready, Good is almost there, the rest back to drafts", () => {
+  test("follows the editor's bands: Strong and up is ready, Good is almost there, the rest needs work", () => {
     expect([100, 90, 89, 70, 69, 0].map(verdictOf)).toEqual(["ready", "ready", "almost", "almost", "drafts", "drafts"])
   })
 
-  test("a resume with a must-fix left is never ready to send", () => {
+  test("the ATS checks aren't ready while a must-fix remains", () => {
     expect(verdictOf(mustFixMax(1))).not.toBe("ready")
   })
 })

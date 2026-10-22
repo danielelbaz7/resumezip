@@ -11,9 +11,9 @@ function details(review: PastReview): string {
   const red = review.notes?.filter((note) => note.tone === "red").length
   return [
     ago(new Date(review.savedAt).toISOString()),
-    VERDICT_WORDS[verdictOf(review.total)],
+    `ATS checks: ${VERDICT_WORDS[verdictOf(review.total)].toLowerCase()}`,
     `${review.total}/100`,
-    red !== undefined && (red === 1 ? "1 red flag" : `${red} red flags`),
+    red === undefined ? "AI: not included" : red === 0 ? "AI: no red flags" : red === 1 ? "AI: 1 red flag" : `AI: ${red} red flags`,
   ]
     .filter(Boolean)
     .join(" · ")
@@ -112,9 +112,8 @@ export default function PastReviews({
       <ul>
         {reviews.map((review) => (
           <li key={review.id} className="flex items-center border-b border-rule last:border-b-0">
-            {/* While Clear all asks, the names stay and the rest fades, so it's clear what would go. It has no
-                  width of its own (w-0), so its lines, which don't wrap, are cut short rather than widening the
-                  list, and the page, past a phone's screen. */}
+            {/* While Clear all asks, the names stay and the rest fades, so it's clear what would go. With no
+                  intrinsic width (w-0), the title truncates and the details wrap within the row on a phone. */}
             <button
               type="button"
               data-past-review={review.id}
@@ -124,7 +123,7 @@ export default function PastReviews({
             >
               <span className="truncate text-[15px] text-ink">{review.title}</span>
               <span
-                className={`truncate text-[12.5px] tabular-nums text-ink-2 transition-opacity duration-200 motion-reduce:transition-none ${asking ? "opacity-30" : ""}`}
+                className={`text-pretty text-[12.5px] tabular-nums text-ink-2 transition-opacity duration-200 motion-reduce:transition-none ${asking ? "opacity-30" : ""}`}
               >
                 {details(review)}
               </span>

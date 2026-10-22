@@ -1,4 +1,4 @@
-// What the review page says about a resume: a verdict from its score, in the
+// What the review page says about the ATS checks: a verdict from their score, in the
 // editor's own bands (SCORE_BANDS), so a score reads the same on the page as
 // in the editor's Check, and how many notes it found.
 
@@ -9,11 +9,11 @@ import { count } from "@/lib/count"
 
 export type Verdict = "ready" | "almost" | "drafts"
 
-/** The words each verdict is shown as, after "Your resume is". */
+/** The ATS verdict only; AI writing feedback is shown separately. */
 export const VERDICT_WORDS: Record<Verdict, string> = {
-  ready: "Ready to send",
+  ready: "Ready",
   almost: "Almost there",
-  drafts: "Back to drafts",
+  drafts: "Needs work",
 }
 
 const VERDICT_OF_BAND: Record<(typeof SCORE_BANDS)[number]["name"], Verdict> = {
