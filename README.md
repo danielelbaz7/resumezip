@@ -3,82 +3,49 @@
 </a>
 
 <p align="center">
-  <b>A free, open-source resume builder that runs in your browser.</b><br>
-  Make your resume ATS-friendly and catch what you missed before a recruiter does.<br>
-  No account, and no copy on our side.
+  <b>resumezip is a free, open-source resume builder that runs in your browser.</b><br>
+  Write your resume, see what a recruiter would skip, and download it. No account.
 </p>
 
 <p align="center">
-  <a href="https://www.tryresumezip.com"><b>Start writing →</b></a>
+  <a href="https://www.tryresumezip.com"><b>Start writing</b></a>
   &nbsp;·&nbsp;
   <a href="https://www.tryresumezip.com/templates">Templates</a>
   &nbsp;·&nbsp;
   <a href="https://www.tryresumezip.com/review">Review a resume</a>
   &nbsp;·&nbsp;
   <a href="#run-it-yourself">Run it yourself</a>
-  &nbsp;·&nbsp;
-  <a href="https://github.com/ian-hoang/resumezip/issues/new/choose">Report a bug</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ian-hoang/resumezip/actions/workflows/ci.yml"><img src="https://github.com/ian-hoang/resumezip/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2e5be6" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/accounts-none-111318" alt="No accounts">
-  <img src="https://img.shields.io/badge/analytics-none-111318" alt="No analytics">
   <a href="https://github.com/ian-hoang/resumezip/stargazers"><img src="https://img.shields.io/github/stars/ian-hoang/resumezip?style=flat&color=2e5be6" alt="GitHub stars"></a>
 </p>
 
-## Why resumezip
+<br>
 
-<table>
-  <tr>
-    <td width="33%" valign="top"><b>No account</b><br>Open it and start writing. Free, with no trial, no watermark and nothing to install.</td>
-    <td width="33%" valign="top"><b>Private by design</b><br>Your resume is saved in your browser and the PDF is made on your device. We don't store it.</td>
-    <td width="33%" valign="top"><b>Live preview</b><br>The real PDF updates as you type, so what you see is what you send.</td>
-  </tr>
-  <tr>
-    <td valign="top"><b>Reads well to hiring software</b><br>Real text, no icons or graphics, and links printed as text, so applicant tracking systems read every word.</td>
-    <td valign="top"><b>Bring your old resume</b><br>Open a PDF or Word file and it's sorted into the editor's fields for you to check. It's read in your browser, not uploaded.</td>
-    <td valign="top"><b>Your PDF is your save file</b><br>Every PDF carries its resume, so it opens again on any computer and you keep editing.</td>
-  </tr>
-</table>
+### Write next to the page you'll send
 
-## Write, check, style
+The page on the right is the PDF you'll download, and it changes as you type. Drag sections into any order, add your own, and leave out what doesn't fit this job. Bullets take bold and italic. Paste a paper's DOI or arXiv link and its citation fills itself in. The Style tab sets text size, spacing, margins and paper size, and can keep it all to one page.
 
-<table>
-  <tr>
-    <td width="33%" align="center" valign="top">
-      <img src=".github/assets/write.webp" width="100%" alt="The Write tab: the resume's sections with how many entries each has, an Add section button, and a note that sections can be dragged into place"><br>
-      <b>Write</b><br>
-      <sub>Fill in each section beside the live page. Drag sections into any order, add your own, and leave out what doesn't fit this job.</sub>
-    </td>
-    <td width="33%" align="center" valign="top">
-      <img src=".github/assets/check.webp" width="100%" alt="The Check tab: ATS checks and AI notes, an ATS score of 98 out of 100, Strong, and the checks, one open with a suggestion"><br>
-      <b>Check</b><br>
-      <sub>An ATS score out of 100 and what to fix, marked on the page: weak bullets, dates, missing sections, spelling and grammar, all checked in your browser. Or ask for AI notes.</sub>
-    </td>
-    <td width="33%" align="center" valign="top">
-      <img src=".github/assets/style.webp" width="100%" alt="The Style tab, Fine-tune: sliders for text size, line spacing, margins and space between sections, Letter or A4, and Keep it to one page"><br>
-      <b>Style</b><br>
-      <sub>Text size, line spacing, margins and the space between sections, Letter or A4, and a switch that keeps it to one page.</sub>
-    </td>
-  </tr>
-</table>
+<img src=".github/assets/write.webp" width="100%" alt="The editor: the resume's sections on the left, the Profile fields in the middle, and the live PDF on the right">
 
-## Review a resume you already have
+### Find what to fix before you send it
 
-<table>
-  <tr>
-    <td width="50%" valign="top"><a href="https://www.tryresumezip.com/review"><img src=".github/assets/review.webp" width="100%" alt="The review page: a sample resume with marks circled and underlined in blue, under the headline Your resume has 7 seconds. Will it make the cut?"></a></td>
-    <td width="50%" valign="middle">
-      <b>Your resume has 7 seconds.</b><br><br>
-      Drop a PDF or Word file on the <a href="https://www.tryresumezip.com/review">review page</a> and see what a recruiter would skip, marked right on the page, with an ATS check beside it. It's free.<br><br>
-      <sub>The resume's text goes to AI for the review. Past reviews are kept only in your browser.</sub>
-    </td>
-  </tr>
-</table>
+The Check tab scores the resume out of 100 the way applicant tracking systems read it, and marks each problem on the page: bullets with no result, dates missing or out of order, a section left out, a typo. It all runs in your browser. Ask for AI notes when you want a second read.
 
-## Templates
+<img src=".github/assets/check.webp" width="100%" alt="The Check tab: an ATS score of 98 out of 100, Strong, with the checks listed and their problems circled and underlined on the page">
+
+### See it the way a recruiter does
+
+Drop any resume, PDF or Word, on the [review page](https://www.tryresumezip.com/review). You get the ATS check, the red flags a recruiter would trip on and what's done well, marked on the page. **Fix it in the editor** opens it as a resume you can change.
+
+<img src=".github/assets/review.webp" width="100%" alt="A review: ATS checks Ready, 2 red flags, 7 things done well, and the flags Three jobs in one and Too featurey">
+
+### Pick a template, change it any time
+
+Every template is free, and switching keeps your words. Each one is tested by printing its sample and [reading it back as plain text](https://www.tryresumezip.com/templates/how-they-read), the way hiring software does.
 
 <table>
   <tr>
@@ -104,23 +71,35 @@
   </tr>
 </table>
 
-Switch templates any time; your words stay put.
+### Download it however you need it
 
-## Every format you need
+<table>
+  <tr>
+    <td width="44%" valign="top"><img src=".github/assets/download.webp" width="100%" alt="The Download PDF menu open: Word, LaTeX, Save to Google Drive, JSON and Share PDF"></td>
+    <td valign="top">
+      <b>PDF</b><br>
+      For sending. Your resume is tucked inside it, so it opens again in resumezip exactly as you left it.<br><br>
+      <b>Word</b><br>
+      To edit in Word, Google Docs or Pages. It opens again too, until another app saves it.<br><br>
+      <b>LaTeX</b><br>
+      To edit on Overleaf, laid out like your PDF.<br><br>
+      <b>JSON</b><br>
+      A backup with everything, even what the PDF leaves out.<br><br>
+      <b>Google Drive</b><br>
+      Puts the PDF in your Drive. Google asks you first.
+    </td>
+  </tr>
+</table>
 
-| Format | Download it | Open it again |
-| --- | --- | --- |
-| **PDF** | Hiring-software friendly, with your resume tucked inside | Yes, exactly as you left it |
-| **Word** (.docx) | To edit in Word, Google Docs or Pages | Yes, exactly, until another app saves it; then it's read like any Word file |
-| **LaTeX** (.tex) | To edit on Overleaf, laid out like your PDF | No |
-| **JSON** | A backup with everything, even what the PDF leaves out | Yes, and Download all backs up every resume at once |
-| **Google Drive** | Puts the PDF in your Drive. Google asks you first. | |
+### Keep every version
 
-You can also open a PDF or Word resume made anywhere else: resumezip sorts it into the editor's fields for you to check.
+The dashboard holds every resume you've made in this browser. Search them, tag them, duplicate one for a new job, and undo a delete. **Open a file** reads in a PDF or Word resume made anywhere else and sorts it into fields for you to check. **Download all** backs everything up in one file.
 
-## Privacy, plainly
+<img src=".github/assets/dashboard.webp" width="100%" alt="The dashboard: four resumes in different templates, with search, tags, Open a file and New resume">
 
-resumezip has no accounts and no analytics, and keeps no copy of your resume. It stays in your browser unless you send it somewhere, or get AI notes on it.
+## Where your resume goes
+
+Nowhere, unless you send it. resumezip has no accounts and no analytics, and keeps no copy of your resume.
 
 | What | Where it happens |
 | --- | --- |
@@ -143,33 +122,15 @@ The only other requests: the PDF engine and the spelling checker download from [
 **Is it really free?**
 Yes. Every template and every download. No ads, no trial, no watermark.
 
-**Do you keep my resume?**
-No. It's saved in your browser, and we don't store it. The code is right here, so anyone can check.
-
 **How do I edit it later, or on another computer?**
-On the Dashboard, open the PDF you downloaded: resumezip reads your resume back out of it. A JSON file, from the ▾ beside Download PDF, opens the same way, and keeps what you left out of the PDF too.
+Open the PDF you downloaded from the dashboard: resumezip reads your resume back out of it. A JSON backup opens the same way.
 
 **Will hiring software be able to read it?**
-Yes. The PDF is real text, not a picture, and its links and contact details are printed as text.
-
-**Can I bring the resume I already have?**
-Yes. Open a PDF or Word (.docx) file from the Dashboard, and resumezip sorts it into the editor's fields for you to check.
+Yes. The PDF is real text, not a picture, with no icons or graphics, and its links and contact details are printed as text.
 
 </details>
 
-## How it works
-
-```mermaid
-flowchart LR
-  type([You type]) --> editor["Editor<br/>Next.js · React 19"]
-  editor -- "a moment after you stop" --> storage[("Browser storage")]
-  editor --> worker["Web Worker<br/>Typst as WebAssembly"]
-  worker --> pdf["PDF<br/>with your resume inside"]
-  pdf --> preview["Live preview<br/>pdf.js"]
-  pdf --> download([Download])
-  download -. "Open a file" .-> importer["Importer<br/>reads it back"]
-  importer --> editor
-```
+## How it's built
 
 - **Templates** are [Typst](https://typst.app) files (`frontend/src/lib/typst/templates`), compiled in a Web Worker by [typst.ts](https://github.com/Myriad-Dreamin/typst.ts) so typing stays smooth.
 - **Every PDF carries its resume** as an attachment, which is how it opens again exactly.
