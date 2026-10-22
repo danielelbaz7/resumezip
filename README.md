@@ -29,13 +29,17 @@
 
 The page on the right is the PDF you'll download, and it changes as you type. Drag sections into any order, add your own, and leave out what doesn't fit this job. Bullets take bold and italic. Paste a paper's DOI or arXiv link and its citation fills itself in. The Style tab sets text size, spacing, margins and paper size, and can keep it all to one page.
 
-<img src=".github/assets/write.webp" width="100%" alt="The editor: the resume's sections on the left, the Profile fields in the middle, and the live PDF on the right">
+<p align="center">
+  <img src=".github/assets/write.webp" width="80%" alt="The editor: the resume's sections on the left, the Profile fields in the middle, and the live PDF on the right">
+</p>
 
 ### Find what to fix before you send it
 
 The Check tab scores the resume out of 100 the way applicant tracking systems read it, and marks each problem on the page: bullets with no result, dates missing or out of order, a section left out, a typo. It all runs in your browser. Ask for AI notes when you want a second read.
 
-<img src=".github/assets/check.webp" width="100%" alt="The Check tab: an ATS score of 98 out of 100, Strong, with the checks listed and their problems circled and underlined on the page">
+<p align="center">
+  <img src=".github/assets/check.webp" width="55%" alt="The Check tab: an ATS score of 98 out of 100, Strong, with the checks listed and their problems circled and underlined on the page">
+</p>
 
 ### See it the way a recruiter does
 
