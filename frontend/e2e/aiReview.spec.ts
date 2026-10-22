@@ -365,11 +365,79 @@ test("a past review that can't be deleted stays listed, and says so", async ({ p
   })
   await past.getByRole("button", { name: "Delete the review of Mara Lin" }).click()
   await expect(past.getByRole("alert")).toHaveText("That couldn’t be deleted. Try again.")
+  await expect(page.getByRole("button", { name: "Undo" })).toHaveCount(0)
   await past.getByRole("button", { name: "Clear all" }).click()
   await past.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(past.getByRole("alert")).toHaveText("That couldn’t be deleted. Try again.")
+  // The question stays, to try again.
+  await expect(past.getByRole("status")).toHaveText("Delete all?")
   await page.reload()
   await expect(past.getByRole("button", { name: /^Mara Lin/ })).toBeVisible()
+})
+
+/** How many past reviews are kept in the browser's storage, read from IndexedDB itself. */
+const keptReviews = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const request = indexedDB.open("resumezip")
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const count = request.result.transaction("pastReviews").objectStore("pastReviews").count()
+          count.onerror = () => reject(count.error)
+          count.onsuccess = () => {
+            request.result.close()
+            resolve(count.result)
+          }
+        }
+      }),
+  )
+
+test("a past review is deleted at once, and Undo puts it back, file and all; Clear all asks first", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.route("**/api/review", (route) => route.fulfill({ json: { notes: NOTES } }))
+  await reviewed(page)
+  await page.goto("/review")
+  const past = page.getByRole("region", { name: "Past reviews" })
+  const review = past.getByRole("button", { name: /^Mara Lin/ })
+  const bin = past.getByRole("button", { name: "Delete the review of Mara Lin" })
+  const clearAll = past.getByRole("button", { name: "Clear all" })
+  const keep = past.getByRole("button", { name: "Keep" })
+
+  // The bin deletes it from the browser at once; Undo puts it back, with the focus on it.
+  await bin.click()
+  await expect(past).toHaveCount(0)
+  await expect(page.getByRole("status")).toHaveText("“Mara Lin” deleted")
+  expect(await keptReviews(page)).toBe(0)
+  await page.getByRole("button", { name: "Undo" }).click()
+  await expect(review).toBeFocused()
+  await expect(page.getByRole("status")).toHaveText("“Mara Lin” is back")
+  expect(await keptReviews(page)).toBe(1)
+
+  // Clear all only asks. Escape or Keep backs out, giving it the focus again, and nothing's deleted.
+  await clearAll.click()
+  await expect(past.getByRole("status")).toHaveText("Delete all?")
+  await expect(keep).toBeFocused()
+  await page.keyboard.press("Escape")
+  await expect(past.getByRole("status")).toHaveCount(0)
+  await expect(clearAll).toBeFocused()
+  await clearAll.click()
+  await keep.click()
+  await expect(clearAll).toBeFocused()
+  expect(await keptReviews(page)).toBe(1)
+
+  // The review put back came back with its file: it opens as it was reviewed, after a reload too.
+  await page.reload()
+  await review.click()
+  await expect(page.getByRole("button", { name: "Red flags, 2" })).toBeVisible({ timeout: 90_000 })
+
+  // Deleted once that's said, they're all gone from the browser.
+  await page.goto("/review")
+  await clearAll.click()
+  await past.getByRole("button", { name: "Delete", exact: true }).click()
+  await expect(past).toHaveCount(0)
+  expect(await keptReviews(page)).toBe(0)
+  expect(errors).toEqual([])
 })
 
 /**

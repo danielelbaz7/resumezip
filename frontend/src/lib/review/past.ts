@@ -131,8 +131,14 @@ export async function pastReviews(): Promise<PastReview[]> {
   }
 }
 
+/** A past review with its file, as it's kept. */
+export interface KeptReview {
+  review: PastReview
+  bytes: ArrayBuffer
+}
+
 /** A past review and its file, or null if it isn't kept (or can't be read). */
-export async function pastReview(id: string): Promise<{ review: PastReview; bytes: ArrayBuffer } | null> {
+export async function pastReview(id: string): Promise<KeptReview | null> {
   try {
     const db = await database()
     const transaction = db.transaction([REVIEWS, FILES])
