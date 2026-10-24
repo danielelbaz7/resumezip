@@ -56,7 +56,10 @@ async function answerJobs(page: Page): Promise<string[]> {
             level: "mid",
             requirements: [{ name: "Rust", must: true }],
           },
-          resumes: { r1: { places: ["skills"], reason: "Rust is on it." }, r2: { places: ["nowhere"], reason: "No Rust." } },
+          resumes: [
+            { id: "r1", places: ["skills"], reason: "Rust is on it." },
+            { id: "r2", places: ["nowhere"], reason: "No Rust." },
+          ],
         },
       },
     })

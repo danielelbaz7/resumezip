@@ -63,7 +63,10 @@ describe("matching a job", () => {
       Response.json({
         match: {
           job: { title: "Engineer", company: "Acme", location: "", level: "mid", requirements: [{ name: "Rust", must: true }] },
-          resumes: { r1: { places: ["skills"], reason: "Rust is listed." }, r2: { places: ["nowhere"], reason: "No Rust." } },
+          resumes: [
+            { id: "r1", places: ["skills"], reason: "Rust is listed." },
+            { id: "r2", places: ["nowhere"], reason: "No Rust." },
+          ],
         },
       }),
     )

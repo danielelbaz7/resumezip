@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
+import { matchAnswerOf } from "@/lib/jobs/request"
 import { wakeAll } from "@/lib/review/ai/providers"
 import { POST } from "./route"
 
@@ -91,9 +92,10 @@ test("matches a posting to the profiles, and asks OpenAI and then Azure when the
   )
   const response = await post({ kind: "match", posting: "We want Rust.", profiles: [PROFILE] })
   expect(response.status).toBe(200)
-  expect(await response.json()).toEqual({
-    match: { job: MATCH.job, resumes: { r1: { places: ["experience"], reason: "You've shipped Rust." } } },
-  })
+  const { match } = await response.json()
+  expect(match).toEqual({ job: MATCH.job, resumes: [{ id: "r1", places: ["experience"], reason: "You've shipped Rust." }] })
+  // The page reads it as it reads the AI's answer, and finds the resume in it.
+  expect(matchAnswerOf(match, ["r1"])?.resumes).toEqual({ r1: { places: ["experience"], reason: "You've shipped Rust." } })
   expect(asked()).toEqual([CLAUDE, OPENAI, AZURE])
   const sent = JSON.parse(fetched.mock.calls[2][1]!.body as string)
   expect(sent.response_format.json_schema.name).toBe("job_match")
