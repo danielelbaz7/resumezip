@@ -123,7 +123,10 @@ export function examplesOf(requirement: Requirement, examples: readonly string[]
   return examples.filter((text) => terms.some((term) => onResume(term, text))).length
 }
 
-/** Each resume scored for the job, best first, from the AI's answer (score.ts). */
+/** The resumes kept with a job, best first: the rest aren't worth sending. */
+export const MOST_MATCHES = 5
+
+/** The MOST_MATCHES resumes that fit the job best, scored from the AI's answer (score.ts). */
 export function matchesOf(answer: MatchAnswer, matched: readonly ResumeWithId[]): JobMatch[] {
   const { requirements } = answer.job
   const scored = matched.flatMap((resume, index) => {
@@ -166,7 +169,9 @@ export function matchesOf(answer: MatchAnswer, matched: readonly ResumeWithId[])
       },
     ]
   })
-  return ranked(scored).map(({ updatedAt: _, ...match }) => match)
+  return ranked(scored)
+    .slice(0, MOST_MATCHES)
+    .map(({ updatedAt: _, ...match }) => match)
 }
 
 /** A job matched, and what the page should say besides: "link-unread" when its link couldn't be read and only the pasted text was matched. */

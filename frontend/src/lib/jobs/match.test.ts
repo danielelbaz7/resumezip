@@ -285,3 +285,21 @@ describe("resumes scored for a job", () => {
     expect(of("fits").graduationDate).toBe("2027-05")
   })
 })
+
+describe("the resumes kept with a job", () => {
+  test("are the five that fit it best, best first", () => {
+    const resumes = Array.from({ length: 7 }, (_, index): ResumeWithId => ({ ...asSaved({ resumeTitle: `r${index}` }), id: `r${index}` }))
+    const answer: MatchAnswer = {
+      isPosting: true,
+      job: { title: "", company: "", location: "", level: "", role: "other", domain: "", requirements: [], advice: "", graduation: null },
+      // Each resume's projects rating is its place, so the last fits best.
+      resumes: Object.fromEntries(
+        resumes.map((_, index) => [
+          `r${index + 1}`,
+          { evidence: [], projects: index * 10, experience: 0, domain: 0, narrative: 0, reason: "" },
+        ]),
+      ),
+    }
+    expect(matchesOf(answer, resumes).map((match) => match.resumeId)).toEqual(["r6", "r5", "r4", "r3", "r2"])
+  })
+})
