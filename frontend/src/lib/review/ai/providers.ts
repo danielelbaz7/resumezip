@@ -3,7 +3,8 @@
 // renewed each month and lost if it isn't spent; OpenAI's credit expires
 // before Azure's, so OpenAI comes next. Azure OpenAI and OpenAI run the same
 // model behind the same chat completions API. All three take one prompt and
-// one answer schema. On `npm run dev`, Gemini can stand in for the first two.
+// one answer schema: the AI notes', unless another feature (the Jobs tab) asks
+// with its own. On `npm run dev`, Gemini can stand in for the first two.
 
 import Anthropic from "@anthropic-ai/sdk"
 import { ANSWER_SCHEMA } from "./prompt"
@@ -96,14 +97,25 @@ export interface AskOptions {
   signal?: AbortSignal
   /** How much the model thinks before it answers; more is slower and costs more. Claude has no "none" and is asked for "low". */
   effort?: "none" | "low" | "medium" | "high"
+  /** The strict JSON Schema the answer must follow, and its name for OpenAI's API; the AI notes' by default. */
+  answer?: { name: string; schema: { [key: string]: unknown } }
+  /** Who's asking, for the log line when a provider fails. */
+  feature?: string
 }
+
+const NOTES_ANSWER = { name: "resume_notes", schema: ANSWER_SCHEMA }
 
 /** Asks one provider for the notes; throws a ProviderError when it can't answer. */
 export function ask(provider: Provider, system: string, user: string, options: AskOptions = {}): Promise<Asked> {
   return provider.name === "claude" ? askClaude(provider, system, user, options) : askChat(provider, system, user, options)
 }
 
-async function askClaude(provider: ClaudeProvider, system: string, user: string, { signal, effort = "low" }: AskOptions): Promise<Asked> {
+async function askClaude(
+  provider: ClaudeProvider,
+  system: string,
+  user: string,
+  { signal, effort = "low", answer: shape = NOTES_ANSWER }: AskOptions,
+): Promise<Asked> {
   const started = Date.now()
   // Made per request so it takes the fetch in place now. No retries: askAny moves on to the next provider instead.
   const client = new Anthropic({ apiKey: provider.apiKey, maxRetries: 0 })
@@ -116,7 +128,7 @@ async function askClaude(provider: ClaudeProvider, system: string, user: string,
         max_tokens: 12_000,
         system,
         messages: [{ role: "user", content: user }],
-        output_config: { effort: effort === "none" ? "low" : effort, format: { type: "json_schema", schema: ANSWER_SCHEMA } },
+        output_config: { effort: effort === "none" ? "low" : effort, format: { type: "json_schema", schema: shape.schema } },
       },
       { signal },
     )
@@ -145,7 +157,12 @@ async function askClaude(provider: ClaudeProvider, system: string, user: string,
   }
 }
 
-async function askChat(provider: ChatProvider, system: string, user: string, { signal, effort = "low" }: AskOptions): Promise<Asked> {
+async function askChat(
+  provider: ChatProvider,
+  system: string,
+  user: string,
+  { signal, effort = "low", answer: shape = NOTES_ANSWER }: AskOptions,
+): Promise<Asked> {
   const started = Date.now()
   let response: Response
   try {
@@ -158,7 +175,7 @@ async function askChat(provider: ChatProvider, system: string, user: string, { s
           { role: "developer", content: system },
           { role: "user", content: user },
         ],
-        response_format: { type: "json_schema", json_schema: { name: "resume_notes", strict: true, schema: ANSWER_SCHEMA } },
+        response_format: { type: "json_schema", json_schema: { name: shape.name, strict: true, schema: shape.schema } },
         reasoning_effort: effort,
         // Thinking counts toward this too.
         max_completion_tokens: 12_000,
@@ -246,7 +263,7 @@ export async function askAny(providers: readonly Provider[], system: string, use
       last = error instanceof ProviderError ? error : new ProviderError(provider.name, null, timeout.aborted ? "too slow" : String(error))
       resting.set(provider.name, Date.now() + (spent(last) ? SPENT_MS : REST_MS))
       // Never the body: it can quote the request, and the request is someone's resume.
-      console.warn(`AI review: ${provider.name} didn't answer (${last.status ?? "no status"})`)
+      console.warn(`${options.feature ?? "AI review"}: ${provider.name} didn't answer (${last.status ?? "no status"})`)
     }
   }
   throw last ?? new Error("no provider has keys")
