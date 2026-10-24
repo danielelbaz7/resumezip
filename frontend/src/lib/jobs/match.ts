@@ -7,7 +7,17 @@ import type { ResumeWithId } from "@/lib/resume"
 import { REVIEWER_HEADER, reviewerId } from "@/lib/review/ai/reviewer"
 import { graduationFit, graduationOf } from "./graduation"
 import { examplesTextOf, fingerprintOf, groupLines, GROUPS, hasSource, profileSourceOf, readProfile, type ResumeProfile } from "./profile"
-import { linkOf, matchAnswerOf, MOST_PER_PROFILES, MOST_PROFILES, postingProblem, sendable, wireId, type MatchAnswer } from "./request"
+import {
+  linkOf,
+  matchAnswerOf,
+  MOST_PER_PROFILES,
+  MOST_PROFILES,
+  postingProblem,
+  scoreAnswerOf,
+  sendable,
+  wireId,
+  type MatchAnswer,
+} from "./request"
 import { blendedScore, coreOf, foundOf, keywordsOf, missingScreening, onResume, ranked, type Parts, type Requirement } from "./score"
 import { readSavedProfile, saveProfile, type Job, type JobMatch } from "./storage"
 import { sendableTailor, tailorAnswerOf, tailorSourceOf, type TailorAnswer, type TailorSource } from "./tailor"
@@ -157,6 +167,8 @@ export function matchesOf(answer: MatchAnswer, matched: readonly ResumeWithId[])
         missedScreening,
         graduation,
         graduationDate: graduationOf(resume) ?? "",
+        tailoredFrom: null,
+        scoredHash: "",
         evidence: evidence.map((found, at) => ({
           ...found,
           examples: found.examples,
@@ -257,4 +269,39 @@ export async function tailorFor(
   const tailoring = tailorAnswerOf(answer.tailoring, source, job.posting)
   if (!tailoring) throw new JobsError("answer")
   return { answer: tailoring, source }
+}
+
+/**
+ * Scores one resume for a job against the requirements it was matched on,
+ * as a copy tailored for it is (tailor.ts), so its score is comparable with
+ * the others': its profile is made if it has none up to date, then the AI
+ * judges it against those requirements, and it's scored as matching scores.
+ * Throws a JobsError when it can't; or, once `signal` is aborted, whatever
+ * stopped it.
+ */
+export async function scoreFor(
+  job: Job,
+  resume: ResumeWithId,
+  storage: Storage | null,
+  { tailoredFrom, signal }: { tailoredFrom: string; signal?: AbortSignal },
+): Promise<JobMatch> {
+  if (!job.posting.trim()) throw new JobsError("short")
+  const profile = (await profilesFor([resume], storage, { signal })).get(resume.id)
+  if (!profile) throw new JobsError("empty")
+  const requirements = job.requirements.map(({ name, tier, keyword }) => ({ name, tier, keyword }))
+  const id = wireId(0)
+  const answer = await post({ kind: "score", posting: job.posting, requirements, profiles: [{ id, ...profile }] }, signal)
+  const resumes = scoreAnswerOf(answer, [id], requirements.length)
+  if (!resumes) throw new JobsError("answer")
+  const { title, company, location, level, role, domain, advice, graduation } = job
+  const [match] = matchesOf(
+    {
+      isPosting: true,
+      job: { title, company, location, level, role, domain, requirements: job.requirements, advice, graduation },
+      resumes,
+    },
+    [resume],
+  )
+  if (!match) throw new JobsError("answer")
+  return { ...match, tailoredFrom, scoredHash: fingerprintOf(profileSourceOf(resume)) }
 }

@@ -229,6 +229,18 @@ test("Auto-tailor makes a copy of the resume with the skills it shows, and says 
   // Tailoring is answered here too, after answerJobs, so it's asked first.
   await page.route("**/api/jobs", async (route) => {
     const body = route.request().postDataJSON()
+    // The copy is scored against the job's requirements once it's made.
+    if (body.kind === "score") {
+      const scored = {
+        id: "r1",
+        evidence: [{ strength: "good", place: "experience" }],
+        projects: 60,
+        experience: 70,
+        domain: 50,
+        narrative: 70,
+      }
+      return route.fulfill({ json: { resumes: [{ ...scored, reason: "Rust is shown in your work now." }] } })
+    }
     if (body.kind !== "tailor") return route.fallback()
     return route.fulfill({
       json: {
@@ -255,10 +267,18 @@ test("Auto-tailor makes a copy of the resume with the skills it shows, and says 
   await card.getByRole("button", { name: "Auto-tailor" }).click()
 
   await expect(card.getByText("Tailored copy:")).toBeVisible()
+  // The copy has its own row and score, under the resume it was tailored from, and can be the one sent.
+  const tailored = card.getByRole("listitem").filter({ hasText: "Tailored for this job" }).first()
+  await expect(tailored.getByText("Rust is shown in your work now.")).toBeVisible()
+  await tailored.getByRole("button", { name: "Use this one" }).click()
+  await expect(card.getByText(/^Sent: Rust resume – Acme · \d+$/)).toBeVisible()
+  await expect(card.getByLabel("Status of Backend Engineer")).toHaveValue("applied")
   await expect(card.getByText("Rust", { exact: true })).toBeVisible()
   await expect(card.getByText("SQL databases", { exact: true })).toBeVisible()
   await card.getByRole("button", { name: "I have this, add it" }).click()
   await expect(card.getByRole("button", { name: "Added to the copy’s Skills" })).toBeDisabled()
+  // The copy changed, so its score can be had again.
+  await expect(tailored.getByRole("button", { name: "Changed since: score again" })).toBeVisible()
 
   // The copy has Rust beside Go, and SQL databases in a group of its own; the original is as it was. Saves wait a moment.
   const skillsOf = () =>

@@ -11,13 +11,24 @@ import {
   PROFILES_ANSWER,
   PROFILES_PROMPT,
   profilesPrompt,
+  SCORE_ANSWER,
+  SCORE_PROMPT,
+  scorePrompt,
   TAILOR_ANSWER,
   TAILOR_PROMPT,
   tailorPrompt,
 } from "@/lib/jobs/prompt"
 import { tailorAnswerOf, tailorRequestOf } from "@/lib/jobs/tailor"
 import { fetchableUrl, LinkError, readPosting } from "@/lib/jobs/fetchPosting"
-import { answerShapeOf, jobsRequestOf, matchAnswerOf, MOST_MATCHED_CHARS, postingProblem, profilesAnswerOf } from "@/lib/jobs/request"
+import {
+  answerShapeOf,
+  jobsRequestOf,
+  matchAnswerOf,
+  MOST_MATCHED_CHARS,
+  postingProblem,
+  profilesAnswerOf,
+  scoreAnswerOf,
+} from "@/lib/jobs/request"
 import { askAny, BUDGET_MS, providersOf } from "@/lib/review/ai/providers"
 import { REVIEWER_HEADER, reviewerOf } from "@/lib/review/ai/reviewer"
 
@@ -76,6 +87,20 @@ export async function POST(request: Request): Promise<Response> {
       })
       const tailoring = tailorAnswerOf(given, asking.resume, asking.posting)
       return tailoring ? answer(200, { tailoring }) : answer(503, { error: "answer" })
+    }
+    if (asking.kind === "score") {
+      const { answer: given } = await askAny(providers, SCORE_PROMPT, scorePrompt(asking.posting, asking.requirements, asking.profiles), {
+        ...options,
+        answer: SCORE_ANSWER,
+      })
+      const scores = scoreAnswerOf(
+        given,
+        asking.profiles.map((profile) => profile.id),
+        asking.requirements.length,
+      )
+      return scores
+        ? answer(200, { resumes: Object.entries(scores).map(([id, scored]) => ({ id, ...scored })) })
+        : answer(503, { error: "answer" })
     }
     if (asking.kind === "profiles") {
       const { answer: given } = await askAny(providers, PROFILES_PROMPT, profilesPrompt(asking.resumes), {

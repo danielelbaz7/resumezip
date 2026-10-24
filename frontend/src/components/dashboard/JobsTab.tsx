@@ -5,11 +5,12 @@
 // the application stands. The list is saved in this browser, apart from the
 // resumes (lib/jobs/storage.ts).
 
-import { useEffect, useId, useRef, useState } from "react"
+import { Fragment, useEffect, useId, useRef, useState } from "react"
 import { ExternalLink, Loader2, Trash2 } from "lucide-react"
 import { BLUE_PILL, sheetPill, TEXT_PILL } from "@/components/pills"
 import { useResumeContext } from "@/context/ResumeContext"
-import { JOBS_PROBLEMS, JobsError, matchJob, MOST_MATCHES, tailorFor, type Step } from "@/lib/jobs/match"
+import { JOBS_PROBLEMS, JobsError, matchJob, MOST_MATCHES, scoreFor, tailorFor, type Step } from "@/lib/jobs/match"
+import { fingerprintOf, profileSourceOf } from "@/lib/jobs/profile"
 import { addedPlaces, tailoringOf, withSkills, type Tailoring } from "@/lib/jobs/tailor"
 import { MOST_POSTING_CHARS } from "@/lib/jobs/request"
 import {
@@ -21,6 +22,7 @@ import {
   STATUSES,
   withChosen,
   withStatus,
+  withTailoredMatch,
   withTailoring,
   type Job,
   type JobMatch,
@@ -137,9 +139,13 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
       const name = resume.resumeTitle?.trim() || resume.profileSection?.fullName?.trim() || "Resume"
       const copyTitle = `${name} – ${job.company || job.title || "tailored"}`
       renameResume(copyId, copyTitle)
-      editResume(copyId, "skillsSection", withSkills(resume.skillsSection ?? [], addedPlaces(answer, source)))
+      const skillsSection = withSkills(resume.skillsSection ?? [], addedPlaces(answer, source))
+      editResume(copyId, "skillsSection", skillsSection)
       const made = tailoringOf(answer, source, { fromResumeId: resume.id, copyId, copyTitle })
       changeSaved(job.id, (saved) => withTailoring(saved, made))
+      // Then the copy is scored against the job's requirements, as the others were, to compare.
+      const copy: ResumeWithId = { ...resume, id: copyId, resumeTitle: copyTitle, skillsSection, updatedAt: new Date().toISOString() }
+      await scoreCopy(job.id, made, copy, current.signal)
     } catch (error) {
       if (current.signal.aborted) return
       if (!(error instanceof JobsError)) console.error("Couldn't tailor the resume:", error)
@@ -150,6 +156,36 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
         setTailoring(null)
       }
     }
+  }
+
+  // Scoring a tailored copy, on its own or after tailoring: its id while it's scored.
+  const [scoring, setScoring] = useState<string | null>(null)
+  const scoreCopy = async (jobId: string, made: Tailoring, copy: ResumeWithId, signal: AbortSignal) => {
+    setScoring(made.copyId)
+    try {
+      const job = readJobs(getStorage()).find((saved) => saved.id === jobId)
+      if (!job) return
+      const scored = await scoreFor(job, copy, getStorage(), { tailoredFrom: made.fromResumeId, signal })
+      if (!signal.aborted) changeSaved(jobId, (saved) => withTailoredMatch(saved, scored))
+    } catch (error) {
+      if (signal.aborted) return
+      if (!(error instanceof JobsError)) console.error("Couldn't score the tailored copy:", error)
+      const why = error instanceof JobsError ? error.message : JOBS_PROBLEMS.other
+      setTailorProblem({ jobId, message: `The tailored copy was made, but couldn’t be scored. ${why}` })
+    } finally {
+      setScoring((current) => (current === made.copyId ? null : current))
+    }
+  }
+
+  /** Scores a tailored copy again, as after a gap's been added to it. */
+  const rescore = async (job: Job, made: Tailoring) => {
+    const copy = resumes.find((kept) => kept.id === made.copyId)
+    if (!copy || tailoring || scoring) return
+    const current = new AbortController()
+    tailorRun.current = current
+    setTailorProblem(null)
+    await scoreCopy(job.id, made, copy, current.signal)
+    if (tailorRun.current === current) tailorRun.current = null
   }
 
   /** Adds a gap the person says they have to the tailored copy's skills, and marks it added. */
@@ -289,7 +325,9 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
               onDelete={() => save(jobs.filter((saved) => saved.id !== job.id))}
               onOpen={onOpen}
               tailoring={tailoring?.jobId === job.id ? tailoring.resumeId : null}
-              busy={tailoring !== null}
+              busy={tailoring !== null || scoring !== null}
+              scoring={scoring}
+              onScore={(made) => void rescore(job, made)}
               tailorProblem={tailorProblem?.jobId === job.id ? tailorProblem.message : ""}
               onTailor={(resumeId) => void tailor(job, resumeId)}
               onAddGap={(made, index) => addGap(job, made, index)}
@@ -317,6 +355,9 @@ interface JobCardProps {
   tailorProblem: string
   onTailor: (resumeId: string) => void
   onAddGap: (tailoring: Tailoring, index: number) => void
+  /** The tailored copy being scored, if one is. */
+  scoring: string | null
+  onScore: (tailoring: Tailoring) => void
 }
 
 function JobCard({
@@ -333,15 +374,166 @@ function JobCard({
   tailorProblem,
   onTailor,
   onAddGap,
+  scoring,
+  onScore,
 }: JobCardProps) {
   const panelId = useId()
   const statusId = useId()
   const here = new Set(resumes.map((resume) => resume.id))
-  const best = job.matches[0]
+  // The best of them, a tailored copy too.
+  const best = job.matches.reduce<JobMatch | undefined>((top, match) => (!top || match.score > top.score ? match : top), undefined)
   const chosen = job.matches.find((match) => match.resumeId === job.chosenResumeId)
   const heading = job.title || "Untitled job"
   const place = [job.company, job.location].filter(Boolean).join(" · ")
   const href = hrefOf(job.link)
+  // One resume's row in the list: one matched as it was, or a copy tailored for the job, under the one it was tailored from.
+  const row = (match: JobMatch, tailored: Tailoring | null) => {
+    const where = [
+      match.found.experience && `${match.found.experience} in experience`,
+      match.found.projects && `${match.found.projects} in projects`,
+      match.found.skills && `${match.found.skills} in skills`,
+      match.found.coursework && `${match.found.coursework} in coursework`,
+      match.found.missing && `${match.found.missing} missing`,
+    ].filter(Boolean)
+    const isChosen = match.resumeId === job.chosenResumeId
+    // An original's tailoring, for its button; a tailored copy shows what tailoring it did.
+    const made = tailored ?? job.tailorings.find((kept) => kept.fromResumeId === match.resumeId)
+    const copy = tailored ? resumes.find((kept) => kept.id === tailored.copyId) : undefined
+    const stale = !!copy && match.scoredHash !== "" && match.scoredHash !== fingerprintOf(profileSourceOf(copy))
+    return (
+      <li key={match.resumeId} className={`flex flex-col gap-1 border-l-2 pl-3 ${tailored ? "ml-4 border-accent" : "border-rule"}`}>
+        {tailored && <span className="label-mono text-accent">Tailored for this job</span>}
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <span className="text-[15px] font-medium text-ink">
+            {match.resumeTitle}
+            {!here.has(match.resumeId) && <span className="font-normal text-ink-3"> · deleted</span>}
+          </span>
+          <span className="font-mono text-[14px] tabular-nums text-ink" aria-label={`Score ${match.score} out of 100`}>
+            {match.score}
+          </span>
+        </div>
+        {match.parts && <p className="font-mono text-[12px] tabular-nums text-ink-2">{partsText(match.parts).join(" · ")}</p>}
+        {where.length > 0 && <p className="text-[13px] text-ink-2">{where.join(" · ")}</p>}
+        {match.reason && <p className="text-[14px] leading-normal text-ink">{match.reason}</p>}
+        {match.graduation && job.graduation && (
+          <p className={`text-[13px] ${match.graduation === "outside" ? "text-alert" : "text-ink-2"}`}>
+            {match.graduation === "fits"
+              ? `Graduates ${yearMonthText(match.graduationDate)}, in the window`
+              : match.graduation === "outside"
+                ? `Graduates ${yearMonthText(match.graduationDate)}, outside ${windowText(job.graduation)}`
+                : `No graduation date on this resume to check against ${windowText(job.graduation)}`}
+          </p>
+        )}
+        {match.missedScreening > 0 && (
+          <p className="text-[13px] text-alert">
+            Missing {match.missedScreening === 1 ? "a must-have" : `${match.missedScreening} must-haves`}:{" "}
+            {job.requirements
+              .filter((requirement, at) => requirement.tier === 1 && match.evidence[at]?.strength === "none")
+              .map((requirement) => requirement.name)
+              .join(", ")}
+          </p>
+        )}
+        {match.missing.length > 0 && <p className="text-[13px] text-ink-3">Missing: {match.missing.join(", ")}</p>}
+        {match.evidence.length === job.requirements.length && match.evidence.length > 0 && (
+          <details className="text-[13px]">
+            <summary className="cursor-pointer text-ink-2">Requirement by requirement</summary>
+            <ul className="mt-2 flex flex-col gap-1">
+              {job.requirements.map((requirement, at) => {
+                const { strength, place, examples, onResume } = match.evidence[at]
+                return (
+                  <li key={requirement.name} className="flex flex-wrap justify-between gap-x-3 text-ink">
+                    <span>
+                      {requirement.name} <span className="text-ink-3">· {TIER_NAMES[requirement.tier]}</span>
+                    </span>
+                    <span className="text-ink-2">
+                      {STRENGTH_NAMES[strength]}
+                      {strength !== "none" && place !== "nowhere" ? ` in ${place}` : ""}
+                      {examples > 0 ? ` · ${examples === 1 ? "1 example" : `${examples} examples`}` : ""} ·{" "}
+                      {onResume ? "keyword on it" : "keyword not on it"}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </details>
+        )}
+        <div className="mt-1 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onChoose(match.resumeId)}
+            aria-pressed={isChosen}
+            className={sheetPill(isChosen ? "blue" : "white", "h-8 px-3.5 text-[13px]")}
+          >
+            {isChosen ? "Using this one" : "Use this one"}
+          </button>
+          {here.has(match.resumeId) && (
+            <button type="button" onClick={() => onOpen(match.resumeId)} className={sheetPill("text", "h-8 px-3 text-[13px]")}>
+              Open it
+            </button>
+          )}
+          {tailored && copy && (
+            <button
+              type="button"
+              onClick={() => onScore(tailored)}
+              disabled={busy}
+              className={sheetPill(stale ? "white" : "text", "h-8 px-3 text-[13px]")}
+            >
+              {scoring === tailored.copyId && <Loader2 className="animate-spin" aria-hidden="true" />}
+              {scoring === tailored.copyId ? "Scoring…" : stale ? "Changed since: score again" : "Score again"}
+            </button>
+          )}
+          {!tailored && here.has(match.resumeId) && (
+            <button
+              type="button"
+              onClick={() => onTailor(match.resumeId)}
+              disabled={busy}
+              className={sheetPill("white", "h-8 px-3.5 text-[13px]")}
+            >
+              {tailoring === match.resumeId && <Loader2 className="animate-spin" aria-hidden="true" />}
+              {tailoring === match.resumeId ? "Tailoring…" : made ? "Tailor again" : "Auto-tailor"}
+            </button>
+          )}
+        </div>
+        {tailored && <TailoringView made={tailored} copy={copy} onOpen={onOpen} onAddGap={onAddGap} />}
+      </li>
+    )
+  }
+
+  // A tailored copy whose score couldn't be had yet: it can still be scored, chosen and opened.
+  const unscored = (made: Tailoring) => {
+    const copy = resumes.find((kept) => kept.id === made.copyId)
+    const isChosen = made.copyId === job.chosenResumeId
+    return (
+      <li key={made.copyId} className="ml-4 flex flex-col gap-1 border-l-2 border-accent pl-3">
+        <span className="label-mono text-accent">Tailored for this job</span>
+        <span className="text-[15px] font-medium text-ink">
+          {copy?.resumeTitle || made.copyTitle}
+          {!copy && <span className="font-normal text-ink-3"> · deleted</span>}
+        </span>
+        <p className="text-[13px] text-ink-2">Not scored yet.</p>
+        {copy && (
+          <div className="mt-1 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onChoose(made.copyId)}
+              aria-pressed={isChosen}
+              className={sheetPill(isChosen ? "blue" : "white", "h-8 px-3.5 text-[13px]")}
+            >
+              {isChosen ? "Using this one" : "Use this one"}
+            </button>
+            <button type="button" onClick={() => onOpen(made.copyId)} className={sheetPill("text", "h-8 px-3 text-[13px]")}>
+              Open it
+            </button>
+            <button type="button" onClick={() => onScore(made)} disabled={busy} className={sheetPill("white", "h-8 px-3.5 text-[13px]")}>
+              {scoring === made.copyId && <Loader2 className="animate-spin" aria-hidden="true" />}
+              {scoring === made.copyId ? "Scoring…" : "Score it"}
+            </button>
+          </div>
+        )}
+        <TailoringView made={made} copy={copy} onOpen={onOpen} onAddGap={onAddGap} />
+      </li>
+    )
+  }
 
   return (
     <li className="rounded-[18px] border border-rule bg-sheet">
@@ -435,109 +627,19 @@ function JobCard({
             <h3 className="label-mono text-ink-2">Your best-fitting resumes</h3>
             <ol className="flex flex-col gap-3">
               {/* A job saved before only the best five were kept shows its best five too. */}
-              {job.matches.slice(0, MOST_MATCHES).map((match) => {
-                const where = [
-                  match.found.experience && `${match.found.experience} in experience`,
-                  match.found.projects && `${match.found.projects} in projects`,
-                  match.found.skills && `${match.found.skills} in skills`,
-                  match.found.coursework && `${match.found.coursework} in coursework`,
-                  match.found.missing && `${match.found.missing} missing`,
-                ].filter(Boolean)
-                const isChosen = match.resumeId === job.chosenResumeId
-                const made = job.tailorings.find((kept) => kept.fromResumeId === match.resumeId)
-                return (
-                  <li key={match.resumeId} className="flex flex-col gap-1 border-l-2 border-rule pl-3">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="text-[15px] font-medium text-ink">
-                        {match.resumeTitle}
-                        {!here.has(match.resumeId) && <span className="font-normal text-ink-3"> · deleted</span>}
-                      </span>
-                      <span className="font-mono text-[14px] tabular-nums text-ink" aria-label={`Score ${match.score} out of 100`}>
-                        {match.score}
-                      </span>
-                    </div>
-                    {match.parts && <p className="font-mono text-[12px] tabular-nums text-ink-2">{partsText(match.parts).join(" · ")}</p>}
-                    {where.length > 0 && <p className="text-[13px] text-ink-2">{where.join(" · ")}</p>}
-                    {match.reason && <p className="text-[14px] leading-normal text-ink">{match.reason}</p>}
-                    {match.graduation && job.graduation && (
-                      <p className={`text-[13px] ${match.graduation === "outside" ? "text-alert" : "text-ink-2"}`}>
-                        {match.graduation === "fits"
-                          ? `Graduates ${yearMonthText(match.graduationDate)}, in the window`
-                          : match.graduation === "outside"
-                            ? `Graduates ${yearMonthText(match.graduationDate)}, outside ${windowText(job.graduation)}`
-                            : `No graduation date on this resume to check against ${windowText(job.graduation)}`}
-                      </p>
-                    )}
-                    {match.missedScreening > 0 && (
-                      <p className="text-[13px] text-alert">
-                        Missing {match.missedScreening === 1 ? "a must-have" : `${match.missedScreening} must-haves`}:{" "}
-                        {job.requirements
-                          .filter((requirement, at) => requirement.tier === 1 && match.evidence[at]?.strength === "none")
-                          .map((requirement) => requirement.name)
-                          .join(", ")}
-                      </p>
-                    )}
-                    {match.missing.length > 0 && <p className="text-[13px] text-ink-3">Missing: {match.missing.join(", ")}</p>}
-                    {match.evidence.length === job.requirements.length && match.evidence.length > 0 && (
-                      <details className="text-[13px]">
-                        <summary className="cursor-pointer text-ink-2">Requirement by requirement</summary>
-                        <ul className="mt-2 flex flex-col gap-1">
-                          {job.requirements.map((requirement, at) => {
-                            const { strength, place, examples, onResume } = match.evidence[at]
-                            return (
-                              <li key={requirement.name} className="flex flex-wrap justify-between gap-x-3 text-ink">
-                                <span>
-                                  {requirement.name} <span className="text-ink-3">· {TIER_NAMES[requirement.tier]}</span>
-                                </span>
-                                <span className="text-ink-2">
-                                  {STRENGTH_NAMES[strength]}
-                                  {strength !== "none" && place !== "nowhere" ? ` in ${place}` : ""}
-                                  {examples > 0 ? ` · ${examples === 1 ? "1 example" : `${examples} examples`}` : ""} ·{" "}
-                                  {onResume ? "keyword on it" : "keyword not on it"}
-                                </span>
-                              </li>
-                            )
-                          })}
-                        </ul>
-                      </details>
-                    )}
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onChoose(match.resumeId)}
-                        aria-pressed={isChosen}
-                        className={sheetPill(isChosen ? "blue" : "white", "h-8 px-3.5 text-[13px]")}
-                      >
-                        {isChosen ? "Using this one" : "Use this one"}
-                      </button>
-                      {here.has(match.resumeId) && (
-                        <button type="button" onClick={() => onOpen(match.resumeId)} className={sheetPill("text", "h-8 px-3 text-[13px]")}>
-                          Open it
-                        </button>
-                      )}
-                      {here.has(match.resumeId) && (
-                        <button
-                          type="button"
-                          onClick={() => onTailor(match.resumeId)}
-                          disabled={busy}
-                          className={sheetPill("white", "h-8 px-3.5 text-[13px]")}
-                        >
-                          {tailoring === match.resumeId && <Loader2 className="animate-spin" aria-hidden="true" />}
-                          {tailoring === match.resumeId ? "Tailoring…" : made ? "Tailor again" : "Auto-tailor"}
-                        </button>
-                      )}
-                    </div>
-                    {made && (
-                      <TailoringView
-                        made={made}
-                        copy={resumes.find((kept) => kept.id === made.copyId)}
-                        onOpen={onOpen}
-                        onAddGap={onAddGap}
-                      />
-                    )}
-                  </li>
-                )
-              })}
+              {job.matches
+                .filter((match) => !match.tailoredFrom)
+                .slice(0, MOST_MATCHES)
+                .map((match) => {
+                  const made = job.tailorings.find((kept) => kept.fromResumeId === match.resumeId)
+                  const scored = made && job.matches.find((kept) => kept.tailoredFrom === match.resumeId && kept.resumeId === made.copyId)
+                  return (
+                    <Fragment key={match.resumeId}>
+                      {row(match, null)}
+                      {made && (scored ? row(scored, made) : unscored(made))}
+                    </Fragment>
+                  )
+                })}
             </ol>
             {tailorProblem && (
               <p role="alert" className="border-l-2 border-alert pl-3 text-[14px] leading-normal text-ink">
