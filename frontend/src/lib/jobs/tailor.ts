@@ -100,13 +100,63 @@ export const listed = (source: TailorSource, skill: string) => source.skillGroup
 const placed = (source: TailorSource, group: string, newGroup: string) =>
   group === "new" ? newGroup.trim() !== "" : skillGroupOf(source, group) !== null
 
+// The words a category's name is compared by: lower case, without "&" or
+// "and", and without a plural s, so "Database" is "Databases" and
+// "Frameworks & Libraries" holds "Frameworks".
+const nameWords = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/&|\band\b/g, " ")
+    .split(/[^a-z0-9+#]+/)
+    .filter(Boolean)
+    .map((word) => word.replace(/(?<=..)s$/, ""))
+
+const sameName = (a: string, b: string) => {
+  const [shorter, longer] = [nameWords(a), nameWords(b)].sort((x, y) => x.length - y.length)
+  return shorter.length > 0 && shorter.every((word) => longer.includes(word))
+}
+
+/** A category any technical skill can go in: "Tools", "Technologies", "Other", "Technical Skills". */
+const GENERAL =
+  /^(technical |other |additional |key )?(skills?|tools?|technolog(y|ies)|tech stack|other|misc(ellaneous)?)$|\b(tools|technologies)\b/i
+
+/** The category a new one an answer gives goes in, when the resume has one it fits: one with its name, or a general one. */
+function existingFor(source: TailorSource, newGroup: string): string | null {
+  const named = source.skillGroups.findIndex((group) => sameName(group.name, newGroup))
+  if (named >= 0) return groupId(named)
+  const general = source.skillGroups.findIndex((group) => GENERAL.test(group.name.trim()))
+  return general >= 0 ? groupId(general) : null
+}
+
+/**
+ * Skills and gaps with their categories settled, so a new one is made only
+ * when it has to be: one the answer calls new goes in a category the resume
+ * has with its name, or in a general one; and what's left shares at most one
+ * new category, named as the answer named it, or "Tools" when it named several.
+ */
+function settled<Item extends { group: string; newGroup: string }>(items: Item[], source: TailorSource, name: string): Item[] {
+  return items.map((item) => {
+    if (item.group !== "new") return item
+    const existing = existingFor(source, item.newGroup)
+    return existing ? { ...item, group: existing, newGroup: "" } : { ...item, newGroup: name }
+  })
+}
+
+/** The one new category the answer's skills and gaps share, if any needs it. */
+function newCategory(items: { group: string; newGroup: string }[], source: TailorSource): string {
+  const names = items.filter((item) => item.group === "new" && !existingFor(source, item.newGroup)).map((item) => item.newGroup.trim())
+  const distinct = [...new Set(names.map((one) => nameWords(one).join(" ")))]
+  return distinct.length === 1 ? names[0] : "Tools"
+}
+
 /**
  * The tailoring in an answer, checked against what was sent: null when it
  * isn't whole (a list or a field missing or in the wrong shape), so nothing
  * is filled in. What isn't grounded is dropped, not filled in either: a
  * skill whose quote isn't in its job or project word for word, one already
  * listed, or one with no group; a gap whose quote isn't in the posting, or
- * that's about hiring rather than the work (workName). In the AI's shape,
+ * that's about hiring rather than the work (workName). A new category is
+ * made only when nothing the resume has fits (settled). In the AI's shape,
  * so the page reads the route's answer with it too.
  */
 export function tailorAnswerOf(answer: unknown, source: TailorSource, posting: string): TailorAnswer | null {
@@ -143,7 +193,9 @@ export function tailorAnswerOf(answer: unknown, source: TailorSource, posting: s
       newGroup: placed(source, item.group, item.newGroup) ? text(item.newGroup, 80) : "Skills",
     })
   }
-  return { add: add.slice(0, MOST_TAILOR_ADDED), gaps: gaps.slice(0, MOST_TAILOR_GAPS) }
+  const kept = { add: add.slice(0, MOST_TAILOR_ADDED), gaps: gaps.slice(0, MOST_TAILOR_GAPS) }
+  const name = newCategory([...kept.add, ...kept.gaps], source)
+  return { add: settled(kept.add, source, name), gaps: settled(kept.gaps, source, name) }
 }
 
 /** A skill to put in Skills: in the group with that entry id, or in a new group with that name. */
