@@ -1,10 +1,21 @@
 // The Jobs tab's AI requests, a sibling of /api/review: the same AI services
 // in the same order (providersOf, askAny), and the same guard rails. It sums
-// resumes up into profiles, or matches a job posting to profiles: the text
-// pasted, the posting read from its link (lib/jobs/fetchPosting.ts), or both
-// together. Nothing is stored and nothing is logged but which service failed.
+// resumes up into profiles, matches a job posting to profiles (the text
+// pasted, the posting read from its link, lib/jobs/fetchPosting.ts, or both
+// together), or tailors one resume's skills for a job (lib/jobs/tailor.ts). Nothing is stored and nothing is logged but which service failed.
 
-import { MATCH_ANSWER, MATCH_PROMPT, matchPrompt, PROFILES_ANSWER, PROFILES_PROMPT, profilesPrompt } from "@/lib/jobs/prompt"
+import {
+  MATCH_ANSWER,
+  MATCH_PROMPT,
+  matchPrompt,
+  PROFILES_ANSWER,
+  PROFILES_PROMPT,
+  profilesPrompt,
+  TAILOR_ANSWER,
+  TAILOR_PROMPT,
+  tailorPrompt,
+} from "@/lib/jobs/prompt"
+import { tailorAnswerOf, tailorRequestOf } from "@/lib/jobs/tailor"
 import { fetchableUrl, LinkError, readPosting } from "@/lib/jobs/fetchPosting"
 import { answerShapeOf, jobsRequestOf, matchAnswerOf, MOST_MATCHED_CHARS, postingProblem, profilesAnswerOf } from "@/lib/jobs/request"
 import { askAny, BUDGET_MS, providersOf } from "@/lib/review/ai/providers"
@@ -40,7 +51,8 @@ export async function POST(request: Request): Promise<Response> {
   if (providers.length === 0) return answer(503, { error: "off" })
 
   // Checked before the limit, so a request turned away as too long doesn't use up its sender's.
-  const asking = jobsRequestOf(await request.json().catch(() => null))
+  const body: unknown = await request.json().catch(() => null)
+  const asking = jobsRequestOf(body) ?? tailorRequestOf(body)
   if (!asking) return answer(400, { error: "request" })
   // Too short to be a posting isn't sent to the AI, which would make a job up
   // from a word; with a link, it's checked once the link is read.
@@ -55,6 +67,16 @@ export async function POST(request: Request): Promise<Response> {
   const started = Date.now()
   const options = { signal: request.signal, feature: "Jobs" }
   try {
+    if (asking.kind === "tailor") {
+      const { answer: given } = await askAny(providers, TAILOR_PROMPT, tailorPrompt(asking.posting, asking.requirements, asking.resume), {
+        ...options,
+        answer: TAILOR_ANSWER,
+        // Which skills a job and project prove, and what's missing, takes more thought than reading a resume.
+        effort: "medium",
+      })
+      const tailoring = tailorAnswerOf(given, asking.resume, asking.posting)
+      return tailoring ? answer(200, { tailoring }) : answer(503, { error: "answer" })
+    }
     if (asking.kind === "profiles") {
       const { answer: given } = await askAny(providers, PROFILES_PROMPT, profilesPrompt(asking.resumes), {
         ...options,

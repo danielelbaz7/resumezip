@@ -5,6 +5,7 @@
 // defensively, and records in the wrong shape are dropped.
 
 import { yearMonthOf, type GraduationFit, type GraduationWindow } from "./graduation"
+import { savedTailoringOf, type Tailoring } from "./tailor"
 import { LEVELS, MOST_TERM_CHARS, readProfile, type Level, type ResumeProfile } from "./profile"
 import { MOST_REQUIREMENTS } from "./prompt"
 import { requirementOf, roleKindOf, type RoleKind } from "./request"
@@ -90,6 +91,8 @@ export interface Job {
   status: Status
   /** When it was first marked applied or past it. */
   appliedAt: string | null
+  /** The resumes tailored for it, the latest first, one per resume tailored. */
+  tailorings: Tailoring[]
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value)
@@ -182,6 +185,7 @@ export function jobOf(value: unknown): Job | null {
     chosenResumeId: typeof value.chosenResumeId === "string" ? value.chosenResumeId : null,
     status,
     appliedAt: date(value.appliedAt),
+    tailorings: (Array.isArray(value.tailorings) ? value.tailorings : []).map(savedTailoringOf).filter((tailoring) => tailoring !== null),
   }
 }
 
@@ -199,6 +203,12 @@ export function withChosen(job: Job, resumeId: string, now = new Date()): Job {
   const chosen = { ...job, chosenResumeId: resumeId }
   return job.status === "saved" ? withStatus(chosen, "applied", now) : chosen
 }
+
+/** A job with a tailoring kept, in place of one made before from the same resume. */
+export const withTailoring = (job: Job, tailoring: Tailoring): Job => ({
+  ...job,
+  tailorings: [tailoring, ...job.tailorings.filter((kept) => kept.fromResumeId !== tailoring.fromResumeId)],
+})
 
 /** The saved jobs, newest first; none when there are none or they can't be read. */
 export function readJobs(storage: Storage | null): Job[] {

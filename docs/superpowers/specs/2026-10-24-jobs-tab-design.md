@@ -240,9 +240,29 @@ When you click **Find the best resume**, every resume's experience, projects, sk
 and coursework are sent to the AI, not just the one you have open. The Jobs tab says
 so next to the button. The rest of the site still sends nothing unless you ask.
 
+## Tailoring
+
+Each job lists its 5 best-fitting resumes. Each has **Auto-tailor**, which sends that
+resume's full printed text (jobs and projects with ids and bullets, skill groups with
+ids, coursework), the posting and its requirements to `/api/jobs` as `kind: "tailor"`.
+The AI answers at `medium` effort with:
+
+- `add`: skills the job wants that the resume's jobs or projects show being used but
+  its Skills don't list. Each names the job or project and quotes its words, and is
+  dropped if the quote isn't in that entry word for word, if the skill is already
+  listed, or if it has no group.
+- `gaps`: what the job asks for that the resume doesn't show. Each quotes the posting,
+  and is dropped if the quote isn't there, if it's about hiring rather than the work,
+  or if Skills already lists it. Each has a reason and a suggestion for closing it.
+
+The skills go into a **copy** of the resume, named "<resume> – <company>". The original
+is never changed. The job keeps the tailoring in `tailorings`: the copy, what was added
+(group, the job or project that shows it, and its words) and the gaps. A gap is added
+to the copy only when the person presses "I have this, add it". Skills the resume
+doesn't show are never added on their own.
+
 ## Not doing
 
-- No automatic tailoring of a resume to the job.
 - No sync between devices. Like resumes, jobs live in this browser.
 - No scoring without AI. With no key set, the tab says AI isn't set up.
 
