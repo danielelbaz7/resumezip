@@ -8,7 +8,9 @@
 import { useEffect, useId, useRef, useState } from "react"
 import { ExternalLink, Loader2, Trash2 } from "lucide-react"
 import { BLUE_PILL, sheetPill, TEXT_PILL } from "@/components/pills"
-import { JOBS_PROBLEMS, JobsError, matchJob, MOST_MATCHES, type Step } from "@/lib/jobs/match"
+import { useResumeContext } from "@/context/ResumeContext"
+import { JOBS_PROBLEMS, JobsError, matchJob, MOST_MATCHES, tailorFor, type Step } from "@/lib/jobs/match"
+import { addedPlaces, tailoringOf, withSkills, type Tailoring } from "@/lib/jobs/tailor"
 import { MOST_POSTING_CHARS } from "@/lib/jobs/request"
 import {
   forgetProfiles,
@@ -19,6 +21,7 @@ import {
   STATUSES,
   withChosen,
   withStatus,
+  withTailoring,
   type Job,
   type JobMatch,
   type Status,
@@ -104,6 +107,66 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
     if (!saveJobs(getStorage(), next)) setProblem("This browser wouldn’t save the job list. It may be full.")
   }
   const change = (id: string, edit: (job: Job) => Job) => save(jobs.map((job) => (job.id === id ? edit(job) : job)))
+  // For what finishes after a wait, as a tailoring: the list as saved now, which another change or tab may have changed since.
+  const changeSaved = (id: string, edit: (job: Job) => Job) => save(readJobs(getStorage()).map((job) => (job.id === id ? edit(job) : job)))
+
+  // Tailoring a resume: the one being tailored, and why the last couldn't be, by job.
+  const { duplicateResume, renameResume, editResume } = useResumeContext()
+  const [tailoring, setTailoring] = useState<{ jobId: string; resumeId: string } | null>(null)
+  const [tailorProblem, setTailorProblem] = useState<{ jobId: string; message: string } | null>(null)
+  const tailorRun = useRef<AbortController | null>(null)
+  useEffect(() => () => tailorRun.current?.abort(), [])
+
+  /**
+   * Tailors a resume for a job (lib/jobs/tailor.ts): a copy of it, named for
+   * the job, with the skills its jobs and projects show that the job wants,
+   * and the job keeps what was added and the resume's gaps.
+   */
+  const tailor = async (job: Job, resumeId: string) => {
+    const resume = resumes.find((kept) => kept.id === resumeId)
+    if (!resume || tailoring) return
+    const current = new AbortController()
+    tailorRun.current = current
+    setTailoring({ jobId: job.id, resumeId })
+    setTailorProblem(null)
+    try {
+      const { answer, source } = await tailorFor(job, resume, { signal: current.signal })
+      if (current.signal.aborted) return
+      const copyId = duplicateResume(resume.id)
+      if (!copyId) throw new JobsError("other")
+      const name = resume.resumeTitle?.trim() || resume.profileSection?.fullName?.trim() || "Resume"
+      const copyTitle = `${name} – ${job.company || job.title || "tailored"}`
+      renameResume(copyId, copyTitle)
+      editResume(copyId, "skillsSection", withSkills(resume.skillsSection ?? [], addedPlaces(answer, source)))
+      const made = tailoringOf(answer, source, { fromResumeId: resume.id, copyId, copyTitle })
+      changeSaved(job.id, (saved) => withTailoring(saved, made))
+    } catch (error) {
+      if (current.signal.aborted) return
+      if (!(error instanceof JobsError)) console.error("Couldn't tailor the resume:", error)
+      setTailorProblem({ jobId: job.id, message: error instanceof JobsError ? error.message : JOBS_PROBLEMS.other })
+    } finally {
+      if (tailorRun.current === current) {
+        tailorRun.current = null
+        setTailoring(null)
+      }
+    }
+  }
+
+  /** Adds a gap the person says they have to the tailored copy's skills, and marks it added. */
+  const addGap = (job: Job, made: Tailoring, index: number) => {
+    const copy = resumes.find((kept) => kept.id === made.copyId)
+    const gap = made.gaps[index]
+    if (!copy || !gap || gap.added) return
+    editResume(copy.id, "skillsSection", withSkills(copy.skillsSection ?? [], [gap.place]))
+    changeSaved(job.id, (saved) => ({
+      ...saved,
+      tailorings: saved.tailorings.map((kept) =>
+        kept === made || kept.copyId === made.copyId
+          ? { ...kept, gaps: kept.gaps.map((one, at) => (at === index ? { ...one, added: true } : one)) }
+          : kept,
+      ),
+    }))
+  }
 
   const find = async () => {
     if ((!posting.trim() && !link.trim()) || step) return
@@ -225,6 +288,11 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
               onChoose={(resumeId) => change(job.id, (saved) => withChosen(saved, resumeId))}
               onDelete={() => save(jobs.filter((saved) => saved.id !== job.id))}
               onOpen={onOpen}
+              tailoring={tailoring?.jobId === job.id ? tailoring.resumeId : null}
+              busy={tailoring !== null}
+              tailorProblem={tailorProblem?.jobId === job.id ? tailorProblem.message : ""}
+              onTailor={(resumeId) => void tailor(job, resumeId)}
+              onAddGap={(made, index) => addGap(job, made, index)}
             />
           ))}
         </ul>
@@ -242,9 +310,30 @@ interface JobCardProps {
   onChoose: (resumeId: string) => void
   onDelete: () => void
   onOpen: (id: string) => void
+  /** The resume being tailored for this job, if one is. */
+  tailoring: string | null
+  /** Whether any resume is being tailored, for any job: one at a time. */
+  busy: boolean
+  tailorProblem: string
+  onTailor: (resumeId: string) => void
+  onAddGap: (tailoring: Tailoring, index: number) => void
 }
 
-function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, onOpen }: JobCardProps) {
+function JobCard({
+  job,
+  open,
+  resumes,
+  onToggle,
+  onStatus,
+  onChoose,
+  onDelete,
+  onOpen,
+  tailoring,
+  busy,
+  tailorProblem,
+  onTailor,
+  onAddGap,
+}: JobCardProps) {
   const panelId = useId()
   const statusId = useId()
   const here = new Set(resumes.map((resume) => resume.id))
@@ -355,6 +444,7 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
                   match.found.missing && `${match.found.missing} missing`,
                 ].filter(Boolean)
                 const isChosen = match.resumeId === job.chosenResumeId
+                const made = job.tailorings.find((kept) => kept.fromResumeId === match.resumeId)
                 return (
                   <li key={match.resumeId} className="flex flex-col gap-1 border-l-2 border-rule pl-3">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -425,14 +515,113 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
                           Open it
                         </button>
                       )}
+                      {here.has(match.resumeId) && (
+                        <button
+                          type="button"
+                          onClick={() => onTailor(match.resumeId)}
+                          disabled={busy}
+                          className={sheetPill("white", "h-8 px-3.5 text-[13px]")}
+                        >
+                          {tailoring === match.resumeId && <Loader2 className="animate-spin" aria-hidden="true" />}
+                          {tailoring === match.resumeId ? "Tailoring…" : made ? "Tailor again" : "Auto-tailor"}
+                        </button>
+                      )}
                     </div>
+                    {made && (
+                      <TailoringView
+                        made={made}
+                        copy={resumes.find((kept) => kept.id === made.copyId)}
+                        onOpen={onOpen}
+                        onAddGap={onAddGap}
+                      />
+                    )}
                   </li>
                 )
               })}
             </ol>
+            {tailorProblem && (
+              <p role="alert" className="border-l-2 border-alert pl-3 text-[14px] leading-normal text-ink">
+                {tailorProblem}
+              </p>
+            )}
           </div>
         </div>
       )}
     </li>
+  )
+}
+
+interface TailoringViewProps {
+  made: Tailoring
+  /** The tailored copy, while it's still here. */
+  copy: ResumeWithId | undefined
+  onOpen: (id: string) => void
+  onAddGap: (tailoring: Tailoring, index: number) => void
+}
+
+/** What tailoring a resume for the job did: the copy made, the skills added to it and where they're shown, and its gaps. */
+function TailoringView({ made, copy, onOpen, onAddGap }: TailoringViewProps) {
+  return (
+    <div className="mt-2 flex flex-col gap-3 rounded-[12px] bg-fill px-3.5 py-3 text-[13px]">
+      <p className="text-ink">
+        {copy ? (
+          <>
+            Tailored copy: <span className="font-medium">{copy.resumeTitle || made.copyTitle}</span>{" "}
+            <button type="button" onClick={() => onOpen(copy.id)} className="font-medium text-accent underline-offset-4 hover:underline">
+              Open it
+            </button>
+          </>
+        ) : (
+          `The tailored copy, ${made.copyTitle}, has been deleted.`
+        )}
+      </p>
+      <div className="flex flex-col gap-1">
+        <h4 className="label-mono text-ink-2">Added to Skills</h4>
+        {made.added.length === 0 ? (
+          <p className="text-ink-2">Nothing: its Skills already list what its jobs and projects show that this job wants.</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {made.added.map((added) => (
+              <li key={added.skill} className="text-ink">
+                <span className="font-medium">{added.skill}</span> <span className="text-ink-2">in {added.group}</span>
+                {added.from && (
+                  <span className="text-ink-3">
+                    {" "}
+                    · shown in {added.from}: “{added.quote}”
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {made.gaps.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <h4 className="label-mono text-ink-2">Gaps</h4>
+          <p className="text-ink-3">The job asks for these, and the resume doesn’t show them. Only add one you really have.</p>
+          <ul className="flex flex-col gap-2.5">
+            {made.gaps.map((gap, index) => (
+              <li key={gap.requirement} className="flex flex-col gap-0.5">
+                <span className="font-medium text-ink" title={`From the posting: “${gap.quote}”`}>
+                  {gap.requirement}
+                </span>
+                {gap.why && <span className="text-ink">{gap.why}</span>}
+                {gap.suggestion && <span className="text-ink-2">{gap.suggestion}</span>}
+                {copy && (
+                  <button
+                    type="button"
+                    onClick={() => onAddGap(made, index)}
+                    disabled={gap.added}
+                    className={`${sheetPill("text", "h-7 px-2.5 text-[12px]")} self-start`}
+                  >
+                    {gap.added ? "Added to the copy’s Skills" : "I have this, add it"}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   )
 }

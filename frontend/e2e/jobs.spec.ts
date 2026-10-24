@@ -216,3 +216,64 @@ test("a job is deleted from its row in one click, without opening it", async ({ 
   await expect(page.getByRole("heading", { name: "Jobs · 1" })).toBeVisible()
   await expect(page.getByText("Compiler Engineer", { exact: true })).toBeVisible()
 })
+
+test("Auto-tailor makes a copy of the resume with the skills it shows, and says what's missing", async ({ page }) => {
+  const errors = pageErrors(page)
+  await saveResumes(page, [
+    {
+      ...resume("rust", "Rust resume", "Go", "2026-06-01T00:00:00.000Z"),
+      workExperienceSection: [{ id: 1, workRole: "Engineer", companyName: "Stripe", workDescription: "• Built a Rust ledger" }],
+    },
+  ])
+  await answerJobs(page)
+  // Tailoring is answered here too, after answerJobs, so it's asked first.
+  await page.route("**/api/jobs", async (route) => {
+    const body = route.request().postDataJSON()
+    if (body.kind !== "tailor") return route.fallback()
+    return route.fulfill({
+      json: {
+        tailoring: {
+          add: [{ skill: "Rust", group: "s1", newGroup: "", entry: "x1", quote: "Built a Rust ledger" }],
+          gaps: [
+            {
+              requirement: "SQL databases",
+              quote: "production experience with Rust and SQL databases",
+              why: "The payments platform runs on them.",
+              suggestion: "Build a small project on PostgreSQL.",
+              group: "new",
+              newGroup: "Databases",
+            },
+          ],
+        },
+      },
+    })
+  })
+  await page.goto("/create/dashboard#jobs")
+  await page.getByLabel("Job posting").fill(POSTING)
+  await page.getByRole("button", { name: "Find the best resume" }).click()
+  const card = page.getByRole("listitem").filter({ hasText: "Backend Engineer" }).first()
+  await card.getByRole("button", { name: "Auto-tailor" }).click()
+
+  await expect(card.getByText("Tailored copy:")).toBeVisible()
+  await expect(card.getByText("Rust", { exact: true })).toBeVisible()
+  await expect(card.getByText("SQL databases", { exact: true })).toBeVisible()
+  await card.getByRole("button", { name: "I have this, add it" }).click()
+  await expect(card.getByRole("button", { name: "Added to the copy’s Skills" })).toBeDisabled()
+
+  // The copy has Rust beside Go, and SQL databases in a group of its own; the original is as it was. Saves wait a moment.
+  const skillsOf = () =>
+    page.evaluate(() =>
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith("resume:"))
+        .map((key) => JSON.parse(localStorage.getItem(key)!))
+        .map((one) => ({ id: one.id, skills: one.skillsSection })),
+    )
+  await expect
+    .poll(async () => (await skillsOf()).find((one) => one.id !== "rust")?.skills)
+    .toEqual([
+      { id: 1, skillName: "Languages", skillDetails: "Go, Rust" },
+      { id: 2, skillName: "Databases", skillDetails: "SQL databases" },
+    ])
+  expect((await skillsOf()).find((one) => one.id === "rust")?.skills).toEqual([{ id: 1, skillName: "Languages", skillDetails: "Go" }])
+  expect(errors).toEqual([])
+})

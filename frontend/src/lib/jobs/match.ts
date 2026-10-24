@@ -10,6 +10,7 @@ import { examplesTextOf, fingerprintOf, groupLines, GROUPS, hasSource, profileSo
 import { linkOf, matchAnswerOf, MOST_PER_PROFILES, MOST_PROFILES, postingProblem, sendable, wireId, type MatchAnswer } from "./request"
 import { blendedScore, coreOf, foundOf, keywordsOf, missingScreening, onResume, ranked, type Parts, type Requirement } from "./score"
 import { readSavedProfile, saveProfile, type Job, type JobMatch } from "./storage"
+import { sendableTailor, tailorAnswerOf, tailorSourceOf, type TailorAnswer, type TailorSource } from "./tailor"
 
 export type JobsProblem =
   "off" | "limit" | "busy" | "empty" | "short" | "not-posting" | "link" | "bad-link" | "answer" | "connection" | "other"
@@ -233,7 +234,27 @@ export async function matchJob(
       chosenResumeId: null,
       status: "saved",
       appliedAt: null,
+      tailorings: [],
     },
     note: answer.note === "link-unread" ? "link-unread" : "",
   }
+}
+
+/**
+ * Asks the AI to tailor `resume` for `job` (tailor.ts): the skills to add
+ * that its jobs and projects show, and its gaps. Throws a JobsError when it
+ * can't; or, once `signal` is aborted, whatever stopped it.
+ */
+export async function tailorFor(
+  job: Job,
+  resume: ResumeWithId,
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<{ answer: TailorAnswer; source: TailorSource }> {
+  if (!job.posting.trim()) throw new JobsError("short")
+  const source = sendableTailor(tailorSourceOf(resume))
+  const requirements = job.requirements.map(({ name, tier, keyword }) => ({ name, tier, keyword }))
+  const answer = await post({ kind: "tailor", posting: job.posting, requirements, resume: source }, signal)
+  const tailoring = tailorAnswerOf(answer.tailoring, source, job.posting)
+  if (!tailoring) throw new JobsError("answer")
+  return { answer: tailoring, source }
 }

@@ -253,3 +253,38 @@ test("won't fetch a link that isn't a public web address", async () => {
   }
   expect(read).not.toHaveBeenCalled()
 })
+
+test("tailors a resume for a job, keeping only skills its jobs and projects show, and asks with more thought", async () => {
+  const resume = {
+    experience: [{ title: "Engineer · Stripe", lines: ["Built a Rust ledger handling 2K payments a second"] }],
+    projects: [],
+    skillGroups: [{ entryId: 1, name: "Languages", details: "Go" }],
+    coursework: [],
+  }
+  const given = {
+    add: [
+      { skill: "Rust", group: "s1", newGroup: "", entry: "x1", quote: "Built a Rust ledger" },
+      { skill: "Kafka", group: "s1", newGroup: "", entry: "x1", quote: "Streamed events through Kafka" },
+    ],
+    gaps: [
+      {
+        requirement: "SQL databases",
+        quote: "know your way around SQL databases",
+        why: "",
+        suggestion: "",
+        group: "new",
+        newGroup: "Databases",
+      },
+    ],
+  }
+  fetched.mockImplementation(async (url) => answered(String(url), given))
+  const body = await (await post({ kind: "tailor", posting: POSTING, requirements: [], resume })).json()
+  expect(body.tailoring.add.map((added: { skill: string }) => added.skill)).toEqual(["Rust"])
+  expect(body.tailoring.gaps).toEqual([given.gaps[0]])
+  const sent = JSON.parse(fetched.mock.calls[0][1]!.body as string)
+  expect(sent.output_config).toMatchObject({ effort: "medium", format: { schema: { required: ["add", "gaps"] } } })
+  expect(sent.messages[0].content).toContain("[x1] Engineer · Stripe\n  - Built a Rust ledger")
+
+  fetched.mockImplementation(async (url) => answered(String(url), { add: [] }))
+  expect(await (await post({ kind: "tailor", posting: POSTING, requirements: [], resume })).json()).toEqual({ error: "answer" })
+})

@@ -48,6 +48,7 @@ const job = (id: string, savedAt: string, status: Job["status"] = "saved"): Job 
   chosenResumeId: null,
   status,
   appliedAt: null,
+  tailorings: [],
 })
 
 describe("the saved jobs", () => {
