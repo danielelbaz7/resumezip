@@ -3,8 +3,9 @@
 import { memo, useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import type { DraggableProvided, DropResult } from "@hello-pangea/dnd"
 import { ChevronDown, GripVertical, Plus } from "lucide-react"
-import { useOpenResume, useResumeField } from "@/context/ResumeContext"
+import { useOpenResume, useResumeField, useResumeState } from "@/context/ResumeContext"
 import { isLeftOut } from "@/lib/leftOut"
+import { resumeOf } from "@/lib/resumeStore"
 import type { Entry } from "@/lib/resume"
 import { EyeIcon, RowAction, RowToggle, TrashIcon } from "@/components/dashboard/RowActions"
 import { sheetPill } from "@/components/pills"
@@ -15,7 +16,7 @@ import { bulletsOf, datesOf, newestFirst } from "./entryCards"
 import { BulletsField, Field, FlagNote, pointAt, SectionHeading } from "./fields"
 import { reducedMotion, reveal, scrollerOf } from "./layout"
 import PaperFromLink from "./PaperFromLink"
-import { FIELD_SPAN, type ChoiceDef, type ChoiceKey, type FieldKey, type SectionDef, type SectionName } from "./sections"
+import { arrangedSection, FIELD_SPAN, type ChoiceDef, type ChoiceKey, type FieldKey, type SectionDef, type SectionName } from "./sections"
 
 /** An entry just deleted, with what Undo needs to put it back. */
 export interface DeletedEntry {
@@ -98,8 +99,11 @@ function summaryOf(section: SectionDef, entry: Entry): string {
  * "Languages · TypeScript, Go", and their dates and bullets under it. An open card's name is its
  * first field, typed in where it's shown.
  */
-function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }: SectionFormProps) {
-  const { read, update: updateResume } = useOpenResume()
+function SectionForm({ section: defined, onDelete, onEntryDeleted, restored, onRestored }: SectionFormProps) {
+  const { id: resumeId, read, update: updateResume } = useOpenResume()
+  // With a choice that swaps two fields, as Experience's role and company, the form shows them swapped.
+  const chosen = useResumeState((state) => defined.choice && resumeOf(state, resumeId)?.[defined.choice.key])
+  const section = arrangedSection(defined, chosen)
   const saved = useResumeField(section.dataKey)
   const headings = useResumeField("headings")
   const entries = saved ?? []

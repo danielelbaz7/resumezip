@@ -260,6 +260,7 @@ export function toTemplateData(saved: Resume): TemplateData {
   const headings = resume.headings ?? {}
   // Project links are printed as text, unless the user chose to link each project's name.
   const linkTitles = resume.projectLinks === "title"
+  const roleFirst = resume.workFirst === "role"
   const tune = printedTune(resume.tune)
 
   return {
@@ -313,9 +314,10 @@ export function toTemplateData(saved: Resume): TemplateData {
       involvement: text(e.involvement),
     })),
     work: entries(resume.workExperienceSection, (e) => ({
-      company: text(e.companyName),
+      // With Experience's "Print first: Role", each is printed where the other would be.
+      company: text(roleFirst ? e.workRole : e.companyName),
       location: text(e.workLocation),
-      role: text(e.workRole),
+      role: text(roleFirst ? e.companyName : e.workRole),
       start: text(e.workStartDate),
       end: text(e.workEndDate),
       bullets: bullets(e.workDescription),
