@@ -205,6 +205,17 @@ describe("opening a Word file again", () => {
     expect(reopened(zip(parts))).toBeNull()
   })
 
+  test("underlines a project's name when the person chose that, and brings it back", () => {
+    const resume = (underlineName?: true) =>
+      asSaved({ selectedTemplate: "jake", projectsSection: [{ id: 1, projectName: "Atlas", techStack: "Go", underlineName }] })
+    const underlined = toWordFile(resume(true))
+    expect(partsOf(underlined)["word/document.xml"]).toContain(
+      '<w:rPr><w:b/><w:bCs/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">Atlas</w:t>',
+    )
+    expect(partsOf(toWordFile(resume()))["word/document.xml"]).not.toContain("<w:u ")
+    expect(reopened(underlined)?.projectsSection?.[0].underlineName).toBe(true)
+  })
+
   test("doesn't when the resume isn't in it any more, as after Word saves it", () => {
     const { "resumezip.json": attached, ...parts } = partsOf(file)
     expect(attached).toBeTruthy()

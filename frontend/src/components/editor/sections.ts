@@ -55,6 +55,8 @@ interface Definition<Field extends string, Data extends string, Heading extends 
   choice?: ChoiceDef<Choice>
   /** Entries can also be added from a paper's DOI or link. */
   fromPaperLink?: boolean
+  /** Each entry can have its name underlined in the PDF (Entry's `underlineName`). */
+  underlineName?: true
   /**
    * Not on a new resume: the person adds it from Add section. Any section can
    * be deleted, and added back; a resume that has entries in it shows it
@@ -176,6 +178,7 @@ const DEFINITIONS = {
     addLabel: "Add project",
     summary: ["projectName", "techStack"],
     card: ["projectName"],
+    underlineName: true,
     choice: {
       key: "projectLinks",
       label: "Links",

@@ -143,6 +143,40 @@ test("a project's card is named by the project alone, without its tech stack", a
   expect(errors).toEqual([])
 })
 
+test("a project's name is underlined in the PDF only when its own box is ticked, and stays so", async ({ page }) => {
+  const errors = pageErrors(page)
+  await openSection(page, "Projects", {
+    ...RESUME,
+    id: "underlined",
+    projectsSection: [
+      { id: 1, projectName: "Gitlytics", techStack: "Next.js" },
+      { id: 2, projectName: "Loom", techStack: "Rust" },
+    ],
+  })
+  // Each project has its own box; the first project is the one open.
+  const underline = page.getByRole("checkbox", { name: "Underline the name" }).first()
+  await underline.check()
+  const projects = async () => (await savedResume(page, "underlined")).projectsSection
+  await expect.poll(projects).toEqual([
+    { id: 1, projectName: "Gitlytics", techStack: "Next.js", underlineName: true },
+    { id: 2, projectName: "Loom", techStack: "Rust" },
+  ])
+
+  await page.reload()
+  await page
+    .getByRole("navigation", { name: "Sections" })
+    .getByRole("button", { name: /^Projects$/ })
+    .click()
+  await expect(underline).toBeChecked()
+  await underline.uncheck()
+  // Unticked, the project has no flag at all, as one that was never ticked.
+  await expect.poll(projects).toEqual([
+    { id: 1, projectName: "Gitlytics", techStack: "Next.js" },
+    { id: 2, projectName: "Loom", techStack: "Rust" },
+  ])
+  expect(errors).toEqual([])
+})
+
 test("a school's card is named by the school alone, and volunteering's and leadership's by the organization", async ({ page }) => {
   const errors = pageErrors(page)
   await openSection(page, "Education", {

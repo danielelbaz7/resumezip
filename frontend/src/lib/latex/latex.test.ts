@@ -524,6 +524,14 @@ describe("a LaTeX file in Jake's layout", () => {
     expect(text).toContain("{\\textbf{\\href{https://github.com/maralin/atlas}{Atlas}} $|$ \\emph{Go}}")
   })
 
+  test("underlines a project's name, linked or not, when the person chose that", () => {
+    const project = { id: 1, projectName: "Atlas", techStack: "Go", projectGithub: "github.com/maralin/atlas", underlineName: true }
+    expect(latexOf({ selectedTemplate: "jake", projectsSection: [project] })).toContain("{\\textbf{\\underline{Atlas}} $|$ \\emph{Go} $|$")
+    expect(latexOf({ selectedTemplate: "jake", projectLinks: "title", projectsSection: [project] })).toContain(
+      "{\\textbf{\\href{https://github.com/maralin/atlas}{\\underline{Atlas}}} $|$ \\emph{Go}}",
+    )
+  })
+
   test("escapes what an address needs escaped inside a command, and percent-encodes what can't be", () => {
     const text = latexOf({
       selectedTemplate: "jake",

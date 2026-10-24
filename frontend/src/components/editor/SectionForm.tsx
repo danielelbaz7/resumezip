@@ -383,6 +383,16 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
       }),
     )
 
+  /** Underlines an entry's name in the PDF, or stops. An entry that isn't has no `underlineName` at all. */
+  const setUnderlineName = (id: number, underline: boolean) =>
+    save(
+      latest.current.map((entry) => {
+        if (entry.id !== id) return entry
+        const { underlineName: _, ...rest } = entry
+        return underline ? { ...rest, underlineName: true } : rest
+      }),
+    )
+
   const title = headings?.[section.headingKey] || section.title
   // "Add experience", or "Add to Work History" once the person has renamed the section.
   const addLabel = title === section.title ? section.addLabel : `Add to ${title}`
@@ -619,6 +629,18 @@ function SectionForm({ section, onDelete, onEntryDeleted, restored, onRestored }
                   )}
                   {flagAt(index) && <FlagNote finding={flagAt(index)!} />}
                   {titleFlag && <FlagNote id={titleNote} finding={titleFlag} />}
+                  {/* The name is typed in the card's header, just above. */}
+                  {section.underlineName && (
+                    <label className="flex items-center gap-2.5 text-[14px] text-ink-2">
+                      <input
+                        type="checkbox"
+                        checked={entry.underlineName === true}
+                        onChange={(event) => setUnderlineName(entry.id, event.target.checked)}
+                        className="h-4 w-4 accent-accent"
+                      />
+                      Underline the name
+                    </label>
+                  )}
                   <div className={CARD_GRID}>
                     {fields.map((field) => {
                       const flag = flagAt(index, field.key)

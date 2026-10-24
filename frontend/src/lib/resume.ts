@@ -34,8 +34,12 @@ export function cleanTag(input: string): string {
   return RESUME_TAGS.find((option) => option.name.toLowerCase() === tag.toLowerCase() || option.id === tag.toLowerCase())?.id ?? tag
 }
 
-/** One entry in a list section, like a job. Only its own section's fields are set. */
-export type Entry = { id: number; leftOut?: true } & { [Key in FieldKey]?: string }
+/**
+ * One entry in a list section, like a job. Only its own section's fields are
+ * set, and `underlineName` only where the section has it. An entry without a
+ * flag has no key for it at all.
+ */
+export type Entry = { id: number; leftOut?: true; underlineName?: true } & { [Key in FieldKey]?: string }
 
 export type Profile = { [Key in ProfileKey]?: string }
 

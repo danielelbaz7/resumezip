@@ -265,6 +265,20 @@ describe("cleanResume", () => {
     expect(new Set(clean.sectionOrder).size).toBe(clean.sectionOrder?.length)
   })
 
+  test("keeps a project's underlined name, only as true, and only on a project", () => {
+    const clean = cleanResume({
+      projectsSection: [
+        { projectName: "Atlas", underlineName: true },
+        { projectName: "Beacon", underlineName: "yes" },
+        { projectName: "Comet" },
+      ],
+      workExperienceSection: [{ companyName: "Acme", underlineName: true }],
+    })
+    expect(clean.projectsSection?.map((entry) => entry.underlineName)).toEqual([true, undefined, undefined])
+    expect(clean.projectsSection?.[1]).not.toHaveProperty("underlineName")
+    expect(clean.workExperienceSection?.[0]).not.toHaveProperty("underlineName")
+  })
+
   test("keeps the saved order, with the core sections, and an optional one only with entries", () => {
     expect(cleanResume({ sectionOrder: ["Projects", "Work"] }).sectionOrder).toEqual(["Projects", "Work", "Education", "Skills"])
     const filled = cleanResume({ sectionOrder: ["Work"], awardsSection: [{ awardName: "Prize" }] })

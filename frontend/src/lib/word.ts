@@ -34,6 +34,7 @@ interface Piece {
   text: string
   bold?: boolean
   italic?: boolean
+  underline?: boolean
   link?: string
 }
 
@@ -91,8 +92,8 @@ const escape = (text: string) =>
 
 // A run of text in one style. A line break in it stays one, and a tab is a
 // space, since tab stops here are for dates.
-function run({ text, bold, italic }: Piece, link: boolean): string {
-  const style = `${link ? '<w:rStyle w:val="Hyperlink"/>' : ""}${bold ? "<w:b/><w:bCs/>" : ""}${italic ? "<w:i/><w:iCs/>" : ""}`
+function run({ text, bold, italic, underline }: Piece, link: boolean): string {
+  const style = `${link ? '<w:rStyle w:val="Hyperlink"/>' : ""}${bold ? "<w:b/><w:bCs/>" : ""}${italic ? "<w:i/><w:iCs/>" : ""}${underline ? '<w:u w:val="single"/>' : ""}`
   const lines = text
     .replace(/\t/g, " ")
     .split(/\r\n?|\n/)
@@ -255,7 +256,10 @@ function documentOf(data: TemplateData, page: Page): { xml: string; links: strin
       case "projects":
         for (const project of data.projects) {
           const parts: Piece[][] = []
-          if (project.name) parts.push([{ text: project.name, bold: true, link: project.link ? web(project.link) : undefined }])
+          if (project.name)
+            parts.push([
+              { text: project.name, bold: true, underline: project.underline, link: project.link ? web(project.link) : undefined },
+            ])
           if (project.techStack) parts.push([{ text: project.techStack, italic: true }])
           for (const url of project.links) parts.push([{ text: url, link: web(url) }])
           entry([[joined(parts, " | "), [{ text: project.date }]]], project.bullets)
