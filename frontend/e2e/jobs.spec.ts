@@ -119,9 +119,14 @@ test("the Jobs tab finds the resume that fits a posting best, and keeps the job 
   await expect(card.getByText("Lead with the ledger project.")).toBeVisible()
   await expect(card.getByText("Missing a must-have: Rust")).toBeVisible()
   await expect(card.getByRole("link", { name: "Open the posting" })).toHaveAttribute("href", "https://jobs.acme.com/backend")
+  // Choosing the resume for a job only saved marks it applied.
   await card.getByRole("button", { name: "Use this one" }).first().click()
-  await card.getByLabel("Status of Backend Engineer").selectOption("applied")
+  await expect(card.getByLabel("Status of Backend Engineer")).toHaveValue("applied")
   await expect(card.getByText("Sent: Rust resume · 43")).toBeVisible()
+  // Further along, choosing another leaves the status as it is.
+  await card.getByLabel("Status of Backend Engineer").selectOption("interviewing")
+  await card.getByRole("button", { name: "Use this one" }).first().click()
+  await expect(card.getByLabel("Status of Backend Engineer")).toHaveValue("interviewing")
 
   // A second job reuses the profiles: neither resume has changed.
   await page.getByLabel("Job posting").fill(ANOTHER)
@@ -133,7 +138,7 @@ test("the Jobs tab finds the resume that fits a posting best, and keeps the job 
   await page.reload()
   await expect(page.getByRole("tab", { name: "Jobs" })).toHaveAttribute("aria-selected", "true")
   const kept = page.getByRole("listitem").filter({ hasText: "Sent: Rust resume" })
-  await expect(kept.getByLabel("Status of Backend Engineer")).toHaveValue("applied")
+  await expect(kept.getByLabel("Status of Backend Engineer")).toHaveValue("interviewing")
   expect(errors).toEqual([])
 })
 
@@ -171,7 +176,7 @@ test("the Jobs tab matches a posting from its link alone", async ({ page }) => {
   expect(sent).toEqual([expect.objectContaining({ posting: "", link: "https://jobs.acme.com/backend" })])
 })
 
-test("a job is deleted from its row, without opening it, once Delete is pressed a second time", async ({ page }) => {
+test("a job is deleted from its row in one click, without opening it", async ({ page }) => {
   const job = (id: string, title: string) => ({
     id,
     savedAt: id === "first" ? "2026-06-01T00:00:00.000Z" : "2026-06-02T00:00:00.000Z",
@@ -203,14 +208,7 @@ test("a job is deleted from its row, without opening it, once Delete is pressed 
   await page.goto("/create/dashboard#jobs")
   await expect(page.getByRole("heading", { name: "Jobs · 2" })).toBeVisible()
 
-  // Asking first, the focus on Keep, which keeps it.
   await page.getByRole("button", { name: "Delete Backend Engineer" }).click()
-  await expect(page.getByRole("button", { name: "Keep" })).toBeFocused()
-  await page.getByRole("button", { name: "Keep" }).click()
-  await expect(page.getByRole("heading", { name: "Jobs · 2" })).toBeVisible()
-
-  await page.getByRole("button", { name: "Delete Backend Engineer" }).click()
-  await page.getByRole("button", { name: "Delete", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Jobs · 1" })).toBeVisible()
   await expect(page.getByText("Backend Engineer", { exact: true })).toHaveCount(0)
 

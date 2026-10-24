@@ -17,6 +17,8 @@ import {
   saveJobs,
   STATUS_NAMES,
   STATUSES,
+  withChosen,
+  withStatus,
   type Job,
   type JobMatch,
   type Status,
@@ -219,14 +221,8 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
               open={openJob === job.id}
               resumes={resumes}
               onToggle={() => setOpenJob(openJob === job.id ? null : job.id)}
-              onStatus={(status) =>
-                change(job.id, (saved) => ({
-                  ...saved,
-                  status,
-                  appliedAt: saved.appliedAt ?? (status === "saved" ? null : new Date().toISOString()),
-                }))
-              }
-              onChoose={(resumeId) => change(job.id, (saved) => ({ ...saved, chosenResumeId: resumeId }))}
+              onStatus={(status) => change(job.id, (saved) => withStatus(saved, status))}
+              onChoose={(resumeId) => change(job.id, (saved) => withChosen(saved, resumeId))}
               onDelete={() => save(jobs.filter((saved) => saved.id !== job.id))}
               onOpen={onOpen}
             />
@@ -249,13 +245,6 @@ interface JobCardProps {
 }
 
 function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, onOpen }: JobCardProps) {
-  const [deleting, setDeleting] = useState(false)
-  const deleteButton = useRef<HTMLButtonElement>(null)
-  const keepButton = useRef<HTMLButtonElement>(null)
-  // Asking, the focus goes to Keep, the choice that loses nothing.
-  useEffect(() => {
-    if (deleting) keepButton.current?.focus()
-  }, [deleting])
   const panelId = useId()
   const statusId = useId()
   const here = new Set(resumes.map((resume) => resume.id))
@@ -301,48 +290,16 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
               </option>
             ))}
           </select>
-          {/* On the row, so a job can be deleted without opening it. It asks first: a job can't be got back. */}
-          {deleting ? (
-            <span
-              className="flex items-center gap-2"
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.stopPropagation()
-                  setDeleting(false)
-                  deleteButton.current?.focus()
-                }
-              }}
-            >
-              <span className="text-[14px] text-ink" role="status">
-                Delete this job?
-              </span>
-              <button
-                ref={keepButton}
-                type="button"
-                onClick={() => {
-                  setDeleting(false)
-                  deleteButton.current?.focus()
-                }}
-                className={sheetPill("white", "h-8 px-3.5 text-[13px]")}
-              >
-                Keep
-              </button>
-              <button type="button" onClick={onDelete} className={sheetPill("danger", "h-8 px-3.5 text-[13px]")}>
-                Delete
-              </button>
-            </span>
-          ) : (
-            <button
-              ref={deleteButton}
-              type="button"
-              onClick={() => setDeleting(true)}
-              aria-label={`Delete ${heading}`}
-              title="Delete this job"
-              className={sheetPill("text", "h-9 w-9 px-0 text-[13px]")}
-            >
-              <Trash2 aria-hidden="true" />
-            </button>
-          )}
+          {/* On the row, so a job can be deleted without opening it, in one click. */}
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={`Delete ${heading}`}
+            title="Delete this job"
+            className={sheetPill("text", "h-9 w-9 px-0 text-[13px]")}
+          >
+            <Trash2 aria-hidden="true" />
+          </button>
         </div>
       </div>
 
