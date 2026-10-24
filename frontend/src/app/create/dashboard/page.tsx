@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
-import { Download, HardDrive, Plus, Upload } from "lucide-react"
+import { Download, Files, HardDrive, Plus, Upload } from "lucide-react"
 import { openResumes, useResumeContext } from "@/context/ResumeContext"
 import CreateResumeModal from "@/components/dashboard/CreateResumeModal"
 import TypeModal from "@/components/dashboard/TypeModal"
@@ -51,12 +51,25 @@ type Opening =
   | { step: "reading"; fileName: string }
   | { step: "error"; message: string }
   | { step: "conflict"; file: Extract<OpenedFile, { kind: "resumezip" }>; existing: ResumeWithId }
-  | { step: "all"; resumes: FileResume[]; differing: Differing[] }
+  /** `note`: what opening several files at once has to say besides, as the files it couldn't read. */
+  | { step: "all"; resumes: FileResume[]; differing: Differing[]; note?: string }
   | { step: "review"; file: Extract<OpenedFile, { kind: "parsed" }> }
 
-/** What opening a file of them all did, said once it's done. */
-function openedAll(total: number, { added, replaced }: { added: number; replaced: number }) {
-  if (added + replaced === 0) return "Every resume in the file is already here."
+/** The resumes in a file that this browser has, but changed, which take a question before they're added. */
+function differingFrom(saved: Parameters<typeof copyHere>[0], resumes: readonly FileResume[]): Differing[] {
+  return resumes.flatMap(({ resume }): Differing[] => {
+    const here = copyHere(saved, resume)
+    return here && !here.unchanged
+      ? [{ existingTitle: here.resume.resumeTitle, existingEdited: here.resume.updatedAt, fileEdited: resume.updatedAt }]
+      : []
+  })
+}
+
+const list = new Intl.ListFormat("en", { style: "long", type: "conjunction" })
+
+/** What opening a file of them all, or several files, did, said once it's done. */
+function openedAll(total: number, { added, replaced }: { added: number; replaced: number }, source = "the file") {
+  if (added + replaced === 0) return `Every resume in ${source} is already here.`
   const done =
     added > 0 && replaced > 0
       ? `Added ${count(added, "resume")} and replaced ${replaced}.`
@@ -141,6 +154,7 @@ export default function DashboardPage() {
   const viewRef = useRef<HTMLDivElement>(null)
   const flying = useRef<HTMLElement | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const filesInput = useRef<HTMLInputElement>(null)
   // The file being read. Cancelling (or opening another file) stops it, and
   // means it can't reappear if it was just finishing.
   const reading = useRef<AbortController | null>(null)
@@ -301,9 +315,10 @@ export default function DashboardPage() {
     setOpening(null)
   }
 
-  const addAll = (files: FileResume[], options?: { replace?: boolean }) => {
+  const addAll = (files: FileResume[], { replace, note }: { replace?: boolean; note?: string } = {}) => {
     setOpening(null)
-    const done = openedAll(files.length, importAll(files, options))
+    const result = openedAll(files.length, importAll(files, { replace }), note === undefined ? undefined : "these files")
+    const done = note ? `${result} ${note}` : result
     setAllOpened(done)
     announce(done)
   }
@@ -339,12 +354,7 @@ export default function DashboardPage() {
       }
       // Each resume in a file of them all that's here, but different, which takes a question.
       if (opened.kind === "all") {
-        const differing = opened.resumes.flatMap(({ resume }): Differing[] => {
-          const here = copyHere(saved, resume)
-          return here && !here.unchanged
-            ? [{ existingTitle: here.resume.resumeTitle, existingEdited: here.resume.updatedAt, fileEdited: resume.updatedAt }]
-            : []
-        })
+        const differing = differingFrom(saved, opened.resumes)
         if (differing.length > 0) setOpening({ step: "all", resumes: opened.resumes, differing })
         else addAll(opened.resumes)
         return
@@ -360,6 +370,52 @@ export default function DashboardPage() {
       const problem = OpenFileError && error instanceof OpenFileError ? error.message : null
       if (problem === null) console.error("Couldn't open file:", error)
       setOpening({ step: "error", message: problem ?? "Something went wrong reading this file. Try a PDF or Word copy of it." })
+    }
+  }
+
+  // Several files at once, from Bulk import or dropped together: their
+  // resumes are added as a file of them all adds its own, with one question
+  // for those already here but different. One file opens as Open a file does.
+  const openFiles = async (files: File[]) => {
+    if (files.length <= 1) {
+      if (files[0]) void openFile(files[0])
+      return
+    }
+    setCreating(false)
+    finishDeleting()
+    reading.current?.abort()
+    const current = new AbortController()
+    reading.current = current
+    setAllOpened("")
+    setOpening({ step: "reading", fileName: `${files.length} files` })
+    try {
+      const open = await import("@/lib/import/open")
+      const opened = await open.openResumeFiles(files, {
+        signal: current.signal,
+        onFile: (index, file) => {
+          if (current === reading.current) setOpening({ step: "reading", fileName: `${file.name} (${index + 1} of ${files.length})` })
+        },
+      })
+      if (current !== reading.current) return
+      reading.current = null
+      const unread = opened.failed.length ? `Couldn't read ${list.format(opened.failed.map((failure) => failure.fileName))}.` : ""
+      if (opened.resumes.length === 0) {
+        const problems = opened.failed.map((failure) => `${failure.fileName}: ${failure.problem}`).join(" ")
+        setOpening({ step: "error", message: `None of the ${files.length} files could be read. ${problems}` })
+        return
+      }
+      const unreviewed = opened.unreviewed
+        ? `${count(opened.unreviewed, "resume")} from files resumezip didn't make ${opened.unreviewed === 1 ? "was" : "were"} added as found: open a file on its own to review it first.`
+        : ""
+      const note = [unread, unreviewed].filter(Boolean).join(" ")
+      const differing = differingFrom(openResumes().getState().resumes, opened.resumes)
+      if (differing.length > 0) setOpening({ step: "all", resumes: opened.resumes, differing, note })
+      else addAll(opened.resumes, { note })
+    } catch (error) {
+      if (current !== reading.current) return
+      reading.current = null
+      console.error("Couldn't open files:", error)
+      setOpening({ step: "error", message: "Something went wrong reading these files. Try them one at a time." })
     }
   }
 
@@ -396,8 +452,8 @@ export default function DashboardPage() {
   }, [loaded, resumes])
 
   // Dropping a file anywhere on the page opens it.
-  const openFileRef = useRef(openFile)
-  openFileRef.current = openFile
+  const openFilesRef = useRef(openFiles)
+  openFilesRef.current = openFiles
   useEffect(() => {
     let depth = 0
     const hasFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes("Files")
@@ -420,8 +476,7 @@ export default function DashboardPage() {
       event.preventDefault()
       depth = 0
       setDragging(false)
-      const file = event.dataTransfer?.files[0]
-      if (file) void openFileRef.current(file)
+      void openFilesRef.current(Array.from(event.dataTransfer?.files ?? []))
     }
     window.addEventListener("dragenter", onEnter)
     window.addEventListener("dragover", onOver)
@@ -438,6 +493,11 @@ export default function DashboardPage() {
   const chooseFile = () => {
     setOpening(null)
     fileInput.current?.click()
+  }
+
+  const chooseFiles = () => {
+    setOpening(null)
+    filesInput.current?.click()
   }
 
   // Every resume in one JSON file, newest first, as the list shows them.
@@ -517,6 +577,10 @@ export default function DashboardPage() {
                 <button type="button" onClick={chooseFile} className={WHITE_PILL}>
                   <Upload aria-hidden="true" />
                   Open a file
+                </button>
+                <button type="button" onClick={chooseFiles} className={WHITE_PILL}>
+                  <Files aria-hidden="true" />
+                  Bulk import
                 </button>
                 <button type="button" onClick={() => setCreating(true)} className={BLUE_PILL}>
                   <Plus aria-hidden="true" />
@@ -640,6 +704,18 @@ export default function DashboardPage() {
           if (file) void openFile(file)
         }}
       />
+      <input
+        ref={filesInput}
+        type="file"
+        multiple
+        accept={ACCEPTED_FILES}
+        className="hidden"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? [])
+          event.target.value = ""
+          void openFiles(files)
+        }}
+      />
 
       {dragging && (
         <div aria-hidden="true" className="dialog-backdrop pointer-events-none fixed inset-0 z-40 p-4">
@@ -705,8 +781,8 @@ export default function DashboardPage() {
         <AllConflictDialog
           differing={opening.differing}
           onCancel={closeOpening}
-          onKeepBoth={() => addAll(opening.resumes)}
-          onReplace={() => addAll(opening.resumes, { replace: true })}
+          onKeepBoth={() => addAll(opening.resumes, { note: opening.note })}
+          onReplace={() => addAll(opening.resumes, { replace: true, note: opening.note })}
         />
       )}
       {opening?.step === "review" && (
