@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { memoryStorage } from "@/lib/memoryStorage"
 import type { ResumeWithId } from "@/lib/resume"
 import { asSaved } from "@/lib/testResume"
-import { JobsError, matchJob, profilesFor } from "./match"
+import { JobsError, matchesOf, matchJob, profilesFor } from "./match"
 import { fingerprintOf, profileSourceOf, type ResumeProfile } from "./profile"
+import type { MatchAnswer } from "./request"
 import { readSavedProfile, saveProfile } from "./storage"
 
 const resume = (id: string, skills: string, updatedAt = "2026-06-01T00:00:00Z"): ResumeWithId => ({
@@ -77,6 +78,7 @@ describe("matching a job", () => {
             domain: "storage",
             requirements: [{ name: "Rust", tier: 1, keyword: "Rust", quote: "shipped production systems in Rust" }],
             advice: "",
+            graduation: { asked: false, earliest: "", latest: "", quote: "" },
           },
           resumes: [
             {
@@ -155,6 +157,7 @@ describe("matching a job", () => {
           domain: "",
           requirements: [],
           advice: "",
+          graduation: { asked: false, earliest: "", latest: "", quote: "" },
         },
         resumes: [{ id: "r1", evidence: [], projects: 50, experience: 50, domain: 50, narrative: 50, reason: "Close." }],
       },
@@ -184,6 +187,7 @@ describe("matching a job", () => {
           domain: "",
           requirements: [],
           advice: "",
+          graduation: { asked: false, earliest: "", latest: "", quote: "" },
         },
         resumes: [{ id: "r1", evidence: [], projects: 50, experience: 50, domain: 50, narrative: 50, reason: "" }],
       },
@@ -218,5 +222,66 @@ describe("matching a job", () => {
     await expect(matchJob(POSTING, "", [resume("a", "Rust")], memoryStorage())).rejects.toMatchObject({ reason: "off" })
     fetched.mockResolvedValue(new Response("Too many", { status: 429 }))
     await expect(matchJob(POSTING, "", [resume("a", "Rust")], memoryStorage())).rejects.toMatchObject({ reason: "limit" })
+  })
+})
+
+describe("resumes scored for a job", () => {
+  const project = (id: number, techStack: string) => ({ id, projectName: `Project ${id}`, techStack, projectDescription: "• Built it" })
+  const withProjects = (id: string, projects: ReturnType<typeof project>[], schoolEndDate: string): ResumeWithId => ({
+    ...asSaved({
+      resumeTitle: id,
+      projectsSection: projects,
+      educationSection: [{ id: 1, schoolName: "State University", schoolEndDate }],
+    }),
+    id,
+  })
+  const answer = (graduation: MatchAnswer["job"]["graduation"]): MatchAnswer => ({
+    isPosting: true,
+    job: {
+      title: "",
+      company: "",
+      location: "",
+      level: "",
+      role: "low-level C++",
+      domain: "",
+      requirements: [{ name: "C++", tier: 1, keyword: "C++", quote: "C++" }],
+      advice: "",
+      graduation,
+    },
+    // The AI says the same of both: C++ shown in projects.
+    resumes: Object.fromEntries(
+      ["r1", "r2"].map((id) => [
+        id,
+        { evidence: [{ strength: "good", place: "projects" }], projects: 70, experience: 50, domain: 50, narrative: 50, reason: "" },
+      ]),
+    ),
+  })
+
+  test("favor the one with more jobs and projects showing a requirement: two C++ projects over one", () => {
+    const one = withProjects("one", [project(1, "C++, CMake"), project(2, "Python")], "May 2027")
+    const two = withProjects("two", [project(1, "C++, CMake"), project(2, "Modern C++")], "May 2027")
+    const [best, next] = matchesOf(answer(null), [one, two])
+    expect([best.resumeId, next.resumeId]).toEqual(["two", "one"])
+    expect(best.score).toBeGreaterThan(next.score)
+    expect(best.evidence[0].examples).toBe(2)
+    expect(next.evidence[0].examples).toBe(1)
+  })
+
+  test("take a fifth off one whose graduation date is outside the posting's window, and say which fits", () => {
+    const fits = withProjects("fits", [project(1, "C++")], "Expected May 2027")
+    const late = withProjects("late", [project(1, "C++")], "May 2029")
+    const none = withProjects("none", [project(1, "C++")], "")
+    const window = { earliest: "2026-12", latest: "2027-06", quote: "" }
+    const matched = matchesOf({ ...answer(window), resumes: { ...answer(window).resumes, r3: answer(window).resumes.r1 } }, [
+      fits,
+      late,
+      none,
+    ])
+    const of = (id: string) => matched.find((match) => match.resumeId === id)!
+    expect([of("fits").graduation, of("late").graduation, of("none").graduation]).toEqual(["fits", "outside", "unknown"])
+    expect(of("late").score).toBe(Math.round(of("fits").score * 0.8))
+    // With no date to check, there's nothing to take off.
+    expect(of("none").score).toBe(of("fits").score)
+    expect(of("fits").graduationDate).toBe("2027-05")
   })
 })

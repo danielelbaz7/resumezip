@@ -67,6 +67,7 @@ async function answerJobs(page: Page): Promise<string[]> {
             domain: "payments",
             requirements: [{ name: "Rust", tier: 1, keyword: "Rust", quote: "production experience with Rust" }],
             advice: "Lead with the ledger project.",
+            graduation: { asked: false, earliest: "", latest: "", quote: "" },
           },
           resumes: [
             {

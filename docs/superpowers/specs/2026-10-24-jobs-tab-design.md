@@ -137,15 +137,25 @@ communication. The prompt says so, and `workName` in `request.ts` drops any the 
 gives anyway, matching soft skills and arrangements whole so "high availability" and
 "inter-process communication" stay.
 
-**Evidence has strengths.** For each requirement, the AI judges how directly each
-resume proves it, using the profile's highlights first:
+**Evidence has strengths, and more examples earn more.** For each requirement, the AI
+judges how directly each resume proves it, using the profile's highlights first. The
+browser counts how many of the resume's jobs and projects mention the requirement's
+keyword or name (`examplesOf` in `match.ts`), so two C++ projects beat one:
 
-| Strength | Meaning | Credit |
-|---|---|---|
-| strong | the work with its scale or results ("sharded concurrent engine, 100K+ ops/s") | 1 |
-| good | a job or project shows the work ("concurrent client handling") | 0.75 |
-| weak | only a listed skill or coursework | 0.4 |
-| none | not there | 0 |
+| Strength | Meaning | 1 example | 2 | 3 or more |
+|---|---|---|---|---|
+| strong | the work with its scale or results ("sharded concurrent engine, 100K+ ops/s") | 0.85 | 0.925 | 1 |
+| good | a job or project shows the work ("concurrent client handling") | 0.65 | 0.725 | 0.8 |
+| weak | only a listed skill or coursework | 0.4 | | |
+| none | not there | 0 | | |
+
+**Graduation date.** When the posting gives a graduation window ("graduating between
+December 2026 and June 2027", "Class of 2027"), the AI reads it as `earliest` and
+`latest` (`YYYY-MM` or `YYYY`, either end open) and quotes the posting, and the quote
+must be in it. The resume's date is its latest school end date as printed, read with
+the checker's date reader (`graduation.ts`), never by the AI. If it fits, nothing
+changes. If it's outside the window, the score is multiplied by 0.8, as for a missing
+must-have. If the resume has no date, it says so, with no penalty.
 
 **The layers:**
 

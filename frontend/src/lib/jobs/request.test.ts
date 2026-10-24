@@ -81,6 +81,7 @@ const job = (requirements: object[] = [{ name: "C++", tier: 1, keyword: "C++", q
   domain: "storage",
   requirements,
   advice: "",
+  graduation: { asked: false, earliest: "", latest: "", quote: "" },
 })
 const resume = (id: string, evidence: object[] = [{ strength: "good", place: "projects" }]) => ({
   id,
@@ -115,7 +116,12 @@ describe("an answer with a match", () => {
     expect(matchAnswerOf({ job: job(), resumes: [resume("r1")] }, ["r1"], POSTING)).toEqual({
       isPosting: true,
       // Whether it's a posting is beside the job, not in it.
-      job: { ...job(), isPosting: undefined, requirements: [{ name: "C++", tier: 1, keyword: "C++", quote: "proficiency in C++" }] },
+      job: {
+        ...job(),
+        isPosting: undefined,
+        graduation: null,
+        requirements: [{ name: "C++", tier: 1, keyword: "C++", quote: "proficiency in C++" }],
+      },
       resumes: {
         r1: {
           evidence: [{ strength: "good", place: "projects" }],
@@ -146,6 +152,25 @@ describe("an answer with a match", () => {
   test("leaves out a title, company or location the posting doesn't have", () => {
     const read = matchAnswerOf({ job: { ...job(), title: "Software Engineer", company: "ABC" }, resumes: [resume("r1")] }, ["r1"], POSTING)
     expect(read?.job).toMatchObject({ title: "", company: "", location: "Austin, TX" })
+  })
+
+  test("has the posting's graduation window, when it asks for one in the words quoted", () => {
+    const posting = `${POSTING} Applicants should be graduating between December 2026 and June 2027.`
+    const asked = (graduation: object) => matchAnswerOf({ job: { ...job(), graduation }, resumes: [resume("r1")] }, ["r1"], posting)
+    const quote = "graduating between December 2026 and June 2027"
+    expect(asked({ asked: true, earliest: "2026-12", latest: "2027-06", quote })?.job.graduation).toEqual({
+      earliest: "2026-12",
+      latest: "2027-06",
+      quote,
+    })
+    // The wrong way round, it's the same window.
+    expect(asked({ asked: true, earliest: "2027-06", latest: "2026-12", quote })?.job.graduation).toMatchObject({ earliest: "2026-12" })
+    // A quote that isn't in the posting, or no ends, isn't a window.
+    expect(asked({ asked: true, earliest: "2026-12", latest: "2027-06", quote: "Class of 2027" })?.job.graduation).toBeNull()
+    expect(asked({ asked: true, earliest: "", latest: "", quote })?.job.graduation).toBeNull()
+    // A date in another shape makes the answer incomplete.
+    expect(asked({ asked: true, earliest: "December 2026", latest: "2027-06", quote })).toBeNull()
+    expect(matchAnswerOf({ job: { ...job(), graduation: undefined }, resumes: [resume("r1")] }, ["r1"], posting)).toBeNull()
   })
 
   test("says when the text isn't a posting", () => {

@@ -26,6 +26,7 @@ const job = (id: string, savedAt: string, status: Job["status"] = "saved"): Job 
   domain: "payments",
   requirements: [{ name: "Go", tier: 1, keyword: "Go", quote: "Go engineer" }],
   advice: "",
+  graduation: { earliest: "2026-12", latest: "2027-06", quote: "graduating between December 2026 and June 2027" },
   matches: [
     {
       resumeId: "a",
@@ -33,7 +34,9 @@ const job = (id: string, savedAt: string, status: Job["status"] = "saved"): Job 
       score: 80,
       parts: { core: 100, projects: 70, experience: 80, domain: 60, keywords: 100, narrative: 75 },
       missedScreening: 0,
-      evidence: [{ strength: "strong", place: "experience", onResume: true }],
+      evidence: [{ strength: "strong", place: "experience", examples: 2, onResume: true }],
+      graduation: "fits",
+      graduationDate: "2027-05",
       found: { experience: 1, projects: 0, skills: 0, coursework: 0, missing: 0 },
       matched: ["Go"],
       missing: [],
@@ -92,7 +95,7 @@ describe("the saved jobs", () => {
       { name: "Go", tier: 1, keyword: "", quote: "" },
       { name: "Kafka", tier: 3, keyword: "", quote: "" },
     ])
-    expect(read).toMatchObject({ role: "other", domain: "", advice: "" })
+    expect(read).toMatchObject({ role: "other", domain: "", advice: "", graduation: null })
     expect(read.matches[0]).toMatchObject({ score: 60, parts: null, missedScreening: 0 })
   })
 
