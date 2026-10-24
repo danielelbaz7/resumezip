@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { placeOf, ranked, scoreOf, type Requirement } from "./score"
+import { blendedScore, levelFitOf, placeOf, ranked, ratingOf, scoreOf, type Requirement } from "./score"
 
 const must = (name: string): Requirement => ({ name, must: true })
 const nice = (name: string): Requirement => ({ name, must: false })
@@ -49,5 +49,34 @@ describe("resumes ranked for a job", () => {
       { id: "c", score: 70, updatedAt: "2026-05-01T00:00:00Z" },
     ]
     expect(ranked(matches).map((match) => match.id)).toEqual(["b", "c", "a"])
+  })
+})
+
+describe("a resume's level against the job's", () => {
+  test("fits fully at the same level, and less each level apart", () => {
+    expect(["entry", "mid", "senior", "lead"].map((level) => levelFitOf("entry", level as "entry"))).toEqual([100, 70, 35, 10])
+    expect(levelFitOf("intern", "lead")).toBe(0)
+  })
+
+  test("isn't scored when the job doesn't say its level", () => {
+    expect(levelFitOf("mid", "")).toBeNull()
+  })
+})
+
+describe("the whole score", () => {
+  test("is the requirements' at 70%, and the role, level and overall fit at 10% each", () => {
+    expect(blendedScore(50, { role: 80, level: 100, overall: 70 })).toBe(60)
+    expect(blendedScore(100, { role: 0, level: 0, overall: 0 })).toBe(70)
+  })
+
+  test("shares out a part the job doesn't have: its level, or any requirements", () => {
+    // Without the level, 70, 10 and 10 out of 90.
+    expect(blendedScore(90, { role: 90, level: null, overall: 90 })).toBe(90)
+    // Without requirements, the fit alone.
+    expect(blendedScore(null, { role: 60, level: 70, overall: 80 })).toBe(70)
+  })
+
+  test("takes a rating out of range, or not a number, to the nearest end, or 0", () => {
+    expect([ratingOf(140), ratingOf(-5), ratingOf("90"), ratingOf(62.6)]).toEqual([100, 0, 0, 63])
   })
 })

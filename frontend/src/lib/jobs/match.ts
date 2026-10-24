@@ -7,7 +7,7 @@ import type { ResumeWithId } from "@/lib/resume"
 import { REVIEWER_HEADER, reviewerId } from "@/lib/review/ai/reviewer"
 import { fingerprintOf, hasSource, profileSourceOf, readProfile, type ResumeProfile } from "./profile"
 import { matchAnswerOf, MOST_PER_PROFILES, MOST_PROFILES, sendable, wireId, type MatchAnswer } from "./request"
-import { ranked, scoreOf } from "./score"
+import { blendedScore, levelFitOf, ranked, scoreOf } from "./score"
 import { readSavedProfile, saveProfile, type Job, type JobMatch } from "./storage"
 
 export type JobsProblem = "off" | "limit" | "busy" | "empty" | "connection" | "other"
@@ -97,19 +97,28 @@ export async function profilesFor(
 /** The resume's name as the list shows it. */
 const titleOf = (resume: ResumeWithId) => resume.resumeTitle?.trim() || resume.profileSection?.fullName?.trim() || "Untitled resume"
 
-/** Each resume scored for the job, best first. */
-export function matchesOf(answer: MatchAnswer, matched: readonly ResumeWithId[]): JobMatch[] {
+/** Each resume scored for the job, best first, from the AI's answer and each resume's profile, by its id. */
+export function matchesOf(answer: MatchAnswer, matched: readonly ResumeWithId[], profiles: ReadonlyMap<string, ResumeProfile>): JobMatch[] {
+  const { requirements, level } = answer.job
   const scored = matched.flatMap((resume, index) => {
     const found = answer.resumes[wireId(index)]
-    if (!found) return []
-    const { score, found: places, matched: met, missing } = scoreOf(answer.job.requirements, found.places)
+    const profile = profiles.get(resume.id)
+    if (!found || !profile) return []
+    const { score: met, found: places, matched: kept, missing } = scoreOf(requirements, found.places)
+    const parts = {
+      requirements: requirements.length > 0 ? met : null,
+      role: found.role,
+      level: levelFitOf(profile.level, level),
+      overall: found.overall,
+    }
     return [
       {
         resumeId: resume.id,
         resumeTitle: titleOf(resume),
-        score,
+        score: blendedScore(parts.requirements, parts),
+        parts,
         found: places,
-        matched: met,
+        matched: kept,
         missing,
         reason: found.reason,
         updatedAt: resume.updatedAt,
@@ -154,7 +163,7 @@ export async function matchJob(
     link: link.trim(),
     posting,
     ...match.job,
-    matches: matchesOf(match, matched),
+    matches: matchesOf(match, matched, profiles),
     chosenResumeId: null,
     status: "saved",
     appliedAt: null,

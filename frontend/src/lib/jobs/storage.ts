@@ -6,7 +6,7 @@
 
 import { LEVELS, MOST_TERM_CHARS, readProfile, type Level, type ResumeProfile } from "./profile"
 import { MOST_REQUIREMENTS } from "./prompt"
-import type { Requirement } from "./score"
+import { ratingOf, type Fit, type Requirement } from "./score"
 
 export const PROFILE_PREFIX = "resumezip.jobProfile:"
 export const JOBS_KEY = "resumezip.jobs"
@@ -36,7 +36,14 @@ export interface JobMatch {
   resumeId: string
   /** The resume's name when it was matched, shown if it's renamed or deleted since. */
   resumeTitle: string
+  /** The whole score, 0 to 100 (blendedScore). */
   score: number
+  /**
+   * What it's made of, each 0 to 100: the requirements' score, null for a job
+   * with none, and the fit (score.ts). Null for a job saved before the fit
+   * was scored, whose score is its requirements' alone.
+   */
+  parts: ({ requirements: number | null } & Fit) | null
   found: { experience: number; projects: number; skills: number; coursework: number; missing: number }
   matched: string[]
   missing: string[]
@@ -70,6 +77,18 @@ const date = (value: unknown) => (typeof value === "string" && !Number.isNaN(Dat
 const names = (value: unknown) =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").map((item) => item.slice(0, MOST_TERM_CHARS)) : []
 
+const ratingOrNull = (value: unknown) => (value === null ? null : ratingOf(value))
+
+function partsOf(value: unknown): JobMatch["parts"] {
+  if (!isRecord(value)) return null
+  return {
+    requirements: ratingOrNull(value.requirements),
+    role: ratingOf(value.role),
+    level: ratingOrNull(value.level),
+    overall: ratingOf(value.overall),
+  }
+}
+
 function matchOf(value: unknown): JobMatch | null {
   if (!isRecord(value) || typeof value.resumeId !== "string") return null
   const found = isRecord(value.found) ? value.found : {}
@@ -77,6 +96,7 @@ function matchOf(value: unknown): JobMatch | null {
     resumeId: value.resumeId,
     resumeTitle: text(value.resumeTitle, 200),
     score: Math.min(100, count(value.score)),
+    parts: partsOf(value.parts),
     found: {
       experience: count(found.experience),
       projects: count(found.projects),

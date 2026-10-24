@@ -79,8 +79,19 @@ first, then projects, then skills, then coursework.
 - A requirement earns its full worth when it shows up in **experience**, 0.75 of it
   in **projects**, 0.5 in **skills**, 0.25 in **coursework**, and nothing when it's
   nowhere.
-- The score is what all the requirements earn, divided by what they're worth, out
-  of 100.
+- The requirements' score is what all the requirements earn, divided by what
+  they're worth, out of 100.
+- The whole score blends that, at 70%, with three fit parts at 10% each:
+  - **role**: the AI's 0 to 100 rating of how close the resume's target titles and
+    kind of work are to the job's title;
+  - **level**: worked out in the browser from the resume's level and the job's: 100
+    at the same level, then 70, 35, 10 and 0 for each level apart;
+  - **overall**: the AI's 0 to 100 rating of how well the person comes across as who
+    the posting describes, beyond the requirements: domain, scope, kind of work.
+- When the job lists no requirements, or doesn't say its level, that part is left
+  out and the others' weights are scaled up to make 100.
+- Each match saves its parts as `parts: { requirements, role, level, overall }`.
+  Jobs saved before the fit parts were added have `parts: null`.
 - Ties go to the resume edited most recently.
 - Each result keeps how many requirements were met in each group, so the page can
   show something like "4 in experience, 2 in projects, 1 missing".

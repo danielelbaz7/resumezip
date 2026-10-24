@@ -10,7 +10,17 @@ import { ExternalLink, Loader2, Trash2 } from "lucide-react"
 import { BLUE_PILL, sheetPill, TEXT_PILL } from "@/components/pills"
 import { JOBS_PROBLEMS, JobsError, matchJob, type Step } from "@/lib/jobs/match"
 import { MOST_POSTING_CHARS } from "@/lib/jobs/request"
-import { forgetProfiles, JOBS_KEY, readJobs, saveJobs, STATUS_NAMES, STATUSES, type Job, type Status } from "@/lib/jobs/storage"
+import {
+  forgetProfiles,
+  JOBS_KEY,
+  readJobs,
+  saveJobs,
+  STATUS_NAMES,
+  STATUSES,
+  type Job,
+  type JobMatch,
+  type Status,
+} from "@/lib/jobs/storage"
 import type { ResumeWithId } from "@/lib/resume"
 import { getStorage } from "@/lib/resumeKeys"
 
@@ -24,6 +34,15 @@ function hrefOf(link: string): string {
   const typed = /^https?:\/\//i.test(link) ? link : `https://${link}`
   return URL.canParse(typed) && /^https?:$/.test(new URL(typed).protocol) ? typed : ""
 }
+
+// What a score is made of, as the list shows it: a part the job didn't have to score is left out.
+const partsText = (parts: NonNullable<JobMatch["parts"]>) =>
+  [
+    parts.requirements !== null && `Requirements ${parts.requirements}`,
+    `Role ${parts.role}`,
+    parts.level !== null && `Level ${parts.level}`,
+    `Overall ${parts.overall}`,
+  ].filter(Boolean)
 
 const stepText = (step: Step) =>
   step.kind === "match"
@@ -112,8 +131,8 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
         <div className="flex flex-col gap-1">
           <h2 className="font-serif text-[28px] leading-tight tracking-[-0.02em] text-ink">Which resume fits this job?</h2>
           <p className="text-[15px] leading-relaxed text-ink-2">
-            Paste a job posting. Each resume is scored on where the job’s requirements show up: experience first, then projects, skills and
-            coursework.
+            Paste a job posting. Each resume is scored mostly on where the job’s requirements show up: experience first, then projects,
+            skills and coursework. The rest is how its role, level and overall fit match the job.
           </p>
         </div>
         <label htmlFor={postingId} className="label-mono text-ink-2">
@@ -312,6 +331,7 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
                         {match.score}
                       </span>
                     </div>
+                    {match.parts && <p className="font-mono text-[12px] tabular-nums text-ink-2">{partsText(match.parts).join(" · ")}</p>}
                     {where.length > 0 && <p className="text-[13px] text-ink-2">{where.join(" · ")}</p>}
                     {match.reason && <p className="text-[14px] leading-normal text-ink">{match.reason}</p>}
                     {match.missing.length > 0 && <p className="text-[13px] text-ink-3">Missing: {match.missing.join(", ")}</p>}
