@@ -57,6 +57,9 @@ describe("the keywords layer", () => {
     expect(onResume("C#", "C#/.NET")).toBe(true)
     expect(onResume("C++", "C and Rust")).toBe(false)
     expect(onResume("distributed systems", "Distributed  systems")).toBe(true)
+    // A full stop that ends the sentence isn't part of the word.
+    expect(onResume("Rust", "Built it with Rust.")).toBe(true)
+    expect(onResume(".NET", "Moved to .NET.")).toBe(true)
   })
 })
 

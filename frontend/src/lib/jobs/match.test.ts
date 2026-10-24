@@ -22,6 +22,9 @@ const profile = (skills: string[]): ResumeProfile => ({
   coursework: [],
 })
 
+const POSTING = `Engineer at Acme. We build the storage layer behind our payments platform, and we're hiring.
+You must have shipped production systems in Rust and be comfortable on Linux. You'll work on reliability with a small team.`
+
 const fetched = vi.fn<typeof fetch>()
 const sent = () => fetched.mock.calls.map(([, init]) => JSON.parse(init!.body as string))
 
@@ -65,13 +68,14 @@ describe("matching a job", () => {
       Response.json({
         match: {
           job: {
+            isPosting: true,
             title: "Engineer",
             company: "Acme",
             location: "",
             level: "mid",
             role: "systems/infrastructure",
             domain: "storage",
-            requirements: [{ name: "Rust", tier: 1, keyword: "Rust" }],
+            requirements: [{ name: "Rust", tier: 1, keyword: "Rust", quote: "shipped production systems in Rust" }],
             advice: "",
           },
           resumes: [
@@ -98,7 +102,7 @@ describe("matching a job", () => {
       }),
     )
     const job = await matchJob(
-      " Rust engineer ",
+      ` ${POSTING} `,
       " acme.com/jobs/1 ",
       [resume("go", "Go", "2026-01-01T00:00:00Z"), resume("rust", "Rust")],
       storage,
@@ -129,14 +133,28 @@ describe("matching a job", () => {
 
   test("says so when no resume has anything to match on, without asking the AI", async () => {
     const empty = { ...asSaved({ profileSection: { fullName: "Ada" } }), id: "empty" }
-    await expect(matchJob("Rust engineer", "", [empty], memoryStorage())).rejects.toEqual(new JobsError("empty"))
+    await expect(matchJob(POSTING, "", [empty], memoryStorage())).rejects.toEqual(new JobsError("empty"))
     expect(fetched).not.toHaveBeenCalled()
+  })
+
+  test("says a word or a name is too short to be a posting, before anything's sent", async () => {
+    for (const posting of ["RTX", "ABC", "SDAS"]) {
+      await expect(matchJob(posting, "", [resume("a", "Rust")], memoryStorage())).rejects.toMatchObject({ reason: "short" })
+    }
+    expect(fetched).not.toHaveBeenCalled()
+  })
+
+  test("says the answer came back incomplete when a resume's profile is missing from it, rather than leaving it out", async () => {
+    fetched.mockResolvedValue(Response.json({ profiles: { r1: profile(["Go"]) } }))
+    await expect(matchJob(POSTING, "", [resume("a", "Go"), resume("b", "Rust")], memoryStorage())).rejects.toMatchObject({
+      reason: "answer",
+    })
   })
 
   test("says why when the route can't answer", async () => {
     fetched.mockResolvedValue(Response.json({ error: "off" }, { status: 503 }))
-    await expect(matchJob("Rust engineer", "", [resume("a", "Rust")], memoryStorage())).rejects.toMatchObject({ reason: "off" })
+    await expect(matchJob(POSTING, "", [resume("a", "Rust")], memoryStorage())).rejects.toMatchObject({ reason: "off" })
     fetched.mockResolvedValue(new Response("Too many", { status: 429 }))
-    await expect(matchJob("Rust engineer", "", [resume("a", "Rust")], memoryStorage())).rejects.toMatchObject({ reason: "limit" })
+    await expect(matchJob(POSTING, "", [resume("a", "Rust")], memoryStorage())).rejects.toMatchObject({ reason: "limit" })
   })
 })

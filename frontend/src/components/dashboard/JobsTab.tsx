@@ -309,7 +309,11 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
               <h3 className="label-mono text-ink-2">What it asks for</h3>
               <ul className="flex flex-wrap gap-1.5">
                 {job.requirements.map((requirement) => (
-                  <li key={requirement.name} className="rounded-full bg-fill px-2.5 py-1 text-[13px] text-ink">
+                  <li
+                    key={requirement.name}
+                    title={requirement.quote ? `From the posting: “${requirement.quote}”` : undefined}
+                    className="rounded-full bg-fill px-2.5 py-1 text-[13px] text-ink"
+                  >
                     {requirement.name}
                     <span className="text-ink-3"> · {TIER_NAMES[requirement.tier]}</span>
                   </li>

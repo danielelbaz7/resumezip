@@ -52,11 +52,15 @@ export const MATCH_PROMPT = `You're a recruiter deciding which of a person's res
 
 The posting comes between <posting> and </posting>. Each resume comes as a profile between <profile id="..."> and </profile>: the job titles it suits, its level, a summary, its domains, the skills and kinds of work its experience, projects, skills and coursework show, and its highlights, its strongest concrete claims.
 
+Use only what the posting says. Never fill anything in from what you know of a company, a product, a title or the industry: a word like "RTX" or a company name alone says nothing about what a job asks for.
+
 1. job:
-- title, company and location as written ("" when it doesn't say), and its level (intern, entry, mid, senior, lead, or unknown).
+- isPosting: true only if the text is a job posting or the description of one, with what the job is and what it asks for. Anything else (a word, a name, a company, a question, a resume, a page with no job on it) is false; then give "" and empty lists for the rest, and nothing for the resumes but what the schema needs.
+- title, company and location exactly as written in the posting, "" when it doesn't say, and its level (intern, entry, mid, senior, lead, or unknown when it doesn't say).
 - role: classify the role first, as one of ${ROLE_KINDS.join(", ")}.
 - domain: the field the work is in, in a few words ("trading infrastructure", "game engines"), "" when it isn't clear.
-- requirements: up to ${MOST_REQUIREMENTS}, most important first: the languages, systems, frameworks, databases, platforms and kinds of technical work it asks for, and a graduation date or degree when it asks for one. Leave out pay, benefits, location, work authorization and citizenship. For each:
+- requirements: up to ${MOST_REQUIREMENTS}, most important first: the languages, systems, frameworks, databases, platforms and kinds of technical work the posting asks for in so many words, and a graduation date or degree when it asks for one. None the posting doesn't state; an empty list when it states none. Leave out pay, benefits, location, work authorization and citizenship. For each:
+  - quote: the posting's words it comes from, copied exactly, character for character, a few words to one sentence.
   - name: short.
   - tier: 1 for a must-have that screens people out ("proficiency in C++", "must know React", "graduating by 2026"); 2 for a strong signal the posting emphasizes or repeats (concurrency, distributed systems, low latency, SQL); 3 for nice to have ("LLVM is a plus", "Jenkins preferred").
   - keyword: the term hiring software would search a resume for, as it's usually written ("C++", "Kubernetes", "distributed systems").
@@ -122,8 +126,9 @@ export const MATCH_ANSWER = {
       job: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "company", "location", "level", "role", "domain", "requirements", "advice"],
+        required: ["isPosting", "title", "company", "location", "level", "role", "domain", "requirements", "advice"],
         properties: {
+          isPosting: { type: "boolean" },
           title: { type: "string" },
           company: { type: "string" },
           location: { type: "string" },
@@ -135,8 +140,13 @@ export const MATCH_ANSWER = {
             items: {
               type: "object",
               additionalProperties: false,
-              required: ["name", "tier", "keyword"],
-              properties: { name: { type: "string" }, tier: { type: "integer", enum: [1, 2, 3] }, keyword: { type: "string" } },
+              required: ["name", "tier", "keyword", "quote"],
+              properties: {
+                name: { type: "string" },
+                tier: { type: "integer", enum: [1, 2, 3] },
+                keyword: { type: "string" },
+                quote: { type: "string" },
+              },
             },
           },
           advice: { type: "string" },
