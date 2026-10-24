@@ -334,7 +334,7 @@ describe("what keeping the preview to one page took", () => {
     expect(preview.value).toMatch(/^blob:/)
     expect(previewFit()).toEqual({
       template: "jake",
-      tune: { size: 1.1, margin: 1, leading: 1, gap: 1, paper: "", onePage: true },
+      tune: { size: 1.1, margin: 1, leading: 1, gap: 1, underlineGap: 1, paper: "", onePage: true },
       fit: fitted,
     })
     expect(heard).toHaveBeenCalledTimes(1)
