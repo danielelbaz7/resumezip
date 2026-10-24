@@ -7,6 +7,7 @@ import { ArrowLeft, Eye, PencilLine } from "lucide-react"
 import { OpenResumeProvider, useOpenResume, useResumeActions, useResumeField, useResumeState } from "@/context/ResumeContext"
 import DeletedToast from "@/components/dashboard/DeletedToast"
 import { DownloadIcon } from "@/components/dashboard/RowActions"
+import { ChangesProvider, TailoredFromCard } from "@/components/editor/ChangesContext"
 import { CheckProvider } from "@/components/editor/CheckContext"
 import { DriveIcon, JsonIcon, LatexIcon, ShareIcon, WordIcon } from "@/components/editor/FormatIcons"
 import DownloadMenu, { type MenuNotice } from "@/components/editor/DownloadMenu"
@@ -530,216 +531,225 @@ function Editor({ id }: { id: string }) {
     <div className="desk desk-bright flex min-h-screen flex-col p-2 pb-24 sm:p-6 sm:pb-24 xl:h-screen xl:overflow-clip xl:pb-6">
       {/* All of it shares what the checker found: the left bar lists it and the forms point at it. */}
       <CheckProvider onSelect={select} preview={preview} unbuilt={unbuilt}>
-        <div className="paper-frame flex flex-1 flex-col xl:min-h-0">
-          <div className="paper flex flex-1 flex-col xl:min-h-0">
-            {/* Raised (z-40) over the columns and the Edit / Preview switch: the menus and the
+        {/* For a tailored resume: its changes from the original, lit up on the preview from the left bar. */}
+        <ChangesProvider previewUrl={pdfUrl}>
+          <div className="paper-frame flex flex-1 flex-col xl:min-h-0">
+            <div className="paper flex flex-1 flex-col xl:min-h-0">
+              {/* Raised (z-40) over the columns and the Edit / Preview switch: the menus and the
                 gallery that open from it go over them. */}
-            <header ref={headerRef} className="relative z-40 border-b border-hairline">
-              <div className="flex min-h-[72px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-[13px] sm:px-[14px] xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-                <div className="flex min-w-0 items-center gap-3 sm:gap-[15px]">
-                  <Link
-                    href="/create/dashboard"
-                    aria-label="Dashboard"
-                    title="Dashboard"
-                    className="white-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-                  >
-                    <ArrowLeft className="h-[18px] w-[18px]" aria-hidden="true" />
-                  </Link>
-                  <ResumeName />
-                  <SavedNote />
-                </div>
-                {/* In the middle of the bar, whatever the name's length, on wide screens; narrower, atop the left bar. */}
-                {wide && <ModeTabs />}
-                {/* On the narrowest phones the template's name is cut short, so Download PDF still fits. */}
-                <div className="flex min-w-0 items-center justify-end gap-2.5 sm:gap-[15px]">
-                  <TemplatePicker value={selectedTemplate} onChange={chooseTemplate} />
-                  {/* Download PDF is the main way out; the ▾ beside it has the others. One blue pill,
+              <header ref={headerRef} className="relative z-40 border-b border-hairline">
+                <div className="flex min-h-[72px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-[13px] sm:px-[14px] xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                  <div className="flex min-w-0 items-center gap-3 sm:gap-[15px]">
+                    <Link
+                      href="/create/dashboard"
+                      aria-label="Dashboard"
+                      title="Dashboard"
+                      className="white-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                    >
+                      <ArrowLeft className="h-[18px] w-[18px]" aria-hidden="true" />
+                    </Link>
+                    <ResumeName />
+                    <SavedNote />
+                  </div>
+                  {/* In the middle of the bar, whatever the name's length, on wide screens; narrower, atop the left bar. */}
+                  {wide && <ModeTabs />}
+                  {/* On the narrowest phones the template's name is cut short, so Download PDF still fits. */}
+                  <div className="flex min-w-0 items-center justify-end gap-2.5 sm:gap-[15px]">
+                    <TemplatePicker value={selectedTemplate} onChange={chooseTemplate} />
+                    {/* Download PDF is the main way out; the ▾ beside it has the others. One blue pill,
                       split. The button's least width fits "Download PDF", so it doesn't shrink when it
                       says Downloaded. */}
-                  <div className="relative flex shrink-0 rounded-full text-white">
-                    {/* The pill's blue is under the two halves, not on what holds them: a filter
+                    <div className="relative flex shrink-0 rounded-full text-white">
+                      {/* The pill's blue is under the two halves, not on what holds them: a filter
                         there would brighten the menu that opens from the ▾, and keep it from blurring
                         what's behind it. */}
-                    <span aria-hidden="true" className="blue-fill pointer-events-none absolute inset-0 rounded-full" />
-                    <button
-                      type="button"
-                      onClick={download}
-                      disabled={downloading}
-                      className="download-button relative inline-flex h-10 items-center justify-center gap-2 overflow-hidden rounded-l-full pl-[18px] pr-4 text-sm font-medium transition-colors hover:bg-white/[0.08] focus-visible:bg-white/[0.14] disabled:cursor-wait sm:min-w-[160px] sm:text-[15px] [&_svg]:size-4"
-                    >
-                      <DownloadIcon state={downloading ? "busy" : downloaded ? "done" : "idle"} />
-                      {/* Fills along the bottom while the PDF is made, then the rest of the way, and fades, once it's downloaded. */}
-                      <span
-                        aria-hidden="true"
-                        // The fill's time, and the wait after it, from DOWNLOAD_FILL_MS, as the save is.
-                        style={{ animationDuration: `${DOWNLOAD_FILL_MS}ms, 20s`, animationDelay: `0s, ${DOWNLOAD_FILL_MS}ms` }}
-                        className={`absolute inset-x-0 bottom-0 h-0.5 origin-left bg-white/80 ${
-                          downloading
-                            ? "scale-x-0 motion-safe:animate-download-progress"
-                            : downloaded
-                              ? "scale-x-100 opacity-0 [transition:scale_180ms_ease-out,opacity_450ms_ease-out_200ms] motion-reduce:transition-none"
-                              : "scale-x-0"
-                        }`}
+                      <span aria-hidden="true" className="blue-fill pointer-events-none absolute inset-0 rounded-full" />
+                      <button
+                        type="button"
+                        onClick={download}
+                        disabled={downloading}
+                        className="download-button relative inline-flex h-10 items-center justify-center gap-2 overflow-hidden rounded-l-full pl-[18px] pr-4 text-sm font-medium transition-colors hover:bg-white/[0.08] focus-visible:bg-white/[0.14] disabled:cursor-wait sm:min-w-[160px] sm:text-[15px] [&_svg]:size-4"
+                      >
+                        <DownloadIcon state={downloading ? "busy" : downloaded ? "done" : "idle"} />
+                        {/* Fills along the bottom while the PDF is made, then the rest of the way, and fades, once it's downloaded. */}
+                        <span
+                          aria-hidden="true"
+                          // The fill's time, and the wait after it, from DOWNLOAD_FILL_MS, as the save is.
+                          style={{ animationDuration: `${DOWNLOAD_FILL_MS}ms, 20s`, animationDelay: `0s, ${DOWNLOAD_FILL_MS}ms` }}
+                          className={`absolute inset-x-0 bottom-0 h-0.5 origin-left bg-white/80 ${
+                            downloading
+                              ? "scale-x-0 motion-safe:animate-download-progress"
+                              : downloaded
+                                ? "scale-x-100 opacity-0 [transition:scale_180ms_ease-out,opacity_450ms_ease-out_200ms] motion-reduce:transition-none"
+                                : "scale-x-0"
+                          }`}
+                        />
+                        {/* Just "PDF" on phones, so it fits beside the template picker. */}
+                        {downloaded ? (
+                          <span>
+                            <span className="max-sm:sr-only">Downloaded</span>
+                            <span className="sm:hidden">PDF</span>
+                          </span>
+                        ) : (
+                          <span>
+                            <span className="max-sm:sr-only">Download </span>PDF
+                          </span>
+                        )}
+                      </button>
+                      <DownloadMenu
+                        choices={[
+                          { title: "Word", hint: "To edit in Word, Google Docs or Pages", icon: <WordIcon />, onChoose: downloadWord },
+                          {
+                            title: "LaTeX",
+                            hint: "To edit on Overleaf, laid out like your PDF",
+                            icon: <LatexIcon />,
+                            onChoose: downloadLatex,
+                          },
+                          {
+                            title: "Save to Google Drive",
+                            hint: "Puts the PDF in your Drive. Google asks you first.",
+                            icon: <DriveIcon />,
+                            onChoose: drive.save,
+                          },
+                          {
+                            title: "JSON",
+                            hint: "A backup with everything, even what the PDF leaves out",
+                            icon: <JsonIcon />,
+                            onChoose: downloadJson,
+                          },
+                          // It opens the device's share sheet, so it's apart from the formats.
+                          ...(sharePdf.shareable
+                            ? [{ title: "Share PDF…", hint: "", icon: <ShareIcon />, apart: true, onChoose: sharePdf.share }]
+                            : []),
+                        ]}
+                        busy={sharePdf.making}
+                        onOpen={() => {
+                          // The last LaTeX file's note goes as the menu opens: it's about that
+                          // file, and whatever is chosen next is another.
+                          setLatexNotice(null)
+                          if (sharePdf.shareable) preparePdf()
+                        }}
+                        notice={
+                          drive.saving
+                            ? { title: "Saving to Google Drive…", working: true }
+                            : drive.saved
+                              ? {
+                                  title: "Saved to Google Drive",
+                                  file: drive.saved.name,
+                                  icon: <DriveIcon />,
+                                  link: { href: drive.saved.link, label: "Open it", name: "Open it in Google Drive" },
+                                }
+                              : latexNotice
+                        }
+                        onNoticeClose={() => {
+                          drive.dismiss()
+                          setLatexNotice(null)
+                        }}
                       />
-                      {/* Just "PDF" on phones, so it fits beside the template picker. */}
-                      {downloaded ? (
-                        <span>
-                          <span className="max-sm:sr-only">Downloaded</span>
-                          <span className="sm:hidden">PDF</span>
-                        </span>
-                      ) : (
-                        <span>
-                          <span className="max-sm:sr-only">Download </span>PDF
-                        </span>
-                      )}
-                    </button>
-                    <DownloadMenu
-                      choices={[
-                        { title: "Word", hint: "To edit in Word, Google Docs or Pages", icon: <WordIcon />, onChoose: downloadWord },
-                        {
-                          title: "LaTeX",
-                          hint: "To edit on Overleaf, laid out like your PDF",
-                          icon: <LatexIcon />,
-                          onChoose: downloadLatex,
-                        },
-                        {
-                          title: "Save to Google Drive",
-                          hint: "Puts the PDF in your Drive. Google asks you first.",
-                          icon: <DriveIcon />,
-                          onChoose: drive.save,
-                        },
-                        {
-                          title: "JSON",
-                          hint: "A backup with everything, even what the PDF leaves out",
-                          icon: <JsonIcon />,
-                          onChoose: downloadJson,
-                        },
-                        // It opens the device's share sheet, so it's apart from the formats.
-                        ...(sharePdf.shareable
-                          ? [{ title: "Share PDF…", hint: "", icon: <ShareIcon />, apart: true, onChoose: sharePdf.share }]
-                          : []),
-                      ]}
-                      busy={sharePdf.making}
-                      onOpen={() => {
-                        // The last LaTeX file's note goes as the menu opens: it's about that
-                        // file, and whatever is chosen next is another.
-                        setLatexNotice(null)
-                        if (sharePdf.shareable) preparePdf()
-                      }}
-                      notice={
-                        drive.saving
-                          ? { title: "Saving to Google Drive…", working: true }
-                          : drive.saved
-                            ? {
-                                title: "Saved to Google Drive",
-                                file: drive.saved.name,
-                                icon: <DriveIcon />,
-                                link: { href: drive.saved.link, label: "Open it", name: "Open it in Google Drive" },
-                              }
-                            : latexNotice
-                      }
-                      onNoticeClose={() => {
-                        drive.dismiss()
-                        setLatexNotice(null)
-                      }}
-                    />
+                    </div>
+                    <span role="status" className="sr-only">
+                      {downloaded ? "PDF downloaded. This PDF carries your resume. Open it here on any computer to keep editing." : ""}
+                    </span>
+                    <span role="status" className="sr-only">
+                      {savedAs}
+                    </span>
                   </div>
-                  <span role="status" className="sr-only">
-                    {downloaded ? "PDF downloaded. This PDF carries your resume. Open it here on any computer to keep editing." : ""}
-                  </span>
-                  <span role="status" className="sr-only">
-                    {savedAs}
-                  </span>
                 </div>
-              </div>
-              <NotSaved className={BANNER} onDownload={download} downloading={downloading} />
-              <Replaced id={id} className={BANNER} />
-              {failure && (
-                <DownloadFailed
-                  key={failure.count}
-                  failure={failure}
-                  retrying={downloading}
-                  onRetry={failure.of === "LaTeX file" ? downloadLatex : failure.of ? downloadWord : download}
-                  className={BANNER}
-                />
-              )}
-              {sharePdf.failure && (
-                <DownloadFailed
-                  key={sharePdf.failure.count}
-                  doing="share"
-                  failure={sharePdf.failure}
-                  retrying={sharePdf.sharing}
-                  onRetry={sharePdf.share}
-                  className={BANNER}
-                />
-              )}
-              {drive.failure && (
-                <DownloadFailed
-                  key={drive.failure.count}
-                  doing="save"
-                  failure={drive.failure}
-                  retrying={drive.saving}
-                  onRetry={drive.save}
-                  className={BANNER}
-                />
-              )}
-            </header>
+                <NotSaved className={BANNER} onDownload={download} downloading={downloading} />
+                <Replaced id={id} className={BANNER} />
+                {failure && (
+                  <DownloadFailed
+                    key={failure.count}
+                    failure={failure}
+                    retrying={downloading}
+                    onRetry={failure.of === "LaTeX file" ? downloadLatex : failure.of ? downloadWord : download}
+                    className={BANNER}
+                  />
+                )}
+                {sharePdf.failure && (
+                  <DownloadFailed
+                    key={sharePdf.failure.count}
+                    doing="share"
+                    failure={sharePdf.failure}
+                    retrying={sharePdf.sharing}
+                    onRetry={sharePdf.share}
+                    className={BANNER}
+                  />
+                )}
+                {drive.failure && (
+                  <DownloadFailed
+                    key={drive.failure.count}
+                    doing="save"
+                    failure={drive.failure}
+                    retrying={drive.saving}
+                    onRetry={drive.save}
+                    className={BANNER}
+                  />
+                )}
+              </header>
 
-            <div className="flex flex-1 flex-col xl:min-h-0 xl:flex-row">
-              <LeftBar hidden={view === "preview"} tabs={!wide} style={style}>
-                {nav}
-              </LeftBar>
+              <div className="flex flex-1 flex-col xl:min-h-0 xl:flex-row">
+                <LeftBar hidden={view === "preview"} tabs={!wide} style={style}>
+                  <TailoredFromCard />
+                  {nav}
+                </LeftBar>
 
-              {/* The form. On wide screens it's the middle column, as wide as is comfortable to
+                {/* The form. On wide screens it's the middle column, as wide as is comfortable to
                   write in, and scrolls inside it (useKeepFormPlace keeps the place across the two).
                   In Style mode on narrower screens, Style takes its place. */}
-              <div
-                ref={formRef}
-                className={`editor-form xl:flex xl:w-[clamp(480px,39vw,560px)] xl:shrink-0 xl:flex-col xl:overflow-clip ${
-                  view === "preview" ? "hidden" : ""
-                }`}
-              >
-                <main ref={mainRef} className="min-w-0 flex-1 px-4 pb-12 pt-7 sm:px-9 xl:overflow-y-auto xl:pb-14 xl:pt-[28px]">
-                  {/* The fields fit the form's own width rather than the window's. Each grid of
+                <div
+                  ref={formRef}
+                  className={`editor-form xl:flex xl:w-[clamp(480px,39vw,560px)] xl:shrink-0 xl:flex-col xl:overflow-clip ${
+                    view === "preview" ? "hidden" : ""
+                  }`}
+                >
+                  <main ref={mainRef} className="min-w-0 flex-1 px-4 pb-12 pt-7 sm:px-9 xl:overflow-y-auto xl:pb-14 xl:pt-[28px]">
+                    {/* The fields fit the form's own width rather than the window's. Each grid of
                       them is in a container (ProfileForm, SectionForm), not the whole form, so
                       an entry being dragged isn't in one: SectionForm says why. */}
-                  <div className="mx-auto max-w-[640px]">
-                    {/* Each section fades in as it's chosen: a new key mounts it anew, and
+                    <div className="mx-auto max-w-[640px]">
+                      {/* Each section fades in as it's chosen: a new key mounts it anew, and
                         `starting:` (CSS @starting-style) is where its transition starts from. */}
-                    <div
-                      key={selected}
-                      className="transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none starting:translate-y-1 starting:opacity-0"
-                    >
-                      {selected === "Profile" ? (
-                        <ProfileForm />
-                      ) : extraKey(selected) !== null ? (
-                        <ExtraSectionForm sectionId={extraKey(selected)!} onDelete={remove} />
-                      ) : (
-                        <SectionForm
-                          section={SECTIONS[selected as SectionName]}
-                          onDelete={remove}
-                          onEntryDeleted={entryDeleted}
-                          restored={restored}
-                          onRestored={forgetRestored}
-                        />
-                      )}
+                      <div
+                        key={selected}
+                        className="transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none starting:translate-y-1 starting:opacity-0"
+                      >
+                        {selected === "Profile" ? (
+                          <ProfileForm />
+                        ) : extraKey(selected) !== null ? (
+                          <ExtraSectionForm sectionId={extraKey(selected)!} onDelete={remove} />
+                        ) : (
+                          <SectionForm
+                            section={SECTIONS[selected as SectionName]}
+                            onDelete={remove}
+                            onEntryDeleted={entryDeleted}
+                            restored={restored}
+                            onRestored={forgetRestored}
+                          />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </main>
-              </div>
-
-              {/* The page, on a grey panel: on wide screens in the room the columns leave. */}
-              <section
-                aria-label="Live preview"
-                className={`min-w-0 flex-col p-3 xl:flex xl:flex-1 xl:overflow-clip xl:pl-0 ${view === "preview" ? "flex max-xl:flex-1" : "hidden"}`}
-              >
-                <div className="flex min-h-0 flex-1 flex-col rounded-[22px] bg-[#eef0f4] xl:rounded-[24px]">
-                  <PdfPreview pdfUrl={pdfUrl} template={shownTemplate} error={compileError} updating={switchingTemplate && !compileError} />
+                  </main>
                 </div>
-              </section>
+
+                {/* The page, on a grey panel: on wide screens in the room the columns leave. */}
+                <section
+                  aria-label="Live preview"
+                  className={`min-w-0 flex-col p-3 xl:flex xl:flex-1 xl:overflow-clip xl:pl-0 ${view === "preview" ? "flex max-xl:flex-1" : "hidden"}`}
+                >
+                  <div className="flex min-h-0 flex-1 flex-col rounded-[22px] bg-[#eef0f4] xl:rounded-[24px]">
+                    <PdfPreview
+                      pdfUrl={pdfUrl}
+                      template={shownTemplate}
+                      error={compileError}
+                      updating={switchingTemplate && !compileError}
+                    />
+                  </div>
+                </section>
+              </div>
             </div>
           </div>
-        </div>
+        </ChangesProvider>
       </CheckProvider>
 
       {deletedEntry && (

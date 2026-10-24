@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "./test"
-import { pageErrors, saveResumes } from "./helpers"
+import { pageErrors, previewShown, saveResumes } from "./helpers"
 
 // The dashboard's Jobs tab (components/dashboard/JobsTab.tsx), with
 // /api/jobs answered here: each resume is summed up once, while its text is
@@ -295,5 +295,38 @@ test("Auto-tailor makes a copy of the resume with the skills it shows, and says 
       { id: 2, skillName: "Databases", skillDetails: "SQL databases" },
     ])
   expect((await skillsOf()).find((one) => one.id === "rust")?.skills).toEqual([{ id: 1, skillName: "Languages", skillDetails: "Go" }])
+  expect(errors).toEqual([])
+})
+
+test("a tailored resume says in the editor what it was tailored from, and lists its changes while they're shown on the preview", async ({
+  page,
+}) => {
+  const errors = pageErrors(page)
+  const original = {
+    ...resume("rust", "Rust resume", "Go", "2026-06-01T00:00:00.000Z"),
+    workExperienceSection: [{ id: 1, workRole: "Engineer", companyName: "Stripe", workDescription: "• Built a Rust ledger" }],
+  }
+  const tailored = {
+    ...original,
+    id: "tailored",
+    resumeTitle: "Rust resume – Acme",
+    skillsSection: [{ id: 1, skillName: "Languages", skillDetails: "Go, Rust" }],
+    tailoredFrom: { resumeId: "rust", title: "Rust resume", jobId: "j", at: "2026-07-01T00:00:00.000Z" },
+  }
+  await saveResumes(page, [original, tailored])
+  await page.goto("/create/new/tailored")
+  await previewShown(page)
+  await expect(page.getByText("From Rust resume")).toBeVisible()
+  const changes = page.getByRole("button", { name: /^Changes from original/ })
+  await expect(changes).toHaveText(/1$/)
+  await changes.click()
+  await expect(changes).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByText("Skills · Languages")).toBeVisible()
+  await expect(page.getByRole("status").filter({ hasText: "Showing the changes in blue" })).toBeVisible()
+
+  // The original says nothing of it.
+  await page.goto("/create/new/rust")
+  await previewShown(page)
+  await expect(page.getByRole("button", { name: /^Changes from original/ })).toHaveCount(0)
   expect(errors).toEqual([])
 })

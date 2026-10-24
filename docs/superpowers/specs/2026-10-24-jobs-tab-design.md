@@ -268,6 +268,14 @@ own score, layers and breakdown, and its own **Use this one**. Its match keeps
 `tailoredFrom` (the original's id) and `scoredHash` (the fingerprint of its text when
 scored). When the copy changes, such as a gap added, the row offers **Score again**.
 
+**What a copy changed.** A copy keeps `tailoredFrom` on the resume (the original's
+id, its name then, the job, and when), in this browser only. In the editor, a tailored
+resume's left bar says what it was tailored from and has **Changes from original**.
+While it's pointed at or focused, or after it's pressed, the words the copy added or
+changed (`changesOf` in `src/lib/tailorDiff.ts`, word by word against the original as
+printed) are lit up in blue on the preview, each in its own section. They're found
+with the checker's preview reader, run only then.
+
 ## Not doing
 
 - No sync between devices. Like resumes, jobs live in this browser.

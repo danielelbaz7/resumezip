@@ -13,6 +13,7 @@ import { compilerStatus, onCompilerStatus } from "@/lib/typst/compile"
 import { scrollerOf, uncovered } from "./layout"
 import PrintingPage from "./PrintingPage"
 import { OPEN_NAME } from "@/components/dashboard/viewSwitch"
+import { PreviewChanges } from "./ChangesContext"
 import { PreviewGaze, PreviewMarks } from "./MarksContext"
 
 type ReactPdf = typeof import("./reactPdf")
@@ -482,6 +483,7 @@ function PdfPreview({ pdfUrl, error, updating, template }: PdfPreviewProps) {
                             {drawing === shownDrawing && drawing.ready && (
                               <>
                                 <PreviewMarks page={index + 1} file={drawing.file} />
+                                <PreviewChanges page={index + 1} file={drawing.file} />
                                 <PreviewGaze page={index + 1} file={drawing.file} />
                               </>
                             )}
