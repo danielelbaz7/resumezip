@@ -320,3 +320,24 @@ test("Create resume needs something ticked", async ({ page }) => {
   await expect(review.getByRole("status")).toHaveText("")
   expect(errors).toEqual([])
 })
+
+test("Bulk import adds the resumes in several files at once, and names the ones it couldn't read", async ({ page }) => {
+  const errors = pageErrors(page)
+  await page.goto("/create/dashboard")
+  await openFile(page.getByRole("button", { name: "Bulk import" }), [
+    pdf([RESUME]),
+    {
+      name: "Ada Byron.pdf",
+      mimeType: "application/pdf",
+      buffer: textPdf([["Ada Byron", "ada@example.com", "EDUCATION", "Kings College"]]),
+    },
+    { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("not a resume") },
+  ])
+  // No review for each: they're added as found, and it says so.
+  await expect(
+    page.getByText(/^Added 2 resumes\. Couldn't read notes\.txt\. 2 resumes from files resumezip didn't make were added/),
+  ).toBeVisible()
+  await expect(page.getByRole("dialog", { name: "Here's what we found" })).toHaveCount(0)
+  for (const name of ["Mara Lin", "Ada Byron"]) await expect(page.getByText(name, { exact: true }).first()).toBeVisible()
+  expect(errors).toEqual([])
+})

@@ -283,3 +283,51 @@ export async function openResumeFile(file: File, { signal }: { signal?: AbortSig
     signal?.removeEventListener("abort", cancel)
   }
 }
+
+/** What opening several files at once found. */
+export interface OpenedFiles {
+  /** Every resume in them, in the files' order, a file of them all adding each of its own. */
+  resumes: FileResume[]
+  /** How many of them came from files resumezip didn't make, which were read without the review. */
+  unreviewed: number
+  /** The files it couldn't read, by name, and why, worded for the person who picked them. */
+  failed: { fileName: string; problem: string }[]
+}
+
+/**
+ * Opens several files, one after another so only one PDF is in memory at a
+ * time, and says what's in them. A PDF or Word file resumezip didn't make is
+ * kept as it was found, every entry ticked, as if the review were accepted
+ * as it is: reviewing each would take a dialog per file. A file that can't
+ * be read is passed over and named; Cancel (`signal`) stops them all.
+ */
+export async function openResumeFiles(
+  files: readonly File[],
+  { signal, onFile }: { signal?: AbortSignal; onFile?: (index: number, file: File) => void } = {},
+): Promise<OpenedFiles> {
+  const opened: OpenedFiles = { resumes: [], unreviewed: 0, failed: [] }
+  for (const [index, file] of files.entries()) {
+    signal?.throwIfAborted()
+    onFile?.(index, file)
+    try {
+      const found = await openResumeFile(file, { signal })
+      if (found.kind === "all") opened.resumes.push(...found.resumes)
+      else if (found.kind === "resumezip") opened.resumes.push({ resume: found.resume, title: found.title, tag: found.tag })
+      else {
+        void found.pdf?.doc.destroy()
+        // Loaded here, as the review loads it, so opening one file doesn't wait on it.
+        const { toResumeContent } = await import("./parse")
+        opened.resumes.push({ resume: toResumeContent(found.parsed), title: found.title })
+        opened.unreviewed++
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error
+      if (!(error instanceof OpenFileError)) console.error(`Couldn't open ${file.name}:`, error)
+      opened.failed.push({
+        fileName: file.name,
+        problem: error instanceof OpenFileError ? error.message : "Something went wrong reading it.",
+      })
+    }
+  }
+  return opened
+}
