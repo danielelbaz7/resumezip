@@ -288,3 +288,29 @@ test("tailors a resume for a job, keeping only skills its jobs and projects show
   fetched.mockImplementation(async (url) => answered(String(url), { add: [] }))
   expect(await (await post({ kind: "tailor", posting: POSTING, requirements: [], resume })).json()).toEqual({ error: "answer" })
 })
+
+test("scores a resume against the requirements a job was matched on, without reading them again", async () => {
+  const scores = {
+    resumes: [
+      {
+        id: "r1",
+        evidence: [{ strength: "good", place: "projects" }],
+        projects: 70,
+        experience: 60,
+        domain: 50,
+        narrative: 80,
+        reason: "",
+      },
+    ],
+  }
+  fetched.mockImplementation(async (url) => answered(String(url), scores))
+  const requirements = [{ name: "Rust", tier: 1, keyword: "Rust" }]
+  const body = await (await post({ kind: "score", posting: POSTING, requirements, profiles: [PROFILE] })).json()
+  expect(body).toEqual(scores)
+  const sent = JSON.parse(fetched.mock.calls[0][1]!.body as string)
+  expect(sent.output_config.format.schema.required).toEqual(["resumes"])
+  expect(sent.messages[0].content).toContain("Requirements, in order:\n1. Rust (tier 1)")
+
+  fetched.mockImplementation(async (url) => answered(String(url), { resumes: [{ ...scores.resumes[0], evidence: [] }] }))
+  expect(await (await post({ kind: "score", posting: POSTING, requirements, profiles: [PROFILE] })).json()).toEqual({ error: "answer" })
+})

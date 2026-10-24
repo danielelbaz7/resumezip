@@ -8,6 +8,7 @@ import {
   MOST_POSTING_CHARS,
   postingProblem,
   profilesAnswerOf,
+  scoreAnswerOf,
   sendable,
   workName,
 } from "./request"
@@ -304,5 +305,38 @@ describe("a link as typed", () => {
 
   test("isn't one when it can't be", () => {
     for (const typed of ["not a link", "ftp://jobs.acme.com", "javascript:alert(1)", "acme"]) expect(linkOf(typed), typed).toBeNull()
+  })
+})
+
+describe("a score request", () => {
+  const request = { kind: "score", posting: POSTING, requirements: [{ name: "C++", tier: 1, keyword: "C++" }], profiles: [profile()] }
+
+  test("is read when it's what the page sends: the requirements it was matched on, and the profiles", () => {
+    expect(jobsRequestOf(request)).toMatchObject({
+      kind: "score",
+      requirements: [{ name: "C++", tier: 1, keyword: "C++" }],
+      profiles: [{ id: "r1" }],
+    })
+  })
+
+  test("isn't, with no posting, a requirement in another shape, or no profiles", () => {
+    expect(jobsRequestOf({ ...request, posting: "" })).toBeNull()
+    expect(jobsRequestOf({ ...request, requirements: [{ name: "C++", tier: 4, keyword: "C++" }] })).toBeNull()
+    expect(jobsRequestOf({ ...request, profiles: [] })).toBeNull()
+  })
+
+  test("is answered with each resume's evidence for every requirement sent, or is incomplete", () => {
+    expect(scoreAnswerOf({ resumes: [resume("r1")] }, ["r1"], 1)).toEqual({
+      r1: {
+        evidence: [{ strength: "good", place: "projects" }],
+        projects: 80,
+        experience: 100,
+        domain: 50,
+        narrative: 60,
+        reason: "Close.",
+      },
+    })
+    expect(scoreAnswerOf({ resumes: [resume("r1")] }, ["r1"], 2)).toBeNull()
+    expect(scoreAnswerOf({ resumes: [] }, ["r1"], 1)).toBeNull()
   })
 })

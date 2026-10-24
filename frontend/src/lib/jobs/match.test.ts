@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { memoryStorage } from "@/lib/memoryStorage"
 import type { ResumeWithId } from "@/lib/resume"
 import { asSaved } from "@/lib/testResume"
-import { JobsError, matchesOf, matchJob, profilesFor } from "./match"
+import { JobsError, matchesOf, matchJob, profilesFor, scoreFor } from "./match"
 import { fingerprintOf, profileSourceOf, type ResumeProfile } from "./profile"
 import type { MatchAnswer } from "./request"
 import { readSavedProfile, saveProfile } from "./storage"
@@ -301,5 +301,53 @@ describe("the resumes kept with a job", () => {
       ),
     }
     expect(matchesOf(answer, resumes).map((match) => match.resumeId)).toEqual(["r6", "r5", "r4", "r3", "r2"])
+  })
+})
+
+describe("a tailored copy, scored", () => {
+  test("is judged against the requirements the job was matched on, its profile made first, and remembers what it was scored on", async () => {
+    const copy = resume("copy", "Rust, Go")
+    const job = {
+      id: "j",
+      savedAt: "2026-06-01T00:00:00Z",
+      link: "",
+      posting: POSTING,
+      title: "Engineer",
+      company: "Acme",
+      location: "",
+      level: "mid" as const,
+      role: "systems/infrastructure" as const,
+      domain: "",
+      requirements: [{ name: "Rust", tier: 1 as const, keyword: "Rust", quote: "shipped production systems in Rust" }],
+      advice: "",
+      graduation: null,
+      matches: [],
+      chosenResumeId: null,
+      status: "saved" as const,
+      appliedAt: null,
+      tailorings: [],
+    }
+    fetched
+      .mockResolvedValueOnce(Response.json({ profiles: { r1: profile(["Rust", "Go"]) } }))
+      .mockResolvedValueOnce(
+        Response.json({
+          resumes: [
+            {
+              id: "r1",
+              evidence: [{ strength: "weak", place: "skills" }],
+              projects: 40,
+              experience: 30,
+              domain: 50,
+              narrative: 60,
+              reason: "",
+            },
+          ],
+        }),
+      )
+    const match = await scoreFor(job, copy, memoryStorage(), { tailoredFrom: "rust" })
+    expect(sent().map((body) => body.kind)).toEqual(["profiles", "score"])
+    expect(sent()[1].requirements).toEqual([{ name: "Rust", tier: 1, keyword: "Rust" }])
+    // As matching scores it: only listed (40) at 35%, and the rest as for the Rust resume above.
+    expect(match).toMatchObject({ resumeId: "copy", score: 43, tailoredFrom: "rust", scoredHash: fingerprintOf(profileSourceOf(copy)) })
   })
 })

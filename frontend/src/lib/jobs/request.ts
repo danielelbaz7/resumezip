@@ -83,6 +83,8 @@ const WIRE_ID = /^r\d{1,3}$/
 export type ProfilesRequest = { kind: "profiles"; resumes: ({ id: string } & ProfileSource)[] }
 /** A posting to match: the text pasted, its link, or both, at least one of them; "" for the one not given. */
 export type MatchRequest = { kind: "match"; posting: string; link: string; profiles: ({ id: string } & ResumeProfile)[] }
+/** Resumes scored against a job's requirements as they were read, as a tailored copy is: they aren't read again. */
+export type ScoreRequest = { kind: "score"; posting: string; requirements: Requirement[]; profiles: ({ id: string } & ResumeProfile)[] }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value)
 
@@ -111,8 +113,20 @@ function sourceOf(value: unknown): ({ id: string } & ProfileSource) | null {
   return { id: value.id, ...source }
 }
 
+// The profiles in a request, each cut to its limits as it's read, so it can't be made long; null when one isn't one.
+function profilesIn(value: unknown, most: number): MatchRequest["profiles"] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > most) return null
+  const read: MatchRequest["profiles"] = []
+  for (const item of value) {
+    const profile = readProfile(item)
+    if (!profile || !isRecord(item) || typeof item.id !== "string" || !WIRE_ID.test(item.id)) return null
+    read.push({ id: item.id, ...profile })
+  }
+  return read
+}
+
 /** A request's body as the route takes it, or null if it isn't one the page would send. */
-export function jobsRequestOf(body: unknown): ProfilesRequest | MatchRequest | null {
+export function jobsRequestOf(body: unknown): ProfilesRequest | MatchRequest | ScoreRequest | null {
   if (!isRecord(body)) return null
   if (body.kind === "profiles") {
     const resumes = Array.isArray(body.resumes) ? body.resumes.map(sourceOf) : null
@@ -124,15 +138,21 @@ export function jobsRequestOf(body: unknown): ProfilesRequest | MatchRequest | n
     if (typeof posting !== "string" || posting.length > MOST_POSTING_CHARS) return null
     if (typeof link !== "string" || link.length > MOST_LINK_CHARS) return null
     if (!posting.trim() && !link.trim()) return null
-    if (!Array.isArray(profiles) || profiles.length === 0 || profiles.length > MOST_PROFILES) return null
-    const read: MatchRequest["profiles"] = []
-    for (const item of profiles) {
-      // A profile is cut to its limits as it's read, so it can't be made long.
-      const profile = readProfile(item)
-      if (!profile || !isRecord(item) || typeof item.id !== "string" || !WIRE_ID.test(item.id)) return null
-      read.push({ id: item.id, ...profile })
+    const read = profilesIn(profiles, MOST_PROFILES)
+    return read && { kind: "match", posting, link: link.trim(), profiles: read }
+  }
+  if (body.kind === "score") {
+    const { posting, requirements, profiles } = body
+    if (typeof posting !== "string" || !posting.trim() || posting.length > MOST_MATCHED_CHARS) return null
+    if (!Array.isArray(requirements) || requirements.length > MOST_REQUIREMENTS) return null
+    const asked: Requirement[] = []
+    for (const item of requirements) {
+      if (!isRecord(item) || typeof item.name !== "string" || !item.name.trim() || item.name.length > MOST_TERM_CHARS) return null
+      if (!TIERS.includes(item.tier as Tier) || typeof item.keyword !== "string" || item.keyword.length > MOST_TERM_CHARS) return null
+      asked.push({ name: item.name, tier: item.tier as Tier, keyword: item.keyword })
     }
-    return { kind: "match", posting, link: link.trim(), profiles: read }
+    const read = profilesIn(profiles, MOST_PER_PROFILES)
+    return read && { kind: "score", posting, requirements: asked, profiles: read }
   }
   return null
 }
@@ -366,27 +386,13 @@ export function matchAnswerOf(answer: unknown, ids: readonly string[], posting: 
     .map((item, at) => ({ item, at }))
     .filter(({ item }) => workName(text(item.name, MOST_TERM_CHARS)) && inPosting(item.quote as string, posting))
     .slice(0, MOST_REQUIREMENTS)
-  const resumes: MatchAnswer["resumes"] = {}
-  for (const id of ids) {
-    const item = answer.resumes.find((given) => isRecord(given) && given.id === id)
-    if (!isRecord(item) || !Array.isArray(item.evidence) || item.evidence.length !== asked.length) return null
-    const evidence = item.evidence
-    // placeOf gives back a place it knows as it is, "nowhere" included.
-    if (
-      !evidence.every((given) => isRecord(given) && STRENGTHS.includes(given.strength as Strength) && placeOf(given.place) === given.place)
-    )
-      return null
-    if (!["projects", "experience", "domain", "narrative"].every((key) => isRating(item[key])) || typeof item.reason !== "string")
-      return null
-    resumes[id] = {
-      evidence: kept.map(({ at }) => ({ strength: strengthOf(evidence[at].strength), place: placeOf(evidence[at].place) })),
-      projects: ratingOf(item.projects),
-      experience: ratingOf(item.experience),
-      domain: ratingOf(item.domain),
-      narrative: ratingOf(item.narrative),
-      reason: text(item.reason, MOST_REASON_CHARS),
-    }
-  }
+  const resumes = resumeAnswersOf(
+    answer.resumes,
+    ids,
+    asked.length,
+    kept.map(({ at }) => at),
+  )
+  if (!resumes) return null
   const written = (value: unknown) => {
     const given = text(value, 200)
     return inPosting(given, posting) ? given : ""
@@ -427,6 +433,51 @@ function graduationAnswerOf(value: unknown, posting: string): GraduationWindow |
   // An answer that has them the wrong way round means the same window.
   const [from, to] = earliest && latest && earliest > latest ? [latest, earliest] : [earliest, latest]
   return { earliest: from, latest: to, quote: text(value.quote, MOST_QUOTE_CHARS) }
+}
+
+/**
+ * What an answer says of each resume sent, by the request's ids: its
+ * evidence for each of the `asked` requirements, kept for those at `kept`,
+ * and its other layers. Null when it leaves one out, or one isn't whole.
+ */
+function resumeAnswersOf(items: unknown[], ids: readonly string[], asked: number, kept: readonly number[]): MatchAnswer["resumes"] | null {
+  const resumes: MatchAnswer["resumes"] = {}
+  for (const id of ids) {
+    const item = items.find((given) => isRecord(given) && given.id === id)
+    if (!isRecord(item) || !Array.isArray(item.evidence) || item.evidence.length !== asked) return null
+    const evidence = item.evidence
+    // placeOf gives back a place it knows as it is, "nowhere" included.
+    if (
+      !evidence.every((given) => isRecord(given) && STRENGTHS.includes(given.strength as Strength) && placeOf(given.place) === given.place)
+    )
+      return null
+    if (!["projects", "experience", "domain", "narrative"].every((key) => isRating(item[key])) || typeof item.reason !== "string")
+      return null
+    resumes[id] = {
+      evidence: kept.map((at) => ({ strength: strengthOf(evidence[at].strength), place: placeOf(evidence[at].place) })),
+      projects: ratingOf(item.projects),
+      experience: ratingOf(item.experience),
+      domain: ratingOf(item.domain),
+      narrative: ratingOf(item.narrative),
+      reason: text(item.reason, MOST_REASON_CHARS),
+    }
+  }
+  return resumes
+}
+
+/**
+ * The scores in an answer to a score request, by the request's ids: each
+ * resume's evidence for every one of the requirements sent, in their order.
+ * Null when it isn't whole.
+ */
+export function scoreAnswerOf(answer: unknown, ids: readonly string[], requirements: number): MatchAnswer["resumes"] | null {
+  if (!isRecord(answer) || !Array.isArray(answer.resumes)) return null
+  return resumeAnswersOf(
+    answer.resumes,
+    ids,
+    requirements,
+    Array.from({ length: requirements }, (_, at) => at),
+  )
 }
 
 /** A kind of role as storage has it, "other" when it isn't one. */

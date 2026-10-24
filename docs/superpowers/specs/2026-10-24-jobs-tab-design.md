@@ -261,6 +261,13 @@ is never changed. The job keeps the tailoring in `tailorings`: the copy, what wa
 to the copy only when the person presses "I have this, add it". Skills the resume
 doesn't show are never added on their own.
 
+The copy is then **scored on its own**, against the requirements the job was matched
+on (`kind: "score"`, so they aren't read again and the scores compare). It's listed as
+its own row, marked "Tailored for this job", under the resume it came from, with its
+own score, layers and breakdown, and its own **Use this one**. Its match keeps
+`tailoredFrom` (the original's id) and `scoredHash` (the fingerprint of its text when
+scored). When the copy changes, such as a gap added, the row offers **Score again**.
+
 ## Not doing
 
 - No sync between devices. Like resumes, jobs live in this browser.

@@ -58,6 +58,10 @@ export interface JobMatch {
   graduation: GraduationFit | null
   /** Its graduation date as matched (graduation.ts); "" when it has none. */
   graduationDate: string
+  /** For a copy tailored for the job (tailor.ts), the resume it was tailored from; null for one matched as it was. */
+  tailoredFrom: string | null
+  /** For a tailored copy, the fingerprint of its text when it was scored (profile.ts), so a change since shows; "" otherwise. */
+  scoredHash: string
   found: { experience: number; projects: number; skills: number; coursework: number; missing: number }
   matched: string[]
   missing: string[]
@@ -144,6 +148,8 @@ function matchOf(value: unknown): JobMatch | null {
     }),
     graduation: value.graduation === "fits" || value.graduation === "outside" || value.graduation === "unknown" ? value.graduation : null,
     graduationDate: yearMonthOf(value.graduationDate) ?? "",
+    tailoredFrom: typeof value.tailoredFrom === "string" ? value.tailoredFrom : null,
+    scoredHash: typeof value.scoredHash === "string" ? value.scoredHash : "",
     found: {
       experience: count(found.experience),
       projects: count(found.projects),
@@ -203,6 +209,12 @@ export function withChosen(job: Job, resumeId: string, now = new Date()): Job {
   const chosen = { ...job, chosenResumeId: resumeId }
   return job.status === "saved" ? withStatus(chosen, "applied", now) : chosen
 }
+
+/** A job with a tailored copy's score kept, in place of one scored before for a copy of the same resume. */
+export const withTailoredMatch = (job: Job, match: JobMatch): Job => ({
+  ...job,
+  matches: [...job.matches.filter((kept) => !kept.tailoredFrom || kept.tailoredFrom !== match.tailoredFrom), match],
+})
 
 /** A job with a tailoring kept, in place of one made before from the same resume. */
 export const withTailoring = (job: Job, tailoring: Tailoring): Job => ({

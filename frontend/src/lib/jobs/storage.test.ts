@@ -12,6 +12,7 @@ import {
   saveProfile,
   withChosen,
   withStatus,
+  withTailoredMatch,
   type Job,
 } from "./storage"
 
@@ -39,6 +40,8 @@ const job = (id: string, savedAt: string, status: Job["status"] = "saved"): Job 
       evidence: [{ strength: "strong", place: "experience", examples: 2, onResume: true }],
       graduation: "fits",
       graduationDate: "2027-05",
+      tailoredFrom: null,
+      scoredHash: "",
       found: { experience: 1, projects: 0, skills: 0, coursework: 0, missing: 0 },
       matched: ["Go"],
       missing: [],
@@ -190,5 +193,20 @@ describe("a job's status", () => {
     expect(applied.appliedAt).toBe(now.toISOString())
     expect(withStatus(applied, "offer", new Date("2026-08-01T00:00:00Z")).appliedAt).toBe(now.toISOString())
     expect(withStatus(job("j", "2026-06-01T00:00:00Z"), "saved", now).appliedAt).toBeNull()
+  })
+})
+
+describe("a tailored copy's score", () => {
+  test("is kept beside the resumes matched, in place of one scored before for the same resume", () => {
+    const base = job("j", "2026-06-01T00:00:00Z")
+    const tailored = { ...base.matches[0], resumeId: "copy", tailoredFrom: "a", scoredHash: "h1", score: 90 }
+    const once = withTailoredMatch(base, tailored)
+    expect(once.matches.map((match) => match.resumeId)).toEqual(["a", "copy"])
+    const twice = withTailoredMatch(once, { ...tailored, resumeId: "copy2", scoredHash: "h2" })
+    expect(twice.matches.map((match) => match.resumeId)).toEqual(["a", "copy2"])
+    expect(readJobs(memoryStorage({ [JOBS_KEY]: JSON.stringify({ jobs: [twice] }) }))[0].matches[1]).toMatchObject({
+      tailoredFrom: "a",
+      scoredHash: "h2",
+    })
   })
 })
