@@ -10,6 +10,7 @@ import {
   readTune,
   SCALES,
   TEMPLATE_SETTINGS,
+  UNDERLINE_GAP,
   withSetting,
   type Fitted,
   type Paper,
@@ -44,6 +45,8 @@ export default function FineTune() {
   const points = (size: number) => decimals(own.size * size, 1)
   // With one page kept to, the sliders show what the preview was printed at, which can be tighter than what's saved.
   const now: Fitted = fit ?? printed
+  // The gap is in em of the text, so in points it follows the text size the preview shows.
+  const gapPoints = (multiple: number) => decimals(own.size * now.size * UNDERLINE_GAP * multiple, 1)
   const changed = fit ? FITTED_NAMES.filter(([key]) => fit[key] < printed[key]).map(([, name]) => name) : []
   const status = !fit
     ? ""
@@ -80,6 +83,17 @@ export default function FineTune() {
           spoken={(multiple) => `${decimals(multiple, 2)} times`}
           onChange={(value) => set("leading", value)}
           onReset={() => set("leading", undefined)}
+        />
+        {/* Only underlined project names have it: see the Underline the name box on a project. */}
+        <Slider
+          label="Underline gap"
+          scale="underlineGap"
+          value={printed.underlineGap}
+          custom={printed.underlineGap !== 1}
+          shown={(multiple) => `${gapPoints(multiple)} pt`}
+          spoken={(multiple) => `${gapPoints(multiple)} points`}
+          onChange={(value) => set("underlineGap", value)}
+          onReset={() => set("underlineGap", undefined)}
         />
       </Group>
 

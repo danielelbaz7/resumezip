@@ -258,7 +258,7 @@ function documentOf(data: TemplateData, page: Page): { xml: string; links: strin
           const parts: Piece[][] = []
           if (project.name)
             parts.push([
-              { text: project.name, bold: true, underline: project.underline, link: project.link ? web(project.link) : undefined },
+              { text: project.name, bold: true, underline: project.underline > 0, link: project.link ? web(project.link) : undefined },
             ])
           if (project.techStack) parts.push([{ text: project.techStack, italic: true }])
           for (const url of project.links) parts.push([{ text: url, link: web(url) }])

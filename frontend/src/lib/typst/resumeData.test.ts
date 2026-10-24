@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest"
 import { CORE_SECTIONS } from "@/components/editor/sections"
 import { asSaved } from "@/lib/testResume"
+import { UNDERLINE_GAP } from "@/lib/tune"
 import { toTemplateData } from "./resumeData"
 
 const bulletsOf = (description: string) =>
@@ -108,7 +109,16 @@ describe("an underlined project name", () => {
 
   test("is only the projects the person chose, with either way of showing links, and not one without a name", () => {
     for (const links of [undefined, "show", "title"]) {
-      expect(projects(links).map((project) => project.underline)).toEqual([true, false, false])
+      expect(projects(links).map((project) => project.underline)).toEqual([UNDERLINE_GAP, 0, 0])
     }
+  })
+
+  test("is as far below the name as Fine-tune's underline gap sets, in em of the name", () => {
+    const gapped = (underlineGap: number) =>
+      toTemplateData(asSaved({ tune: { underlineGap }, projectsSection: [{ id: 1, projectName: "Atlas", underlineName: true }] }))
+        .projects[0].underline
+    expect(gapped(2)).toBe(UNDERLINE_GAP * 2)
+    // Out of range, as an edited file can have it, it's the nearest end.
+    expect(gapped(10)).toBe(UNDERLINE_GAP * 3)
   })
 })

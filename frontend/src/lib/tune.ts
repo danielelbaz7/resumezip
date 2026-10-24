@@ -17,12 +17,14 @@ export interface Tune {
   leading?: number
   /** Space above each section's heading, as a multiple of the template's: 0.3 to 1.7. */
   gap?: number
+  /** How far below an underlined project name its line is, as a multiple of UNDERLINE_GAP: 0.5 to 3. */
+  underlineGap?: number
   paper?: Paper
   /** Tighten the spacing, then the text, a little at a time until the resume fits on one page. */
   onePage?: boolean
 }
 
-export type TuneScale = "size" | "margin" | "leading" | "gap"
+export type TuneScale = "size" | "margin" | "leading" | "gap" | "underlineGap"
 
 /** The lowest and highest multiple of each, and the step the panel's sliders move in. */
 // prettier-ignore
@@ -31,7 +33,15 @@ export const SCALES: Record<TuneScale, { min: number; max: number; step: number 
   margin:  { min: 0.6,  max: 1.4,  step: 0.05 },
   leading: { min: 0.8,  max: 1.3,  step: 0.05 },
   gap:     { min: 0.3,  max: 1.7,  step: 0.05 },
+  underlineGap: { min: 0.5, max: 3, step: 0.25 },
 }
+
+/**
+ * How far below the baseline an underlined project name's line is at 1×, in
+ * em of the name's text, so it follows the text size. The templates have no
+ * gap of their own for it, so this is every template's.
+ */
+export const UNDERLINE_GAP = 0.15
 
 export const PAPERS: readonly Paper[] = ["us-letter", "a4"]
 
@@ -66,6 +76,7 @@ export interface PrintedTune {
   margin: number
   leading: number
   gap: number
+  underlineGap: number
   paper: Paper | ""
   onePage: boolean
 }
@@ -87,7 +98,7 @@ export function readTune(value: unknown): { tune: Tune | null; complete: boolean
   const tune: Tune = {}
   let complete = true
   for (const [key, field] of Object.entries(value)) {
-    if (key === "size" || key === "margin" || key === "leading" || key === "gap") {
+    if (key === "size" || key === "margin" || key === "leading" || key === "gap" || key === "underlineGap") {
       if (typeof field !== "number" || !Number.isFinite(field)) {
         complete = false
         continue
@@ -130,6 +141,7 @@ export function printedTune(saved: unknown): PrintedTune {
     margin: tune.margin ?? 1,
     leading: tune.leading ?? 1,
     gap: tune.gap ?? 1,
+    underlineGap: tune.underlineGap ?? 1,
     paper: tune.paper ?? "",
     onePage: tune.onePage === true,
   }

@@ -524,12 +524,14 @@ describe("a LaTeX file in Jake's layout", () => {
     expect(text).toContain("{\\textbf{\\href{https://github.com/maralin/atlas}{Atlas}} $|$ \\emph{Go}}")
   })
 
-  test("underlines a project's name, linked or not, when the person chose that", () => {
+  test("underlines a project's name, linked or not, when the person chose that, as far below it as Fine-tune sets", () => {
     const project = { id: 1, projectName: "Atlas", techStack: "Go", projectGithub: "github.com/maralin/atlas", underlineName: true }
-    expect(latexOf({ selectedTemplate: "jake", projectsSection: [project] })).toContain("{\\textbf{\\underline{Atlas}} $|$ \\emph{Go} $|$")
+    const line = (gap: string) => `{\\setbox0\\hbox{Atlas}\\rlap{\\rule[-${gap}em]{\\wd0}{0.4pt}}\\box0}`
+    expect(latexOf({ selectedTemplate: "jake", projectsSection: [project] })).toContain(`{\\textbf{${line("0.15")}} $|$ \\emph{Go} $|$`)
     expect(latexOf({ selectedTemplate: "jake", projectLinks: "title", projectsSection: [project] })).toContain(
-      "{\\textbf{\\href{https://github.com/maralin/atlas}{\\underline{Atlas}}} $|$ \\emph{Go}}",
+      `{\\textbf{\\href{https://github.com/maralin/atlas}{${line("0.15")}}} $|$ \\emph{Go}}`,
     )
+    expect(latexOf({ selectedTemplate: "jake", tune: { underlineGap: 2 }, projectsSection: [project] })).toContain(line("0.3"))
   })
 
   test("escapes what an address needs escaped inside a command, and percent-encodes what can't be", () => {

@@ -28,7 +28,7 @@ const depth = ([page]: PdfPage[]) => page.height - Math.min(...page.items.map((i
 
 describe("the template data", () => {
   test("has every setting, the template's own without a tune", () => {
-    expect(toTemplateData({}).tune).toEqual({ size: 1, margin: 1, leading: 1, gap: 1, paper: "", onePage: false })
+    expect(toTemplateData({}).tune).toEqual({ size: 1, margin: 1, leading: 1, gap: 1, underlineGap: 1, paper: "", onePage: false })
   })
 
   test("has the resume's tune, read defensively", () => {
@@ -37,6 +37,7 @@ describe("the template data", () => {
       margin: 1,
       leading: 1,
       gap: 1,
+      underlineGap: 1,
       paper: "a4",
       onePage: true,
     })
