@@ -4,7 +4,7 @@
 // stored and nothing is logged but which service failed.
 
 import { MATCH_ANSWER, MATCH_PROMPT, matchPrompt, PROFILES_ANSWER, PROFILES_PROMPT, profilesPrompt } from "@/lib/jobs/prompt"
-import { jobsRequestOf, matchAnswerOf, profilesAnswerOf } from "@/lib/jobs/request"
+import { answerShapeOf, jobsRequestOf, matchAnswerOf, profilesAnswerOf } from "@/lib/jobs/request"
 import { askAny, providersOf } from "@/lib/review/ai/providers"
 import { REVIEWER_HEADER, reviewerOf } from "@/lib/review/ai/reviewer"
 
@@ -68,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
       given,
       asking.profiles.map((profile) => profile.id),
     )
-    return match ? answer(200, { match }) : answer(503, { error: "busy" })
+    return match ? answer(200, { match: answerShapeOf(match) }) : answer(503, { error: "busy" })
   } catch {
     return answer(503, { error: "busy" })
   }

@@ -114,6 +114,15 @@ export interface MatchAnswer {
   resumes: Record<string, { places: Place[]; reason: string }>
 }
 
+/**
+ * A match as the route hands it back: in the shape the AI answers in, a list
+ * of resumes each with its id, so the page reads it with matchAnswerOf too.
+ */
+export const answerShapeOf = (match: MatchAnswer) => ({
+  job: match.job,
+  resumes: Object.entries(match.resumes).map(([id, resume]) => ({ id, ...resume })),
+})
+
 const text = (value: unknown, most: number) => (typeof value === "string" ? value.trim().slice(0, most) : "")
 
 /** The job and the matches in an answer, read defensively; null when it has no job. */
