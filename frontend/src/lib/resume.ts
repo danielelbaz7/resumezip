@@ -43,6 +43,16 @@ export type Entry = { id: number; leftOut?: true; underlineName?: true } & { [Ke
 
 export type Profile = { [Key in ProfileKey]?: string }
 
+/** Where a tailored resume came from: the resume it was copied from, and the job it was tailored for. */
+export interface TailoredFrom {
+  resumeId: string
+  /** The resume's name then, shown if it's renamed or deleted since. */
+  title: string
+  jobId: string
+  /** When, as an ISO date. */
+  at: string
+}
+
 /** The sections the person renamed, by heading key ("edu"), as they named them. */
 export type Headings = { [Key in HeadingKey]?: string }
 
@@ -69,6 +79,12 @@ export type Resume = {
   profileSection?: Profile | null
   /** The sections the person added, by key, read with extrasOf (lib/resumeSections.ts). */
   extraSections?: ExtraSections
+  /**
+   * The resume this one was tailored from for a job (the Jobs tab), so the
+   * editor can show what changed; read with tailoredFromOf (lib/tailorDiff.ts).
+   * Only kept in this browser: a file of the resume doesn't carry it.
+   */
+  tailoredFrom?: TailoredFrom | null
   /** Adjustments to the template's sizes and page, from Fine-tune (lib/tune.ts). */
   tune?: Tune | null
 } & { [Key in DataKey]?: Entry[] | null } & { [Key in ChoiceKey]?: string } & {

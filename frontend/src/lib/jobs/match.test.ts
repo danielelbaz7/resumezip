@@ -327,23 +327,21 @@ describe("a tailored copy, scored", () => {
       appliedAt: null,
       tailorings: [],
     }
-    fetched
-      .mockResolvedValueOnce(Response.json({ profiles: { r1: profile(["Rust", "Go"]) } }))
-      .mockResolvedValueOnce(
-        Response.json({
-          resumes: [
-            {
-              id: "r1",
-              evidence: [{ strength: "weak", place: "skills" }],
-              projects: 40,
-              experience: 30,
-              domain: 50,
-              narrative: 60,
-              reason: "",
-            },
-          ],
-        }),
-      )
+    fetched.mockResolvedValueOnce(Response.json({ profiles: { r1: profile(["Rust", "Go"]) } })).mockResolvedValueOnce(
+      Response.json({
+        resumes: [
+          {
+            id: "r1",
+            evidence: [{ strength: "weak", place: "skills" }],
+            projects: 40,
+            experience: 30,
+            domain: 50,
+            narrative: 60,
+            reason: "",
+          },
+        ],
+      }),
+    )
     const match = await scoreFor(job, copy, memoryStorage(), { tailoredFrom: "rust" })
     expect(sent().map((body) => body.kind)).toEqual(["profiles", "score"])
     expect(sent()[1].requirements).toEqual([{ name: "Rust", tier: 1, keyword: "Rust" }])
