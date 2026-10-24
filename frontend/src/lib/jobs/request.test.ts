@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { jobsRequestOf, matchAnswerOf, MOST_PER_PROFILES, MOST_POSTING_CHARS, profilesAnswerOf } from "./request"
+import { jobsRequestOf, matchAnswerOf, MOST_PER_PROFILES, MOST_POSTING_CHARS, profilesAnswerOf, sendable } from "./request"
 
 const source = (id = "r1") => ({ id, experience: ["Engineer · Stripe"], projects: [], skills: ["Go"], coursework: [] })
 const profile = (id = "r1") => ({
@@ -83,5 +83,14 @@ describe("an answer from /api/jobs", () => {
   test("with no job is nothing", () => {
     expect(matchAnswerOf({ resumes: [] }, ["r1"])).toBeNull()
     expect(matchAnswerOf("busy", ["r1"])).toBeNull()
+  })
+})
+
+describe("a long resume", () => {
+  test("is cut to what a request may hold, so it's sent in part rather than turned away", () => {
+    const long = { experience: Array(200).fill("x".repeat(1_500)), projects: ["Atlas"], skills: [], coursework: [] }
+    const sent = sendable(long)
+    expect(sent.experience.every((line) => line.length <= 1_000)).toBe(true)
+    expect(jobsRequestOf({ kind: "profiles", resumes: [{ id: "r1", ...sent }] })).not.toBeNull()
   })
 })

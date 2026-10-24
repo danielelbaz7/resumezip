@@ -18,6 +18,26 @@ const MOST_LINE_CHARS = 1_000
 const MOST_RESUME_CHARS = 16_000
 const MOST_REASON_CHARS = 300
 
+/**
+ * A resume's groups cut to what a request may hold (sourceOf), so a long
+ * resume is sent in part rather than turned away: each line to its length,
+ * and lines past the resume's length left off, the later groups' first.
+ */
+export function sendable(source: ProfileSource): ProfileSource {
+  let left = MOST_RESUME_CHARS
+  const sent = {} as ProfileSource
+  for (const group of GROUPS) {
+    sent[group] = []
+    for (const line of source[group].slice(0, MOST_LINES)) {
+      const cut = line.slice(0, Math.min(MOST_LINE_CHARS, left))
+      if (!cut) break
+      sent[group].push(cut)
+      left -= cut.length
+    }
+  }
+  return sent
+}
+
 /** The id a resume goes by in a request: its place in it, from 1. */
 export const wireId = (index: number) => `r${index + 1}`
 const WIRE_ID = /^r\d{1,3}$/
