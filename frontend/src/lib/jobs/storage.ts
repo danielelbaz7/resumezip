@@ -4,6 +4,7 @@
 // reads after a resume is deleted. Saved data is untrusted: it's read
 // defensively, and records in the wrong shape are dropped.
 
+import { yearMonthOf, type GraduationFit, type GraduationWindow } from "./graduation"
 import { LEVELS, MOST_TERM_CHARS, readProfile, type Level, type ResumeProfile } from "./profile"
 import { MOST_REQUIREMENTS } from "./prompt"
 import { requirementOf, roleKindOf, type RoleKind } from "./request"
@@ -46,8 +47,16 @@ export interface JobMatch {
   parts: Parts | null
   /** How many tier 1 requirements it has no evidence of, each taking a share off its score. */
   missedScreening: number
-  /** For each of the job's requirements, in their order: how directly it's proven, where, and whether its term is on the resume. */
-  evidence: { strength: Strength; place: Place; onResume: boolean }[]
+  /**
+   * For each of the job's requirements, in their order: how directly it's
+   * proven, where, how many jobs and projects show it, and whether its term is
+   * on the resume.
+   */
+  evidence: { strength: Strength; place: Place; examples: number; onResume: boolean }[]
+  /** How its graduation date fits the job's window; null when the job has none. */
+  graduation: GraduationFit | null
+  /** Its graduation date as matched (graduation.ts); "" when it has none. */
+  graduationDate: string
   found: { experience: number; projects: number; skills: number; coursework: number; missing: number }
   matched: string[]
   missing: string[]
@@ -73,6 +82,8 @@ export interface Job {
   requirements: (Requirement & { quote: string })[]
   /** Which projects, from any resume, would make the strongest lineup; "" when none is given. */
   advice: string
+  /** When the job asks people to graduate; null when it doesn't say. */
+  graduation: GraduationWindow | null
   /** Best first, as scored when it was matched. */
   matches: JobMatch[]
   chosenResumeId: string | null
@@ -87,6 +98,13 @@ const count = (value: unknown) => (typeof value === "number" && Number.isFinite(
 const date = (value: unknown) => (typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : null)
 const names = (value: unknown) =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").map((item) => item.slice(0, MOST_TERM_CHARS)) : []
+
+function windowOf(value: unknown): GraduationWindow | null {
+  if (!isRecord(value)) return null
+  const earliest = yearMonthOf(value.earliest)
+  const latest = yearMonthOf(value.latest)
+  return earliest !== null && latest !== null && (earliest || latest) ? { earliest, latest, quote: text(value.quote, 300) } : null
+}
 
 const ratingOrNull = (value: unknown) => (value === null ? null : ratingOf(value))
 
@@ -114,8 +132,15 @@ function matchOf(value: unknown): JobMatch | null {
     missedScreening: count(value.missedScreening),
     evidence: (Array.isArray(value.evidence) ? value.evidence : []).slice(0, MOST_REQUIREMENTS).map((item) => {
       const given = isRecord(item) ? item : {}
-      return { strength: strengthOf(given.strength), place: placeOf(given.place), onResume: given.onResume === true }
+      return {
+        strength: strengthOf(given.strength),
+        place: placeOf(given.place),
+        examples: count(given.examples),
+        onResume: given.onResume === true,
+      }
     }),
+    graduation: value.graduation === "fits" || value.graduation === "outside" || value.graduation === "unknown" ? value.graduation : null,
+    graduationDate: yearMonthOf(value.graduationDate) ?? "",
     found: {
       experience: count(found.experience),
       projects: count(found.projects),
@@ -152,6 +177,7 @@ export function jobOf(value: unknown): Job | null {
       .filter((requirement) => requirement !== null)
       .slice(0, MOST_REQUIREMENTS),
     advice: text(value.advice, 500),
+    graduation: windowOf(value.graduation),
     matches: (Array.isArray(value.matches) ? value.matches : []).map(matchOf).filter((match) => match !== null),
     chosenResumeId: typeof value.chosenResumeId === "string" ? value.chosenResumeId : null,
     status,

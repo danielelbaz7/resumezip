@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest"
 import {
   blendedScore,
   coreOf,
+  creditOf,
   foundOf,
   keywordsOf,
   missingScreening,
@@ -23,23 +24,42 @@ const CONCURRENCY = requirement("Concurrency", 2, "concurrency")
 const LLVM = requirement("LLVM", 3)
 
 describe("the core layer", () => {
-  test("is full when every requirement has strong proof", () => {
-    expect(coreOf([CPP, CONCURRENCY], [proof("strong"), proof("strong")])).toBe(100)
+  test("is full when every requirement has strong proof in three or more jobs and projects", () => {
+    expect(
+      coreOf(
+        [CPP, CONCURRENCY],
+        [
+          { ...proof("strong"), examples: 3 },
+          { ...proof("strong"), examples: 5 },
+        ],
+      ),
+    ).toBe(100)
   })
 
-  test("gives more for more direct proof: strong, then shown in work, then only listed", () => {
+  test("gives more for more direct proof, one example each: strong, then shown in work, then only listed", () => {
     expect(["strong", "good", "weak", "none"].map((strength) => coreOf([CPP], [proof(strength as Evidence["strength"])]))).toEqual([
-      100, 75, 40, 0,
+      85, 65, 40, 0,
     ])
   })
 
+  test("gives more for each job or project past the first that shows the work, up to three", () => {
+    expect([1, 2, 3, 4].map((examples) => creditOf({ ...proof("strong"), examples }))).toEqual([0.85, 0.925, 1, 1])
+    expect([1, 2, 3].map((examples) => creditOf({ ...proof("good"), examples }))).toEqual([0.65, 0.725, 0.8])
+    // A listed skill has no jobs or projects to count.
+    expect(creditOf({ ...proof("weak", "skills"), examples: 4 })).toBe(0.4)
+  })
+
+  test("favors two C++ projects over one, the rest the same", () => {
+    expect(coreOf([CPP], [{ ...proof("good"), examples: 2 }])).toBeGreaterThan(coreOf([CPP], [{ ...proof("good"), examples: 1 }])!)
+  })
+
   test("weighs a must-have 3, a strong signal 2 and a nice to have 1", () => {
-    // 3 × 1 + 2 × 0.4 + 1 × 0, out of 6.
-    expect(coreOf([CPP, CONCURRENCY, LLVM], [proof("strong"), proof("weak"), proof("none")])).toBe(63)
+    // 3 × 0.85 + 2 × 0.4 + 1 × 0, out of 6.
+    expect(coreOf([CPP, CONCURRENCY, LLVM], [proof("strong"), proof("weak"), proof("none")])).toBe(56)
   })
 
   test("takes evidence the answer left out as none, and is null for a job with no requirements", () => {
-    expect(coreOf([CPP, LLVM], [proof("strong")])).toBe(75)
+    expect(coreOf([CPP, LLVM], [proof("strong")])).toBe(64)
     expect(coreOf([], [])).toBeNull()
   })
 })

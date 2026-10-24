@@ -5,9 +5,10 @@
 
 import type { ResumeWithId } from "@/lib/resume"
 import { REVIEWER_HEADER, reviewerId } from "@/lib/review/ai/reviewer"
-import { fingerprintOf, GROUPS, hasSource, profileSourceOf, readProfile, type ResumeProfile } from "./profile"
+import { graduationFit, graduationOf } from "./graduation"
+import { examplesTextOf, fingerprintOf, GROUPS, hasSource, profileSourceOf, readProfile, type ResumeProfile } from "./profile"
 import { linkOf, matchAnswerOf, MOST_PER_PROFILES, MOST_PROFILES, postingProblem, sendable, wireId, type MatchAnswer } from "./request"
-import { blendedScore, coreOf, foundOf, keywordsOf, missingScreening, onResume, ranked, type Parts } from "./score"
+import { blendedScore, coreOf, foundOf, keywordsOf, missingScreening, onResume, ranked, type Parts, type Requirement } from "./score"
 import { readSavedProfile, saveProfile, type Job, type JobMatch } from "./storage"
 
 export type JobsProblem =
@@ -109,6 +110,16 @@ const titleOf = (resume: ResumeWithId) => resume.resumeTitle?.trim() || resume.p
 // from, which is most of what hiring software would read of it.
 const textOf = (resume: ResumeWithId) => GROUPS.flatMap((group) => profileSourceOf(resume)[group]).join("\n")
 
+/**
+ * How many of a resume's jobs and projects show a requirement: those whose
+ * text has its keyword or its name, word for word. Counted here rather than
+ * by the AI, which only sees each resume's profile.
+ */
+export function examplesOf(requirement: Requirement, examples: readonly string[]): number {
+  const terms = [requirement.keyword, requirement.name].filter(Boolean)
+  return examples.filter((text) => terms.some((term) => onResume(term, text))).length
+}
+
 /** Each resume scored for the job, best first, from the AI's answer (score.ts). */
 export function matchesOf(answer: MatchAnswer, matched: readonly ResumeWithId[]): JobMatch[] {
   const { requirements } = answer.job
@@ -116,25 +127,32 @@ export function matchesOf(answer: MatchAnswer, matched: readonly ResumeWithId[])
     const given = answer.resumes[wireId(index)]
     if (!given) return []
     const text = textOf(resume)
+    const shown = examplesTextOf(resume)
+    const evidence = given.evidence.map((found, at) => ({ ...found, examples: examplesOf(requirements[at], shown) }))
+    const graduation = answer.job.graduation ? graduationFit(answer.job.graduation, graduationOf(resume)) : null
     const parts: Parts = {
-      core: coreOf(requirements, given.evidence),
+      core: coreOf(requirements, evidence),
       projects: given.projects,
       experience: given.experience,
       domain: given.domain,
       keywords: keywordsOf(requirements, text),
       narrative: given.narrative,
     }
-    const missedScreening = missingScreening(requirements, given.evidence)
+    const missedScreening = missingScreening(requirements, evidence)
     const proven = requirements.filter((_, at) => given.evidence[at].strength !== "none").map((requirement) => requirement.name)
     return [
       {
         resumeId: resume.id,
         resumeTitle: titleOf(resume),
-        score: blendedScore(parts, missedScreening),
+        // A graduation date outside the window counts as a must-have missed.
+        score: blendedScore(parts, missedScreening + (graduation === "outside" ? 1 : 0)),
         parts,
         missedScreening,
-        evidence: given.evidence.map((evidence, at) => ({
-          ...evidence,
+        graduation,
+        graduationDate: graduationOf(resume) ?? "",
+        evidence: evidence.map((found, at) => ({
+          ...found,
+          examples: found.examples,
           onResume: onResume(requirements[at].keyword || requirements[at].name, text),
         })),
         found: foundOf(given.evidence),

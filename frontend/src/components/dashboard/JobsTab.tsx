@@ -21,6 +21,7 @@ import {
   type JobMatch,
   type Status,
 } from "@/lib/jobs/storage"
+import { windowText, yearMonthText } from "@/lib/jobs/graduation"
 import type { Strength, Tier } from "@/lib/jobs/score"
 import type { ResumeWithId } from "@/lib/resume"
 import { getStorage } from "@/lib/resumeKeys"
@@ -314,6 +315,7 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
             {job.level && <span>Level: {job.level}</span>}
             {job.role !== "other" && <span>Role: {job.role}</span>}
             {job.domain && <span>Domain: {job.domain}</span>}
+            {job.graduation && <span title={`From the posting: “${job.graduation.quote}”`}>Graduating: {windowText(job.graduation)}</span>}
           </div>
           {job.advice && <p className="text-[14px] leading-normal text-ink">{job.advice}</p>}
 
@@ -361,6 +363,15 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
                     {match.parts && <p className="font-mono text-[12px] tabular-nums text-ink-2">{partsText(match.parts).join(" · ")}</p>}
                     {where.length > 0 && <p className="text-[13px] text-ink-2">{where.join(" · ")}</p>}
                     {match.reason && <p className="text-[14px] leading-normal text-ink">{match.reason}</p>}
+                    {match.graduation && job.graduation && (
+                      <p className={`text-[13px] ${match.graduation === "outside" ? "text-alert" : "text-ink-2"}`}>
+                        {match.graduation === "fits"
+                          ? `Graduates ${yearMonthText(match.graduationDate)}, in the window`
+                          : match.graduation === "outside"
+                            ? `Graduates ${yearMonthText(match.graduationDate)}, outside ${windowText(job.graduation)}`
+                            : `No graduation date on this resume to check against ${windowText(job.graduation)}`}
+                      </p>
+                    )}
                     {match.missedScreening > 0 && (
                       <p className="text-[13px] text-alert">
                         Missing {match.missedScreening === 1 ? "a must-have" : `${match.missedScreening} must-haves`}:{" "}
@@ -376,7 +387,7 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
                         <summary className="cursor-pointer text-ink-2">Requirement by requirement</summary>
                         <ul className="mt-2 flex flex-col gap-1">
                           {job.requirements.map((requirement, at) => {
-                            const { strength, place, onResume } = match.evidence[at]
+                            const { strength, place, examples, onResume } = match.evidence[at]
                             return (
                               <li key={requirement.name} className="flex flex-wrap justify-between gap-x-3 text-ink">
                                 <span>
@@ -384,7 +395,8 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
                                 </span>
                                 <span className="text-ink-2">
                                   {STRENGTH_NAMES[strength]}
-                                  {strength !== "none" && place !== "nowhere" ? ` in ${place}` : ""} ·{" "}
+                                  {strength !== "none" && place !== "nowhere" ? ` in ${place}` : ""}
+                                  {examples > 0 ? ` · ${examples === 1 ? "1 example" : `${examples} examples`}` : ""} ·{" "}
                                   {onResume ? "keyword on it" : "keyword not on it"}
                                 </span>
                               </li>

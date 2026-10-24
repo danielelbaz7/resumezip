@@ -64,6 +64,7 @@ Use only what the posting says. Never fill anything in from what you know of a c
   - name: short.
   - tier: 1 for a must-have that screens people out ("proficiency in C++", "must know React"); 2 for a strong signal the posting emphasizes or repeats (concurrency, distributed systems, low latency, SQL); 3 for nice to have ("LLVM is a plus", "Jenkins preferred").
   - keyword: the term hiring software would search a resume for, as it's usually written ("C++", "Kubernetes", "distributed systems").
+- graduation: when the posting says when people must graduate ("graduating between December 2026 and June 2027", "Class of 2027", "expected graduation in 2026"): asked: true, earliest and latest as YYYY-MM, or YYYY when it gives only a year, "" for an end it leaves open ("graduating by June 2027" has no earliest), and quote: the posting's words, copied exactly. When it doesn't say, asked: false and "" for the rest. It isn't one of the requirements.
 - advice: one or two sentences, talking to "you", on which projects from any of the profiles would make the strongest lineup for this job, if mixing them beats any one resume as it is; "" if one resume is already the right lineup.
 
 2. resumes: for each profile, its id, and:
@@ -126,7 +127,7 @@ export const MATCH_ANSWER = {
       job: {
         type: "object",
         additionalProperties: false,
-        required: ["isPosting", "title", "company", "location", "level", "role", "domain", "requirements", "advice"],
+        required: ["isPosting", "title", "company", "location", "level", "role", "domain", "requirements", "advice", "graduation"],
         properties: {
           isPosting: { type: "boolean" },
           title: { type: "string" },
@@ -150,6 +151,17 @@ export const MATCH_ANSWER = {
             },
           },
           advice: { type: "string" },
+          graduation: {
+            type: "object",
+            additionalProperties: false,
+            required: ["asked", "earliest", "latest", "quote"],
+            properties: {
+              asked: { type: "boolean" },
+              earliest: { type: "string" },
+              latest: { type: "string" },
+              quote: { type: "string" },
+            },
+          },
         },
       },
       resumes: {

@@ -38,6 +38,7 @@ const MATCH = {
     domain: "payments",
     requirements: [{ name: "Rust", tier: 1, keyword: "Rust", quote: "production experience with Rust" }],
     advice: "",
+    graduation: { asked: false, earliest: "", latest: "", quote: "" },
   },
   resumes: [
     {
@@ -127,6 +128,7 @@ test("matches a posting to the profiles, and asks OpenAI and then Azure when the
   const response = await post({ kind: "match", posting: POSTING, profiles: [PROFILE] })
   expect(response.status).toBe(200)
   const { match } = await response.json()
+  // In the AI's shape, graduation window and all, which the page reads back below.
   expect(match).toEqual({ job: MATCH.job, resumes: MATCH.resumes })
   // The page reads it as it reads the AI's answer, and finds the resume in it.
   expect(matchAnswerOf(match, ["r1"], POSTING)?.resumes).toEqual({

@@ -3,6 +3,7 @@
 // the page checks answers, which come from an AI. Resumes go by ids made for
 // the request ("r1", "r2"), not their own, which can be any text.
 
+import { yearMonthOf, type GraduationWindow } from "./graduation"
 import { GROUPS, LEVELS, MOST_TERM_CHARS, readProfile, type Level, type ProfileSource, type ResumeProfile } from "./profile"
 import { MOST_REQUIREMENTS, ROLE_KINDS } from "./prompt"
 import {
@@ -226,6 +227,8 @@ export interface PostedJob {
   requirements: (Requirement & { quote: string })[]
   /** Which projects, from any resume, would make the strongest lineup; "" when one resume already is. */
   advice: string
+  /** When the posting asks people to graduate; null when it doesn't say (graduation.ts). */
+  graduation: GraduationWindow | null
 }
 
 /** What the AI said of one resume for the job: its evidence for each requirement, in their order, and its other layers (score.ts). */
@@ -251,7 +254,11 @@ export interface MatchAnswer {
  * of resumes each with its id, so the page reads it with matchAnswerOf too.
  */
 export const answerShapeOf = (match: MatchAnswer) => ({
-  job: { isPosting: match.isPosting, ...match.job },
+  job: {
+    isPosting: match.isPosting,
+    ...match.job,
+    graduation: match.job.graduation ? { asked: true, ...match.job.graduation } : { asked: false, earliest: "", latest: "", quote: "" },
+  },
   resumes: Object.entries(match.resumes).map(([id, resume]) => ({ id, ...resume })),
 })
 
@@ -287,6 +294,8 @@ export function matchAnswerOf(answer: unknown, ids: readonly string[], posting: 
   const { job } = answer
   if (typeof job.isPosting !== "boolean" || !Array.isArray(job.requirements)) return null
   if (!["title", "company", "location", "domain", "advice"].every((key) => typeof job[key] === "string")) return null
+  const graduation = graduationAnswerOf(job.graduation, posting)
+  if (graduation === undefined) return null
   if (!(LEVELS.includes(job.level as Level) || job.level === "unknown") || !ROLE_KINDS.includes(job.role as RoleKind)) return null
   const asked = job.requirements
   if (
@@ -346,9 +355,26 @@ export function matchAnswerOf(answer: unknown, ids: readonly string[], posting: 
         quote: text(item.quote, MOST_QUOTE_CHARS),
       })),
       advice: text(job.advice, 500),
+      graduation,
     },
     resumes,
   }
+}
+
+/**
+ * The posting's graduation window from the answer: null when it asks for
+ * none, or its quote isn't in the posting word for word; undefined when the
+ * answer's isn't whole.
+ */
+function graduationAnswerOf(value: unknown, posting: string): GraduationWindow | null | undefined {
+  if (!isRecord(value) || typeof value.asked !== "boolean" || typeof value.quote !== "string") return undefined
+  const earliest = yearMonthOf(value.earliest)
+  const latest = yearMonthOf(value.latest)
+  if (earliest === null || latest === null) return undefined
+  if (!value.asked || (!earliest && !latest) || !inPosting(value.quote, posting)) return null
+  // An answer that has them the wrong way round means the same window.
+  const [from, to] = earliest && latest && earliest > latest ? [latest, earliest] : [earliest, latest]
+  return { earliest: from, latest: to, quote: text(value.quote, MOST_QUOTE_CHARS) }
 }
 
 /** A kind of role as storage has it, "other" when it isn't one. */

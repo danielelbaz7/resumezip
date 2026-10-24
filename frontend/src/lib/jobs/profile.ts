@@ -78,6 +78,22 @@ export function profileSourceOf(saved: Resume): ProfileSource {
   }
 }
 
+/**
+ * Each job and project on the resume as printed, as one text: its role and
+ * company, or name and tech stack, and its bullets. What a requirement's
+ * examples are counted in (match.ts).
+ */
+export function examplesTextOf(saved: Resume): string[] {
+  const resume = printedResume(saved)
+  const jobs = entriesOf(resume.workExperienceSection).map((job) =>
+    [field(job, "workRole"), field(job, "companyName"), ...linesOf(job.workDescription)].join("\n"),
+  )
+  const projects = entriesOf(resume.projectsSection).map((project) =>
+    [field(project, "projectName"), field(project, "techStack"), ...linesOf(project.projectDescription)].join("\n"),
+  )
+  return [...jobs, ...projects].filter((text) => text.trim())
+}
+
 /** Whether a resume has anything to match a job on. */
 export const hasSource = (source: ProfileSource) => GROUPS.some((group) => source[group].some(Boolean))
 
