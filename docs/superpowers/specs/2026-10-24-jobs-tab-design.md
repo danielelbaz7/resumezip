@@ -71,30 +71,62 @@ Nothing is stored on the server and nothing is logged beyond which service faile
 
 ## The score
 
-The score is worked out in the browser from what the AI said, so it's the same
-every time for the same answer. It follows the order you asked for: experience
-first, then projects, then skills, then coursework.
+The score is worked out in layers in the browser, from what the AI said, so the
+same answer always gives the same number. The question it answers: if a recruiter
+spends 15 to 30 seconds on each resume, which gives the most immediate evidence that
+you already do the kind of work described?
 
-- Each requirement is worth 2 if it's a must and 1 if it's nice to have.
-- A requirement earns its full worth when it shows up in **experience**, 0.75 of it
-  in **projects**, 0.5 in **skills**, 0.25 in **coursework**, and nothing when it's
-  nowhere.
-- The requirements' score is what all the requirements earn, divided by what
-  they're worth, out of 100.
-- The whole score blends that, at 70%, with three fit parts at 10% each:
-  - **role**: the AI's 0 to 100 rating of how close the resume's target titles and
-    kind of work are to the job's title;
-  - **level**: worked out in the browser from the resume's level and the job's: 100
-    at the same level, then 70, 35, 10 and 0 for each level apart;
-  - **overall**: the AI's 0 to 100 rating of how well the person comes across as who
-    the posting describes, beyond the requirements: domain, scope, kind of work.
-- When the job lists no requirements, or doesn't say its level, that part is left
-  out and the others' weights are scaled up to make 100.
-- Each match saves its parts as `parts: { requirements, role, level, overall }`.
-  Jobs saved before the fit parts were added have `parts: null`.
+**First, the job is classified.** The AI picks the kind of role (systems/infra,
+backend/product, low-level C++, quant/HPC, gaming/graphics, compiler/toolchain and so
+on) and the domain the work is in.
+
+**Requirements have tiers:**
+
+| Tier | Meaning | Worth |
+|---|---|---|
+| 1 | Must-have, screening ("proficiency in C++", graduating by a date) | 3 |
+| 2 | Strong signal the posting emphasizes or repeats (concurrency, SQL) | 2 |
+| 3 | Nice to have ("LLVM is a plus") | 1 |
+
+Work authorization and citizenship are left out: a resume doesn't show them.
+
+**Evidence has strengths.** For each requirement, the AI judges how directly each
+resume proves it, using the profile's highlights first:
+
+| Strength | Meaning | Credit |
+|---|---|---|
+| strong | the work with its scale or results ("sharded concurrent engine, 100K+ ops/s") | 1 |
+| good | a job or project shows the work ("concurrent client handling") | 0.75 |
+| weak | only a listed skill or coursework | 0.4 |
+| none | not there | 0 |
+
+**The layers:**
+
+| Layer | Weight | From |
+|---|---|---|
+| Core technical requirements | 35% | each requirement's tier worth × its evidence credit, out of the total worth |
+| Project relevance | 25% | the AI's 0 to 100; projects in an unrelated specialty count against it |
+| Experience relevance | 20% | the AI's 0 to 100 |
+| Domain alignment | 10% | the AI's 0 to 100 |
+| Keyword coverage | 5% | checked in the browser: each requirement's term found whole on the resume as written, by tier worth |
+| Narrative coherence | 5% | the AI's 0 to 100 |
+
+- A job with no requirements leaves out the core and keyword layers, and the others
+  are scaled up to make 100.
+- Each tier 1 requirement with no evidence at all multiplies the whole score by 0.8.
 - Ties go to the resume edited most recently.
-- Each result keeps how many requirements were met in each group, so the page can
-  show something like "4 in experience, 2 in projects, 1 missing".
+- Each job also gets a line of advice on which projects, from any of the resumes,
+  would make the strongest lineup, when mixing them beats any one resume.
+- Each match saves its layers as `parts: { core, projects, experience, domain,
+  keywords, narrative }`, plus `missedScreening` and, for each requirement, `evidence:
+  { strength, place, onResume }`, which the list shows requirement by requirement.
+  Jobs matched before the layers have `parts: null`. Their must-haves read as tier 1
+  and the rest as tier 3.
+
+**Profiles** also hold `domains` and up to 15 `highlights`: the resume's strongest
+concrete claims, with their numbers, tagged experience or projects. That's the
+evidence matched on, without sending the whole resume again. The fingerprint includes
+a profile version, so profiles made before highlights existed are made once more.
 
 ## What's saved in localStorage
 

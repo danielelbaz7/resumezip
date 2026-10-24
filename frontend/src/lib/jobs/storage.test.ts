@@ -22,13 +22,18 @@ const job = (id: string, savedAt: string, status: Job["status"] = "saved"): Job 
   company: "Acme",
   location: "",
   level: "",
-  requirements: [{ name: "Go", must: true }],
+  role: "backend/product",
+  domain: "payments",
+  requirements: [{ name: "Go", tier: 1, keyword: "Go" }],
+  advice: "",
   matches: [
     {
       resumeId: "a",
       resumeTitle: "Backend",
       score: 80,
-      parts: { requirements: 75, role: 90, level: 100, overall: 80 },
+      parts: { core: 100, projects: 70, experience: 80, domain: 60, keywords: 100, narrative: 75 },
+      missedScreening: 0,
+      evidence: [{ strength: "strong", place: "experience", onResume: true }],
       found: { experience: 1, projects: 0, skills: 0, coursework: 0, missing: 0 },
       matched: ["Go"],
       missing: [],
@@ -62,8 +67,33 @@ describe("the saved jobs", () => {
     const [read] = readJobs(storage)
     expect(readJobs(storage)).toHaveLength(1)
     expect(read).toMatchObject({ id: "odd", status: "saved", title: "", requirements: [], chosenResumeId: null })
-    // A match saved before the fit was scored has no parts.
-    expect(read.matches).toEqual([expect.objectContaining({ resumeId: "a", score: 100, parts: null })])
+    expect(read.matches).toEqual([expect.objectContaining({ resumeId: "a", score: 100, parts: null, evidence: [] })])
+  })
+
+  test("matched before the score was layered read on: must-haves as tier 1, the rest tier 3, and no layers", () => {
+    const storage = memoryStorage({
+      [JOBS_KEY]: JSON.stringify({
+        version: 1,
+        jobs: [
+          {
+            id: "before",
+            savedAt: "2026-03-01T00:00:00Z",
+            requirements: [
+              { name: "Go", must: true },
+              { name: "Kafka", must: false },
+            ],
+            matches: [{ resumeId: "a", score: 60, parts: { requirements: 50, role: 80, level: 100, overall: 70 } }],
+          },
+        ],
+      }),
+    })
+    const [read] = readJobs(storage)
+    expect(read.requirements).toEqual([
+      { name: "Go", tier: 1, keyword: "" },
+      { name: "Kafka", tier: 3, keyword: "" },
+    ])
+    expect(read).toMatchObject({ role: "other", domain: "", advice: "" })
+    expect(read.matches[0]).toMatchObject({ score: 60, parts: null, missedScreening: 0 })
   })
 
   test("are none when there are none, or what's saved isn't JSON", () => {
@@ -87,7 +117,17 @@ describe("a resume's saved profile", () => {
   const saved = {
     hash: "abc",
     madeAt: "2026-06-01T00:00:00Z",
-    profile: { targets: ["Engineer"], level: "mid" as const, summary: "", experience: ["Go"], projects: [], skills: [], coursework: [] },
+    profile: {
+      targets: ["Engineer"],
+      level: "mid" as const,
+      summary: "",
+      domains: ["payments"],
+      highlights: [{ group: "experience" as const, text: "Payments API, 2K requests/s" }],
+      experience: ["Go"],
+      projects: [],
+      skills: [],
+      coursework: [],
+    },
   }
 
   test("comes back as it was saved, under the resume's id", () => {

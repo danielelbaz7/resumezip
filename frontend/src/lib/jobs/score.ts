@@ -1,62 +1,121 @@
-// A resume's score for a job, worked out here from what the AI said, so the
-// same answer always scores the same. Most of it is the job's requirements,
-// by where each shows up: experience counts most, then projects, then skills,
-// then coursework. The rest is how the resume fits the job beyond them: its
-// role, its level and the AI's overall read (WEIGHTS).
+// A resume's score for a job, in layers, worked out here from what the AI
+// said, so the same answer always scores the same (WEIGHTS):
+// - core: the job's technical requirements, each worth more the more it
+//   matters (TIER_WORTH), earning more the more directly the resume proves it
+//   (STRENGTH_CREDIT): a skill only listed is weak evidence, work described
+//   in a project or job is good, work with its scale and results is strong;
+// - projects, experience, domain and narrative: the AI's 0 to 100 on how
+//   directly the projects resemble the job's work, how well the experience
+//   supports it, how the resume's fields match the job's, and whether the
+//   whole resume tells a believable story for it;
+// - keywords: how many of the requirements' terms are on the resume as
+//   written, as hiring software reads it, checked here rather than by the AI.
+// Each tier 1 (screening) requirement with no evidence at all takes a share
+// off the whole (MISSING_SCREENING).
 
-import { GROUPS, LEVELS, type Group, type Level } from "./profile"
+import { GROUPS, type Group } from "./profile"
+
+export const TIERS = [1, 2, 3] as const
+/** 1: must-have, screening; 2: a strong signal, emphasized in the posting; 3: nice to have. */
+export type Tier = (typeof TIERS)[number]
 
 export interface Requirement {
   name: string
-  /** A must-have, rather than nice to have. */
-  must: boolean
+  tier: Tier
+  /** The term hiring software would search the resume for, as it's usually written ("C++", "Kubernetes"). */
+  keyword: string
 }
 
-/** Where a requirement shows up in a resume: the group that counts most, or nowhere. */
+export const STRENGTHS = ["none", "weak", "good", "strong"] as const
+/** How directly a resume proves a requirement. */
+export type Strength = (typeof STRENGTHS)[number]
+
+/** Where a requirement's best evidence is on a resume, or nowhere. */
 export type Place = Group | "nowhere"
 
-/** How much of a requirement's worth each place earns. */
-// prettier-ignore
-export const CREDIT: Record<Place, number> = { experience: 1, projects: 0.75, skills: 0.5, coursework: 0.25, nowhere: 0 }
-export const MUST_WORTH = 2
-export const NICE_WORTH = 1
-
-export interface Scored {
-  /** 0 to 100. */
-  score: number
-  /** How many requirements show up in each group, and how many nowhere. */
-  found: Record<Group, number> & { missing: number }
-  matched: string[]
-  missing: string[]
+/** What the AI said of one requirement on one resume. */
+export interface Evidence {
+  strength: Strength
+  place: Place
 }
 
-/**
- * Scores a resume: each requirement earns its worth (MUST_WORTH or
- * NICE_WORTH) times the CREDIT of where it shows up, and the score is what
- * they all earn out of what they're worth. `places` is in the requirements'
- * order; a place that's missing is nowhere. A job with no requirements
- * scores 0, since there's nothing to show a fit.
- */
-export function scoreOf(requirements: readonly Requirement[], places: readonly Place[]): Scored {
-  const found: Scored["found"] = { experience: 0, projects: 0, skills: 0, coursework: 0, missing: 0 }
-  const matched: string[] = []
-  const missing: string[] = []
+// prettier-ignore
+export const TIER_WORTH: Record<Tier, number> = { 1: 3, 2: 2, 3: 1 }
+// prettier-ignore
+export const STRENGTH_CREDIT: Record<Strength, number> = { none: 0, weak: 0.4, good: 0.75, strong: 1 }
+/** What's left of the whole score for each tier 1 requirement with no evidence. */
+export const MISSING_SCREENING = 0.8
+
+/** What each layer counts for: a layer the job doesn't have gives its share to the others. */
+// prettier-ignore
+export const WEIGHTS = { core: 0.35, projects: 0.25, experience: 0.2, domain: 0.1, keywords: 0.05, narrative: 0.05 } as const
+export type Layer = keyof typeof WEIGHTS
+
+/** Each layer, 0 to 100: core and keywords are null for a job with no requirements. */
+export type Parts = { core: number | null; keywords: number | null } & Record<"projects" | "experience" | "domain" | "narrative", number>
+
+/** The requirements' layer, 0 to 100: each earns its tier's worth times its evidence's credit; null with none. */
+export function coreOf(requirements: readonly Requirement[], evidence: readonly Evidence[]): number | null {
+  if (requirements.length === 0) return null
   let earned = 0
   let worth = 0
   requirements.forEach((requirement, index) => {
-    const place = places[index] ?? "nowhere"
-    const value = requirement.must ? MUST_WORTH : NICE_WORTH
-    worth += value
-    earned += value * CREDIT[place]
-    if (place === "nowhere") {
-      found.missing++
-      missing.push(requirement.name)
-    } else {
-      found[place]++
-      matched.push(requirement.name)
-    }
+    worth += TIER_WORTH[requirement.tier]
+    earned += TIER_WORTH[requirement.tier] * STRENGTH_CREDIT[evidence[index]?.strength ?? "none"]
   })
-  return { score: worth === 0 ? 0 : Math.round((earned / worth) * 100), found, matched, missing }
+  return Math.round((earned / worth) * 100)
+}
+
+// Lower case, with runs of anything but letters, digits and the marks in
+// names like C++, C# and .NET made one space, so "Node.js" finds "node.js".
+const normal = (text: string) =>
+  ` ${text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}+#.]+/gu, " ")
+    .trim()} `
+
+/** Whether a requirement's term is on the resume as written, whole: "Go" isn't found in "good". */
+export function onResume(keyword: string, resumeText: string): boolean {
+  const term = normal(keyword).trim()
+  return term !== "" && normal(resumeText).includes(` ${term} `)
+}
+
+/** The keywords' layer, 0 to 100: the requirements whose terms are on the resume, by their tier's worth; null with none. */
+export function keywordsOf(requirements: readonly Requirement[], resumeText: string): number | null {
+  if (requirements.length === 0) return null
+  let found = 0
+  let worth = 0
+  for (const requirement of requirements) {
+    worth += TIER_WORTH[requirement.tier]
+    if (onResume(requirement.keyword || requirement.name, resumeText)) found += TIER_WORTH[requirement.tier]
+  }
+  return Math.round((found / worth) * 100)
+}
+
+/** How many tier 1 requirements have no evidence at all on the resume. */
+export const missingScreening = (requirements: readonly Requirement[], evidence: readonly Evidence[]) =>
+  requirements.filter((requirement, index) => requirement.tier === 1 && (evidence[index]?.strength ?? "none") === "none").length
+
+/**
+ * The whole score, 0 to 100: the layers by WEIGHTS, those that are null
+ * sharing out their weight, then MISSING_SCREENING taken off for each tier 1
+ * requirement missed.
+ */
+export function blendedScore(parts: Parts, missed = 0): number {
+  const counted = (Object.keys(WEIGHTS) as Layer[]).filter((layer) => parts[layer] !== null)
+  const weight = counted.reduce((sum, layer) => sum + WEIGHTS[layer], 0)
+  const blend = counted.reduce((sum, layer) => sum + (parts[layer] ?? 0) * WEIGHTS[layer], 0) / weight
+  return Math.round(blend * MISSING_SCREENING ** missed)
+}
+
+/** How many requirements have their best evidence in each group, and how many none. */
+export function foundOf(evidence: readonly Evidence[]): Record<Group, number> & { missing: number } {
+  const found = { experience: 0, projects: 0, skills: 0, coursework: 0, missing: 0 }
+  for (const { strength, place } of evidence) {
+    if (strength === "none" || place === "nowhere") found.missing++
+    else found[place]++
+  }
+  return found
 }
 
 /** Best first: by score, then the resume edited most recently. */
@@ -68,46 +127,11 @@ export function ranked<Match extends { score: number; updatedAt?: string }>(matc
 /** A place as the AI or storage gave it, nowhere when it isn't one. */
 export const placeOf = (value: unknown): Place => (GROUPS.includes(value as Group) ? (value as Group) : "nowhere")
 
-/** How a resume fits a job beyond its requirements, each 0 to 100. */
-export interface Fit {
-  /** How close its target titles and kind of work are to the job's title, as the AI judged. */
-  role: number
-  /** Its level against the job's (levelFitOf); null when the job doesn't say. */
-  level: number | null
-  /** How well it comes across as who the posting describes, as the AI judged. */
-  overall: number
-}
+/** A strength as the AI or storage gave it, none when it isn't one. */
+export const strengthOf = (value: unknown): Strength => (STRENGTHS.includes(value as Strength) ? (value as Strength) : "none")
 
-/** What each part counts for in the score: a part that's missing gives its share to the others. */
-// prettier-ignore
-export const WEIGHTS = { requirements: 0.7, role: 0.1, level: 0.1, overall: 0.1 } as const
-
-/** A level fit by how many levels apart the resume and the job are: the same, one apart, and so on. */
-const LEVEL_FIT = [100, 70, 35, 10, 0]
-
-/** The resume's level against the job's, 0 to 100; null when the job doesn't say its level. */
-export function levelFitOf(resume: Level, job: Level | ""): number | null {
-  if (!job) return null
-  return LEVEL_FIT[Math.abs(LEVELS.indexOf(resume) - LEVELS.indexOf(job))] ?? 0
-}
-
-/**
- * The score, 0 to 100: the requirements' score (scoreOf) and the fit, by
- * WEIGHTS. `requirements` is null for a job with none, and the fit's level
- * null for one that doesn't say its level; either way the other parts share
- * its weight.
- */
-export function blendedScore(requirements: number | null, fit: Fit): number {
-  const parts: [number | null, number][] = [
-    [requirements, WEIGHTS.requirements],
-    [fit.role, WEIGHTS.role],
-    [fit.level, WEIGHTS.level],
-    [fit.overall, WEIGHTS.overall],
-  ]
-  const counted = parts.filter((part): part is [number, number] => part[0] !== null)
-  const weight = counted.reduce((sum, [, share]) => sum + share, 0)
-  return Math.round(counted.reduce((sum, [value, share]) => sum + value * share, 0) / weight)
-}
+/** A tier as the AI or storage gave it, read from the older must-have flag when there's none: a must-have is tier 1, the rest tier 3. */
+export const tierOf = (value: unknown, must?: unknown): Tier => (TIERS.includes(value as Tier) ? (value as Tier) : must === true ? 1 : 3)
 
 /** A 0 to 100 rating as the AI or storage gave it, 0 when it isn't a number. */
 export const ratingOf = (value: unknown): number =>

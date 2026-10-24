@@ -15,8 +15,27 @@ const PROFILE = {
   coursework: [],
 }
 const MATCH = {
-  job: { title: "Backend Engineer", company: "Acme", location: "Remote", level: "mid", requirements: [{ name: "Rust", must: true }] },
-  resumes: [{ id: "r1", places: ["experience"], role: 90, overall: 80, reason: "You've shipped Rust." }],
+  job: {
+    title: "Backend Engineer",
+    company: "Acme",
+    location: "Remote",
+    level: "mid",
+    role: "backend/product",
+    domain: "payments",
+    requirements: [{ name: "Rust", tier: 1, keyword: "Rust" }],
+    advice: "",
+  },
+  resumes: [
+    {
+      id: "r1",
+      evidence: [{ strength: "strong", place: "experience" }],
+      projects: 70,
+      experience: 90,
+      domain: 60,
+      narrative: 80,
+      reason: "You've shipped Rust.",
+    },
+  ],
 }
 
 let address = 0
@@ -96,7 +115,14 @@ test("matches a posting to the profiles, and asks OpenAI and then Azure when the
   expect(match).toEqual({ job: MATCH.job, resumes: MATCH.resumes })
   // The page reads it as it reads the AI's answer, and finds the resume in it.
   expect(matchAnswerOf(match, ["r1"])?.resumes).toEqual({
-    r1: { places: ["experience"], role: 90, overall: 80, reason: "You've shipped Rust." },
+    r1: {
+      evidence: [{ strength: "strong", place: "experience" }],
+      projects: 70,
+      experience: 90,
+      domain: 60,
+      narrative: 80,
+      reason: "You've shipped Rust.",
+    },
   })
   expect(asked()).toEqual([CLAUDE, OPENAI, AZURE])
   const sent = JSON.parse(fetched.mock.calls[2][1]!.body as string)

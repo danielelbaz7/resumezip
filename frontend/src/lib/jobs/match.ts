@@ -5,9 +5,9 @@
 
 import type { ResumeWithId } from "@/lib/resume"
 import { REVIEWER_HEADER, reviewerId } from "@/lib/review/ai/reviewer"
-import { fingerprintOf, hasSource, profileSourceOf, readProfile, type ResumeProfile } from "./profile"
+import { fingerprintOf, GROUPS, hasSource, profileSourceOf, readProfile, type ResumeProfile } from "./profile"
 import { matchAnswerOf, MOST_PER_PROFILES, MOST_PROFILES, sendable, wireId, type MatchAnswer } from "./request"
-import { blendedScore, levelFitOf, ranked, scoreOf } from "./score"
+import { blendedScore, coreOf, foundOf, keywordsOf, missingScreening, onResume, ranked, type Parts } from "./score"
 import { readSavedProfile, saveProfile, type Job, type JobMatch } from "./storage"
 
 export type JobsProblem = "off" | "limit" | "busy" | "empty" | "connection" | "other"
@@ -97,30 +97,42 @@ export async function profilesFor(
 /** The resume's name as the list shows it. */
 const titleOf = (resume: ResumeWithId) => resume.resumeTitle?.trim() || resume.profileSection?.fullName?.trim() || "Untitled resume"
 
-/** Each resume scored for the job, best first, from the AI's answer and each resume's profile, by its id. */
-export function matchesOf(answer: MatchAnswer, matched: readonly ResumeWithId[], profiles: ReadonlyMap<string, ResumeProfile>): JobMatch[] {
-  const { requirements, level } = answer.job
+// The resume's text the keywords are looked for in: what its profile is made
+// from, which is most of what hiring software would read of it.
+const textOf = (resume: ResumeWithId) => GROUPS.flatMap((group) => profileSourceOf(resume)[group]).join("\n")
+
+/** Each resume scored for the job, best first, from the AI's answer (score.ts). */
+export function matchesOf(answer: MatchAnswer, matched: readonly ResumeWithId[]): JobMatch[] {
+  const { requirements } = answer.job
   const scored = matched.flatMap((resume, index) => {
-    const found = answer.resumes[wireId(index)]
-    const profile = profiles.get(resume.id)
-    if (!found || !profile) return []
-    const { score: met, found: places, matched: kept, missing } = scoreOf(requirements, found.places)
-    const parts = {
-      requirements: requirements.length > 0 ? met : null,
-      role: found.role,
-      level: levelFitOf(profile.level, level),
-      overall: found.overall,
+    const given = answer.resumes[wireId(index)]
+    if (!given) return []
+    const text = textOf(resume)
+    const parts: Parts = {
+      core: coreOf(requirements, given.evidence),
+      projects: given.projects,
+      experience: given.experience,
+      domain: given.domain,
+      keywords: keywordsOf(requirements, text),
+      narrative: given.narrative,
     }
+    const missedScreening = missingScreening(requirements, given.evidence)
+    const proven = requirements.filter((_, at) => given.evidence[at].strength !== "none").map((requirement) => requirement.name)
     return [
       {
         resumeId: resume.id,
         resumeTitle: titleOf(resume),
-        score: blendedScore(parts.requirements, parts),
+        score: blendedScore(parts, missedScreening),
         parts,
-        found: places,
-        matched: kept,
-        missing,
-        reason: found.reason,
+        missedScreening,
+        evidence: given.evidence.map((evidence, at) => ({
+          ...evidence,
+          onResume: onResume(requirements[at].keyword || requirements[at].name, text),
+        })),
+        found: foundOf(given.evidence),
+        matched: proven,
+        missing: requirements.filter((_, at) => given.evidence[at].strength === "none").map((requirement) => requirement.name),
+        reason: given.reason,
         updatedAt: resume.updatedAt,
       },
     ]
@@ -163,7 +175,7 @@ export async function matchJob(
     link: link.trim(),
     posting,
     ...match.job,
-    matches: matchesOf(match, matched, profiles),
+    matches: matchesOf(match, matched),
     chosenResumeId: null,
     status: "saved",
     appliedAt: null,

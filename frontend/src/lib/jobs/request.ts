@@ -4,8 +4,10 @@
 // the request ("r1", "r2"), not their own, which can be any text.
 
 import { GROUPS, LEVELS, MOST_TERM_CHARS, readProfile, type Level, type ProfileSource, type ResumeProfile } from "./profile"
-import { MOST_REQUIREMENTS } from "./prompt"
-import { placeOf, ratingOf, type Place, type Requirement } from "./score"
+import { MOST_REQUIREMENTS, ROLE_KINDS } from "./prompt"
+import { placeOf, ratingOf, strengthOf, tierOf, type Evidence, type Requirement } from "./score"
+
+export type RoleKind = (typeof ROLE_KINDS)[number]
 
 /** Resumes summed up in one request; more are sent in several. */
 export const MOST_PER_PROFILES = 5
@@ -105,13 +107,29 @@ export interface PostedJob {
   location: string
   /** "" when the posting doesn't say. */
   level: Level | ""
+  /** The kind of role it is, one of ROLE_KINDS. */
+  role: RoleKind
+  /** The field the work is in; "" when it isn't clear. */
+  domain: string
   requirements: Requirement[]
+  /** Which projects, from any resume, would make the strongest lineup; "" when one resume already is. */
+  advice: string
+}
+
+/** What the AI said of one resume for the job: its evidence for each requirement, in their order, and its other layers (score.ts). */
+export interface ResumeAnswer {
+  evidence: Evidence[]
+  projects: number
+  experience: number
+  domain: number
+  narrative: number
+  reason: string
 }
 
 export interface MatchAnswer {
   job: PostedJob
-  /** By the request's ids: where each requirement shows up, in their order, and why it fits or not. */
-  resumes: Record<string, { places: Place[]; role: number; overall: number; reason: string }>
+  /** By the request's ids. */
+  resumes: Record<string, ResumeAnswer>
 }
 
 /**
@@ -125,23 +143,34 @@ export const answerShapeOf = (match: MatchAnswer) => ({
 
 const text = (value: unknown, most: number) => (typeof value === "string" ? value.trim().slice(0, most) : "")
 
+/** A requirement as the AI or storage gave it, read defensively; one with no name is nothing. */
+export function requirementOf(value: unknown): Requirement | null {
+  if (!isRecord(value)) return null
+  const name = text(value.name, MOST_TERM_CHARS)
+  return name ? { name, tier: tierOf(value.tier, value.must), keyword: text(value.keyword, MOST_TERM_CHARS) } : null
+}
+
 /** The job and the matches in an answer, read defensively; null when it has no job. */
 export function matchAnswerOf(answer: unknown, ids: readonly string[]): MatchAnswer | null {
   if (!isRecord(answer) || !isRecord(answer.job)) return null
   const { job } = answer
-  const requirements: Requirement[] = (Array.isArray(job.requirements) ? job.requirements : [])
-    .filter(isRecord)
-    .map((item) => ({ name: text(item.name, MOST_TERM_CHARS), must: item.must === true }))
-    .filter((requirement) => requirement.name)
+  const requirements = (Array.isArray(job.requirements) ? job.requirements : [])
+    .map(requirementOf)
+    .filter((requirement) => requirement !== null)
     .slice(0, MOST_REQUIREMENTS)
   const resumes: MatchAnswer["resumes"] = {}
   for (const item of Array.isArray(answer.resumes) ? answer.resumes : []) {
     if (!isRecord(item) || typeof item.id !== "string" || !ids.includes(item.id) || resumes[item.id]) continue
-    const places = Array.isArray(item.places) ? item.places : []
+    const evidence = Array.isArray(item.evidence) ? item.evidence : []
     resumes[item.id] = {
-      places: requirements.map((_, index) => placeOf(places[index])),
-      role: ratingOf(item.role),
-      overall: ratingOf(item.overall),
+      evidence: requirements.map((_, index) => {
+        const given = isRecord(evidence[index]) ? evidence[index] : {}
+        return { strength: strengthOf(given.strength), place: placeOf(given.place) }
+      }),
+      projects: ratingOf(item.projects),
+      experience: ratingOf(item.experience),
+      domain: ratingOf(item.domain),
+      narrative: ratingOf(item.narrative),
       reason: text(item.reason, MOST_REASON_CHARS),
     }
   }
@@ -151,8 +180,14 @@ export function matchAnswerOf(answer: unknown, ids: readonly string[]): MatchAns
       company: text(job.company, 200),
       location: text(job.location, 200),
       level: LEVELS.includes(job.level as Level) ? (job.level as Level) : "",
+      role: roleKindOf(job.role),
+      domain: text(job.domain, 200),
       requirements,
+      advice: text(job.advice, 500),
     },
     resumes,
   }
 }
+
+/** A kind of role as the AI or storage gave it, "other" when it isn't one. */
+export const roleKindOf = (value: unknown): RoleKind => (ROLE_KINDS.includes(value as RoleKind) ? (value as RoleKind) : "other")

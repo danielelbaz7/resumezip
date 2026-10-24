@@ -16,12 +16,22 @@ export type Level = (typeof LEVELS)[number]
 /** What the AI is sent of a resume: its printed text in the four groups, a line per item. */
 export type ProfileSource = Record<Group, string[]>
 
+/** A concrete claim from a job or project, with its scale and results, as evidence a requirement is met. */
+export interface Highlight {
+  group: "experience" | "projects"
+  text: string
+}
+
 export type ResumeProfile = {
   /** Job titles the resume suits, up to MOST_TARGETS. */
   targets: string[]
   level: Level
   /** One line on who the resume shows. */
   summary: string
+  /** The fields its work is in ("finance", "compilers"), up to MOST_DOMAINS. */
+  domains: string[]
+  /** Its strongest evidence, up to MOST_HIGHLIGHTS, so a job can be matched on how directly it's proven. */
+  highlights: Highlight[]
 } & Record<Group, string[]>
 
 export const MOST_TARGETS = 5
@@ -29,6 +39,16 @@ export const MOST_TARGETS = 5
 export const MOST_TERMS = 25
 export const MOST_TERM_CHARS = 80
 export const MOST_SUMMARY_CHARS = 300
+export const MOST_DOMAINS = 5
+export const MOST_HIGHLIGHTS = 15
+export const MOST_HIGHLIGHT_CHARS = 160
+
+/**
+ * Goes into each profile's fingerprint, so profiles made for an earlier
+ * version of what a profile holds are made again: 2 added domains and
+ * highlights.
+ */
+export const PROFILE_VERSION = 2
 
 // Bold and italic marks, which the AI doesn't need, and the bullet a line starts with.
 const plain = (text: string) =>
@@ -67,7 +87,7 @@ export const hasSource = (source: ProfileSource) => GROUPS.some((group) => sourc
  * resume's text changes. Not for security: only to tell texts apart.
  */
 export function fingerprintOf(source: ProfileSource): string {
-  const text = JSON.stringify(GROUPS.map((group) => source[group].filter(Boolean)))
+  const text = JSON.stringify([PROFILE_VERSION, ...GROUPS.map((group) => source[group].filter(Boolean))])
   let h1 = 0xdeadbeef
   let h2 = 0x41c6ce57
   for (let i = 0; i < text.length; i++) {
@@ -105,6 +125,15 @@ export function readProfile(value: unknown): ResumeProfile | null {
     targets: strings(item.targets, MOST_TARGETS, MOST_TERM_CHARS),
     level,
     summary: typeof item.summary === "string" ? item.summary.trim().slice(0, MOST_SUMMARY_CHARS) : "",
+    domains: strings(item.domains, MOST_DOMAINS, MOST_TERM_CHARS),
+    highlights: (Array.isArray(item.highlights) ? item.highlights : [])
+      .filter((highlight): highlight is Record<string, unknown> => !!highlight && typeof highlight === "object")
+      .map((highlight) => ({
+        group: highlight.group === "projects" ? ("projects" as const) : ("experience" as const),
+        text: typeof highlight.text === "string" ? highlight.text.trim().slice(0, MOST_HIGHLIGHT_CHARS) : "",
+      }))
+      .filter((highlight) => highlight.text)
+      .slice(0, MOST_HIGHLIGHTS),
     experience: strings(item.experience, MOST_TERMS, MOST_TERM_CHARS),
     projects: strings(item.projects, MOST_TERMS, MOST_TERM_CHARS),
     skills: strings(item.skills, MOST_TERMS, MOST_TERM_CHARS),

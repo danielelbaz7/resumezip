@@ -48,21 +48,29 @@ describe("an answer from /api/jobs", () => {
     expect(profilesAnswerOf(answer, ["r1"]).r1.summary).toBe("")
   })
 
-  test("with a match lines each resume's places up with the requirements, nowhere where one is missing", () => {
+  test("with a match lines each resume's evidence up with the requirements, none where one is missing", () => {
     const answer = {
       job: {
         title: "Engineer",
         company: "Acme",
         location: "",
         level: "senior",
-        requirements: [
-          { name: "Go", must: true },
-          { name: "AWS", must: "yes" },
-        ],
+        role: "quant/HPC",
+        domain: "trading",
+        requirements: [{ name: "C++", tier: 1, keyword: "C++" }, { name: "SIMD", tier: 9 }, { name: "" }],
+        advice: "Lead with the order book project.",
       },
       resumes: [
-        { id: "r1", places: ["projects"], role: 80, overall: 140, reason: "Close." },
-        { id: "r7", places: [], role: 0, overall: 0, reason: "" },
+        {
+          id: "r1",
+          evidence: [{ strength: "good", place: "projects" }],
+          projects: 80,
+          experience: 140,
+          domain: 50,
+          narrative: 60,
+          reason: "Close.",
+        },
+        { id: "r7", evidence: [], projects: 0, experience: 0, domain: 0, narrative: 0, reason: "" },
       ],
     }
     expect(matchAnswerOf(answer, ["r1"])).toEqual({
@@ -71,13 +79,32 @@ describe("an answer from /api/jobs", () => {
         company: "Acme",
         location: "",
         level: "senior",
+        role: "quant/HPC",
+        domain: "trading",
         requirements: [
-          { name: "Go", must: true },
-          { name: "AWS", must: false },
+          { name: "C++", tier: 1, keyword: "C++" },
+          { name: "SIMD", tier: 3, keyword: "" },
         ],
+        advice: "Lead with the order book project.",
       },
-      resumes: { r1: { places: ["projects", "nowhere"], role: 80, overall: 100, reason: "Close." } },
+      resumes: {
+        r1: {
+          evidence: [
+            { strength: "good", place: "projects" },
+            { strength: "none", place: "nowhere" },
+          ],
+          projects: 80,
+          experience: 100,
+          domain: 50,
+          narrative: 60,
+          reason: "Close.",
+        },
+      },
     })
+  })
+
+  test("with a kind of role it doesn't know reads it as other", () => {
+    expect(matchAnswerOf({ job: { role: "wizardry" }, resumes: [] }, [])?.job.role).toBe("other")
   })
 
   test("with no job is nothing", () => {
