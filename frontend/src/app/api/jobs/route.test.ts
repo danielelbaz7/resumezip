@@ -11,14 +11,20 @@ vi.mock("@/lib/jobs/fetchPosting", async (original) => ({
 }))
 const read = vi.mocked(readPosting)
 
-const SOURCE = { id: "r1", experience: ["Engineer · Stripe", "Built a Rust ledger"], projects: [], skills: ["Go"], coursework: [] }
+const SOURCE = {
+  id: "r1",
+  experience: [{ title: "Engineer · Stripe", lines: ["Built a Rust ledger handling 2K payments a second"] }],
+  projects: [],
+  skills: ["Go"],
+  coursework: [],
+}
 const PROFILE = {
   id: "r1",
   targets: ["Backend Engineer"],
   level: "mid",
   summary: "Builds backends.",
   domains: ["payments"],
-  highlights: [{ group: "experience", text: "Rust ledger, 2K payments a second" }],
+  entries: [{ id: "x1", themes: ["payments infrastructure"], skills: ["Rust"], claim: "Rust ledger, 2K payments a second" }],
   experience: ["Rust"],
   projects: [],
   skills: ["Go"],
@@ -114,11 +120,21 @@ test("sums resumes up with Claude first, with the profiles' schema, and hands ba
   const response = await post({ kind: "profiles", resumes: [SOURCE] })
   expect(response.status).toBe(200)
   const { id: _, ...profile } = PROFILE
-  expect(await response.json()).toEqual({ profiles: { r1: profile } })
+  // Each job keeps its title from the resume, and its claim, whose number is in its text.
+  const entries = [
+    {
+      group: "experience",
+      title: "Engineer · Stripe",
+      themes: ["payments infrastructure"],
+      skills: ["Rust"],
+      claim: "Rust ledger, 2K payments a second",
+    },
+  ]
+  expect(await response.json()).toEqual({ profiles: { r1: { ...profile, entries } } })
   expect(asked()).toEqual([CLAUDE])
   const sent = JSON.parse(fetched.mock.calls[0][1]!.body as string)
   expect(sent.output_config.format.schema.required).toEqual(["profiles"])
-  expect(sent.messages[0].content).toContain('<resume id="r1">\nexperience:\n- Engineer · Stripe\n- Built a Rust ledger')
+  expect(sent.messages[0].content).toContain('<resume id="r1">\nexperience:\n[x1] Engineer · Stripe\n  - Built a Rust ledger')
 })
 
 test("matches a posting to the profiles, and asks OpenAI and then Azure when the ones before can't answer", async () => {

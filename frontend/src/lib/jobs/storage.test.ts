@@ -127,7 +127,15 @@ describe("a resume's saved profile", () => {
       level: "mid" as const,
       summary: "",
       domains: ["payments"],
-      highlights: [{ group: "experience" as const, text: "Payments API, 2K requests/s" }],
+      entries: [
+        {
+          group: "experience" as const,
+          title: "Engineer · Stripe",
+          themes: ["payments infrastructure"],
+          skills: ["Go"],
+          claim: "Payments API, 2K requests/s",
+        },
+      ],
       experience: ["Go"],
       projects: [],
       skills: [],

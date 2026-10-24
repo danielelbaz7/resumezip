@@ -4,7 +4,22 @@
 // the request ("r1", "r2"), not their own, which can be any text.
 
 import { yearMonthOf, type GraduationWindow } from "./graduation"
-import { GROUPS, LEVELS, MOST_TERM_CHARS, readProfile, type Level, type ProfileSource, type ResumeProfile } from "./profile"
+import {
+  GROUPS,
+  groupLines,
+  LEVELS,
+  MOST_ENTRIES,
+  MOST_TERM_CHARS,
+  readProfile,
+  ENTRY_GROUPS,
+  entryId,
+  groundedClaim,
+  type Level,
+  type ProfileEntry,
+  type ProfileSource,
+  type ResumeProfile,
+  type SourceEntry,
+} from "./profile"
 import { MOST_REQUIREMENTS, ROLE_KINDS } from "./prompt"
 import {
   onResume,
@@ -32,26 +47,33 @@ export const MOST_LINK_CHARS = 2_000
 const MOST_LINES = 150
 const MOST_LINE_CHARS = 1_000
 const MOST_RESUME_CHARS = 16_000
+const MOST_TITLE_CHARS = 200
 const MOST_REASON_CHARS = 300
 
 /**
- * A resume's groups cut to what a request may hold (sourceOf), so a long
- * resume is sent in part rather than turned away: each line to its length,
- * and lines past the resume's length left off, the later groups' first.
+ * A resume cut to what a request may hold (sourceOf), so a long resume is
+ * sent in part rather than turned away: each line to its length, at most
+ * MOST_ENTRIES jobs and projects, and lines past the resume's length left
+ * off, the later groups' first. A job or project keeps its title.
  */
 export function sendable(source: ProfileSource): ProfileSource {
   let left = MOST_RESUME_CHARS
-  const sent = {} as ProfileSource
-  for (const group of GROUPS) {
-    sent[group] = []
-    for (const line of source[group].slice(0, MOST_LINES)) {
-      const cut = line.slice(0, Math.min(MOST_LINE_CHARS, left))
-      if (!cut) break
-      sent[group].push(cut)
-      left -= cut.length
-    }
+  let lines = 0
+  const take = (line: string) => {
+    if (lines >= MOST_LINES) return ""
+    const cut = line.slice(0, Math.min(MOST_LINE_CHARS, left))
+    left -= cut.length
+    if (cut) lines++
+    return cut
   }
-  return sent
+  const entries = (list: SourceEntry[]) =>
+    list.map((entry) => ({ title: entry.title.slice(0, MOST_TITLE_CHARS), lines: entry.lines.map(take).filter(Boolean) }))
+  return {
+    experience: entries(source.experience.slice(0, MOST_ENTRIES)),
+    projects: entries(source.projects.slice(0, Math.max(0, MOST_ENTRIES - source.experience.length))),
+    skills: source.skills.map(take).filter(Boolean),
+    coursework: source.coursework.map(take).filter(Boolean),
+  }
 }
 
 /** The id a resume goes by in a request: its place in it, from 1. */
@@ -64,21 +86,29 @@ export type MatchRequest = { kind: "match"; posting: string; link: string; profi
 
 const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value)
 
+const isLine = (line: unknown): line is string => typeof line === "string" && line.length <= MOST_LINE_CHARS
+
 function sourceOf(value: unknown): ({ id: string } & ProfileSource) | null {
   if (!isRecord(value) || typeof value.id !== "string" || !WIRE_ID.test(value.id)) return null
-  let chars = 0
-  const source = { id: value.id } as { id: string } & ProfileSource
-  for (const group of GROUPS) {
-    const lines = value[group]
-    if (!Array.isArray(lines) || lines.length > MOST_LINES) return null
-    for (const line of lines) {
-      if (typeof line !== "string" || line.length > MOST_LINE_CHARS) return null
-      chars += line.length
-    }
-    if (chars > MOST_RESUME_CHARS) return null
-    source[group] = lines as string[]
-  }
-  return source
+  const { experience, projects, skills, coursework } = value
+  if (![experience, projects, skills, coursework].every(Array.isArray)) return null
+  const entries = [...(experience as unknown[]), ...(projects as unknown[])]
+  if (entries.length > MOST_ENTRIES) return null
+  const isEntry = (entry: unknown): entry is SourceEntry =>
+    isRecord(entry) &&
+    typeof entry.title === "string" &&
+    entry.title.length <= MOST_TITLE_CHARS &&
+    Array.isArray(entry.lines) &&
+    entry.lines.every(isLine)
+  if (!entries.every(isEntry) || !(skills as unknown[]).every(isLine) || !(coursework as unknown[]).every(isLine)) return null
+  const source = { experience, projects, skills, coursework } as ProfileSource
+  const all = GROUPS.flatMap((group) => groupLines(source, group))
+  if (
+    all.length > MOST_LINES + MOST_ENTRIES ||
+    all.reduce((sum, line) => sum + line.length, 0) > MOST_RESUME_CHARS + MOST_ENTRIES * MOST_TITLE_CHARS
+  )
+    return null
+  return { id: value.id, ...source }
 }
 
 /** A request's body as the route takes it, or null if it isn't one the page would send. */
@@ -118,28 +148,50 @@ function isAnsweredProfile(item: unknown): item is Record<string, unknown> {
     LEVELS.includes(item.level as Level) &&
     typeof item.summary === "string" &&
     isStrings(item.domains) &&
-    Array.isArray(item.highlights) &&
-    item.highlights.every(
-      (highlight) =>
-        isRecord(highlight) && (highlight.group === "experience" || highlight.group === "projects") && typeof highlight.text === "string",
+    Array.isArray(item.entries) &&
+    item.entries.every(
+      (entry) =>
+        isRecord(entry) &&
+        typeof entry.id === "string" &&
+        isStrings(entry.themes) &&
+        isStrings(entry.skills) &&
+        typeof entry.claim === "string",
     ) &&
     GROUPS.every((group) => isStrings(item[group]))
   )
 }
 
 /**
- * The profiles in an answer, by the request's ids, cut to their limits; null
- * when it leaves one out or has one that isn't whole, so a resume is never
- * matched on a profile made up of what wasn't said.
+ * The profiles in an answer, by the request's ids, cut to their limits, each
+ * job and project with its title as the resume has it and its claim only if
+ * its numbers are in its own text (groundedClaim). Null when the answer
+ * leaves out a resume, or a job or project of one, or has one that isn't
+ * whole, so a resume is never matched on a profile made up of what wasn't said.
  */
-export function profilesAnswerOf(answer: unknown, ids: readonly string[]): Record<string, ResumeProfile> | null {
+export function profilesAnswerOf(answer: unknown, sent: readonly ({ id: string } & ProfileSource)[]): Record<string, ResumeProfile> | null {
   const items = isRecord(answer) && Array.isArray(answer.profiles) ? answer.profiles : null
   if (!items) return null
   const profiles: Record<string, ResumeProfile> = {}
-  for (const id of ids) {
-    const item = items.find((given) => isRecord(given) && given.id === id)
+  for (const source of sent) {
+    const item = items.find((given) => isRecord(given) && given.id === source.id)
     if (!isAnsweredProfile(item)) return null
-    profiles[id] = readProfile(item)!
+    const given = item.entries as Record<string, unknown>[]
+    const entries: ProfileEntry[] = []
+    for (const group of ENTRY_GROUPS) {
+      for (const [index, entry] of source[group].entries()) {
+        const answered = given.find((one) => one.id === entryId(group, index))
+        if (!answered) return null
+        entries.push({
+          group,
+          title: entry.title,
+          themes: answered.themes as string[],
+          skills: answered.skills as string[],
+          claim: groundedClaim(answered.claim as string, entry),
+        })
+      }
+    }
+    // Read as storage reads one, which cuts each list to its limits.
+    profiles[source.id] = readProfile({ ...item, entries })!
   }
   return profiles
 }

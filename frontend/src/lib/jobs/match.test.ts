@@ -16,7 +16,7 @@ const profile = (skills: string[]): ResumeProfile => ({
   level: "mid",
   summary: "",
   domains: [],
-  highlights: [],
+  entries: [],
   experience: [],
   projects: [],
   skills,
