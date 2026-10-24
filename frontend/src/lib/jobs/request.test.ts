@@ -113,7 +113,8 @@ describe("an answer with a match", () => {
   test("keeps what the posting says, each resume's evidence for each requirement, and ratings in range", () => {
     expect(matchAnswerOf({ job: job(), resumes: [resume("r1")] }, ["r1"], POSTING)).toEqual({
       isPosting: true,
-      job: { ...job(), requirements: [{ name: "C++", tier: 1, keyword: "C++", quote: "proficiency in C++" }] },
+      // Whether it's a posting is beside the job, not in it.
+      job: { ...job(), isPosting: undefined, requirements: [{ name: "C++", tier: 1, keyword: "C++", quote: "proficiency in C++" }] },
       resumes: {
         r1: {
           evidence: [{ strength: "good", place: "projects" }],

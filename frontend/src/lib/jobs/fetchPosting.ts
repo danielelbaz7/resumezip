@@ -37,9 +37,12 @@ for (const [address, prefix] of [
   ["192.0.0.0", 24], ["192.0.2.0", 24], ["192.88.99.0", 24], ["192.168.0.0", 16], ["198.18.0.0", 15], ["198.51.100.0", 24],
   ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4],
 ] as const) blocked.addSubnet(address, prefix, "ipv4")
+// No rule for IPv4-mapped addresses (::ffff:0:0/96): BlockList checks one
+// like ::ffff:127.0.0.1 against the IPv4 rules above already, and given that
+// rule it blocks every IPv4 address, so no link on one could be read.
 // prettier-ignore
 for (const [address, prefix] of [
-  ["::", 128], ["::1", 128], ["::ffff:0:0", 96], ["64:ff9b::", 96], ["100::", 64], ["2001::", 32], ["2001:db8::", 32],
+  ["::", 128], ["::1", 128], ["64:ff9b::", 96], ["100::", 64], ["2001::", 32], ["2001:db8::", 32],
   ["2002::", 16], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8],
 ] as const) blocked.addSubnet(address, prefix, "ipv6")
 

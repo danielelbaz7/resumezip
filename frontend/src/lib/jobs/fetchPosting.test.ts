@@ -48,7 +48,7 @@ describe("an address the server connects to", () => {
     }
   })
 
-  test("is let through when it is", () => {
+  test("is let through when it is, whether it's IPv4 or IPv6", () => {
     for (const address of ["93.184.216.34", "140.82.112.3", "2606:4700::6810:84e5"]) expect(blockedAddress(address), address).toBe(false)
   })
 })
