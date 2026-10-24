@@ -52,7 +52,11 @@ describe("a tailoring answer", () => {
       ],
       gaps: [gap("Kubernetes", "Experience with Kubernetes is a must")],
     }
-    expect(tailorAnswerOf(answer, source, POSTING)).toEqual(answer)
+    // PostgreSQL, asked for in a new group, goes in Tools, which holds any tool.
+    expect(tailorAnswerOf(answer, source, POSTING)).toEqual({
+      ...answer,
+      add: [answer.add[0], { ...answer.add[1], group: "s2", newGroup: "" }],
+    })
   })
 
   test("drops a skill whose words aren't in its job or project, one the resume lists, a repeat, or one with no group", () => {
@@ -81,10 +85,8 @@ describe("a tailoring answer", () => {
         gap("Terraform", "Terraform is a plus", "s9"),
       ],
     }
-    // A gap with a group the resume doesn't have goes in a new group.
-    expect(tailorAnswerOf(answer, source, POSTING)?.gaps).toEqual([
-      { ...gap("Terraform", "Terraform is a plus"), group: "new", newGroup: "Skills" },
-    ])
+    // A gap with a group the resume doesn't have goes in the general one it has.
+    expect(tailorAnswerOf(answer, source, POSTING)?.gaps).toEqual([gap("Terraform", "Terraform is a plus", "s2")])
   })
 
   test("is nothing when it isn't whole, rather than filled in", () => {
@@ -92,6 +94,51 @@ describe("a tailoring answer", () => {
     expect(tailorAnswerOf({ add: [{ skill: "Kafka" }], gaps: [] }, source, POSTING)).toBeNull()
     expect(tailorAnswerOf({ add: [], gaps: [{ requirement: "Kubernetes" }] }, source, POSTING)).toBeNull()
     expect(tailorAnswerOf("busy", source, POSTING)).toBeNull()
+  })
+})
+
+describe("a tailoring's categories", () => {
+  const only = (...names: string[]): TailorSource => ({
+    ...source,
+    skillGroups: names.map((name, index) => ({ entryId: index + 1, name, details: "" })),
+  })
+  // Kafka shown in the job, and Postgres in the project, each asked for in the group given.
+  const groupsOf = (groups: TailorSource, ...asked: [string, string][]) =>
+    tailorAnswerOf(
+      {
+        add: asked.map(([group, newGroup], index) =>
+          index === 0 ? add("Kafka", "x1", "Kafka", group, newGroup) : add("Postgres", "p1", "Postgres", group, newGroup),
+        ),
+        gaps: [],
+      },
+      groups,
+      POSTING,
+    )?.add.map((added) => [added.group, added.newGroup])
+
+  test("are the resume's own when one has the name a new one would", () => {
+    expect(groupsOf(only("Languages", "Database"), ["new", "Databases"])).toEqual([["s2", ""]])
+    expect(groupsOf(only("Languages", "Frameworks & Libraries"), ["new", "Frameworks"])).toEqual([["s2", ""]])
+  })
+
+  test("go in a general one the resume has rather than a new one", () => {
+    for (const general of ["Technologies", "Other", "Technical Skills", "Developer Tools"]) {
+      expect(groupsOf(only("Languages", general), ["new", "Cloud"]), general).toEqual([["s2", ""]])
+    }
+  })
+
+  test("are at most one new one, when nothing the resume has fits", () => {
+    expect(groupsOf(only("Languages"), ["new", "Streaming"], ["new", "Databases"])).toEqual([
+      ["new", "Tools"],
+      ["new", "Tools"],
+    ])
+    expect(groupsOf(only("Languages"), ["new", "Databases"], ["new", "databases"])).toEqual([
+      ["new", "Databases"],
+      ["new", "Databases"],
+    ])
+  })
+
+  test("are a new one when the resume has none at all", () => {
+    expect(groupsOf(only(), ["new", "Tools"])).toEqual([["new", "Tools"]])
   })
 })
 
