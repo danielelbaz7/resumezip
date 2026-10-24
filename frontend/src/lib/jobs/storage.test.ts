@@ -10,6 +10,8 @@ import {
   readSavedProfile,
   saveJobs,
   saveProfile,
+  withChosen,
+  withStatus,
   type Job,
 } from "./storage"
 
@@ -153,5 +155,31 @@ describe("a resume's saved profile", () => {
     expect(readSavedProfile(storage, "kept")).toEqual(saved)
     expect(readSavedProfile(storage, "deleted")).toBeNull()
     expect(storage.getItem("resume:deleted")).toBe("{}")
+  })
+})
+
+describe("a job's status", () => {
+  const now = new Date("2026-07-01T12:00:00.000Z")
+
+  test("goes to Applied when a resume is chosen for a job only saved, the date applied with it", () => {
+    expect(withChosen(job("j", "2026-06-01T00:00:00Z"), "a", now)).toMatchObject({
+      chosenResumeId: "a",
+      status: "applied",
+      appliedAt: now.toISOString(),
+    })
+  })
+
+  test("stays as it is when a resume is chosen for a job further along, or chosen again", () => {
+    for (const status of ["applied", "interviewing", "offer", "rejected"] as const) {
+      const further = { ...job("j", "2026-06-01T00:00:00Z", status), appliedAt: "2026-06-10T00:00:00.000Z" }
+      expect(withChosen(further, "b", now)).toEqual({ ...further, chosenResumeId: "b" })
+    }
+  })
+
+  test("keeps the first date applied when it's changed by hand, and sets none for Saved", () => {
+    const applied = withStatus(job("j", "2026-06-01T00:00:00Z"), "interviewing", now)
+    expect(applied.appliedAt).toBe(now.toISOString())
+    expect(withStatus(applied, "offer", new Date("2026-08-01T00:00:00Z")).appliedAt).toBe(now.toISOString())
+    expect(withStatus(job("j", "2026-06-01T00:00:00Z"), "saved", now).appliedAt).toBeNull()
   })
 })

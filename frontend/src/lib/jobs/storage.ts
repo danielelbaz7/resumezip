@@ -185,6 +185,21 @@ export function jobOf(value: unknown): Job | null {
   }
 }
 
+/** A job with its status changed, and the date applied set the first time it's past Saved. */
+export function withStatus(job: Job, status: Status, now = new Date()): Job {
+  return { ...job, status, appliedAt: job.appliedAt ?? (status === "saved" ? null : now.toISOString()) }
+}
+
+/**
+ * A job with the resume sent for it chosen: one only saved is then marked
+ * Applied, since choosing the resume is sending it, and one further along
+ * keeps its status.
+ */
+export function withChosen(job: Job, resumeId: string, now = new Date()): Job {
+  const chosen = { ...job, chosenResumeId: resumeId }
+  return job.status === "saved" ? withStatus(chosen, "applied", now) : chosen
+}
+
 /** The saved jobs, newest first; none when there are none or they can't be read. */
 export function readJobs(storage: Storage | null): Job[] {
   try {
