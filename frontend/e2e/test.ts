@@ -32,6 +32,8 @@ export const test = base.extend<{ noRealAi: void }, { noBlurInWebKit: void }>({
   noRealAi: [
     async ({ context }, use) => {
       await context.route("**/api/review", (route) => route.fulfill({ status: 503, json: { error: "off" } }))
+      // The Jobs tab's too (src/app/api/jobs).
+      await context.route("**/api/jobs", (route) => route.fulfill({ status: 503, json: { error: "off" } }))
       await use()
     },
     { auto: true },

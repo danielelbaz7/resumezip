@@ -23,7 +23,7 @@ import UnreadableData from "@/components/dashboard/UnreadableData"
 import { focusShown, nameOf, useListActions } from "@/components/dashboard/useListActions"
 import { switchView } from "@/components/dashboard/viewSwitch"
 import { reducedMotion } from "@/components/editor/layout"
-import { BLUE_PILL, sheetPill, WHITE_PILL } from "@/components/pills"
+import { BLUE_PILL, SEGMENT, SEGMENTS, sheetPill, WHITE_PILL } from "@/components/pills"
 import DownloadFailed from "@/components/site/DownloadFailed"
 import NotSaved from "@/components/site/NotSaved"
 import SiteFooter from "@/components/site/SiteFooter"
@@ -43,6 +43,15 @@ import { CARD_SHEET, COUNT_BADGE, PAPER_FRAME } from "@/components/site/sheet"
 
 // Only loaded when someone opens a PDF or Word file that resumezip didn't make.
 const ImportReview = dynamic(() => import("@/components/dashboard/ImportReview"))
+// Only loaded when the Jobs tab is opened.
+const JobsTab = dynamic(() => import("@/components/dashboard/JobsTab"))
+
+/** The dashboard's tabs: the resumes, and the jobs matched to them. */
+const TABS = [
+  { id: "resumes", name: "Resumes" },
+  { id: "jobs", name: "Jobs" },
+] as const
+type Tab = (typeof TABS)[number]["id"]
 
 const ACCEPTED_FILES =
   ".pdf,.docx,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/json"
@@ -154,6 +163,24 @@ export default function DashboardPage() {
   const viewRef = useRef<HTMLDivElement>(null)
   const flying = useRef<HTMLElement | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  // Jobs when the address ends in #jobs, so a reload stays there.
+  const [tab, setTab] = useState<Tab>("resumes")
+  const tabButtons = useRef(new Map<Tab, HTMLButtonElement>())
+  useLayoutEffect(() => {
+    if (window.location.hash === "#jobs") setTab("jobs")
+  }, [])
+  const showTab = (next: Tab) => {
+    setTab(next)
+    history.replaceState(history.state, "", next === "jobs" ? "#jobs" : window.location.pathname + window.location.search)
+  }
+  const onTabKey = (event: React.KeyboardEvent, index: number) => {
+    const last = TABS.length - 1
+    const next = { ArrowLeft: index === 0 ? last : index - 1, ArrowRight: index === last ? 0 : index + 1, Home: 0, End: last }[event.key]
+    if (next === undefined) return
+    event.preventDefault()
+    showTab(TABS[next].id)
+    tabButtons.current.get(TABS[next].id)?.focus()
+  }
   const filesInput = useRef<HTMLInputElement>(null)
   // The file being read. Cancelling (or opening another file) stops it, and
   // means it can't reappear if it was just finishing.
@@ -548,146 +575,179 @@ export default function DashboardPage() {
       {/* One sheet in a frosted frame over the sky, holding the greeting, the toolbar and the resumes. */}
       <div className={PAPER_FRAME}>
         <main className={CARD_SHEET}>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <p className={COUNT_BADGE}>
-                <HardDrive className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="truncate">
-                  {loaded
-                    ? `${count(total, "resume")} · ${saveStatus === "saved" ? "Saved in this browser" : "Not saved"}`
-                    : "Saved in this browser"}
-                </span>
-              </p>
-              {/* With nothing to download it's there, as the rest of the page is, but can't be used. */}
-              {loaded && (
+          <div role="tablist" aria-label="Dashboard" className={`${SEGMENTS} mb-6 self-start`}>
+            {TABS.map((option, index) => {
+              const selected = option.id === tab
+              return (
                 <button
+                  key={option.id}
+                  ref={(element) => {
+                    if (element) tabButtons.current.set(option.id, element)
+                    else tabButtons.current.delete(option.id)
+                  }}
                   type="button"
-                  onClick={downloadAll}
-                  disabled={total === 0}
-                  className={sheetPill("text", "h-[34px] px-3.5 text-[14px]")}
+                  role="tab"
+                  id={`dashboard-tab-${option.id}`}
+                  aria-selected={selected}
+                  aria-controls="dashboard-panel"
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => showTab(option.id)}
+                  onKeyDown={(event) => onTabKey(event, index)}
+                  className={`${SEGMENT} px-[15px] ${selected ? "bg-sheet text-ink shadow-[0_1px_3px_rgb(17_19_24/0.14)]" : "text-ink-3 hover:text-ink"}`}
                 >
-                  <Download aria-hidden="true" />
-                  Download all
+                  {option.name}
                 </button>
-              )}
-            </div>
-            {/* The same with no resumes, so the page doesn't change shape when the first arrives. */}
-            {loaded && (
-              <div className="flex flex-wrap items-center gap-2.5 max-sm:w-full max-sm:[&>*]:flex-1">
-                <button type="button" onClick={chooseFile} className={WHITE_PILL}>
-                  <Upload aria-hidden="true" />
-                  Open a file
-                </button>
-                <button type="button" onClick={chooseFiles} className={WHITE_PILL}>
-                  <Files aria-hidden="true" />
-                  Bulk import
-                </button>
-                <button type="button" onClick={() => setCreating(true)} className={BLUE_PILL}>
-                  <Plus aria-hidden="true" />
-                  New resume
-                </button>
-              </div>
-            )}
+              )
+            })}
           </div>
-
-          <Greeting resumes={kept} loaded={loaded} />
-
-          {(saveStatus !== "saved" || allOpened || failedResumes.length > 0) && (
-            <div className="mx-auto mt-8 flex w-full max-w-[720px] flex-col gap-4">
-              <NotSaved />
-              {allOpened && (
-                <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-                  <span className="label-mono shrink-0 text-ink-2">Opened</span>
-                  <p className="min-w-0 flex-[1_1_280px] text-sm leading-relaxed text-ink">{allOpened}</p>
-                </div>
-              )}
-              {failedResumes.map((resume) => (
-                <DownloadFailed
-                  key={`${resume.id}-${actions.failed[resume.id].count}`}
-                  failure={actions.failed[resume.id]}
-                  title={nameOf(resume)}
-                  retrying={actions.downloading.includes(resume.id)}
-                  onRetry={() => actions.download(resume)}
-                />
-              ))}
-            </div>
-          )}
-          <div className="mx-auto w-full max-w-[720px] empty:hidden [&>*]:mt-8">
-            <UnreadableData />
-          </div>
-          <p role="status" className="sr-only">
-            {announcement}
-          </p>
-
-          {/* The bar is straight in main, not in the block with the resumes, which fades in (page-in in
-              globals.css): glass in a fading block can't blur what's behind it, so the bar would change color
-              as the fade ended. */}
-          {loaded && (
-            <>
-              <Filters
-                className="mt-8 md:mt-5"
-                search={<SearchBar resumes={kept} query={query} onQuery={setQuery} />}
-                tags={tags}
-                tag={tag}
-                onTag={setTag}
-                sort={sort}
-                onSort={setSort}
-                view={view}
-                onView={chooseView}
-              />
-              <div className="mt-5 flex flex-col">
-                {showing.length === 0 ? (
-                  <EmptyShelf onNew={() => setCreating(true)} onChooseFile={chooseFile} dragging={dragging} />
-                ) : shown.length === 0 ? (
-                  <div className="flex flex-col items-center gap-4 py-16 text-center">
-                    <p className="text-[22px] font-medium leading-tight tracking-[-0.02em]">
-                      {query.trim() ? (
-                        <>
-                          No resumes match &ldquo;{query.trim()}&rdquo;{tag !== EVERY_TYPE && ` in ${tagName(tag)}`}.
-                        </>
-                      ) : (
-                        "None here."
-                      )}
+          <div id="dashboard-panel" role="tabpanel" aria-labelledby={`dashboard-tab-${tab}`} className="flex flex-col">
+            {tab === "jobs" ? (
+              <JobsTab resumes={kept} loaded={loaded} onOpen={edit} />
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <p className={COUNT_BADGE}>
+                      <HardDrive className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="truncate">
+                        {loaded
+                          ? `${count(total, "resume")} · ${saveStatus === "saved" ? "Saved in this browser" : "Not saved"}`
+                          : "Saved in this browser"}
+                      </span>
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuery("")
-                        setTag(EVERY_TYPE)
-                      }}
-                      className={WHITE_PILL}
-                    >
-                      Show all
-                    </button>
-                  </div>
-                ) : (
-                  // A new one for each view, so the fade starts from nothing.
-                  <div key={view} ref={viewRef} className={fadeIn ? "view-fade" : undefined}>
-                    {view === "pages" ? (
-                      <ResumeGrid
-                        resumes={shown}
-                        actions={actions}
-                        onDelete={remove}
-                        onRetype={setRetyping}
-                        leaving={leaving}
-                        returning={returning}
-                        onNew={() => setCreating(true)}
-                      />
-                    ) : (
-                      <ResumeTable
-                        resumes={shown}
-                        actions={actions}
-                        onDelete={remove}
-                        onRetype={setRetyping}
-                        leaving={leaving}
-                        returning={returning}
-                      />
+                    {/* With nothing to download it's there, as the rest of the page is, but can't be used. */}
+                    {loaded && (
+                      <button
+                        type="button"
+                        onClick={downloadAll}
+                        disabled={total === 0}
+                        className={sheetPill("text", "h-[34px] px-3.5 text-[14px]")}
+                      >
+                        <Download aria-hidden="true" />
+                        Download all
+                      </button>
                     )}
                   </div>
+                  {/* The same with no resumes, so the page doesn't change shape when the first arrives. */}
+                  {loaded && (
+                    <div className="flex flex-wrap items-center gap-2.5 max-sm:w-full max-sm:[&>*]:flex-1">
+                      <button type="button" onClick={chooseFile} className={WHITE_PILL}>
+                        <Upload aria-hidden="true" />
+                        Open a file
+                      </button>
+                      <button type="button" onClick={chooseFiles} className={WHITE_PILL}>
+                        <Files aria-hidden="true" />
+                        Bulk import
+                      </button>
+                      <button type="button" onClick={() => setCreating(true)} className={BLUE_PILL}>
+                        <Plus aria-hidden="true" />
+                        New resume
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <Greeting resumes={kept} loaded={loaded} />
+
+                {(saveStatus !== "saved" || allOpened || failedResumes.length > 0) && (
+                  <div className="mx-auto mt-8 flex w-full max-w-[720px] flex-col gap-4">
+                    <NotSaved />
+                    {allOpened && (
+                      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                        <span className="label-mono shrink-0 text-ink-2">Opened</span>
+                        <p className="min-w-0 flex-[1_1_280px] text-sm leading-relaxed text-ink">{allOpened}</p>
+                      </div>
+                    )}
+                    {failedResumes.map((resume) => (
+                      <DownloadFailed
+                        key={`${resume.id}-${actions.failed[resume.id].count}`}
+                        failure={actions.failed[resume.id]}
+                        title={nameOf(resume)}
+                        retrying={actions.downloading.includes(resume.id)}
+                        onRetry={() => actions.download(resume)}
+                      />
+                    ))}
+                  </div>
                 )}
-              </div>
-            </>
-          )}
+                <div className="mx-auto w-full max-w-[720px] empty:hidden [&>*]:mt-8">
+                  <UnreadableData />
+                </div>
+                <p role="status" className="sr-only">
+                  {announcement}
+                </p>
+
+                {/* The bar is straight in main, not in the block with the resumes, which fades in (page-in in
+              globals.css): glass in a fading block can't blur what's behind it, so the bar would change color
+              as the fade ended. */}
+                {loaded && (
+                  <>
+                    <Filters
+                      className="mt-8 md:mt-5"
+                      search={<SearchBar resumes={kept} query={query} onQuery={setQuery} />}
+                      tags={tags}
+                      tag={tag}
+                      onTag={setTag}
+                      sort={sort}
+                      onSort={setSort}
+                      view={view}
+                      onView={chooseView}
+                    />
+                    <div className="mt-5 flex flex-col">
+                      {showing.length === 0 ? (
+                        <EmptyShelf onNew={() => setCreating(true)} onChooseFile={chooseFile} dragging={dragging} />
+                      ) : shown.length === 0 ? (
+                        <div className="flex flex-col items-center gap-4 py-16 text-center">
+                          <p className="text-[22px] font-medium leading-tight tracking-[-0.02em]">
+                            {query.trim() ? (
+                              <>
+                                No resumes match &ldquo;{query.trim()}&rdquo;{tag !== EVERY_TYPE && ` in ${tagName(tag)}`}.
+                              </>
+                            ) : (
+                              "None here."
+                            )}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuery("")
+                              setTag(EVERY_TYPE)
+                            }}
+                            className={WHITE_PILL}
+                          >
+                            Show all
+                          </button>
+                        </div>
+                      ) : (
+                        // A new one for each view, so the fade starts from nothing.
+                        <div key={view} ref={viewRef} className={fadeIn ? "view-fade" : undefined}>
+                          {view === "pages" ? (
+                            <ResumeGrid
+                              resumes={shown}
+                              actions={actions}
+                              onDelete={remove}
+                              onRetype={setRetyping}
+                              leaving={leaving}
+                              returning={returning}
+                              onNew={() => setCreating(true)}
+                            />
+                          ) : (
+                            <ResumeTable
+                              resumes={shown}
+                              actions={actions}
+                              onDelete={remove}
+                              onRetype={setRetyping}
+                              leaving={leaving}
+                              returning={returning}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </main>
       </div>
 
