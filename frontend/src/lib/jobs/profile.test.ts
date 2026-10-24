@@ -54,11 +54,23 @@ describe("a profile read back", () => {
       targets: ["A", "B", "C", "D", "E"],
       level: "entry",
       summary: "Builds.",
+      domains: [],
+      highlights: [],
       experience: [],
       projects: [],
       skills: ["Go", "x".repeat(80)],
       coursework: [],
     })
+  })
+
+  test("keeps its highlights, each from experience or projects, cut to their length", () => {
+    const read = readProfile({
+      highlights: [{ group: "projects", text: "Redis clone, 100K ops/s" }, { group: "hobbies", text: "x".repeat(200) }, { text: " " }],
+    })
+    expect(read?.highlights).toEqual([
+      { group: "projects", text: "Redis clone, 100K ops/s" },
+      { group: "experience", text: "x".repeat(160) },
+    ])
   })
 
   test("is nothing when it isn't an object", () => {

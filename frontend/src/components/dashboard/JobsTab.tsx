@@ -21,6 +21,7 @@ import {
   type JobMatch,
   type Status,
 } from "@/lib/jobs/storage"
+import type { Strength, Tier } from "@/lib/jobs/score"
 import type { ResumeWithId } from "@/lib/resume"
 import { getStorage } from "@/lib/resumeKeys"
 
@@ -35,14 +36,19 @@ function hrefOf(link: string): string {
   return URL.canParse(typed) && /^https?:$/.test(new URL(typed).protocol) ? typed : ""
 }
 
-// What a score is made of, as the list shows it: a part the job didn't have to score is left out.
+// A score's layers, as the list shows them, in the order they count for: one the job didn't have to score is left out.
 const partsText = (parts: NonNullable<JobMatch["parts"]>) =>
   [
-    parts.requirements !== null && `Requirements ${parts.requirements}`,
-    `Role ${parts.role}`,
-    parts.level !== null && `Level ${parts.level}`,
-    `Overall ${parts.overall}`,
+    parts.core !== null && `Core ${parts.core}`,
+    `Projects ${parts.projects}`,
+    `Experience ${parts.experience}`,
+    `Domain ${parts.domain}`,
+    parts.keywords !== null && `Keywords ${parts.keywords}`,
+    `Story ${parts.narrative}`,
   ].filter(Boolean)
+
+const TIER_NAMES: Record<Tier, string> = { 1: "must-have", 2: "strong signal", 3: "nice to have" }
+const STRENGTH_NAMES: Record<Strength, string> = { strong: "Strong proof", good: "Shown", weak: "Only listed", none: "Not shown" }
 
 const stepText = (step: Step) =>
   step.kind === "match"
@@ -131,8 +137,9 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
         <div className="flex flex-col gap-1">
           <h2 className="font-serif text-[28px] leading-tight tracking-[-0.02em] text-ink">Which resume fits this job?</h2>
           <p className="text-[15px] leading-relaxed text-ink-2">
-            Paste a job posting. Each resume is scored mostly on where the job’s requirements show up: experience first, then projects,
-            skills and coursework. The rest is how its role, level and overall fit match the job.
+            Paste a job posting. Each resume is scored in layers: how directly it proves the job’s core requirements, then how relevant its
+            projects, experience and domain are, whether the job’s keywords are on it, and whether it tells one story for the role. A
+            must-have with no evidence costs a share of the score.
           </p>
         </div>
         <label htmlFor={postingId} className="label-mono text-ink-2">
@@ -292,7 +299,10 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
             )}
             {job.appliedAt && <span>Applied {dateOf(job.appliedAt)}</span>}
             {job.level && <span>Level: {job.level}</span>}
+            {job.role !== "other" && <span>Role: {job.role}</span>}
+            {job.domain && <span>Domain: {job.domain}</span>}
           </div>
+          {job.advice && <p className="text-[14px] leading-normal text-ink">{job.advice}</p>}
 
           {job.requirements.length > 0 && (
             <div className="flex flex-col gap-2">
@@ -301,7 +311,7 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
                 {job.requirements.map((requirement) => (
                   <li key={requirement.name} className="rounded-full bg-fill px-2.5 py-1 text-[13px] text-ink">
                     {requirement.name}
-                    {requirement.must ? "" : " · nice to have"}
+                    <span className="text-ink-3"> · {TIER_NAMES[requirement.tier]}</span>
                   </li>
                 ))}
               </ul>
@@ -334,7 +344,38 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
                     {match.parts && <p className="font-mono text-[12px] tabular-nums text-ink-2">{partsText(match.parts).join(" · ")}</p>}
                     {where.length > 0 && <p className="text-[13px] text-ink-2">{where.join(" · ")}</p>}
                     {match.reason && <p className="text-[14px] leading-normal text-ink">{match.reason}</p>}
+                    {match.missedScreening > 0 && (
+                      <p className="text-[13px] text-alert">
+                        Missing {match.missedScreening === 1 ? "a must-have" : `${match.missedScreening} must-haves`}:{" "}
+                        {job.requirements
+                          .filter((requirement, at) => requirement.tier === 1 && match.evidence[at]?.strength === "none")
+                          .map((requirement) => requirement.name)
+                          .join(", ")}
+                      </p>
+                    )}
                     {match.missing.length > 0 && <p className="text-[13px] text-ink-3">Missing: {match.missing.join(", ")}</p>}
+                    {match.evidence.length === job.requirements.length && match.evidence.length > 0 && (
+                      <details className="text-[13px]">
+                        <summary className="cursor-pointer text-ink-2">Requirement by requirement</summary>
+                        <ul className="mt-2 flex flex-col gap-1">
+                          {job.requirements.map((requirement, at) => {
+                            const { strength, place, onResume } = match.evidence[at]
+                            return (
+                              <li key={requirement.name} className="flex flex-wrap justify-between gap-x-3 text-ink">
+                                <span>
+                                  {requirement.name} <span className="text-ink-3">· {TIER_NAMES[requirement.tier]}</span>
+                                </span>
+                                <span className="text-ink-2">
+                                  {STRENGTH_NAMES[strength]}
+                                  {strength !== "none" && place !== "nowhere" ? ` in ${place}` : ""} ·{" "}
+                                  {onResume ? "keyword on it" : "keyword not on it"}
+                                </span>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </details>
+                    )}
                     <div className="mt-1 flex flex-wrap gap-2">
                       <button
                         type="button"

@@ -6,7 +6,8 @@
 
 import { LEVELS, MOST_TERM_CHARS, readProfile, type Level, type ResumeProfile } from "./profile"
 import { MOST_REQUIREMENTS } from "./prompt"
-import { ratingOf, type Fit, type Requirement } from "./score"
+import { requirementOf, roleKindOf, type RoleKind } from "./request"
+import { placeOf, ratingOf, strengthOf, type Parts, type Place, type Requirement, type Strength } from "./score"
 
 export const PROFILE_PREFIX = "resumezip.jobProfile:"
 export const JOBS_KEY = "resumezip.jobs"
@@ -39,11 +40,14 @@ export interface JobMatch {
   /** The whole score, 0 to 100 (blendedScore). */
   score: number
   /**
-   * What it's made of, each 0 to 100: the requirements' score, null for a job
-   * with none, and the fit (score.ts). Null for a job saved before the fit
-   * was scored, whose score is its requirements' alone.
+   * Its layers, each 0 to 100 (score.ts). Null for a job matched before the
+   * score was layered, whose score was worked out another way.
    */
-  parts: ({ requirements: number | null } & Fit) | null
+  parts: Parts | null
+  /** How many tier 1 requirements it has no evidence of, each taking a share off its score. */
+  missedScreening: number
+  /** For each of the job's requirements, in their order: how directly it's proven, where, and whether its term is on the resume. */
+  evidence: { strength: Strength; place: Place; onResume: boolean }[]
   found: { experience: number; projects: number; skills: number; coursework: number; missing: number }
   matched: string[]
   missing: string[]
@@ -61,7 +65,13 @@ export interface Job {
   company: string
   location: string
   level: Level | ""
+  /** The kind of role, as the AI classified it; "other" for a job saved before. */
+  role: RoleKind
+  /** The field the work is in; "" when it isn't clear. */
+  domain: string
   requirements: Requirement[]
+  /** Which projects, from any resume, would make the strongest lineup; "" when none is given. */
+  advice: string
   /** Best first, as scored when it was matched. */
   matches: JobMatch[]
   chosenResumeId: string | null
@@ -79,13 +89,16 @@ const names = (value: unknown) =>
 
 const ratingOrNull = (value: unknown) => (value === null ? null : ratingOf(value))
 
-function partsOf(value: unknown): JobMatch["parts"] {
-  if (!isRecord(value)) return null
+// Only the layered score's parts: a match saved with another score's has none.
+function partsOf(value: unknown): Parts | null {
+  if (!isRecord(value) || !("narrative" in value)) return null
   return {
-    requirements: ratingOrNull(value.requirements),
-    role: ratingOf(value.role),
-    level: ratingOrNull(value.level),
-    overall: ratingOf(value.overall),
+    core: ratingOrNull(value.core),
+    projects: ratingOf(value.projects),
+    experience: ratingOf(value.experience),
+    domain: ratingOf(value.domain),
+    keywords: ratingOrNull(value.keywords),
+    narrative: ratingOf(value.narrative),
   }
 }
 
@@ -97,6 +110,11 @@ function matchOf(value: unknown): JobMatch | null {
     resumeTitle: text(value.resumeTitle, 200),
     score: Math.min(100, count(value.score)),
     parts: partsOf(value.parts),
+    missedScreening: count(value.missedScreening),
+    evidence: (Array.isArray(value.evidence) ? value.evidence : []).slice(0, MOST_REQUIREMENTS).map((item) => {
+      const given = isRecord(item) ? item : {}
+      return { strength: strengthOf(given.strength), place: placeOf(given.place), onResume: given.onResume === true }
+    }),
     found: {
       experience: count(found.experience),
       projects: count(found.projects),
@@ -125,11 +143,14 @@ export function jobOf(value: unknown): Job | null {
     company: text(value.company, 200),
     location: text(value.location, 200),
     level: LEVELS.includes(value.level as Level) ? (value.level as Level) : "",
+    role: roleKindOf(value.role),
+    domain: text(value.domain, 200),
+    // A job saved before requirements had tiers has must-haves, read as tier 1, and the rest tier 3.
     requirements: (Array.isArray(value.requirements) ? value.requirements : [])
-      .filter(isRecord)
-      .map((item) => ({ name: text(item.name, MOST_TERM_CHARS), must: item.must === true }))
-      .filter((item) => item.name)
+      .map(requirementOf)
+      .filter((requirement) => requirement !== null)
       .slice(0, MOST_REQUIREMENTS),
+    advice: text(value.advice, 500),
     matches: (Array.isArray(value.matches) ? value.matches : []).map(matchOf).filter((match) => match !== null),
     chosenResumeId: typeof value.chosenResumeId === "string" ? value.chosenResumeId : null,
     status,
