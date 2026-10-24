@@ -250,6 +250,12 @@ interface JobCardProps {
 
 function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, onOpen }: JobCardProps) {
   const [deleting, setDeleting] = useState(false)
+  const deleteButton = useRef<HTMLButtonElement>(null)
+  const keepButton = useRef<HTMLButtonElement>(null)
+  // Asking, the focus goes to Keep, the choice that loses nothing.
+  useEffect(() => {
+    if (deleting) keepButton.current?.focus()
+  }, [deleting])
   const panelId = useId()
   const statusId = useId()
   const here = new Set(resumes.map((resume) => resume.id))
@@ -279,7 +285,7 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
                 : "No resume matched"}
           </span>
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <label htmlFor={statusId} className="sr-only">
             Status of {heading}
           </label>
@@ -295,6 +301,48 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
               </option>
             ))}
           </select>
+          {/* On the row, so a job can be deleted without opening it. It asks first: a job can't be got back. */}
+          {deleting ? (
+            <span
+              className="flex items-center gap-2"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.stopPropagation()
+                  setDeleting(false)
+                  deleteButton.current?.focus()
+                }
+              }}
+            >
+              <span className="text-[14px] text-ink" role="status">
+                Delete this job?
+              </span>
+              <button
+                ref={keepButton}
+                type="button"
+                onClick={() => {
+                  setDeleting(false)
+                  deleteButton.current?.focus()
+                }}
+                className={sheetPill("white", "h-8 px-3.5 text-[13px]")}
+              >
+                Keep
+              </button>
+              <button type="button" onClick={onDelete} className={sheetPill("danger", "h-8 px-3.5 text-[13px]")}>
+                Delete
+              </button>
+            </span>
+          ) : (
+            <button
+              ref={deleteButton}
+              type="button"
+              onClick={() => setDeleting(true)}
+              aria-label={`Delete ${heading}`}
+              title="Delete this job"
+              className={sheetPill("text", "h-9 w-9 px-0 text-[13px]")}
+            >
+              <Trash2 aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -424,27 +472,6 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
                 )
               })}
             </ol>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            {deleting ? (
-              <>
-                <span className="self-center text-[14px] text-ink" role="status">
-                  Delete this job?
-                </span>
-                <button type="button" onClick={() => setDeleting(false)} className={sheetPill("white", "h-8 px-3.5 text-[13px]")}>
-                  Keep
-                </button>
-                <button type="button" onClick={onDelete} className={sheetPill("danger", "h-8 px-3.5 text-[13px]")}>
-                  Delete
-                </button>
-              </>
-            ) : (
-              <button type="button" onClick={() => setDeleting(true)} className={sheetPill("text", "h-8 px-3 text-[13px]")}>
-                <Trash2 aria-hidden="true" />
-                Delete job
-              </button>
-            )}
           </div>
         </div>
       )}
