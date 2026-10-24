@@ -4,7 +4,7 @@
 // stored and nothing is logged but which service failed.
 
 import { MATCH_ANSWER, MATCH_PROMPT, matchPrompt, PROFILES_ANSWER, PROFILES_PROMPT, profilesPrompt } from "@/lib/jobs/prompt"
-import { answerShapeOf, jobsRequestOf, matchAnswerOf, profilesAnswerOf } from "@/lib/jobs/request"
+import { answerShapeOf, jobsRequestOf, matchAnswerOf, postingProblem, profilesAnswerOf } from "@/lib/jobs/request"
 import { askAny, providersOf } from "@/lib/review/ai/providers"
 import { REVIEWER_HEADER, reviewerOf } from "@/lib/review/ai/reviewer"
 
@@ -40,6 +40,8 @@ export async function POST(request: Request): Promise<Response> {
   // Checked before the limit, so a request turned away as too long doesn't use up its sender's.
   const asking = jobsRequestOf(await request.json().catch(() => null))
   if (!asking) return answer(400, { error: "request" })
+  // Too short to be a posting isn't sent to the AI, which would make a job up from a word.
+  if (asking.kind === "match" && postingProblem(asking.posting)) return answer(422, { error: "short" })
 
   const reviewer = reviewerOf(request.headers.get(REVIEWER_HEADER))
   const sender = reviewer ? `reviewer ${reviewer}` : `address ${request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local"}`
@@ -53,12 +55,12 @@ export async function POST(request: Request): Promise<Response> {
         ...options,
         answer: PROFILES_ANSWER,
       })
-      return answer(200, {
-        profiles: profilesAnswerOf(
-          given,
-          asking.resumes.map((resume) => resume.id),
-        ),
-      })
+      const profiles = profilesAnswerOf(
+        given,
+        asking.resumes.map((resume) => resume.id),
+      )
+      // An answer that leaves a resume out, or isn't whole, is said so rather than filled in.
+      return profiles ? answer(200, { profiles }) : answer(503, { error: "answer" })
     }
     const { answer: given } = await askAny(providers, MATCH_PROMPT, matchPrompt(asking.posting, asking.profiles), {
       ...options,
@@ -67,8 +69,11 @@ export async function POST(request: Request): Promise<Response> {
     const match = matchAnswerOf(
       given,
       asking.profiles.map((profile) => profile.id),
+      asking.posting,
     )
-    return match ? answer(200, { match: answerShapeOf(match) }) : answer(503, { error: "busy" })
+    if (!match) return answer(503, { error: "answer" })
+    if (!match.isPosting) return answer(422, { error: "not-posting" })
+    return answer(200, { match: answerShapeOf(match) })
   } catch {
     return answer(503, { error: "busy" })
   }

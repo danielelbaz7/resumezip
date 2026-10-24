@@ -68,9 +68,12 @@ export function coreOf(requirements: readonly Requirement[], evidence: readonly 
 
 // Lower case, with runs of anything but letters, digits and the marks in
 // names like C++, C# and .NET made one space, so "Node.js" finds "node.js".
+// A full stop is only kept before a letter or digit, as in those names: one
+// that ends a sentence ("with Rust.") isn't part of the word.
 const normal = (text: string) =>
   ` ${text
     .toLowerCase()
+    .replace(/\.(?![\p{L}\p{N}])/gu, " ")
     .replace(/[^\p{L}\p{N}+#.]+/gu, " ")
     .trim()} `
 

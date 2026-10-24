@@ -30,6 +30,12 @@ const profile = (skills: string[]) => ({
   coursework: [],
 })
 
+// Postings long enough to be ones, each with the words the answer below quotes.
+const POSTING = `Backend Engineer at Acme, Remote. We run the payments platform for thousands of small shops.
+You must have production experience with Rust and SQL databases, and you'll own services end to end.`
+const ANOTHER = `Platform Engineer at Acme. Our ledger team is growing, and we want someone with production experience with Rust
+to make settlement faster and safer across every region we serve.`
+
 /** Answers /api/jobs as the AI would, and says what each request asked for. */
 async function answerJobs(page: Page): Promise<string[]> {
   const kinds: string[] = []
@@ -50,11 +56,15 @@ async function answerJobs(page: Page): Promise<string[]> {
       json: {
         match: {
           job: {
+            isPosting: true,
             title: "Backend Engineer",
             company: "Acme",
             location: "Remote",
             level: "mid",
-            requirements: [{ name: "Rust", must: true }],
+            role: "backend/product",
+            domain: "payments",
+            requirements: [{ name: "Rust", tier: 1, keyword: "Rust", quote: "production experience with Rust" }],
+            advice: "Lead with the ledger project.",
           },
           resumes: [
             {
@@ -94,7 +104,7 @@ test("the Jobs tab finds the resume that fits a posting best, and keeps the job 
   await page.getByRole("tab", { name: "Jobs" }).click()
   await expect(page).toHaveURL(/#jobs$/)
 
-  await page.getByLabel("Job posting").fill("Backend Engineer at Acme. Must know Rust.")
+  await page.getByLabel("Job posting").fill(POSTING)
   await page.getByLabel("Link · optional").fill("jobs.acme.com/backend")
   await page.getByRole("button", { name: "Find the best resume" }).click()
 
@@ -111,7 +121,7 @@ test("the Jobs tab finds the resume that fits a posting best, and keeps the job 
   await expect(card.getByText("Sent: Rust resume · 43")).toBeVisible()
 
   // A second job reuses the profiles: neither resume has changed.
-  await page.getByLabel("Job posting").fill("Another Rust job.")
+  await page.getByLabel("Job posting").fill(ANOTHER)
   await page.getByRole("button", { name: "Find the best resume" }).click()
   await expect(page.getByRole("heading", { name: "Jobs · 2" })).toBeVisible()
   expect(kinds).toEqual(["profiles", "match", "match"])
@@ -127,8 +137,19 @@ test("the Jobs tab finds the resume that fits a posting best, and keeps the job 
 test("the Jobs tab says so when the AI isn't switched on, and keeps the posting", async ({ page }) => {
   await saveResumes(page, [resume("rust", "Rust resume", "Rust", "2026-06-01T00:00:00.000Z")])
   await page.goto("/create/dashboard#jobs")
-  await page.getByLabel("Job posting").fill("Rust engineer")
+  await page.getByLabel("Job posting").fill(POSTING)
   await page.getByRole("button", { name: "Find the best resume" }).click()
   await expect(page.getByRole("alert")).toHaveText("Matching jobs needs the AI, and it isn’t switched on here.")
-  await expect(page.getByLabel("Job posting")).toHaveValue("Rust engineer")
+  await expect(page.getByLabel("Job posting")).toHaveValue(POSTING)
+})
+
+test("the Jobs tab turns away a word as too short to be a posting, without asking the AI or saving a job", async ({ page }) => {
+  await saveResumes(page, [resume("rust", "Rust resume", "Rust", "2026-06-01T00:00:00.000Z")])
+  const kinds = await answerJobs(page)
+  await page.goto("/create/dashboard#jobs")
+  await page.getByLabel("Job posting").fill("RTX")
+  await page.getByRole("button", { name: "Find the best resume" }).click()
+  await expect(page.getByRole("alert")).toHaveText("That’s too short to be a job posting. Paste the job’s whole description.")
+  await expect(page.getByRole("heading", { name: "No jobs yet" })).toBeVisible()
+  expect(kinds).toEqual([])
 })

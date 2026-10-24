@@ -24,7 +24,7 @@ const job = (id: string, savedAt: string, status: Job["status"] = "saved"): Job 
   level: "",
   role: "backend/product",
   domain: "payments",
-  requirements: [{ name: "Go", tier: 1, keyword: "Go" }],
+  requirements: [{ name: "Go", tier: 1, keyword: "Go", quote: "Go engineer" }],
   advice: "",
   matches: [
     {
@@ -89,8 +89,8 @@ describe("the saved jobs", () => {
     })
     const [read] = readJobs(storage)
     expect(read.requirements).toEqual([
-      { name: "Go", tier: 1, keyword: "" },
-      { name: "Kafka", tier: 3, keyword: "" },
+      { name: "Go", tier: 1, keyword: "", quote: "" },
+      { name: "Kafka", tier: 3, keyword: "", quote: "" },
     ])
     expect(read).toMatchObject({ role: "other", domain: "", advice: "" })
     expect(read.matches[0]).toMatchObject({ score: 60, parts: null, missedScreening: 0 })

@@ -9,20 +9,26 @@ const PROFILE = {
   targets: ["Backend Engineer"],
   level: "mid",
   summary: "Builds backends.",
+  domains: ["payments"],
+  highlights: [{ group: "experience", text: "Rust ledger, 2K payments a second" }],
   experience: ["Rust"],
   projects: [],
   skills: ["Go"],
   coursework: [],
 }
+const POSTING = `Backend Engineer at Acme, Remote. We run the payments platform for small shops.
+You must have production experience with Rust and know your way around SQL databases.
+You'll own services end to end and work closely with the product team.`
 const MATCH = {
   job: {
+    isPosting: true,
     title: "Backend Engineer",
     company: "Acme",
     location: "Remote",
     level: "mid",
     role: "backend/product",
     domain: "payments",
-    requirements: [{ name: "Rust", tier: 1, keyword: "Rust" }],
+    requirements: [{ name: "Rust", tier: 1, keyword: "Rust", quote: "production experience with Rust" }],
     advice: "",
   },
   resumes: [
@@ -109,12 +115,12 @@ test("matches a posting to the profiles, and asks OpenAI and then Azure when the
   fetched.mockImplementation(async (url) =>
     new URL(String(url)).host === AZURE ? answered(String(url), MATCH) : Response.json({ error: "busy" }, { status: 529 }),
   )
-  const response = await post({ kind: "match", posting: "We want Rust.", profiles: [PROFILE] })
+  const response = await post({ kind: "match", posting: POSTING, profiles: [PROFILE] })
   expect(response.status).toBe(200)
   const { match } = await response.json()
   expect(match).toEqual({ job: MATCH.job, resumes: MATCH.resumes })
   // The page reads it as it reads the AI's answer, and finds the resume in it.
-  expect(matchAnswerOf(match, ["r1"])?.resumes).toEqual({
+  expect(matchAnswerOf(match, ["r1"], POSTING)?.resumes).toEqual({
     r1: {
       evidence: [{ strength: "strong", place: "experience" }],
       projects: 70,
@@ -127,7 +133,31 @@ test("matches a posting to the profiles, and asks OpenAI and then Azure when the
   expect(asked()).toEqual([CLAUDE, OPENAI, AZURE])
   const sent = JSON.parse(fetched.mock.calls[2][1]!.body as string)
   expect(sent.response_format.json_schema.name).toBe("job_match")
-  expect(sent.messages[1].content).toContain("<posting>\nWe want Rust.\n</posting>")
+  expect(sent.messages[1].content).toContain(`<posting>\n${POSTING}\n</posting>`)
+})
+
+test("doesn't send the AI a word or a name to make a job up from", async () => {
+  for (const posting of ["RTX", "ABC", "SDAS"]) {
+    const response = await post({ kind: "match", posting, profiles: [PROFILE] })
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({ error: "short" })
+  }
+  expect(fetched).not.toHaveBeenCalled()
+})
+
+test("says so when the AI reads the text as no job posting, and saves nothing made up", async () => {
+  const notPosting = { job: { ...MATCH.job, isPosting: false, requirements: [] }, resumes: [{ ...MATCH.resumes[0], evidence: [] }] }
+  fetched.mockImplementation(async (url) => answered(String(url), notPosting))
+  const response = await post({ kind: "match", posting: POSTING, profiles: [PROFILE] })
+  expect(response.status).toBe(422)
+  expect(await response.json()).toEqual({ error: "not-posting" })
+})
+
+test("says the answer came back incomplete, rather than filling in what's missing", async () => {
+  fetched.mockImplementation(async (url) => answered(String(url), { ...MATCH, resumes: [] }))
+  expect(await (await post({ kind: "match", posting: POSTING, profiles: [PROFILE] })).json()).toEqual({ error: "answer" })
+  fetched.mockImplementation(async (url) => answered(String(url), { profiles: [] }))
+  expect(await (await post({ kind: "profiles", resumes: [SOURCE] })).json()).toEqual({ error: "answer" })
 })
 
 test("turns away another site's page, a request the page wouldn't send, and says when no AI is set up", async () => {

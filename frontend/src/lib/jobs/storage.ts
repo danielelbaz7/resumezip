@@ -69,7 +69,8 @@ export interface Job {
   role: RoleKind
   /** The field the work is in; "" when it isn't clear. */
   domain: string
-  requirements: Requirement[]
+  /** Each with the posting's words it comes from; "" for a job saved before they were kept. */
+  requirements: (Requirement & { quote: string })[]
   /** Which projects, from any resume, would make the strongest lineup; "" when none is given. */
   advice: string
   /** Best first, as scored when it was matched. */

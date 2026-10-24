@@ -6,13 +6,16 @@
 import type { ResumeWithId } from "@/lib/resume"
 import { REVIEWER_HEADER, reviewerId } from "@/lib/review/ai/reviewer"
 import { fingerprintOf, GROUPS, hasSource, profileSourceOf, readProfile, type ResumeProfile } from "./profile"
-import { matchAnswerOf, MOST_PER_PROFILES, MOST_PROFILES, sendable, wireId, type MatchAnswer } from "./request"
+import { matchAnswerOf, MOST_PER_PROFILES, MOST_PROFILES, postingProblem, sendable, wireId, type MatchAnswer } from "./request"
 import { blendedScore, coreOf, foundOf, keywordsOf, missingScreening, onResume, ranked, type Parts } from "./score"
 import { readSavedProfile, saveProfile, type Job, type JobMatch } from "./storage"
 
-export type JobsProblem = "off" | "limit" | "busy" | "empty" | "connection" | "other"
+export type JobsProblem = "off" | "limit" | "busy" | "empty" | "short" | "not-posting" | "answer" | "connection" | "other"
 
 export const JOBS_PROBLEMS: Record<JobsProblem, string> = {
+  short: "That’s too short to be a job posting. Paste the job’s whole description.",
+  "not-posting": "That doesn’t look like a job posting. Paste the job’s description.",
+  answer: "The AI’s answer came back incomplete, so nothing was saved. Try again.",
   off: "Matching jobs needs the AI, and it isn’t switched on here.",
   limit: "You’ve matched a lot of jobs in a short time. Try again in a few minutes.",
   busy: "The AI is busy right now. Try again in a minute.",
@@ -47,7 +50,8 @@ async function post(body: object, signal?: AbortSignal): Promise<Record<string, 
     // The firewall's rate limit turns a request away before the route runs, so its 429 has no { error }.
     if (response.status === 429) throw new JobsError("limit")
     const reason = answer?.error
-    throw new JobsError(reason === "off" || reason === "limit" || reason === "busy" ? reason : "other")
+    const known: JobsProblem[] = ["off", "limit", "busy", "short", "not-posting", "answer"]
+    throw new JobsError(known.includes(reason as JobsProblem) ? (reason as JobsProblem) : "other")
   }
   return answer
 }
@@ -86,7 +90,8 @@ export async function profilesFor(
     const made = answer.profiles && typeof answer.profiles === "object" ? (answer.profiles as Record<string, unknown>) : {}
     batch.forEach(({ resume, hash }, index) => {
       const profile = Object.hasOwn(made, wireId(index)) ? readProfile(made[wireId(index)]) : null
-      if (!profile) return
+      // The route only answers with every profile whole (profilesAnswerOf); one missing isn't made up here.
+      if (!profile) throw new JobsError("answer")
       profiles.set(resume.id, profile)
       saveProfile(storage, resume.id, { hash, madeAt: new Date().toISOString(), profile })
     })
@@ -152,6 +157,9 @@ export async function matchJob(
   storage: Storage | null,
   { signal, onStep }: { signal?: AbortSignal; onStep?: (step: Step) => void } = {},
 ): Promise<Job> {
+  // Said before anything's sent: a word or a name isn't a posting to match.
+  const problem = postingProblem(posting)
+  if (problem) throw new JobsError(problem)
   const profiles = await profilesFor(resumes, storage, { signal, onStep })
   // The ones edited last, when there are more than one request takes.
   const matched = resumes
@@ -167,8 +175,10 @@ export async function matchJob(
   const match = matchAnswerOf(
     answer.match,
     matched.map((_, index) => wireId(index)),
+    posting,
   )
-  if (!match) throw new JobsError("other")
+  if (!match) throw new JobsError("answer")
+  if (!match.isPosting) throw new JobsError("not-posting")
   return {
     id: crypto.randomUUID(),
     savedAt: new Date().toISOString(),

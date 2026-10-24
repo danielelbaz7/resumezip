@@ -5,7 +5,19 @@
 
 import { GROUPS, LEVELS, MOST_TERM_CHARS, readProfile, type Level, type ProfileSource, type ResumeProfile } from "./profile"
 import { MOST_REQUIREMENTS, ROLE_KINDS } from "./prompt"
-import { placeOf, ratingOf, strengthOf, tierOf, type Evidence, type Requirement } from "./score"
+import {
+  onResume,
+  placeOf,
+  ratingOf,
+  STRENGTHS,
+  strengthOf,
+  TIERS,
+  tierOf,
+  type Evidence,
+  type Requirement,
+  type Strength,
+  type Tier,
+} from "./score"
 
 export type RoleKind = (typeof ROLE_KINDS)[number]
 
@@ -90,16 +102,53 @@ export function jobsRequestOf(body: unknown): ProfilesRequest | MatchRequest | n
   return null
 }
 
-/** The profiles in an answer, by the request's ids; ones it left out, or for ids it wasn't sent, aren't there. */
-export function profilesAnswerOf(answer: unknown, ids: readonly string[]): Record<string, ResumeProfile> {
-  const items = isRecord(answer) && Array.isArray(answer.profiles) ? answer.profiles : []
+const isStrings = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string")
+
+// A profile in the AI's answer, with every field the schema asks for in its
+// shape. One that isn't makes the whole answer incomplete: nothing's filled in.
+function isAnsweredProfile(item: unknown): item is Record<string, unknown> {
+  return (
+    isRecord(item) &&
+    isStrings(item.targets) &&
+    LEVELS.includes(item.level as Level) &&
+    typeof item.summary === "string" &&
+    isStrings(item.domains) &&
+    Array.isArray(item.highlights) &&
+    item.highlights.every(
+      (highlight) =>
+        isRecord(highlight) && (highlight.group === "experience" || highlight.group === "projects") && typeof highlight.text === "string",
+    ) &&
+    GROUPS.every((group) => isStrings(item[group]))
+  )
+}
+
+/**
+ * The profiles in an answer, by the request's ids, cut to their limits; null
+ * when it leaves one out or has one that isn't whole, so a resume is never
+ * matched on a profile made up of what wasn't said.
+ */
+export function profilesAnswerOf(answer: unknown, ids: readonly string[]): Record<string, ResumeProfile> | null {
+  const items = isRecord(answer) && Array.isArray(answer.profiles) ? answer.profiles : null
+  if (!items) return null
   const profiles: Record<string, ResumeProfile> = {}
-  for (const item of items) {
-    const profile = readProfile(item)
-    if (profile && isRecord(item) && typeof item.id === "string" && ids.includes(item.id) && !profiles[item.id]) profiles[item.id] = profile
+  for (const id of ids) {
+    const item = items.find((given) => isRecord(given) && given.id === id)
+    if (!isAnsweredProfile(item)) return null
+    profiles[id] = readProfile(item)!
   }
   return profiles
 }
+
+/** Fewer words than this isn't a job posting, and isn't sent to the AI. */
+export const LEAST_POSTING_WORDS = 25
+
+const wordsIn = (text: string) => text.split(/\s+/).filter((word) => /[\p{L}\p{N}]/u.test(word)).length
+
+/** Why `text` can't be matched as a job posting: "short" with too few words to be one; null when it can. */
+export const postingProblem = (text: string): "short" | null => (wordsIn(text) < LEAST_POSTING_WORDS ? "short" : null)
+
+/** Whether `phrase` is in the posting, word for word, whatever its case and spacing: what the AI says of a job must be. */
+export const inPosting = (phrase: string, posting: string) => phrase.trim() !== "" && onResume(phrase, posting)
 
 export interface PostedJob {
   title: string
@@ -111,7 +160,8 @@ export interface PostedJob {
   role: RoleKind
   /** The field the work is in; "" when it isn't clear. */
   domain: string
-  requirements: Requirement[]
+  /** Each with the posting's words it comes from (quote). */
+  requirements: (Requirement & { quote: string })[]
   /** Which projects, from any resume, would make the strongest lineup; "" when one resume already is. */
   advice: string
 }
@@ -127,6 +177,8 @@ export interface ResumeAnswer {
 }
 
 export interface MatchAnswer {
+  /** Whether the text is a job posting at all, as the AI read it. */
+  isPosting: boolean
   job: PostedJob
   /** By the request's ids. */
   resumes: Record<string, ResumeAnswer>
@@ -137,36 +189,74 @@ export interface MatchAnswer {
  * of resumes each with its id, so the page reads it with matchAnswerOf too.
  */
 export const answerShapeOf = (match: MatchAnswer) => ({
-  job: match.job,
+  job: { isPosting: match.isPosting, ...match.job },
   resumes: Object.entries(match.resumes).map(([id, resume]) => ({ id, ...resume })),
 })
 
 const text = (value: unknown, most: number) => (typeof value === "string" ? value.trim().slice(0, most) : "")
 
-/** A requirement as the AI or storage gave it, read defensively; one with no name is nothing. */
-export function requirementOf(value: unknown): Requirement | null {
+/** A requirement as storage has it, read defensively; one with no name is nothing. */
+export function requirementOf(value: unknown): (Requirement & { quote: string }) | null {
   if (!isRecord(value)) return null
   const name = text(value.name, MOST_TERM_CHARS)
-  return name ? { name, tier: tierOf(value.tier, value.must), keyword: text(value.keyword, MOST_TERM_CHARS) } : null
+  return name
+    ? {
+        name,
+        tier: tierOf(value.tier, value.must),
+        keyword: text(value.keyword, MOST_TERM_CHARS),
+        quote: text(value.quote, MOST_QUOTE_CHARS),
+      }
+    : null
 }
 
-/** The job and the matches in an answer, read defensively; null when it has no job. */
-export function matchAnswerOf(answer: unknown, ids: readonly string[]): MatchAnswer | null {
-  if (!isRecord(answer) || !isRecord(answer.job)) return null
+const MOST_QUOTE_CHARS = 300
+const isRating = (value: unknown) => typeof value === "number" && Number.isFinite(value)
+
+/**
+ * The job and the matches in an answer, checked against `posting`, the text
+ * they were made from. Null when the answer isn't whole: a field missing or
+ * in the wrong shape, a resume sent and left out, or a resume's evidence not
+ * one for each requirement. Nothing's filled in for what wasn't said. What
+ * isn't in the posting is dropped: a requirement whose quote isn't there
+ * word for word, and a title, company or location that isn't either.
+ */
+export function matchAnswerOf(answer: unknown, ids: readonly string[], posting: string): MatchAnswer | null {
+  if (!isRecord(answer) || !isRecord(answer.job) || !Array.isArray(answer.resumes)) return null
   const { job } = answer
-  const requirements = (Array.isArray(job.requirements) ? job.requirements : [])
-    .map(requirementOf)
-    .filter((requirement) => requirement !== null)
+  if (typeof job.isPosting !== "boolean" || !Array.isArray(job.requirements)) return null
+  if (!["title", "company", "location", "domain", "advice"].every((key) => typeof job[key] === "string")) return null
+  if (!(LEVELS.includes(job.level as Level) || job.level === "unknown") || !ROLE_KINDS.includes(job.role as RoleKind)) return null
+  const asked = job.requirements
+  if (
+    !asked.every(
+      (item) =>
+        isRecord(item) &&
+        typeof item.name === "string" &&
+        TIERS.includes(item.tier as Tier) &&
+        typeof item.keyword === "string" &&
+        typeof item.quote === "string",
+    )
+  )
+    return null
+  // The requirements the posting says, in order, each by where it was in the answer.
+  const kept = (asked as Record<string, unknown>[])
+    .map((item, at) => ({ item, at }))
+    .filter(({ item }) => text(item.name, MOST_TERM_CHARS) && inPosting(item.quote as string, posting))
     .slice(0, MOST_REQUIREMENTS)
   const resumes: MatchAnswer["resumes"] = {}
-  for (const item of Array.isArray(answer.resumes) ? answer.resumes : []) {
-    if (!isRecord(item) || typeof item.id !== "string" || !ids.includes(item.id) || resumes[item.id]) continue
-    const evidence = Array.isArray(item.evidence) ? item.evidence : []
-    resumes[item.id] = {
-      evidence: requirements.map((_, index) => {
-        const given = isRecord(evidence[index]) ? evidence[index] : {}
-        return { strength: strengthOf(given.strength), place: placeOf(given.place) }
-      }),
+  for (const id of ids) {
+    const item = answer.resumes.find((given) => isRecord(given) && given.id === id)
+    if (!isRecord(item) || !Array.isArray(item.evidence) || item.evidence.length !== asked.length) return null
+    const evidence = item.evidence
+    // placeOf gives back a place it knows as it is, "nowhere" included.
+    if (
+      !evidence.every((given) => isRecord(given) && STRENGTHS.includes(given.strength as Strength) && placeOf(given.place) === given.place)
+    )
+      return null
+    if (!["projects", "experience", "domain", "narrative"].every((key) => isRating(item[key])) || typeof item.reason !== "string")
+      return null
+    resumes[id] = {
+      evidence: kept.map(({ at }) => ({ strength: strengthOf(evidence[at].strength), place: placeOf(evidence[at].place) })),
       projects: ratingOf(item.projects),
       experience: ratingOf(item.experience),
       domain: ratingOf(item.domain),
@@ -174,20 +264,30 @@ export function matchAnswerOf(answer: unknown, ids: readonly string[]): MatchAns
       reason: text(item.reason, MOST_REASON_CHARS),
     }
   }
+  const written = (value: unknown) => {
+    const given = text(value, 200)
+    return inPosting(given, posting) ? given : ""
+  }
   return {
+    isPosting: job.isPosting,
     job: {
-      title: text(job.title, 200),
-      company: text(job.company, 200),
-      location: text(job.location, 200),
+      title: written(job.title),
+      company: written(job.company),
+      location: written(job.location),
       level: LEVELS.includes(job.level as Level) ? (job.level as Level) : "",
-      role: roleKindOf(job.role),
+      role: job.role as RoleKind,
       domain: text(job.domain, 200),
-      requirements,
+      requirements: kept.map(({ item }) => ({
+        name: text(item.name, MOST_TERM_CHARS),
+        tier: item.tier as Tier,
+        keyword: text(item.keyword, MOST_TERM_CHARS),
+        quote: text(item.quote, MOST_QUOTE_CHARS),
+      })),
       advice: text(job.advice, 500),
     },
     resumes,
   }
 }
 
-/** A kind of role as the AI or storage gave it, "other" when it isn't one. */
+/** A kind of role as storage has it, "other" when it isn't one. */
 export const roleKindOf = (value: unknown): RoleKind => (ROLE_KINDS.includes(value as RoleKind) ? (value as RoleKind) : "other")
