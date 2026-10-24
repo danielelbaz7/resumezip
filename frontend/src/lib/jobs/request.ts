@@ -5,7 +5,7 @@
 
 import { GROUPS, LEVELS, MOST_TERM_CHARS, readProfile, type Level, type ProfileSource, type ResumeProfile } from "./profile"
 import { MOST_REQUIREMENTS } from "./prompt"
-import { placeOf, type Place, type Requirement } from "./score"
+import { placeOf, ratingOf, type Place, type Requirement } from "./score"
 
 /** Resumes summed up in one request; more are sent in several. */
 export const MOST_PER_PROFILES = 5
@@ -111,7 +111,7 @@ export interface PostedJob {
 export interface MatchAnswer {
   job: PostedJob
   /** By the request's ids: where each requirement shows up, in their order, and why it fits or not. */
-  resumes: Record<string, { places: Place[]; reason: string }>
+  resumes: Record<string, { places: Place[]; role: number; overall: number; reason: string }>
 }
 
 /**
@@ -138,7 +138,12 @@ export function matchAnswerOf(answer: unknown, ids: readonly string[]): MatchAns
   for (const item of Array.isArray(answer.resumes) ? answer.resumes : []) {
     if (!isRecord(item) || typeof item.id !== "string" || !ids.includes(item.id) || resumes[item.id]) continue
     const places = Array.isArray(item.places) ? item.places : []
-    resumes[item.id] = { places: requirements.map((_, index) => placeOf(places[index])), reason: text(item.reason, MOST_REASON_CHARS) }
+    resumes[item.id] = {
+      places: requirements.map((_, index) => placeOf(places[index])),
+      role: ratingOf(item.role),
+      overall: ratingOf(item.overall),
+      reason: text(item.reason, MOST_REASON_CHARS),
+    }
   }
   return {
     job: {

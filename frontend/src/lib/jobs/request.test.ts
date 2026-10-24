@@ -61,8 +61,8 @@ describe("an answer from /api/jobs", () => {
         ],
       },
       resumes: [
-        { id: "r1", places: ["projects"], reason: "Close." },
-        { id: "r7", places: [], reason: "" },
+        { id: "r1", places: ["projects"], role: 80, overall: 140, reason: "Close." },
+        { id: "r7", places: [], role: 0, overall: 0, reason: "" },
       ],
     }
     expect(matchAnswerOf(answer, ["r1"])).toEqual({
@@ -76,7 +76,7 @@ describe("an answer from /api/jobs", () => {
           { name: "AWS", must: false },
         ],
       },
-      resumes: { r1: { places: ["projects", "nowhere"], reason: "Close." } },
+      resumes: { r1: { places: ["projects", "nowhere"], role: 80, overall: 100, reason: "Close." } },
     })
   })
 

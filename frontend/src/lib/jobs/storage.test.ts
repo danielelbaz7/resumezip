@@ -28,6 +28,7 @@ const job = (id: string, savedAt: string, status: Job["status"] = "saved"): Job 
       resumeId: "a",
       resumeTitle: "Backend",
       score: 80,
+      parts: { requirements: 75, role: 90, level: 100, overall: 80 },
       found: { experience: 1, projects: 0, skills: 0, coursework: 0, missing: 0 },
       matched: ["Go"],
       missing: [],
@@ -61,7 +62,8 @@ describe("the saved jobs", () => {
     const [read] = readJobs(storage)
     expect(readJobs(storage)).toHaveLength(1)
     expect(read).toMatchObject({ id: "odd", status: "saved", title: "", requirements: [], chosenResumeId: null })
-    expect(read.matches).toEqual([expect.objectContaining({ resumeId: "a", score: 100 })])
+    // A match saved before the fit was scored has no parts.
+    expect(read.matches).toEqual([expect.objectContaining({ resumeId: "a", score: 100, parts: null })])
   })
 
   test("are none when there are none, or what's saved isn't JSON", () => {

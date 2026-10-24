@@ -57,8 +57,8 @@ async function answerJobs(page: Page): Promise<string[]> {
             requirements: [{ name: "Rust", must: true }],
           },
           resumes: [
-            { id: "r1", places: ["skills"], reason: "Rust is on it." },
-            { id: "r2", places: ["nowhere"], reason: "No Rust." },
+            { id: "r1", places: ["skills"], role: 80, overall: 70, reason: "Rust is on it." },
+            { id: "r2", places: ["nowhere"], role: 20, overall: 10, reason: "No Rust." },
           ],
         },
       },
@@ -83,13 +83,14 @@ test("the Jobs tab finds the resume that fits a posting best, and keeps the job 
   await page.getByRole("button", { name: "Find the best resume" }).click()
 
   const card = page.getByRole("listitem").filter({ hasText: "Backend Engineer" })
-  await expect(card.getByText("Best fit: Rust resume · 50")).toBeVisible()
+  await expect(card.getByText("Best fit: Rust resume · 60")).toBeVisible()
   // Open, the resumes are listed best first, with where the job's requirements show up.
   await expect(card.getByText("1 in skills")).toBeVisible()
+  await expect(card.getByText("Requirements 50 · Role 80 · Level 100 · Overall 70")).toBeVisible()
   await expect(card.getByRole("link", { name: "Open the posting" })).toHaveAttribute("href", "https://jobs.acme.com/backend")
   await card.getByRole("button", { name: "Use this one" }).first().click()
   await card.getByLabel("Status of Backend Engineer").selectOption("applied")
-  await expect(card.getByText("Sent: Rust resume · 50")).toBeVisible()
+  await expect(card.getByText("Sent: Rust resume · 60")).toBeVisible()
 
   // A second job reuses the profiles: neither resume has changed.
   await page.getByLabel("Job posting").fill("Another Rust job.")

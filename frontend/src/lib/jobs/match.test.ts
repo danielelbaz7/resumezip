@@ -64,8 +64,8 @@ describe("matching a job", () => {
         match: {
           job: { title: "Engineer", company: "Acme", location: "", level: "mid", requirements: [{ name: "Rust", must: true }] },
           resumes: [
-            { id: "r1", places: ["skills"], reason: "Rust is listed." },
-            { id: "r2", places: ["nowhere"], reason: "No Rust." },
+            { id: "r1", places: ["skills"], role: 80, overall: 70, reason: "Rust is listed." },
+            { id: "r2", places: ["nowhere"], role: 20, overall: 10, reason: "No Rust." },
           ],
         },
       }),
@@ -79,10 +79,12 @@ describe("matching a job", () => {
     // Matched newest first, so the Rust resume, edited last, is r1.
     expect(sent()[1].profiles.map((sent: { skills: string[] }) => sent.skills)).toEqual([["Rust"], ["Go"]])
     expect(job).toMatchObject({ link: "acme.com/jobs/1", title: "Engineer", company: "Acme", status: "saved", chosenResumeId: null })
+    // Rust: its requirement in skills (50) at 70%, a role of 80, the same level (100) and an overall 70 at 10% each.
     expect(job.matches.map((match) => [match.resumeId, match.score])).toEqual([
-      ["rust", 50],
-      ["go", 0],
+      ["rust", 60],
+      ["go", 13],
     ])
+    expect(job.matches[0].parts).toEqual({ requirements: 50, role: 80, level: 100, overall: 70 })
   })
 
   test("says so when no resume has anything to match on, without asking the AI", async () => {
