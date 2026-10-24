@@ -21,8 +21,11 @@ export interface FieldDef<Key extends string = string> {
 export interface ChoiceDef<Key extends string = string> {
   key: Key
   label: string
-  /** The first option is the default. */
-  options: readonly { value: string; label: string; hint: string }[]
+  /**
+   * The first option is the default. An option that `swaps` two fields puts
+   * each where the other is, in the form and in print (arrangedSection).
+   */
+  options: readonly { value: string; label: string; hint: string; swaps?: readonly [string, string] }[]
 }
 
 // A section's definition, with its keys as type parameters: the definitions
@@ -144,6 +147,19 @@ const DEFINITIONS = {
     addLabel: "Add experience",
     summary: ["workRole", "companyName"],
     card: ["companyName"],
+    choice: {
+      key: "workFirst",
+      label: "Print first",
+      options: [
+        { value: "company", label: "Company", hint: "The company is printed where the template puts it, with the role after it." },
+        {
+          value: "role",
+          label: "Role",
+          hint: "The role is printed where the company would be, and the company where the role would be.",
+          swaps: ["companyName", "workRole"],
+        },
+      ],
+    },
     fields: [
       { key: "workRole", label: "Role", placeholder: "Software Engineer", size: "half" },
       { key: "companyName", label: "Company", placeholder: "Google", size: "half" },
@@ -284,6 +300,24 @@ export type ChoiceKey = Extract<Definitions[SectionName], { choice: unknown }>["
 export type SectionDef = Definition<FieldKey, DataKey, HeadingKey, ChoiceKey>
 
 export const SECTIONS: Record<SectionName, SectionDef> = DEFINITIONS
+
+/**
+ * A section as the form shows it with its choice `chosen`: when that option
+ * swaps two fields, each takes the other's place among the fields and in the
+ * card's name, keeping its own label, placeholder and text.
+ */
+export function arrangedSection(section: SectionDef, chosen: unknown): SectionDef {
+  const swaps = section.choice?.options.find((option) => option.value === chosen)?.swaps
+  if (!swaps) return section
+  const [a, b] = swaps
+  const other = (key: string) => (key === a ? b : key === b ? a : key)
+  const byKey = new Map(section.fields.map((field) => [field.key as string, field]))
+  return {
+    ...section,
+    fields: section.fields.map((field) => byKey.get(other(field.key))!),
+    ...(section.card && { card: section.card.map((key) => other(key) as FieldKey) }),
+  }
+}
 
 export const SECTION_NAMES = Object.keys(SECTIONS) as SectionName[]
 

@@ -279,6 +279,11 @@ describe("cleanResume", () => {
     expect(clean.workExperienceSection?.[0]).not.toHaveProperty("underlineName")
   })
 
+  test("keeps Experience's role printed first, and only as one of its options", () => {
+    expect(cleanResume({ workFirst: "role" }).workFirst).toBe("role")
+    expect(cleanResume({ workFirst: "manager" })).not.toHaveProperty("workFirst")
+  })
+
   test("keeps the saved order, with the core sections, and an optional one only with entries", () => {
     expect(cleanResume({ sectionOrder: ["Projects", "Work"] }).sectionOrder).toEqual(["Projects", "Work", "Education", "Skills"])
     const filled = cleanResume({ sectionOrder: ["Work"], awardsSection: [{ awardName: "Prize" }] })

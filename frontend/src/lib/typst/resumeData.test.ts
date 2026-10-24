@@ -122,3 +122,23 @@ describe("an underlined project name", () => {
     expect(gapped(10)).toBe(UNDERLINE_GAP * 3)
   })
 })
+
+describe("Experience with the role printed first", () => {
+  const job = (workFirst?: string) =>
+    toTemplateData(
+      asSaved({
+        workFirst,
+        workExperienceSection: [{ id: 1, companyName: "Google", workRole: "Software Engineer", workLocation: "Austin" }],
+      }),
+    ).work[0]
+
+  test("prints the role where the company would be, and the company where the role would be", () => {
+    expect(job("role")).toMatchObject({ company: "Software Engineer", role: "Google", location: "Austin" })
+  })
+
+  test("prints them as typed otherwise", () => {
+    for (const workFirst of [undefined, "company", "manager"]) {
+      expect(job(workFirst)).toMatchObject({ company: "Google", role: "Software Engineer" })
+    }
+  })
+})
