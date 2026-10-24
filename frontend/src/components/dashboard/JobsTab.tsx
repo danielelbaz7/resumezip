@@ -139,6 +139,8 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
       const name = resume.resumeTitle?.trim() || resume.profileSection?.fullName?.trim() || "Resume"
       const copyTitle = `${name} – ${job.company || job.title || "tailored"}`
       renameResume(copyId, copyTitle)
+      // So the editor can show the copy's changes from the resume it came from.
+      editResume(copyId, "tailoredFrom", { resumeId: resume.id, title: name, jobId: job.id, at: new Date().toISOString() })
       const skillsSection = withSkills(resume.skillsSection ?? [], addedPlaces(answer, source))
       editResume(copyId, "skillsSection", skillsSection)
       const made = tailoringOf(answer, source, { fromResumeId: resume.id, copyId, copyTitle })
