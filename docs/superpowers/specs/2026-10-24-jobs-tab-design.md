@@ -90,7 +90,7 @@ first, then projects, then skills, then coursework.
 Three new keys. The resumes' own format doesn't change, so it needs no migration,
 and profiles don't go into downloaded PDF, Word or JSON files.
 
-- `jobProfile:<resumeId>`: `{ version: 1, hash, madeAt, profile }`
+- `resumezip.jobProfile:<resumeId>`: `{ version: 1, hash, madeAt, profile }`
   - `hash` is a fingerprint of the four groups of text that were sent. A
     profile counts as out of date when the resume's text no longer gives the same
     fingerprint.
@@ -98,7 +98,7 @@ and profiles don't go into downloaded PDF, Word or JSON files.
     AI.
   - A profile whose resume has been deleted is cleared the next time the Jobs tab
     opens.
-- `jobs`: `{ version: 1, jobs: Job[] }`, newest first. The list is kept to 200 jobs:
+- `resumezip.jobs`: `{ version: 1, jobs: Job[] }`, newest first. The list is kept to 200 jobs:
   past that, the oldest **Saved** ones are dropped first, and jobs with any other
   status are kept. A `Job` is:
 
@@ -126,7 +126,7 @@ and profiles don't go into downloaded PDF, Word or JSON files.
 
   Everything shown in the list is in the record itself, so the list can be shown
   without asking the AI again, even after a resume has been deleted.
-- `jobs` is untrusted when it's read back, like a resume. Records in the wrong shape
+- The job list is untrusted when it's read back, like a resume. Records in the wrong shape
   are dropped, and fields are read defensively. The same goes for profiles.
 
 ## Privacy
@@ -148,6 +148,8 @@ so next to the button. The rest of the site still sends nothing unless you ask.
 - The 1, 0.75, 0.5 and 0.25 credits for the four groups, and must = 2, nice to have = 1.
 - Profiles are kept apart from resumes rather than on them, so files and the resume
   format don't change.
+- Resumes go to the AI under ids made for each request (`r1`, `r2`, ...), mapped back in the browser, since saved resume ids can be any text.
+- A resume too long for a request is cut to fit rather than refused.
 - The four groups are what's sent. The summary, profile details and added sections
   aren't.
 - The limits: 5 resumes per profile request, 50 profiles per match, 20,000 characters
