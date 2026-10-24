@@ -53,8 +53,11 @@
 
 #let email-link(address, body) = link("mailto:" + address, body)
 
-// A project's name, linked when the user chose to link names (see resumeData.ts).
-#let project-name(pr) = if has(pr.link) { web-link(pr.link, pr.name) } else { pr.name }
+// A project's name, underlined and linked when the user chose to (see resumeData.ts).
+#let project-name(pr) = {
+  let name = if pr.underline { underline(pr.name) } else { pr.name }
+  if has(pr.link) { web-link(pr.link, name) } else { name }
+}
 
 // A project's first line: its name in bold, its tech stack in italics, then
 // its links as text, drawn by `show-link`, with `sep` between them. Each link

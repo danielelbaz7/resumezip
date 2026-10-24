@@ -89,3 +89,20 @@ describe("typed text as printed", () => {
     expect(text).not.toMatch(/summary/i)
   })
 })
+
+describe("an underlined project name", () => {
+  const project = (projectLinks: string, underlineName?: true) => ({
+    projectLinks,
+    projectsSection: [{ id: 1, projectName: "Atlas", techStack: "Go", projectGithub: "github.com/maralin/atlas", underlineName }],
+  })
+
+  test.each(TEMPLATES.map(({ id }) => id))("is drawn in %s, with the link shown or behind the name", async (id) => {
+    for (const links of ["show", "title"]) {
+      const plain = await render({ selectedTemplate: id, ...project(links) })
+      const underlined = await render({ selectedTemplate: id, ...project(links, true) })
+      // The text is the same, so the difference is the line under the name.
+      expect(await printedText({ selectedTemplate: id, ...project(links, true) })).toMatch(/atlas/i)
+      expect(Buffer.from(underlined).equals(Buffer.from(plain)), links).toBe(false)
+    }
+  })
+})

@@ -171,11 +171,12 @@ export const webLink = (url: string, style?: (body: string) => string) => shownL
 export const emailLink = (address: string, style?: (body: string) => string) => shownLink(`mailto:${address}`, address, style)
 
 /**
- * A project's name, in the template's `style` (as capitals), linked when the
- * person chose to link names, as `project-name` in templates/common.typ.
+ * A project's name, in the template's `style` (as capitals), underlined and
+ * linked when the person chose to, as `project-name` in templates/common.typ.
  */
 export const projectName = (project: TemplateData["projects"][number], style = (body: string) => body) => {
-  const name = style(latex(project.name))
+  const styled = style(latex(project.name))
+  const name = project.underline ? underline(styled) : styled
   return project.link ? href(web(project.link), name) : name
 }
 

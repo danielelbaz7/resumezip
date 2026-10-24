@@ -44,7 +44,7 @@ export interface TemplateData {
   }[]
   work: { company: string; location: string; role: string; start: string; end: string; bullets: Run[][] }[]
   /** `link` is set when the name links somewhere; `links` are printed as text. */
-  projects: { name: string; link: string; links: string[]; techStack: string; date: string; bullets: Run[][] }[]
+  projects: { name: string; link: string; links: string[]; underline: boolean; techStack: string; date: string; bullets: Run[][] }[]
   /** Printed as citations; `doi` is set instead of `link` when the link is a DOI. */
   publications: { title: string; authors: AuthorPiece[]; venue: string; details: string; date: string; doi: string; link: string }[]
   skills: { name: string; details: string }[]
@@ -240,11 +240,12 @@ export function doiOf(link: string): string {
   return /^10\.\d{4,9}\/\S+$/.test(doi) ? doi : ""
 }
 
-// Maps a section's entries, dropping ones the user added but left blank.
-function entries<T extends Record<string, string | unknown[]>>(value: unknown, map: (entry: Saved) => T): T[] {
+// Maps a section's entries, dropping ones the user added but left blank. A
+// flag, as a project's `underline`, isn't something the user typed.
+function entries<T extends Record<string, string | unknown[] | boolean>>(value: unknown, map: (entry: Saved) => T): T[] {
   return (Array.isArray(value) ? value : [])
     .map((entry) => map(entry && typeof entry === "object" ? (entry as Saved) : {}))
-    .filter((entry) => Object.values(entry).some((field) => field.length > 0))
+    .filter((entry) => Object.values(entry).some((field) => typeof field !== "boolean" && field.length > 0))
 }
 
 export function templateIdOf(value: unknown): TemplateId {
@@ -326,6 +327,7 @@ export function toTemplateData(saved: Resume): TemplateData {
         name,
         link: titled ? (urls[0] ?? "") : "",
         links: titled ? [] : urls,
+        underline: e.underlineName === true && name !== "",
         techStack: text(e.techStack),
         date: text(e.projectDate),
         bullets: bullets(e.projectDescription),

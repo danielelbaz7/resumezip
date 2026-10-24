@@ -92,3 +92,23 @@ describe("what the person left out", () => {
     expect(data.skills).toEqual([])
   })
 })
+
+describe("an underlined project name", () => {
+  const projects = (projectLinks?: string) =>
+    toTemplateData(
+      asSaved({
+        projectLinks,
+        projectsSection: [
+          { id: 1, projectName: "Atlas", projectGithub: "github.com/maralin/atlas", underlineName: true },
+          { id: 2, projectName: "Beacon", projectGithub: "github.com/maralin/beacon" },
+          { id: 3, techStack: "Go", underlineName: true },
+        ],
+      }),
+    ).projects
+
+  test("is only the projects the person chose, with either way of showing links, and not one without a name", () => {
+    for (const links of [undefined, "show", "title"]) {
+      expect(projects(links).map((project) => project.underline)).toEqual([true, false, false])
+    }
+  })
+})
