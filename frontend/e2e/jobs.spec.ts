@@ -170,3 +170,51 @@ test("the Jobs tab matches a posting from its link alone", async ({ page }) => {
   await expect(page.getByRole("listitem").filter({ hasText: "Backend Engineer" }).first()).toBeVisible()
   expect(sent).toEqual([expect.objectContaining({ posting: "", link: "https://jobs.acme.com/backend" })])
 })
+
+test("a job is deleted from its row, without opening it, once Delete is pressed a second time", async ({ page }) => {
+  const job = (id: string, title: string) => ({
+    id,
+    savedAt: id === "first" ? "2026-06-01T00:00:00.000Z" : "2026-06-02T00:00:00.000Z",
+    link: "",
+    posting: POSTING,
+    title,
+    company: "Acme",
+    location: "",
+    level: "",
+    role: "backend/product",
+    domain: "",
+    requirements: [],
+    advice: "",
+    graduation: null,
+    matches: [],
+    chosenResumeId: null,
+    status: "saved",
+    appliedAt: null,
+  })
+  await page.addInitScript(
+    (jobs) => {
+      if (!sessionStorage.getItem("seeded")) {
+        sessionStorage.setItem("seeded", "yes")
+        localStorage.setItem("resumezip.jobs", JSON.stringify({ version: 1, jobs }))
+      }
+    },
+    [job("first", "Backend Engineer"), job("second", "Compiler Engineer")],
+  )
+  await page.goto("/create/dashboard#jobs")
+  await expect(page.getByRole("heading", { name: "Jobs · 2" })).toBeVisible()
+
+  // Asking first, the focus on Keep, which keeps it.
+  await page.getByRole("button", { name: "Delete Backend Engineer" }).click()
+  await expect(page.getByRole("button", { name: "Keep" })).toBeFocused()
+  await page.getByRole("button", { name: "Keep" }).click()
+  await expect(page.getByRole("heading", { name: "Jobs · 2" })).toBeVisible()
+
+  await page.getByRole("button", { name: "Delete Backend Engineer" }).click()
+  await page.getByRole("button", { name: "Delete", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Jobs · 1" })).toBeVisible()
+  await expect(page.getByText("Backend Engineer", { exact: true })).toHaveCount(0)
+
+  await page.reload()
+  await expect(page.getByRole("heading", { name: "Jobs · 1" })).toBeVisible()
+  await expect(page.getByText("Compiler Engineer", { exact: true })).toBeVisible()
+})
