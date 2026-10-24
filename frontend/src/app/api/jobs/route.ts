@@ -60,10 +60,7 @@ export async function POST(request: Request): Promise<Response> {
         ...options,
         answer: PROFILES_ANSWER,
       })
-      const profiles = profilesAnswerOf(
-        given,
-        asking.resumes.map((resume) => resume.id),
-      )
+      const profiles = profilesAnswerOf(given, asking.resumes)
       // An answer that leaves a resume out, or isn't whole, is said so rather than filled in.
       return profiles ? answer(200, { profiles }) : answer(503, { error: "answer" })
     }

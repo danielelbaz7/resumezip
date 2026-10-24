@@ -6,7 +6,7 @@
 import type { ResumeWithId } from "@/lib/resume"
 import { REVIEWER_HEADER, reviewerId } from "@/lib/review/ai/reviewer"
 import { graduationFit, graduationOf } from "./graduation"
-import { examplesTextOf, fingerprintOf, GROUPS, hasSource, profileSourceOf, readProfile, type ResumeProfile } from "./profile"
+import { examplesTextOf, fingerprintOf, groupLines, GROUPS, hasSource, profileSourceOf, readProfile, type ResumeProfile } from "./profile"
 import { linkOf, matchAnswerOf, MOST_PER_PROFILES, MOST_PROFILES, postingProblem, sendable, wireId, type MatchAnswer } from "./request"
 import { blendedScore, coreOf, foundOf, keywordsOf, missingScreening, onResume, ranked, type Parts, type Requirement } from "./score"
 import { readSavedProfile, saveProfile, type Job, type JobMatch } from "./storage"
@@ -108,7 +108,10 @@ const titleOf = (resume: ResumeWithId) => resume.resumeTitle?.trim() || resume.p
 
 // The resume's text the keywords are looked for in: what its profile is made
 // from, which is most of what hiring software would read of it.
-const textOf = (resume: ResumeWithId) => GROUPS.flatMap((group) => profileSourceOf(resume)[group]).join("\n")
+const textOf = (resume: ResumeWithId) => {
+  const source = profileSourceOf(resume)
+  return GROUPS.flatMap((group) => groupLines(source, group)).join("\n")
+}
 
 /**
  * How many of a resume's jobs and projects show a requirement: those whose

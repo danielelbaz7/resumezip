@@ -180,10 +180,15 @@ must-have. If the resume has no date, it says so, with no penalty.
   Jobs matched before the layers have `parts: null`. Their must-haves read as tier 1
   and the rest as tier 3.
 
-**Profiles** also hold `domains` and up to 15 `highlights`: the resume's strongest
-concrete claims, with their numbers, tagged experience or projects. That's the
-evidence matched on, without sending the whole resume again. The fingerprint includes
-a profile version, so profiles made before highlights existed are made once more.
+**Profiles** also hold `domains` and, for every job and project, an entry: its title
+copied from the resume ("Engineer · Stripe", "Redis Clone · C++"), up to 5 themes (the
+kind of work it is, like "distributed systems" or "low-latency trading"), up to 10
+skills, and its strongest claim. A claim is kept only if every number in it is in
+that job or project's own text. That's the evidence matched on, without sending the
+whole resume again. Jobs and projects are sent to be summed up as separate entries
+(`x1`, `p1`), and an answer that leaves one out is incomplete. The fingerprint
+includes a profile version, so profiles made before entries existed are made once
+more.
 
 ## What's saved in localStorage
 

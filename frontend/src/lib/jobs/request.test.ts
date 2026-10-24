@@ -12,14 +12,24 @@ import {
   workName,
 } from "./request"
 
-const source = (id = "r1") => ({ id, experience: ["Engineer · Stripe"], projects: [], skills: ["Go"], coursework: [] })
+const source = (id = "r1") => ({
+  id,
+  experience: [{ title: "Engineer · Stripe", lines: ["Built a payments API serving 2K requests a second"] }],
+  projects: [{ title: "Atlas · Go", lines: ["Mapped cities"] }],
+  skills: ["Go"],
+  coursework: [],
+})
+const answeredEntries = [
+  { id: "x1", themes: ["payments infrastructure"], skills: ["Go"], claim: "Payments API, 2K requests/s" },
+  { id: "p1", themes: ["mapping"], skills: ["Go"], claim: "Mapped 40 cities" },
+]
 const profile = (id = "r1") => ({
   id,
   targets: ["Backend Engineer"],
   level: "mid",
   summary: "",
   domains: [],
-  highlights: [],
+  entries: answeredEntries,
   experience: ["Go"],
   projects: [],
   skills: [],
@@ -96,18 +106,34 @@ const resume = (id: string, evidence: object[] = [{ strength: "good", place: "pr
 describe("an answer with profiles", () => {
   test("has each one sent, cut to its limits", () => {
     const answer = { profiles: [profile("r1"), profile("r9"), { ...profile("r2"), targets: Array(9).fill("Engineer") }] }
-    const read = profilesAnswerOf(answer, ["r1", "r2"])
+    const read = profilesAnswerOf(answer, [source("r1"), source("r2")])
     expect(Object.keys(read!)).toEqual(["r1", "r2"])
     expect(read!.r2.targets).toHaveLength(1)
   })
 
-  test("is nothing when it leaves one out, or one isn't whole, rather than made up", () => {
-    expect(profilesAnswerOf({ profiles: [profile("r1")] }, ["r1", "r2"])).toBeNull()
+  test("has each job and project with its title from the resume, and its claim only with numbers its text has", () => {
+    const read = profilesAnswerOf({ profiles: [profile("r1")] }, [source("r1")])
+    expect(read!.r1.entries).toEqual([
+      {
+        group: "experience",
+        title: "Engineer · Stripe",
+        themes: ["payments infrastructure"],
+        skills: ["Go"],
+        claim: "Payments API, 2K requests/s",
+      },
+      // "40 cities" isn't in the project's text.
+      { group: "projects", title: "Atlas · Go", themes: ["mapping"], skills: ["Go"], claim: "" },
+    ])
+  })
+
+  test("is nothing when it leaves one out, or a job or project of one, or one isn't whole, rather than made up", () => {
+    expect(profilesAnswerOf({ profiles: [profile("r1")] }, [source("r1"), source("r2")])).toBeNull()
     const { domains: _, ...partial } = profile("r1")
-    expect(profilesAnswerOf({ profiles: [partial] }, ["r1"])).toBeNull()
-    expect(profilesAnswerOf({ profiles: [{ ...profile("r1"), level: "wizard" }] }, ["r1"])).toBeNull()
-    expect(profilesAnswerOf({ profiles: [{ ...profile("r1"), highlights: [{ group: "hobbies", text: "x" }] }] }, ["r1"])).toBeNull()
-    expect(profilesAnswerOf("busy", ["r1"])).toBeNull()
+    expect(profilesAnswerOf({ profiles: [partial] }, [source("r1")])).toBeNull()
+    expect(profilesAnswerOf({ profiles: [{ ...profile("r1"), level: "wizard" }] }, [source("r1")])).toBeNull()
+    expect(profilesAnswerOf({ profiles: [{ ...profile("r1"), entries: [answeredEntries[0]] }] }, [source("r1")])).toBeNull()
+    expect(profilesAnswerOf({ profiles: [{ ...profile("r1"), entries: [{ id: "x1", themes: "payments" }] }] }, [source("r1")])).toBeNull()
+    expect(profilesAnswerOf("busy", [source("r1")])).toBeNull()
   })
 })
 
@@ -260,9 +286,11 @@ describe("a posting", () => {
 
 describe("a long resume", () => {
   test("is cut to what a request may hold, so it's sent in part rather than turned away", () => {
-    const long = { experience: Array(200).fill("x".repeat(1_500)), projects: ["Atlas"], skills: [], coursework: [] }
+    const job = { title: "Engineer · Stripe", lines: Array(40).fill("x".repeat(1_500)) }
+    const long = { experience: Array(40).fill(job), projects: [{ title: "Atlas", lines: [] }], skills: [], coursework: [] }
     const sent = sendable(long)
-    expect(sent.experience.every((line) => line.length <= 1_000)).toBe(true)
+    expect(sent.experience.flatMap((entry) => entry.lines).every((line) => line.length <= 1_000)).toBe(true)
+    expect(sent.experience.length + sent.projects.length).toBeLessThanOrEqual(30)
     expect(jobsRequestOf({ kind: "profiles", resumes: [{ id: "r1", ...sent }] })).not.toBeNull()
   })
 })

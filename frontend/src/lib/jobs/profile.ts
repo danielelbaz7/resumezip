@@ -13,13 +13,35 @@ export type Group = (typeof GROUPS)[number]
 export const LEVELS = ["intern", "entry", "mid", "senior", "lead"] as const
 export type Level = (typeof LEVELS)[number]
 
-/** What the AI is sent of a resume: its printed text in the four groups, a line per item. */
-export type ProfileSource = Record<Group, string[]>
+/** A job or a project as the AI is sent it: its title as printed ("Engineer · Stripe", "Atlas · Go") and its bullets. */
+export interface SourceEntry {
+  title: string
+  lines: string[]
+}
 
-/** A concrete claim from a job or project, with its scale and results, as evidence a requirement is met. */
-export interface Highlight {
-  group: "experience" | "projects"
-  text: string
+/** The groups that are jobs and projects, each sent and summed up one entry at a time. */
+export const ENTRY_GROUPS = ["experience", "projects"] as const
+export type EntryGroup = (typeof ENTRY_GROUPS)[number]
+
+/**
+ * What the AI is sent of a resume: its jobs and projects, each with its
+ * title and bullets, and its skill groups and coursework, a line each.
+ */
+export type ProfileSource = Record<EntryGroup, SourceEntry[]> & Record<"skills" | "coursework", string[]>
+
+/**
+ * One job or project as its profile keeps it: its title, copied from the
+ * resume rather than the AI's, the themes and skills the AI read in it, and
+ * its strongest claim, whose numbers are all in its own text (groundedClaim).
+ */
+export interface ProfileEntry {
+  group: EntryGroup
+  title: string
+  /** The kinds of work it is: "distributed systems", "low-latency trading", up to MOST_THEMES. */
+  themes: string[]
+  skills: string[]
+  /** "" when it has none worth keeping, or the AI's had a number its text doesn't. */
+  claim: string
 }
 
 export type ResumeProfile = {
@@ -30,8 +52,8 @@ export type ResumeProfile = {
   summary: string
   /** The fields its work is in ("finance", "compilers"), up to MOST_DOMAINS. */
   domains: string[]
-  /** Its strongest evidence, up to MOST_HIGHLIGHTS, so a job can be matched on how directly it's proven. */
-  highlights: Highlight[]
+  /** Each of its jobs and projects, in the resume's order, so a job is matched on what each one shows. */
+  entries: ProfileEntry[]
 } & Record<Group, string[]>
 
 export const MOST_TARGETS = 5
@@ -40,15 +62,18 @@ export const MOST_TERMS = 25
 export const MOST_TERM_CHARS = 80
 export const MOST_SUMMARY_CHARS = 300
 export const MOST_DOMAINS = 5
-export const MOST_HIGHLIGHTS = 15
-export const MOST_HIGHLIGHT_CHARS = 160
+/** Jobs and projects kept per resume, and what each keeps. */
+export const MOST_ENTRIES = 30
+export const MOST_THEMES = 5
+export const MOST_ENTRY_SKILLS = 10
+export const MOST_CLAIM_CHARS = 160
 
 /**
  * Goes into each profile's fingerprint, so profiles made for an earlier
  * version of what a profile holds are made again: 2 added domains and
- * highlights.
+ * highlights; 3 made them a profile per job and project, with its themes.
  */
-export const PROFILE_VERSION = 2
+export const PROFILE_VERSION = 3
 
 // Bold and italic marks, which the AI doesn't need, and the bullet a line starts with.
 const plain = (text: string) =>
@@ -64,18 +89,44 @@ const joined = (...parts: string[]) => parts.filter(Boolean).join(" · ")
 /** What's sent of `resume` to make its profile: only what its PDF prints. */
 export function profileSourceOf(saved: Resume): ProfileSource {
   const resume = printedResume(saved)
+  const entry = (title: string, description: string | undefined): SourceEntry => ({ title, lines: linesOf(description) })
+  const kept = (entry: SourceEntry) => entry.title || entry.lines.length > 0
   return {
-    experience: entriesOf(resume.workExperienceSection).flatMap((job) => [
-      joined(field(job, "workRole"), field(job, "companyName")),
-      ...linesOf(job.workDescription),
-    ]),
-    projects: entriesOf(resume.projectsSection).flatMap((project) => [
-      joined(field(project, "projectName"), field(project, "techStack")),
-      ...linesOf(project.projectDescription),
-    ]),
-    skills: entriesOf(resume.skillsSection).map((group) => joined(field(group, "skillName"), field(group, "skillDetails"))),
-    coursework: entriesOf(resume.educationSection).map((school) => joined(field(school, "schoolName"), field(school, "coursework"))),
+    experience: entriesOf(resume.workExperienceSection)
+      .map((job) => entry(joined(field(job, "workRole"), field(job, "companyName")), job.workDescription))
+      .filter(kept),
+    projects: entriesOf(resume.projectsSection)
+      .map((project) => entry(joined(field(project, "projectName"), field(project, "techStack")), project.projectDescription))
+      .filter(kept),
+    skills: entriesOf(resume.skillsSection)
+      .map((group) => joined(field(group, "skillName"), field(group, "skillDetails")))
+      .filter(Boolean),
+    coursework: entriesOf(resume.educationSection)
+      .map((school) => joined(field(school, "schoolName"), field(school, "coursework")))
+      .filter(Boolean),
   }
+}
+
+/** A group's text as lines: each job or project's title and bullets, or the group's own lines. */
+export const groupLines = (source: ProfileSource, group: Group): string[] =>
+  group === "experience" || group === "projects" ? source[group].flatMap((entry) => [entry.title, ...entry.lines]) : source[group]
+
+/** The id each job and project goes by in a profiles request: "x1" for the first job, "p1" for the first project. */
+export const entryId = (group: EntryGroup, index: number) => `${group === "experience" ? "x" : "p"}${index + 1}`
+
+// The digits in a claim, each run of them, with thousands separators taken out: "100,000+ ops/s" has "100000".
+const digitRuns = (text: string) => text.replace(/(\d),(?=\d{3}\b)/g, "$1").match(/\d+/g) ?? []
+
+/**
+ * A claim the AI wrote of a job or project, kept only when every number in it
+ * is in that job or project's own text ("100K" for "100K+ ops/s" or for
+ * "100,000"): a number the AI made up drops it. "" when it's dropped.
+ */
+export function groundedClaim(claim: string, entry: SourceEntry): string {
+  const text = [entry.title, ...entry.lines].join("\n")
+  const runs = digitRuns(text)
+  const written = claim.trim().slice(0, MOST_CLAIM_CHARS)
+  return digitRuns(written).every((run) => runs.some((there) => there.includes(run))) ? written : ""
 }
 
 /**
@@ -95,7 +146,7 @@ export function examplesTextOf(saved: Resume): string[] {
 }
 
 /** Whether a resume has anything to match a job on. */
-export const hasSource = (source: ProfileSource) => GROUPS.some((group) => source[group].some(Boolean))
+export const hasSource = (source: ProfileSource) => GROUPS.some((group) => groupLines(source, group).some(Boolean))
 
 /**
  * A fingerprint of what a profile was made from (cyrb53, a fast 53-bit
@@ -103,7 +154,7 @@ export const hasSource = (source: ProfileSource) => GROUPS.some((group) => sourc
  * resume's text changes. Not for security: only to tell texts apart.
  */
 export function fingerprintOf(source: ProfileSource): string {
-  const text = JSON.stringify([PROFILE_VERSION, ...GROUPS.map((group) => source[group].filter(Boolean))])
+  const text = JSON.stringify([PROFILE_VERSION, ...GROUPS.map((group) => source[group])])
   let h1 = 0xdeadbeef
   let h2 = 0x41c6ce57
   for (let i = 0; i < text.length; i++) {
@@ -142,14 +193,18 @@ export function readProfile(value: unknown): ResumeProfile | null {
     level,
     summary: typeof item.summary === "string" ? item.summary.trim().slice(0, MOST_SUMMARY_CHARS) : "",
     domains: strings(item.domains, MOST_DOMAINS, MOST_TERM_CHARS),
-    highlights: (Array.isArray(item.highlights) ? item.highlights : [])
-      .filter((highlight): highlight is Record<string, unknown> => !!highlight && typeof highlight === "object")
-      .map((highlight) => ({
-        group: highlight.group === "projects" ? ("projects" as const) : ("experience" as const),
-        text: typeof highlight.text === "string" ? highlight.text.trim().slice(0, MOST_HIGHLIGHT_CHARS) : "",
+    // A profile saved before it had them has none, and is made again (PROFILE_VERSION).
+    entries: (Array.isArray(item.entries) ? item.entries : [])
+      .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === "object")
+      .map((entry) => ({
+        group: entry.group === "projects" ? ("projects" as const) : ("experience" as const),
+        title: typeof entry.title === "string" ? entry.title.trim().slice(0, 200) : "",
+        themes: strings(entry.themes, MOST_THEMES, MOST_TERM_CHARS),
+        skills: strings(entry.skills, MOST_ENTRY_SKILLS, MOST_TERM_CHARS),
+        claim: typeof entry.claim === "string" ? entry.claim.trim().slice(0, MOST_CLAIM_CHARS) : "",
       }))
-      .filter((highlight) => highlight.text)
-      .slice(0, MOST_HIGHLIGHTS),
+      .filter((entry) => entry.title)
+      .slice(0, MOST_ENTRIES),
     experience: strings(item.experience, MOST_TERMS, MOST_TERM_CHARS),
     projects: strings(item.projects, MOST_TERMS, MOST_TERM_CHARS),
     skills: strings(item.skills, MOST_TERMS, MOST_TERM_CHARS),
