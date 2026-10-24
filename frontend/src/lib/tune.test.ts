@@ -11,7 +11,7 @@ describe("a saved tune", () => {
   })
 
   test("keeps every setting Fine-tune makes", () => {
-    const tune = { size: 0.925, margin: 1.4, leading: 0.8, gap: 0.45, paper: "a4", onePage: true }
+    const tune = { size: 0.925, margin: 1.4, leading: 0.8, gap: 0.45, underlineGap: 2.5, paper: "a4", onePage: true }
     expect(readTune(tune)).toEqual({ tune, complete: true })
   })
 
@@ -34,25 +34,26 @@ describe("a saved tune", () => {
   })
 
   test("brings multiples out of range to the nearest end of it", () => {
-    expect(readTune({ size: 2, margin: 0, leading: -1, gap: 9 })).toEqual({
-      tune: { size: 1.15, margin: 0.6, leading: 0.8, gap: 1.7 },
+    expect(readTune({ size: 2, margin: 0, leading: -1, gap: 9, underlineGap: 0 })).toEqual({
+      tune: { size: 1.15, margin: 0.6, leading: 0.8, gap: 1.7, underlineGap: 0.5 },
       complete: false,
     })
     expect(readTune({ size: Infinity })).toEqual({ tune: null, complete: false })
   })
 
   test("leaves out the template's own settings", () => {
-    expect(readTune({ size: 1, margin: 1, leading: 1, gap: 1, onePage: false })).toEqual({ tune: null, complete: true })
+    expect(readTune({ size: 1, margin: 1, leading: 1, gap: 1, underlineGap: 1, onePage: false })).toEqual({ tune: null, complete: true })
     expect(readTune({ size: 1, paper: "us-letter" })).toEqual({ tune: { paper: "us-letter" }, complete: true })
   })
 
   test("prints with every setting there, and the template's own for those not set", () => {
-    expect(printedTune(undefined)).toEqual({ size: 1, margin: 1, leading: 1, gap: 1, paper: "", onePage: false })
+    expect(printedTune(undefined)).toEqual({ size: 1, margin: 1, leading: 1, gap: 1, underlineGap: 1, paper: "", onePage: false })
     expect(printedTune({ size: 1.1, paper: "a4", font: "Comic Sans" })).toEqual({
       size: 1.1,
       margin: 1,
       leading: 1,
       gap: 1,
+      underlineGap: 1,
       paper: "a4",
       onePage: false,
     })

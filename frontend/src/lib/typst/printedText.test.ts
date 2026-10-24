@@ -105,4 +105,9 @@ describe("an underlined project name", () => {
       expect(Buffer.from(underlined).equals(Buffer.from(plain)), links).toBe(false)
     }
   })
+
+  test.each(TEMPLATES.map(({ id }) => id))("moves with Fine-tune's underline gap in %s", async (id) => {
+    const at = (underlineGap: number) => render({ selectedTemplate: id, tune: { underlineGap }, ...project("show", true) })
+    expect(Buffer.from(await at(3)).equals(Buffer.from(await at(1)))).toBe(false)
+  })
 })

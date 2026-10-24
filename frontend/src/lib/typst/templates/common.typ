@@ -53,9 +53,11 @@
 
 #let email-link(address, body) = link("mailto:" + address, body)
 
-// A project's name, underlined and linked when the user chose to (see resumeData.ts).
+// A project's name, underlined and linked when the user chose to (see
+// resumeData.ts). `pr.underline` is how far below the baseline the line is,
+// in em, from Fine-tune's underline gap.
 #let project-name(pr) = {
-  let name = if pr.underline { underline(pr.name) } else { pr.name }
+  let name = if pr.underline > 0 { underline(offset: pr.underline * 1em, pr.name) } else { pr.name }
   if has(pr.link) { web-link(pr.link, name) } else { name }
 }
 

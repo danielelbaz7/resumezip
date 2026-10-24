@@ -161,6 +161,15 @@ export const shownLink = (url: string, text: string, style = (body: string) => b
 export type ShowLink = (url: string, text: string) => string
 
 export const underline = (body: string) => `\\underline{${body}}`
+
+/**
+ * `body` with a line `gap` em below its baseline, as Typst's
+ * `underline(offset:)` draws it. \\underline puts its line under the deepest
+ * letter instead, so it can't be moved: the line is a rule as wide as the
+ * box, drawn before it without taking up room.
+ */
+const underlinedAt = (body: string, gap: number) =>
+  `{\\setbox0\\hbox{${body}}\\rlap{\\rule[-${Math.round(gap * 1000) / 1000}em]{\\wd0}{0.4pt}}\\box0}`
 /** A link printed as its own text, underlined. */
 export const underlined: ShowLink = (url, text) => shownLink(url, text, underline)
 
@@ -176,7 +185,7 @@ export const emailLink = (address: string, style?: (body: string) => string) => 
  */
 export const projectName = (project: TemplateData["projects"][number], style = (body: string) => body) => {
   const styled = style(latex(project.name))
-  const name = project.underline ? underline(styled) : styled
+  const name = project.underline > 0 ? underlinedAt(styled, project.underline) : styled
   return project.link ? href(web(project.link), name) : name
 }
 

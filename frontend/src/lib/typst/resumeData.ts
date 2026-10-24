@@ -9,7 +9,7 @@ import { printedResume } from "@/lib/leftOut"
 import type { Entry, Resume } from "@/lib/resume"
 import { extraHeading, extrasOf, resolveSections } from "@/lib/resumeSections"
 import { templateById, type TemplateId } from "@/lib/templates"
-import { printedTune, type PrintedTune } from "@/lib/tune"
+import { printedTune, UNDERLINE_GAP, type PrintedTune } from "@/lib/tune"
 
 export type { TemplateId }
 
@@ -44,7 +44,8 @@ export interface TemplateData {
   }[]
   work: { company: string; location: string; role: string; start: string; end: string; bullets: Run[][] }[]
   /** `link` is set when the name links somewhere; `links` are printed as text. */
-  projects: { name: string; link: string; links: string[]; underline: boolean; techStack: string; date: string; bullets: Run[][] }[]
+  /** `underline`: how far below the baseline the name's line is, in em, or 0 when it isn't underlined. */
+  projects: { name: string; link: string; links: string[]; underline: number; techStack: string; date: string; bullets: Run[][] }[]
   /** Printed as citations; `doi` is set instead of `link` when the link is a DOI. */
   publications: { title: string; authors: AuthorPiece[]; venue: string; details: string; date: string; doi: string; link: string }[]
   skills: { name: string; details: string }[]
@@ -241,11 +242,11 @@ export function doiOf(link: string): string {
 }
 
 // Maps a section's entries, dropping ones the user added but left blank. A
-// flag, as a project's `underline`, isn't something the user typed.
-function entries<T extends Record<string, string | unknown[] | boolean>>(value: unknown, map: (entry: Saved) => T): T[] {
+// number, as a project's `underline`, isn't something the user typed.
+function entries<T extends Record<string, string | unknown[] | number>>(value: unknown, map: (entry: Saved) => T): T[] {
   return (Array.isArray(value) ? value : [])
     .map((entry) => map(entry && typeof entry === "object" ? (entry as Saved) : {}))
-    .filter((entry) => Object.values(entry).some((field) => typeof field !== "boolean" && field.length > 0))
+    .filter((entry) => Object.values(entry).some((field) => typeof field !== "number" && field.length > 0))
 }
 
 export function templateIdOf(value: unknown): TemplateId {
@@ -259,9 +260,10 @@ export function toTemplateData(saved: Resume): TemplateData {
   const headings = resume.headings ?? {}
   // Project links are printed as text, unless the user chose to link each project's name.
   const linkTitles = resume.projectLinks === "title"
+  const tune = printedTune(resume.tune)
 
   return {
-    tune: printedTune(resume.tune),
+    tune,
     profile: {
       name: text(profile.fullName),
       location: text(profile.location),
@@ -327,7 +329,7 @@ export function toTemplateData(saved: Resume): TemplateData {
         name,
         link: titled ? (urls[0] ?? "") : "",
         links: titled ? [] : urls,
-        underline: e.underlineName === true && name !== "",
+        underline: e.underlineName === true && name !== "" ? UNDERLINE_GAP * tune.underlineGap : 0,
         techStack: text(e.techStack),
         date: text(e.projectDate),
         bullets: bullets(e.projectDescription),
