@@ -127,7 +127,15 @@ on) and the domain the work is in.
 | 2 | Strong signal the posting emphasizes or repeats (concurrency, SQL) | 2 |
 | 3 | Nice to have ("LLVM is a plus") | 1 |
 
-Work authorization and citizenship are left out: a resume doesn't show them.
+Requirements are only the technical work: languages, systems, frameworks, tools and
+kinds of engineering. Anything about hiring rather than the work is left out, since a
+resume doesn't prove it and every resume would miss it: degree, GPA and graduation
+date; availability, full-time, internship term and start date; location, relocation,
+remote and travel; work authorization, sponsorship, citizenship and clearance;
+years-of-experience counts ("3+ years of C++" is C++); and soft skills like
+communication. The prompt says so, and `workName` in `request.ts` drops any the AI
+gives anyway, matching soft skills and arrangements whole so "high availability" and
+"inter-process communication" stay.
 
 **Evidence has strengths.** For each requirement, the AI judges how directly each
 resume proves it, using the profile's highlights first:

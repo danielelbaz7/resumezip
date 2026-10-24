@@ -167,6 +167,48 @@ const wordsIn = (text: string) => text.split(/\s+/).filter((word) => /[\p{L}\p{N
 /** Why `text` can't be matched as a job posting: "short" with too few words to be one; null when it can. */
 export const postingProblem = (text: string): "short" | null => (wordsIn(text) < LEAST_POSTING_WORDS ? "short" : null)
 
+// Requirements about hiring rather than the work, which a resume doesn't
+// prove and so every resume would miss: the prompt tells the AI to leave
+// them out, and one it gives anyway is dropped by its name. The soft skills
+// and work arrangements are matched whole, so "high availability",
+// "inter-process communication" and "hybrid cloud" stay.
+// prettier-ignore
+const NOT_THE_WORK = new RegExp(
+  [
+    // Education.
+    "\\bgraduat", "\\bdegree\\b", "\\bbachelor", "\\bmaster'?s\\b", "\\bph\\.?\\s?d\\b", "\\bgpa\\b", "\\bcoursework in\\b",
+    // "BS in Computer Science", "M.S. degree", but not "MS Excel".
+    "^(b|m)\\.?\\s?(s|a|sc|eng)\\.?\\s+(in|degree)\\b",
+    // Availability.
+    "\\bfull[- ]?time\\b", "\\bpart[- ]?time\\b", "^availab", "\\bavailab\\w* (to|for|from|during|in)\\b", "\\bstart date\\b",
+    "\\binternship (term|period|dates?|length)\\b",
+    // Where and whether they can work.
+    "\\brelocat", "\\bon[- ]?site\\b", "\\bin[- ]office\\b", "^hybrid( work| schedule)?$", "^remote( work)?$", "\\btravel\\b",
+    "\\bwork(ing)? authori[sz]", "\\bauthori[sz]ed to work\\b", "\\bsponsorship\\b", "\\bvisa\\b", "\\bcitizenship\\b", "\\bcitizen\\b",
+    "\\bsecurity clearance\\b", "^clearance$",
+    // A count of years alone, and soft skills.
+    "^years( of)?( experience)?$", "^(strong |excellent |good |written |verbal |written and verbal )?communication( skills)?$",
+    "^team ?work$", "^teamwork skills$", "^passion\\b", "^work ethic$",
+  ].join("|"),
+  "i",
+)
+
+/**
+ * A requirement's name, without a count of years before it ("3+ years of
+ * C++" is C++); "" when it's about hiring rather than the work: a degree,
+ * availability, location, authorization and the like, or a soft skill.
+ */
+export function workName(name: string): string {
+  const work = name
+    .trim()
+    .replace(
+      /^\d+\s*(\+|-\s*\d+)?\s*(years?|yrs?)\b(\s+of)?(\s+(professional|hands-on|industry))?(\s+experience)?(\s+(with|in|using))?\s*/i,
+      "",
+    )
+    .trim()
+  return !work || NOT_THE_WORK.test(work) ? "" : work
+}
+
 /** Whether `phrase` is in the posting, word for word, whatever its case and spacing: what the AI says of a job must be. */
 export const inPosting = (phrase: string, posting: string) => phrase.trim() !== "" && onResume(phrase, posting)
 
@@ -261,7 +303,7 @@ export function matchAnswerOf(answer: unknown, ids: readonly string[], posting: 
   // The requirements the posting says, in order, each by where it was in the answer.
   const kept = (asked as Record<string, unknown>[])
     .map((item, at) => ({ item, at }))
-    .filter(({ item }) => text(item.name, MOST_TERM_CHARS) && inPosting(item.quote as string, posting))
+    .filter(({ item }) => workName(text(item.name, MOST_TERM_CHARS)) && inPosting(item.quote as string, posting))
     .slice(0, MOST_REQUIREMENTS)
   const resumes: MatchAnswer["resumes"] = {}
   for (const id of ids) {
@@ -298,7 +340,7 @@ export function matchAnswerOf(answer: unknown, ids: readonly string[], posting: 
       role: job.role as RoleKind,
       domain: text(job.domain, 200),
       requirements: kept.map(({ item }) => ({
-        name: text(item.name, MOST_TERM_CHARS),
+        name: workName(text(item.name, MOST_TERM_CHARS)),
         tier: item.tier as Tier,
         keyword: text(item.keyword, MOST_TERM_CHARS),
         quote: text(item.quote, MOST_QUOTE_CHARS),
