@@ -8,7 +8,7 @@
 import { useEffect, useId, useRef, useState } from "react"
 import { ExternalLink, Loader2, Trash2 } from "lucide-react"
 import { BLUE_PILL, sheetPill, TEXT_PILL } from "@/components/pills"
-import { JOBS_PROBLEMS, JobsError, matchJob, type Step } from "@/lib/jobs/match"
+import { JOBS_PROBLEMS, JobsError, matchJob, MOST_MATCHES, type Step } from "@/lib/jobs/match"
 import { MOST_POSTING_CHARS } from "@/lib/jobs/request"
 import {
   forgetProfiles,
@@ -343,9 +343,10 @@ function JobCard({ job, open, resumes, onToggle, onStatus, onChoose, onDelete, o
           )}
 
           <div className="flex flex-col gap-2">
-            <h3 className="label-mono text-ink-2">Your resumes, best fit first</h3>
+            <h3 className="label-mono text-ink-2">Your best-fitting resumes</h3>
             <ol className="flex flex-col gap-3">
-              {job.matches.map((match) => {
+              {/* A job saved before only the best five were kept shows its best five too. */}
+              {job.matches.slice(0, MOST_MATCHES).map((match) => {
                 const where = [
                   match.found.experience && `${match.found.experience} in experience`,
                   match.found.projects && `${match.found.projects} in projects`,
