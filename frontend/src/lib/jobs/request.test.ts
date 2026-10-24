@@ -9,6 +9,7 @@ import {
   postingProblem,
   profilesAnswerOf,
   sendable,
+  workName,
 } from "./request"
 
 const source = (id = "r1") => ({ id, experience: ["Engineer · Stripe"], projects: [], skills: ["Go"], coursework: [] })
@@ -165,6 +166,56 @@ describe("an answer with a match", () => {
     expect(matchAnswerOf({ ...whole, job: job([{ name: "C++", tier: 9, keyword: "C++", quote: "C++" }]) }, ["r1"], POSTING)).toBeNull()
     expect(matchAnswerOf({ ...whole, job: { ...job(), role: "wizardry" } }, ["r1"], POSTING)).toBeNull()
     expect(matchAnswerOf({ resumes: [] }, ["r1"], POSTING)).toBeNull()
+  })
+})
+
+describe("a requirement's name", () => {
+  test("is dropped when it's about hiring rather than the work, which a resume doesn't prove", () => {
+    for (const name of [
+      "Graduation date",
+      "Full-time availability",
+      "Available to start in June",
+      "BS in Computer Science",
+      "Bachelor's degree",
+      "Work authorization",
+      "Security clearance",
+      "Relocation",
+      "Remote",
+      "Communication skills",
+      "Teamwork",
+      "Years of experience",
+    ]) {
+      expect(workName(name), name).toBe("")
+    }
+  })
+
+  test("is kept for the work, with a count of years before it taken off", () => {
+    expect(workName("3+ years of C++")).toBe("C++")
+    expect(workName("5-7 years experience with Go")).toBe("Go")
+    for (const name of [
+      "High availability",
+      "Inter-process communication",
+      "Hybrid cloud",
+      "Job scheduling",
+      "Remote procedure calls",
+      "MS Excel",
+    ]) {
+      expect(workName(name), name).toBe(name)
+    }
+  })
+
+  test("about hiring is left out of a match, with each resume's evidence for it", () => {
+    const requirements = [
+      { name: "Graduation date", tier: 1, keyword: "", quote: "Systems Engineer at Northwind Labs" },
+      { name: "3+ years of C++", tier: 1, keyword: "C++", quote: "proficiency in C++" },
+    ]
+    const evidence = [
+      { strength: "none", place: "nowhere" },
+      { strength: "good", place: "projects" },
+    ]
+    const read = matchAnswerOf({ job: job(requirements), resumes: [resume("r1", evidence)] }, ["r1"], POSTING)
+    expect(read?.job.requirements).toEqual([{ name: "C++", tier: 1, keyword: "C++", quote: "proficiency in C++" }])
+    expect(read?.resumes.r1.evidence).toEqual([{ strength: "good", place: "projects" }])
   })
 })
 
