@@ -99,9 +99,11 @@ describe("matching a job", () => {
             },
           ],
         },
+        posting: POSTING,
+        note: "",
       }),
     )
-    const job = await matchJob(
+    const { job, note } = await matchJob(
       ` ${POSTING} `,
       " acme.com/jobs/1 ",
       [resume("go", "Go", "2026-01-01T00:00:00Z"), resume("rust", "Rust")],
@@ -109,8 +111,11 @@ describe("matching a job", () => {
     )
     // Matched newest first, so the Rust resume, edited last, is r1.
     expect(sent()[1].profiles.map((sent: { skills: string[] }) => sent.skills)).toEqual([["Rust"], ["Go"]])
+    expect(note).toBe("")
+    expect(sent()[1]).toMatchObject({ kind: "match", posting: POSTING, link: "https://acme.com/jobs/1" })
     expect(job).toMatchObject({
-      link: "acme.com/jobs/1",
+      link: "https://acme.com/jobs/1",
+      posting: POSTING,
       title: "Engineer",
       role: "systems/infrastructure",
       status: "saved",
@@ -134,6 +139,63 @@ describe("matching a job", () => {
   test("says so when no resume has anything to match on, without asking the AI", async () => {
     const empty = { ...asSaved({ profileSection: { fullName: "Ada" } }), id: "empty" }
     await expect(matchJob(POSTING, "", [empty], memoryStorage())).rejects.toEqual(new JobsError("empty"))
+    expect(fetched).not.toHaveBeenCalled()
+  })
+
+  test("sends a link with no posting pasted, and saves the posting the route read from it", async () => {
+    const answer = {
+      match: {
+        job: {
+          isPosting: true,
+          title: "Engineer",
+          company: "Acme",
+          location: "",
+          level: "unknown",
+          role: "backend/product",
+          domain: "",
+          requirements: [],
+          advice: "",
+        },
+        resumes: [{ id: "r1", evidence: [], projects: 50, experience: 50, domain: 50, narrative: 50, reason: "Close." }],
+      },
+      posting: POSTING,
+      note: "",
+    }
+    fetched.mockResolvedValueOnce(Response.json({ profiles: { r1: profile(["Rust"]) } })).mockResolvedValueOnce(Response.json(answer))
+    const steps: string[] = []
+    const { job } = await matchJob("", "acme.com/jobs/2", [resume("a", "Rust")], memoryStorage(), {
+      onStep: (step) => steps.push(step.kind),
+    })
+    expect(sent()[1]).toMatchObject({ posting: "", link: "https://acme.com/jobs/2" })
+    expect(job.posting).toBe(POSTING)
+    expect(steps).toEqual(["profiles", "link"])
+  })
+
+  test("says when the link couldn't be read and only the paste was matched", async () => {
+    const answer = {
+      match: {
+        job: {
+          isPosting: true,
+          title: "",
+          company: "",
+          location: "",
+          level: "unknown",
+          role: "other",
+          domain: "",
+          requirements: [],
+          advice: "",
+        },
+        resumes: [{ id: "r1", evidence: [], projects: 50, experience: 50, domain: 50, narrative: 50, reason: "" }],
+      },
+      posting: POSTING,
+      note: "link-unread",
+    }
+    fetched.mockResolvedValueOnce(Response.json({ profiles: { r1: profile(["Rust"]) } })).mockResolvedValueOnce(Response.json(answer))
+    expect((await matchJob(POSTING, "linkedin.com/jobs/view/1", [resume("a", "Rust")], memoryStorage())).note).toBe("link-unread")
+  })
+
+  test("says a link isn't a web address, before anything's sent", async () => {
+    await expect(matchJob(POSTING, "not a link", [resume("a", "Rust")], memoryStorage())).rejects.toMatchObject({ reason: "bad-link" })
     expect(fetched).not.toHaveBeenCalled()
   })
 

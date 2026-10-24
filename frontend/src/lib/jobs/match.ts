@@ -6,15 +6,18 @@
 import type { ResumeWithId } from "@/lib/resume"
 import { REVIEWER_HEADER, reviewerId } from "@/lib/review/ai/reviewer"
 import { fingerprintOf, GROUPS, hasSource, profileSourceOf, readProfile, type ResumeProfile } from "./profile"
-import { matchAnswerOf, MOST_PER_PROFILES, MOST_PROFILES, postingProblem, sendable, wireId, type MatchAnswer } from "./request"
+import { linkOf, matchAnswerOf, MOST_PER_PROFILES, MOST_PROFILES, postingProblem, sendable, wireId, type MatchAnswer } from "./request"
 import { blendedScore, coreOf, foundOf, keywordsOf, missingScreening, onResume, ranked, type Parts } from "./score"
 import { readSavedProfile, saveProfile, type Job, type JobMatch } from "./storage"
 
-export type JobsProblem = "off" | "limit" | "busy" | "empty" | "short" | "not-posting" | "answer" | "connection" | "other"
+export type JobsProblem =
+  "off" | "limit" | "busy" | "empty" | "short" | "not-posting" | "link" | "bad-link" | "answer" | "connection" | "other"
 
 export const JOBS_PROBLEMS: Record<JobsProblem, string> = {
-  short: "That’s too short to be a job posting. Paste the job’s whole description.",
-  "not-posting": "That doesn’t look like a job posting. Paste the job’s description.",
+  short: "That’s too short to be a job posting. Paste the job’s whole description, or give its link.",
+  "not-posting": "That doesn’t look like a job posting. Paste the job’s description, or give its link.",
+  link: "Couldn’t read a job posting at that link. Some sites, like LinkedIn and Indeed, don’t let it be read: paste the description instead.",
+  "bad-link": "That link isn’t a web address. Check it, or paste the description instead.",
   answer: "The AI’s answer came back incomplete, so nothing was saved. Try again.",
   off: "Matching jobs needs the AI, and it isn’t switched on here.",
   limit: "You’ve matched a lot of jobs in a short time. Try again in a few minutes.",
@@ -50,14 +53,14 @@ async function post(body: object, signal?: AbortSignal): Promise<Record<string, 
     // The firewall's rate limit turns a request away before the route runs, so its 429 has no { error }.
     if (response.status === 429) throw new JobsError("limit")
     const reason = answer?.error
-    const known: JobsProblem[] = ["off", "limit", "busy", "short", "not-posting", "answer"]
+    const known: JobsProblem[] = ["off", "limit", "busy", "short", "not-posting", "link", "bad-link", "answer"]
     throw new JobsError(known.includes(reason as JobsProblem) ? (reason as JobsProblem) : "other")
   }
   return answer
 }
 
 /** What `step` says the page is doing, for its live status line. */
-export type Step = { kind: "profiles"; done: number; of: number } | { kind: "match" }
+export type Step = { kind: "profiles"; done: number; of: number } | { kind: "match" } | { kind: "link" }
 
 /**
  * Each resume's profile, by its id: the saved one while its text is the same,
@@ -145,21 +148,33 @@ export function matchesOf(answer: MatchAnswer, matched: readonly ResumeWithId[])
   return ranked(scored).map(({ updatedAt: _, ...match }) => match)
 }
 
+/** A job matched, and what the page should say besides: "link-unread" when its link couldn't be read and only the pasted text was matched. */
+export interface Matched {
+  job: Job
+  note: "link-unread" | ""
+}
+
 /**
  * Matches a posting to the resumes and says how each one fits, as a job to
- * save. Throws a JobsError when it can't; or, once `signal` is aborted,
- * whatever stopped it.
+ * save. The posting is the text pasted, the one at `link`, or both, which
+ * the route reads and puts together. Throws a JobsError when it can't; or,
+ * once `signal` is aborted, whatever stopped it.
  */
 export async function matchJob(
-  posting: string,
-  link: string,
+  pasted: string,
+  typedLink: string,
   resumes: readonly ResumeWithId[],
   storage: Storage | null,
   { signal, onStep }: { signal?: AbortSignal; onStep?: (step: Step) => void } = {},
-): Promise<Job> {
-  // Said before anything's sent: a word or a name isn't a posting to match.
-  const problem = postingProblem(posting)
-  if (problem) throw new JobsError(problem)
+): Promise<Matched> {
+  // Said before anything's sent: a link that isn't one, and, with no link, a word or a name that isn't a posting.
+  const link = linkOf(typedLink)
+  if (link === null) throw new JobsError("bad-link")
+  const posting = pasted.trim()
+  if (!link) {
+    const problem = postingProblem(posting)
+    if (problem) throw new JobsError(problem)
+  }
   const profiles = await profilesFor(resumes, storage, { signal, onStep })
   // The ones edited last, when there are more than one request takes.
   const matched = resumes
@@ -167,27 +182,32 @@ export async function matchJob(
     .sort((a, b) => (Date.parse(b.updatedAt ?? "") || 0) - (Date.parse(a.updatedAt ?? "") || 0))
     .slice(0, MOST_PROFILES)
   if (matched.length === 0) throw new JobsError("empty")
-  onStep?.({ kind: "match" })
+  onStep?.({ kind: link ? "link" : "match" })
   const answer = await post(
-    { kind: "match", posting, profiles: matched.map((resume, index) => ({ id: wireId(index), ...profiles.get(resume.id)! })) },
+    { kind: "match", posting, link, profiles: matched.map((resume, index) => ({ id: wireId(index), ...profiles.get(resume.id)! })) },
     signal,
   )
+  // What was matched: the paste and the link's page together, as the route put them.
+  if (typeof answer.posting !== "string" || !answer.posting) throw new JobsError("answer")
   const match = matchAnswerOf(
     answer.match,
     matched.map((_, index) => wireId(index)),
-    posting,
+    answer.posting,
   )
   if (!match) throw new JobsError("answer")
   if (!match.isPosting) throw new JobsError("not-posting")
   return {
-    id: crypto.randomUUID(),
-    savedAt: new Date().toISOString(),
-    link: link.trim(),
-    posting,
-    ...match.job,
-    matches: matchesOf(match, matched),
-    chosenResumeId: null,
-    status: "saved",
-    appliedAt: null,
+    job: {
+      id: crypto.randomUUID(),
+      savedAt: new Date().toISOString(),
+      link,
+      posting: answer.posting,
+      ...match.job,
+      matches: matchesOf(match, matched),
+      chosenResumeId: null,
+      status: "saved",
+      appliedAt: null,
+    },
+    note: answer.note === "link-unread" ? "link-unread" : "",
   }
 }

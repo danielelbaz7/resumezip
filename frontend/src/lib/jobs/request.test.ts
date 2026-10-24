@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest"
 import {
   inPosting,
   jobsRequestOf,
+  linkOf,
   matchAnswerOf,
   MOST_PER_PROFILES,
   MOST_POSTING_CHARS,
@@ -40,7 +41,20 @@ describe("a request to /api/jobs", () => {
 
   test("for a match is read, with each profile cut to its limits", () => {
     const read = jobsRequestOf({ kind: "match", posting: "Go engineer", profiles: [{ ...profile(), skills: Array(40).fill("Go") }] })
-    expect(read).toMatchObject({ kind: "match", posting: "Go engineer", profiles: [{ id: "r1", skills: ["Go"] }] })
+    expect(read).toMatchObject({ kind: "match", posting: "Go engineer", link: "", profiles: [{ id: "r1", skills: ["Go"] }] })
+  })
+
+  test("for a match is read with a link instead of the posting, or both", () => {
+    expect(jobsRequestOf({ kind: "match", link: " https://jobs.acme.com/1 ", profiles: [profile()] })).toMatchObject({
+      posting: "",
+      link: "https://jobs.acme.com/1",
+    })
+    expect(jobsRequestOf({ kind: "match", posting: "Go engineer", link: "https://jobs.acme.com/1", profiles: [profile()] })).toMatchObject({
+      posting: "Go engineer",
+      link: "https://jobs.acme.com/1",
+    })
+    expect(jobsRequestOf({ kind: "match", posting: "", link: " ", profiles: [profile()] })).toBeNull()
+    expect(jobsRequestOf({ kind: "match", link: "x".repeat(2_001), profiles: [profile()] })).toBeNull()
   })
 
   test("for a match isn't, with no posting, one too long, or no profiles", () => {
@@ -173,5 +187,17 @@ describe("a long resume", () => {
     const sent = sendable(long)
     expect(sent.experience.every((line) => line.length <= 1_000)).toBe(true)
     expect(jobsRequestOf({ kind: "profiles", resumes: [{ id: "r1", ...sent }] })).not.toBeNull()
+  })
+})
+
+describe("a link as typed", () => {
+  test("is made a web address, https:// before it when it has none", () => {
+    expect(linkOf(" jobs.acme.com/backend ")).toBe("https://jobs.acme.com/backend")
+    expect(linkOf("http://jobs.acme.com/1")).toBe("http://jobs.acme.com/1")
+    expect(linkOf("")).toBe("")
+  })
+
+  test("isn't one when it can't be", () => {
+    for (const typed of ["not a link", "ftp://jobs.acme.com", "javascript:alert(1)", "acme"]) expect(linkOf(typed), typed).toBeNull()
   })
 })
