@@ -26,6 +26,7 @@ export const MOST_PER_PROFILES = 5
 /** Profiles a posting is matched against at once. */
 export const MOST_PROFILES = 50
 export const MOST_POSTING_CHARS = 20_000
+export const MOST_LINK_CHARS = 2_000
 // A long resume's four groups are about 80 lines and 6,000 characters.
 const MOST_LINES = 150
 const MOST_LINE_CHARS = 1_000
@@ -57,7 +58,8 @@ export const wireId = (index: number) => `r${index + 1}`
 const WIRE_ID = /^r\d{1,3}$/
 
 export type ProfilesRequest = { kind: "profiles"; resumes: ({ id: string } & ProfileSource)[] }
-export type MatchRequest = { kind: "match"; posting: string; profiles: ({ id: string } & ResumeProfile)[] }
+/** A posting to match: the text pasted, its link, or both, at least one of them; "" for the one not given. */
+export type MatchRequest = { kind: "match"; posting: string; link: string; profiles: ({ id: string } & ResumeProfile)[] }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value)
 
@@ -87,8 +89,10 @@ export function jobsRequestOf(body: unknown): ProfilesRequest | MatchRequest | n
     return { kind: "profiles", resumes: resumes as ProfilesRequest["resumes"] }
   }
   if (body.kind === "match") {
-    const { posting, profiles } = body
-    if (typeof posting !== "string" || !posting.trim() || posting.length > MOST_POSTING_CHARS) return null
+    const { posting = "", link = "", profiles } = body
+    if (typeof posting !== "string" || posting.length > MOST_POSTING_CHARS) return null
+    if (typeof link !== "string" || link.length > MOST_LINK_CHARS) return null
+    if (!posting.trim() && !link.trim()) return null
     if (!Array.isArray(profiles) || profiles.length === 0 || profiles.length > MOST_PROFILES) return null
     const read: MatchRequest["profiles"] = []
     for (const item of profiles) {
@@ -97,7 +101,7 @@ export function jobsRequestOf(body: unknown): ProfilesRequest | MatchRequest | n
       if (!profile || !isRecord(item) || typeof item.id !== "string" || !WIRE_ID.test(item.id)) return null
       read.push({ id: item.id, ...profile })
     }
-    return { kind: "match", posting, profiles: read }
+    return { kind: "match", posting, link: link.trim(), profiles: read }
   }
   return null
 }
@@ -138,6 +142,22 @@ export function profilesAnswerOf(answer: unknown, ids: readonly string[]): Recor
   }
   return profiles
 }
+
+/**
+ * A link as typed made a web address, with https:// before it when it has no
+ * scheme ("jobs.acme.com/1"); null when it can't be one. "" for none.
+ */
+export function linkOf(typed: string): string | null {
+  const link = typed.trim()
+  if (!link) return ""
+  const address = /^[a-z][a-z\d+.-]*:\/\//i.test(link) ? link : `https://${link}`
+  if (!URL.canParse(address)) return null
+  const url = new URL(address)
+  return (url.protocol === "https:" || url.protocol === "http:") && url.hostname.includes(".") ? url.href : null
+}
+
+/** The most of a pasted posting and its page's text, together, that's matched. */
+export const MOST_MATCHED_CHARS = MOST_POSTING_CHARS * 2
 
 /** Fewer words than this isn't a job posting, and isn't sent to the AI. */
 export const LEAST_POSTING_WORDS = 25

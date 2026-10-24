@@ -101,6 +101,8 @@ export interface AskOptions {
   answer?: { name: string; schema: { [key: string]: unknown } }
   /** Who's asking, for the log line when a provider fails. */
   feature?: string
+  /** How long every provider together gets, when it's less than BUDGET_MS: what's left after the request's other work. */
+  budgetMs?: number
 }
 
 const NOTES_ANSWER = { name: "resume_notes", schema: ANSWER_SCHEMA }
@@ -246,7 +248,7 @@ const resting = new Map<Provider["name"], number>()
  */
 export async function askAny(providers: readonly Provider[], system: string, user: string, options: AskOptions = {}): Promise<Asked> {
   const now = Date.now()
-  const deadline = now + BUDGET_MS
+  const deadline = now + Math.min(options.budgetMs ?? BUDGET_MS, BUDGET_MS)
   const awake = providers.filter((provider) => (resting.get(provider.name) ?? 0) <= now)
   let last: ProviderError | null = null
   for (const provider of awake.length > 0 ? awake : providers) {

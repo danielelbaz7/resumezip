@@ -51,9 +51,11 @@ async function answerJobs(page: Page): Promise<string[]> {
       )
       return route.fulfill({ json: { profiles } })
     }
-    // Matched newest first: the Rust resume, edited last, is r1.
+    // Matched newest first: the Rust resume, edited last, is r1. With only a link, the route reads POSTING from it.
     return route.fulfill({
       json: {
+        posting: body.posting || POSTING,
+        note: "",
         match: {
           job: {
             isPosting: true,
@@ -105,7 +107,7 @@ test("the Jobs tab finds the resume that fits a posting best, and keeps the job 
   await expect(page).toHaveURL(/#jobs$/)
 
   await page.getByLabel("Job posting").fill(POSTING)
-  await page.getByLabel("Link · optional").fill("jobs.acme.com/backend")
+  await page.getByLabel("Link").fill("jobs.acme.com/backend")
   await page.getByRole("button", { name: "Find the best resume" }).click()
 
   const card = page.getByRole("listitem").filter({ hasText: "Backend Engineer" })
@@ -152,4 +154,18 @@ test("the Jobs tab turns away a word as too short to be a posting, without askin
   await expect(page.getByRole("alert")).toHaveText("That’s too short to be a job posting. Paste the job’s whole description.")
   await expect(page.getByRole("heading", { name: "No jobs yet" })).toBeVisible()
   expect(kinds).toEqual([])
+})
+
+test("the Jobs tab matches a posting from its link alone", async ({ page }) => {
+  await saveResumes(page, [resume("rust", "Rust resume", "Rust", "2026-06-01T00:00:00.000Z")])
+  const sent: { link?: string; posting?: string }[] = []
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/jobs") && request.postDataJSON()?.kind === "match") sent.push(request.postDataJSON())
+  })
+  await answerJobs(page)
+  await page.goto("/create/dashboard#jobs")
+  await page.getByLabel("Link").fill("jobs.acme.com/backend")
+  await page.getByRole("button", { name: "Find the best resume" }).click()
+  await expect(page.getByRole("listitem").filter({ hasText: "Backend Engineer" }).first()).toBeVisible()
+  expect(sent).toEqual([expect.objectContaining({ posting: "", link: "https://jobs.acme.com/backend" })])
 })

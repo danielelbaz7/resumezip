@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
+import { LinkError, readPosting } from "@/lib/jobs/fetchPosting"
 import { matchAnswerOf } from "@/lib/jobs/request"
 import { wakeAll } from "@/lib/review/ai/providers"
 import { POST } from "./route"
+
+// The page at a link is answered here, rather than fetched.
+vi.mock("@/lib/jobs/fetchPosting", async (original) => ({
+  ...(await original<typeof import("@/lib/jobs/fetchPosting")>()),
+  readPosting: vi.fn(),
+}))
+const read = vi.mocked(readPosting)
 
 const SOURCE = { id: "r1", experience: ["Engineer · Stripe", "Built a Rust ledger"], projects: [], skills: ["Go"], coursework: [] }
 const PROFILE = {
@@ -82,6 +90,7 @@ const fetched = vi.fn<typeof fetch>()
 const asked = () => fetched.mock.calls.map(([url]) => new URL(String(url)).host)
 
 beforeEach(() => {
+  read.mockReset()
   wakeAll()
   fetched.mockReset()
   vi.stubGlobal("fetch", fetched)
@@ -180,4 +189,49 @@ test("lets one browser make 20 requests in ten minutes", async () => {
   const reviewer = { "x-reviewer": "0e7c1c2a-5b1f-4c3e-9a7d-2f4b6c8d0e1f" }
   for (let i = 0; i < 20; i++) expect((await post({ kind: "profiles", resumes: [SOURCE] }, reviewer)).status).toBe(200)
   expect(await (await post({ kind: "profiles", resumes: [SOURCE] }, reviewer)).json()).toEqual({ error: "limit" })
+})
+
+test("reads the posting at its link when that's all there is, and matches it", async () => {
+  read.mockResolvedValue(POSTING)
+  fetched.mockImplementation(async (url) => answered(String(url), MATCH))
+  const response = await post({ kind: "match", link: "https://jobs.acme.com/backend", profiles: [PROFILE] })
+  expect(response.status).toBe(200)
+  const body = await response.json()
+  expect(body).toMatchObject({ posting: POSTING, note: "" })
+  expect(read).toHaveBeenCalledWith("https://jobs.acme.com/backend", expect.anything())
+  expect(JSON.parse(fetched.mock.calls[0][1]!.body as string).messages[0].content).toContain(`<posting>\n${POSTING}\n</posting>`)
+})
+
+test("matches what was pasted and what the link has, together", async () => {
+  read.mockResolvedValue(POSTING)
+  fetched.mockImplementation(async (url) => answered(String(url), MATCH))
+  const pasted = "Referred by a friend on the payments team, who says they want someone who has shipped Rust services and can mentor."
+  const body = await (await post({ kind: "match", posting: pasted, link: "https://jobs.acme.com/backend", profiles: [PROFILE] })).json()
+  expect(body.posting).toBe(`${pasted}\n\n${POSTING}`)
+})
+
+test("says the link couldn't be read when it's all there is, and matches the paste alone when there's one", async () => {
+  read.mockRejectedValue(new LinkError("status"))
+  expect(await (await post({ kind: "match", link: "https://www.linkedin.com/jobs/view/1", profiles: [PROFILE] })).json()).toEqual({
+    error: "link",
+  })
+  expect(fetched).not.toHaveBeenCalled()
+  fetched.mockImplementation(async (url) => answered(String(url), MATCH))
+  const body = await (
+    await post({ kind: "match", posting: POSTING, link: "https://www.linkedin.com/jobs/view/1", profiles: [PROFILE] })
+  ).json()
+  expect(body).toMatchObject({ posting: POSTING, note: "link-unread" })
+})
+
+test("reads a page with too little on it as no posting, rather than matching a word", async () => {
+  read.mockResolvedValue("Sign in")
+  expect(await (await post({ kind: "match", link: "https://jobs.acme.com/1", profiles: [PROFILE] })).json()).toEqual({ error: "link" })
+  expect(fetched).not.toHaveBeenCalled()
+})
+
+test("won't fetch a link that isn't a public web address", async () => {
+  for (const link of ["http://169.254.169.254/latest/meta-data/", "http://localhost:3000/", "file:///etc/passwd"]) {
+    expect(await (await post({ kind: "match", link, profiles: [PROFILE] })).json()).toEqual({ error: "bad-link" })
+  }
+  expect(read).not.toHaveBeenCalled()
 })

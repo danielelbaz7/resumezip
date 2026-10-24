@@ -51,9 +51,11 @@ const TIER_NAMES: Record<Tier, string> = { 1: "must-have", 2: "strong signal", 3
 const STRENGTH_NAMES: Record<Strength, string> = { strong: "Strong proof", good: "Shown", weak: "Only listed", none: "Not shown" }
 
 const stepText = (step: Step) =>
-  step.kind === "match"
-    ? "Matching the job to your resumes…"
-    : `Summing up ${step.of === 1 ? "a resume" : `${step.of} resumes`} that changed since the last job…`
+  step.kind === "link"
+    ? "Reading the posting at its link, then matching it to your resumes…"
+    : step.kind === "match"
+      ? "Matching the job to your resumes…"
+      : `Summing up ${step.of === 1 ? "a resume" : `${step.of} resumes`} that changed since the last job…`
 
 interface JobsTabProps {
   /** The resumes in this browser, without one just deleted. */
@@ -68,6 +70,8 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
   const [link, setLink] = useState("")
   const [step, setStep] = useState<Step | null>(null)
   const [problem, setProblem] = useState("")
+  // What the last match has to say besides, as a link that couldn't be read.
+  const [notice, setNotice] = useState("")
   const [openJob, setOpenJob] = useState<string | null>(null)
   const matching = useRef<AbortController | null>(null)
   const postingId = useId()
@@ -99,15 +103,16 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
   const change = (id: string, edit: (job: Job) => Job) => save(jobs.map((job) => (job.id === id ? edit(job) : job)))
 
   const find = async () => {
-    const text = posting.trim()
-    if (!text || step) return
+    if ((!posting.trim() && !link.trim()) || step) return
     matching.current?.abort()
     const current = new AbortController()
     matching.current = current
     setProblem("")
+    setNotice("")
     try {
-      const job = await matchJob(text, link, resumes, getStorage(), { signal: current.signal, onStep: setStep })
+      const { job, note } = await matchJob(posting, link, resumes, getStorage(), { signal: current.signal, onStep: setStep })
       if (current.signal.aborted) return
+      if (note === "link-unread") setNotice("Couldn’t read the link, so only the description you pasted was matched.")
       // Read again, in case another tab saved a job meanwhile.
       save([job, ...readJobs(getStorage())])
       setOpenJob(job.id)
@@ -137,9 +142,9 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
         <div className="flex flex-col gap-1">
           <h2 className="font-serif text-[28px] leading-tight tracking-[-0.02em] text-ink">Which resume fits this job?</h2>
           <p className="text-[15px] leading-relaxed text-ink-2">
-            Paste a job posting. Each resume is scored in layers: how directly it proves the job’s core requirements, then how relevant its
-            projects, experience and domain are, whether the job’s keywords are on it, and whether it tells one story for the role. A
-            must-have with no evidence costs a share of the score.
+            Give a job posting’s link, paste its description, or both. Each resume is scored in layers: how directly it proves the job’s
+            core requirements, then how relevant its projects, experience and domain are, whether the job’s keywords are on it, and whether
+            it tells one story for the role. A must-have with no evidence costs a share of the score.
           </p>
         </div>
         <label htmlFor={postingId} className="label-mono text-ink-2">
@@ -153,14 +158,17 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
           rows={8}
           maxLength={MOST_POSTING_CHARS}
           aria-describedby={noteId}
-          placeholder="Paste the job’s title, company and description…"
+          placeholder="Paste the job’s title, company and description, or leave it empty and give the link…"
           className={`${FIELD} resize-y`}
         />
         <label className="flex flex-col gap-2">
-          <span className="label-mono text-ink-2">Link · optional</span>
+          <span className="label-mono text-ink-2">Link</span>
+          {/* Text rather than type="url", which won't take an address typed without https://. */}
           <input
-            type="url"
+            type="text"
             inputMode="url"
+            autoComplete="url"
+            spellCheck={false}
             value={link}
             onChange={(event) => setLink(event.target.value)}
             readOnly={step !== null}
@@ -169,7 +177,11 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
           />
         </label>
         <div className="flex flex-wrap items-center gap-3">
-          <button type="submit" disabled={!posting.trim() || step !== null || !loaded || resumes.length === 0} className={BLUE_PILL}>
+          <button
+            type="submit"
+            disabled={(!posting.trim() && !link.trim()) || step !== null || !loaded || resumes.length === 0}
+            className={BLUE_PILL}
+          >
             {step && <Loader2 className="animate-spin" aria-hidden="true" />}
             Find the best resume
           </button>
@@ -180,7 +192,7 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
           )}
         </div>
         <p role="status" className="min-h-[1lh] text-[14px] leading-normal text-ink-2">
-          {step ? stepText(step) : loaded && resumes.length === 0 ? "Make a resume first, then match jobs to it." : ""}
+          {step ? stepText(step) : loaded && resumes.length === 0 ? "Make a resume first, then match jobs to it." : notice}
         </p>
         {problem && (
           <p role="alert" className="border-l-2 border-alert pl-3 text-[14px] leading-normal text-ink">
@@ -188,6 +200,7 @@ export default function JobsTab({ resumes, loaded, onOpen }: JobsTabProps) {
           </p>
         )}
         <p id={noteId} className="text-[13px] leading-normal text-ink-3">
+          A link is read by resumezip’s server, which can’t log in: some sites, like LinkedIn and Indeed, don’t let it read their postings.
           The posting, and the experience, projects, skills and coursework of every resume here, go to the AI to be matched. A resume that
           hasn’t changed since the last job isn’t sent again. Jobs are saved in this browser only.
         </p>

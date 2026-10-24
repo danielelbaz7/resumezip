@@ -69,6 +69,45 @@ Nothing is stored on the server and nothing is logged beyond which service faile
   - for each resume: for each requirement, the best place it's shown (experience,
     projects, skills, coursework or nowhere), plus a one-line `reason`.
 
+## The posting: pasted, from its link, or both
+
+Only one of the two is needed.
+
+- **Link only:** `/api/jobs` fetches the page on the server and reads the posting from
+  it (`src/lib/jobs/pageText.ts`). It uses the page's schema.org `JobPosting` data
+  when there is some, which Greenhouse, Lever, Ashby and Workday include. Otherwise it
+  uses the page's title and main text, without scripts, styles, menus or the footer.
+- **Pasted only:** the text is used as it is.
+- **Both:** they're matched together, the pasted text first. If the link can't be
+  read, only the pasted text is matched, and the tab says so.
+- The job saves the text it was matched on.
+
+The fetch (`src/lib/jobs/fetchPosting.ts`, Node's `http` and `https`, no new package)
+only reads public web addresses:
+
+- `http` or `https`, on the usual port, with no password in the address;
+- not `localhost` or `.local`, `.internal` or `home.arpa` names;
+- every address the name resolves to is checked before connecting, after each of up
+  to 4 redirects too, and private, shared, link-local (cloud metadata), loopback,
+  documentation and reserved ranges are refused;
+- web pages only, at most 2 MB, within 10 seconds.
+
+The time spent reading the link comes out of the AI's budget, so the whole request
+stays under the route's 60 seconds. LinkedIn, Indeed and pages that need a login, or
+build the page in JavaScript, usually can't be read: the tab says to paste the
+description instead.
+
+## Nothing made up
+
+- Text under 25 words isn't sent to the AI ("too short to be a job posting"). With a
+  link, this is checked on the text read from it.
+- The AI says whether the text is a job posting at all. When it isn't, nothing is
+  saved.
+- Each requirement quotes the posting's words, and is dropped when they aren't in the
+  posting word for word. The same goes for a title, company or location.
+- An answer missing a field, a resume or a profile is an error ("came back
+  incomplete"), never filled in with defaults.
+
 ## The score
 
 The score is worked out in layers in the browser, from what the AI said, so the
@@ -181,8 +220,6 @@ so next to the button. The rest of the site still sends nothing unless you ask.
 ## Not doing
 
 - No automatic tailoring of a resume to the job.
-- No reading postings from a link: the page doesn't fetch anything. The link is only
-  saved.
 - No sync between devices. Like resumes, jobs live in this browser.
 - No scoring without AI. With no key set, the tab says AI isn't set up.
 
