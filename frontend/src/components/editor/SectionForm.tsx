@@ -10,6 +10,7 @@ import type { Entry } from "@/lib/resume"
 import { EyeIcon, RowAction, RowToggle, TrashIcon } from "@/components/dashboard/RowActions"
 import { sheetPill } from "@/components/pills"
 import { useCheckActions, useCheckTarget } from "./CheckContext"
+import CopySection from "./CopySection"
 import DeleteSection from "./DeleteSection"
 import { loadDragAndDrop, loadedDragAndDrop } from "./dragAndDrop"
 import { bulletsOf, datesOf, newestFirst } from "./entryCards"
@@ -693,7 +694,12 @@ function SectionForm({ section: defined, onDelete, onEntryDeleted, restored, onR
           note={note}
           onRename={(name) => updateResume("headings", { ...headings, [section.headingKey]: name })}
           flag={here?.kind === "heading" || here?.kind === "section" ? target!.finding : null}
-          end={<DeleteSection onDelete={onDelete} />}
+          end={
+            <span className="flex items-center gap-1">
+              <CopySection sectionRef={defined.name} title={title} onDelete={onDelete} />
+              <DeleteSection onDelete={onDelete} />
+            </span>
+          }
         />
       </div>
 
