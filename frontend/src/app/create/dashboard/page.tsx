@@ -4,10 +4,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
-import { Download, Files, HardDrive, Plus, Upload } from "lucide-react"
+import { Download, Files, HardDrive, Palette, Plus, Upload } from "lucide-react"
 import { openResumes, useResumeContext } from "@/context/ResumeContext"
 import CreateResumeModal from "@/components/dashboard/CreateResumeModal"
 import TypeModal from "@/components/dashboard/TypeModal"
+import RestyleModal from "@/components/dashboard/RestyleModal"
 import DeletedToast from "@/components/dashboard/DeletedToast"
 import EmptyShelf from "@/components/dashboard/EmptyShelf"
 import Greeting from "@/components/dashboard/Greeting"
@@ -133,6 +134,8 @@ export default function DashboardPage() {
     editResume,
   } = useResumeContext()
   const [creating, setCreating] = useState(false)
+  // Change style's dialog, while it's open.
+  const [restyling, setRestyling] = useState(false)
   // The resume whose type is being changed, while its dialog is open.
   const [retyping, setRetyping] = useState<ResumeWithId | null>(null)
   const [opening, setOpening] = useState<Opening | null>(null)
@@ -639,6 +642,15 @@ export default function DashboardPage() {
                         <Files aria-hidden="true" />
                         Bulk import
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setRestyling(true)}
+                        disabled={total === 0}
+                        className={`${WHITE_PILL} disabled:opacity-50`}
+                      >
+                        <Palette aria-hidden="true" />
+                        Change style
+                      </button>
                       <button type="button" onClick={() => setCreating(true)} className={BLUE_PILL}>
                         <Plus aria-hidden="true" />
                         New resume
@@ -796,6 +808,7 @@ export default function DashboardPage() {
         />
       )}
 
+      {restyling && <RestyleModal resumes={kept} onClose={() => setRestyling(false)} />}
       {creating && (
         <CreateResumeModal
           own={ownTypes}

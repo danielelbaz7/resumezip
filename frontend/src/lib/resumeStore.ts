@@ -12,6 +12,7 @@
 import { CORE_SECTIONS, SECTIONS, type SectionName } from "@/components/editor/sections"
 import type { Resume, ResumeContent, ResumeField } from "./resume"
 import { copiedSection, type CopyMode } from "./copySection"
+import { restyled, styleOf, type ResumeStyle, type StyleChange } from "./resumeStyle"
 import type { FileResume } from "./resumeFile"
 import { forgetResume } from "./review/ai/saved"
 import {
@@ -312,6 +313,23 @@ export function createResumeStore() {
     }
     if (copied > 0) flush()
     return copied
+  }
+
+  /**
+   * Puts a style on resumes, each by its id (see restyled), saved straight
+   * away, and gives back the style each one it changed had, to put back.
+   */
+  function restyle(changes: Record<string, StyleChange>): Record<string, ResumeStyle> {
+    const before: Record<string, ResumeStyle> = {}
+    for (const [id, change] of Object.entries(changes)) {
+      if (!has(id)) continue
+      const restyling = restyled(state.resumes[id], change)
+      if (!restyling) continue
+      before[id] = styleOf(state.resumes[id])
+      commit(id, restyling.changes, restyling.paths)
+    }
+    if (Object.keys(before).length > 0) flush()
+    return before
   }
 
   /** Adds an empty resume, and returns its id. It's printed on its template's own paper unless `paper` is another. */
@@ -618,6 +636,7 @@ export function createResumeStore() {
     deleteSection,
     reorderSections,
     copySection,
+    restyle,
     create,
     importResume,
     importAll,
