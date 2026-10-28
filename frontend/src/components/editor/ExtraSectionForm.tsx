@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react"
 import { useOpenResume, useResumeActions, useResumeField } from "@/context/ResumeContext"
-import { extraHeading, type ExtraSection } from "@/lib/resumeSections"
+import { extraHeading, extraRef, type ExtraSection } from "@/lib/resumeSections"
 import { useCheckActions, useCheckTarget } from "./CheckContext"
+import CopySection from "./CopySection"
 import DeleteSection from "./DeleteSection"
 import { BulletsField, Field, pointAt, SectionHeading } from "./fields"
 
@@ -41,7 +42,12 @@ export default function ExtraSectionForm({ sectionId, onDelete }: { sectionId: s
         allowEmpty
         onRename={(heading) => editSection(id, sectionId, { heading })}
         flag={here?.kind === "extra-heading" ? target!.finding : null}
-        end={<DeleteSection onDelete={onDelete} />}
+        end={
+          <span className="flex items-center gap-1">
+            <CopySection sectionRef={extraRef(sectionId)} title={title} onDelete={onDelete} />
+            <DeleteSection onDelete={onDelete} />
+          </span>
+        }
       />
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2.5 text-[14px] text-ink-2">

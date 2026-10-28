@@ -11,6 +11,7 @@
 
 import { CORE_SECTIONS, SECTIONS, type SectionName } from "@/components/editor/sections"
 import type { Resume, ResumeContent, ResumeField } from "./resume"
+import { copiedSection, type CopyMode } from "./copySection"
 import type { FileResume } from "./resumeFile"
 import { forgetResume } from "./review/ai/saved"
 import {
@@ -293,6 +294,24 @@ export function createResumeStore() {
     const resume = state.resumes[id]
     const next = resolveSections({ ...resume, sectionOrder: order })
     if (JSON.stringify(resolveSections(resume)) !== JSON.stringify(next)) commit(id, { sectionOrder: next }, ["sectionOrder"])
+  }
+
+  /**
+   * Copies `from`'s section `ref` into each of the resumes `to` (see
+   * copiedSection), saved straight away, and says how many it changed.
+   */
+  function copySection(from: string, ref: SectionRef, to: readonly string[], mode: CopyMode, only?: readonly number[]): number {
+    if (!has(from)) return 0
+    let copied = 0
+    for (const id of to) {
+      if (id === from || !has(id)) continue
+      const copy = copiedSection(state.resumes[from], state.resumes[id], ref, mode, only)
+      if (!copy) continue
+      commit(id, copy.changes, copy.paths)
+      copied++
+    }
+    if (copied > 0) flush()
+    return copied
   }
 
   /** Adds an empty resume, and returns its id. It's printed on its template's own paper unless `paper` is another. */
@@ -598,6 +617,7 @@ export function createResumeStore() {
     removeSection,
     deleteSection,
     reorderSections,
+    copySection,
     create,
     importResume,
     importAll,
