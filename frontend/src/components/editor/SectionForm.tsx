@@ -561,29 +561,33 @@ function SectionForm({ section: defined, onDelete, onEntryDeleted, restored, onR
                       Delete
                     </button>
                   </span>
-                ) : isOpen ? (
-                  <RowAction
-                    key="delete"
-                    data-delete=""
-                    label={`Delete ${name}`}
-                    tip="Delete"
-                    danger
-                    onClick={() => setConfirmingId(entry.id)}
-                    tipBelow
-                  >
-                    <TrashIcon />
-                  </RowAction>
                 ) : (
-                  <RowToggle
-                    key="include"
-                    label={`Include ${name} in the PDF`}
-                    tip={leftOut ? "Put back in the PDF" : "Leave out of the PDF"}
-                    checked={!leftOut}
-                    onChange={(checked) => setLeftOut(entry.id, !checked)}
-                    tipBelow
-                  >
-                    <EyeIcon shut={leftOut} />
-                  </RowToggle>
+                  <>
+                    {/* On an open card too, so an entry can be left out while it's being edited. */}
+                    <RowToggle
+                      key="include"
+                      label={`Include ${name} in the PDF`}
+                      tip={leftOut ? "Put back in the PDF" : "Leave out of the PDF"}
+                      checked={!leftOut}
+                      onChange={(checked) => setLeftOut(entry.id, !checked)}
+                      tipBelow
+                    >
+                      <EyeIcon shut={leftOut} />
+                    </RowToggle>
+                    {isOpen && (
+                      <RowAction
+                        key="delete"
+                        data-delete=""
+                        label={`Delete ${name}`}
+                        tip="Delete"
+                        danger
+                        onClick={() => setConfirmingId(entry.id)}
+                        tipBelow
+                      >
+                        <TrashIcon />
+                      </RowAction>
+                    )}
+                  </>
                 )}
                 {!confirming && (
                   // One button that folds the card and opens it, its chevron turning.

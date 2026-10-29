@@ -37,3 +37,19 @@ test("a whole section is left out of the PDF and put back, keeping its entries",
   await expect.poll(() => printed(page)).toContain("Analytical Engine Notes")
   await expect.poll(async () => (await savedResume(page, "master")).leftOutSections).toBeNull()
 })
+
+test("one project is left out of the PDF from its card while it's open, keeping the rest", async ({ page }) => {
+  await saveResumes(page, [{ ...master, projectsSection: [...master.projectsSection, { id: 2, projectName: "Difference Engine" }] }])
+  await page.goto("/create/new/master")
+  await previewShown(page)
+  await nav(page).getByRole("button", { name: "Projects", exact: true }).click()
+  await page.getByRole("button", { name: "Edit Analytical Engine Notes" }).click()
+  await page.getByRole("checkbox", { name: "Include Analytical Engine Notes in the PDF" }).uncheck()
+  await expect
+    .poll(async () => {
+      const text = await printed(page)
+      return text.includes("Difference Engine") && !text.includes("Analytical Engine Notes")
+    })
+    .toBe(true)
+  await expect.poll(async () => (await savedResume(page, "master")).projectsSection[0].leftOut).toBe(true)
+})
