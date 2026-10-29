@@ -9,7 +9,7 @@
 
 import { PROFILE_FIELDS, SECTION_NAMES, SECTIONS, type FieldKey, type ProfileKey, type SectionName } from "@/components/editor/sections"
 import { isObject } from "@/lib/isObject"
-import { isLeftOut, isLeftOutLine } from "@/lib/leftOut"
+import { isLeftOut, isLeftOutLine, leftOutSectionsOf } from "@/lib/leftOut"
 import { firstColumnOf, templateById } from "@/lib/templates"
 import type { Resume } from "@/lib/resume"
 import { plainProse, plainText } from "@/lib/typst/resumeData"
@@ -129,10 +129,11 @@ export function viewOf(resume: Resume): ResumeView {
   const headings = isObject(resume.headings) ? resume.headings : {}
   const sections = {} as Record<SectionName, Entry[]>
   const titles = {} as Record<SectionName, string>
+  const gone = leftOutSectionsOf(resume)
   for (const name of SECTION_NAMES) {
     const { dataKey, headingKey, fields } = SECTIONS[name]
     const list: unknown = resume[dataKey]
-    const saved: unknown[] = Array.isArray(list) ? list : []
+    const saved: unknown[] = Array.isArray(list) && !gone.includes(name) ? list : []
     sections[name] = saved.flatMap((item, index) => {
       if (isLeftOut(item)) return []
       const entry = isObject(item) ? item : {}
@@ -156,7 +157,7 @@ export function viewOf(resume: Resume): ResumeView {
   }
   // In the order the PDF holds them, with a left column's sections first.
   const left = firstColumnOf(templateById(resume.selectedTemplate))
-  const resolved = resolveSections(resume)
+  const resolved = resolveSections(resume).filter((ref) => !gone.includes(ref as SectionName))
   const allOrder = [...resolved.filter((ref) => left.includes(ref)), ...resolved.filter((ref) => !left.includes(ref))]
   const extras = Object.fromEntries(
     Object.entries(extrasOf(resume))

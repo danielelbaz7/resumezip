@@ -246,6 +246,16 @@ describe("Fine-tune's settings", () => {
   })
 })
 
+describe("sections left out of the PDF", () => {
+  test("are kept in a JSON file, and not in a PDF's attachment, which holds what's printed", () => {
+    const master = asSaved({ leftOutSections: ["Projects"], projectsSection: [{ id: 1, projectName: "Ledger" }] })
+    expect(cleanResume(master).leftOutSections).toEqual(["Projects"])
+    expect(cleanResume(master).projectsSection).toHaveLength(1)
+    expect(fromAttachment(toAttachment(master))).not.toHaveProperty("leftOutSections")
+    expect(cleanResume({ leftOutSections: ["Nonsense"] })).not.toHaveProperty("leftOutSections")
+  })
+})
+
 describe("cleanResume", () => {
   test("keeps only known fields, as strings, and numbers entries", () => {
     const clean = cleanResume({

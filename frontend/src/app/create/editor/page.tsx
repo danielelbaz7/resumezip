@@ -31,7 +31,17 @@ import NotSaved from "@/components/site/NotSaved"
 import { SECTIONS, type SectionName } from "@/components/editor/sections"
 import type { Resume } from "@/lib/resume"
 import { toJson } from "@/lib/resumeFile"
-import { extraKey, filledSections, resolveSections, type ExtraKind, type SectionRef } from "@/lib/resumeSections"
+import {
+  extraKey,
+  extraRef,
+  extrasOf,
+  filledSections,
+  resolveSections,
+  sectionIncluded,
+  type ExtraKind,
+  type SectionRef,
+} from "@/lib/resumeSections"
+import { leftOutSectionsOf } from "@/lib/leftOut"
 import { resumeOf } from "@/lib/resumeStore"
 import { fileNameOf, saveFile } from "@/lib/saveFile"
 import { compilePreview, forgetPreviewFit, loadCompiler, makeDownload, printedOf, Superseded } from "@/lib/typst/compile"
@@ -102,6 +112,18 @@ function Editor({ id }: { id: string }) {
   const savedOrder = useResumeField("sectionOrder")
   const headings = useResumeField("headings")
   const extraSections = useResumeField("extraSections")
+  const leftOutSections = useResumeField("leftOutSections")
+  // Shown faded in the list of sections: the editor's left out, and the person's own unticked.
+  const leftOut = useMemo(
+    () =>
+      new Set<SectionRef>([
+        ...leftOutSectionsOf({ leftOutSections }),
+        ...Object.entries(extrasOf({ extraSections }))
+          .filter(([, section]) => !sectionIncluded(section))
+          .map(([key]) => extraRef(key)),
+      ]),
+    [leftOutSections, extraSections],
+  )
   const sectionsChosen = useResumeField("sectionsChosen")
   const [active, setActive] = useState<ActiveSection>("Profile")
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
@@ -392,9 +414,10 @@ function Editor({ id }: { id: string }) {
         onSelect={select}
         onReorder={reorder}
         onAdd={add}
+        leftOut={leftOut}
       />
     ),
-    [sections, headings, extraSections, selected, select, reorder, add],
+    [sections, headings, extraSections, selected, select, reorder, add, leftOut],
   )
   const style = useMemo(() => <StylePanel />, [])
 

@@ -70,6 +70,16 @@ describe("what the editor can show of a saved resume", () => {
     expect(readResume(JSON.stringify({ ...old, tune: null }))).toEqual({ resume: { ...old, tune: null }, complete: true })
   })
 
+  test("keeps the sections left out of the PDF, and only names of the editor's sections", () => {
+    const master = { ...ada, leftOutSections: ["Skills", "Projects"] }
+    expect(readResume(JSON.stringify(master))).toEqual({ resume: master, complete: true })
+    expect(readResume(JSON.stringify({ ...ada, leftOutSections: ["Projects", "Hobbies"] }))).toEqual({
+      resume: { ...ada, leftOutSections: ["Projects"] },
+      complete: false,
+    })
+    expect(readResume(JSON.stringify({ ...ada, leftOutSections: "Projects" })).resume).not.toHaveProperty("leftOutSections")
+  })
+
   test("keeps Fine-tune's settings", () => {
     const tuned = { ...ada, tune: { size: 0.9, margin: 1.2, leading: 1.15, paper: "a4", onePage: true } }
     expect(readResume(JSON.stringify(tuned))).toEqual({ resume: tuned, complete: true })

@@ -4,7 +4,7 @@ import { memo, useEffect, useId, useLayoutEffect, useRef, useState } from "react
 import type { DraggableProvided, DropResult } from "@hello-pangea/dnd"
 import { ChevronDown, GripVertical, Plus } from "lucide-react"
 import { useOpenResume, useResumeField, useResumeState } from "@/context/ResumeContext"
-import { isLeftOut } from "@/lib/leftOut"
+import { isLeftOut, leftOutSectionsOf, withSectionLeftOut } from "@/lib/leftOut"
 import { resumeOf } from "@/lib/resumeStore"
 import type { Entry } from "@/lib/resume"
 import { EyeIcon, RowAction, RowToggle, TrashIcon } from "@/components/dashboard/RowActions"
@@ -107,6 +107,8 @@ function SectionForm({ section: defined, onDelete, onEntryDeleted, restored, onR
   const section = arrangedSection(defined, chosen)
   const saved = useResumeField(section.dataKey)
   const headings = useResumeField("headings")
+  const leftOutSections = useResumeField("leftOutSections")
+  const sectionLeftOut = leftOutSectionsOf({ leftOutSections }).includes(defined.name)
   const entries = saved ?? []
   const latest = useRef(entries)
   latest.current = entries
@@ -702,6 +704,19 @@ function SectionForm({ section: defined, onDelete, onEntryDeleted, restored, onR
           }
         />
       </div>
+
+      <label className="mt-4 flex items-center gap-2.5 text-[14px] text-ink-2">
+        <input
+          type="checkbox"
+          checked={!sectionLeftOut}
+          onChange={(event) => updateResume("leftOutSections", withSectionLeftOut(leftOutSections, defined.name, !event.target.checked))}
+          className="h-4 w-4 accent-accent"
+        />
+        Include section in the PDF
+      </label>
+      {sectionLeftOut && (
+        <p className="mt-2 text-[13px] text-ink-3">This section and its entries stay saved here and are left out of the PDF and checks.</p>
+      )}
 
       {section.choice && <SectionChoice choice={section.choice} />}
 

@@ -9,7 +9,7 @@
 // prints or checks a resume (lib/typst/resumeData.ts, lib/check/resume.ts)
 // still reads every value defensively.
 
-import type { ChoiceKey, DataKey, FieldKey, HeadingKey, ProfileKey } from "@/components/editor/sections"
+import type { ChoiceKey, DataKey, FieldKey, HeadingKey, ProfileKey, SectionName } from "@/components/editor/sections"
 import type { CHECK_FIELD, SavedCheck } from "@/lib/check/state"
 import type { ExtraSections } from "@/lib/resumeSections"
 import type { Tune } from "@/lib/tune"
@@ -77,6 +77,12 @@ export type Resume = {
   sectionsChosen?: true | null
   headings?: Headings | null
   profileSection?: Profile | null
+  /**
+   * The editor's sections left out of the PDF, with their entries kept, so one
+   * master resume can be cut down for each job. Read with leftOutSectionsOf
+   * (lib/leftOut.ts); older resumes have none.
+   */
+  leftOutSections?: SectionName[] | null
   /** The sections the person added, by key, read with extrasOf (lib/resumeSections.ts). */
   extraSections?: ExtraSections
   /**

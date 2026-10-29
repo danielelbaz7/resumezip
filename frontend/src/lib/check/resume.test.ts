@@ -25,6 +25,12 @@ const ada = asSaved({
 })
 
 describe("reading a resume for the checks", () => {
+  test("leaves out a section left out of the PDF, with its entries", () => {
+    const view = viewOf({ ...ada, leftOutSections: ["Work"] })
+    expect(view.sections.Work).toEqual([])
+    expect(view.sections.Education).toEqual(viewOf(ada).sections.Education)
+  })
+
   test("reads each field as trimmed text, and missing or empty ones as ''", () => {
     const view = viewOf(ada)
     expect(view.profile).toEqual({

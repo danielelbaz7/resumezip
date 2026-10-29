@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { hasLeftOut, isLeftOutLine, printedResume } from "./leftOut"
+import { hasLeftOut, isLeftOutLine, leftOutSectionsOf, printedResume, withSectionLeftOut } from "./leftOut"
 import { asSaved } from "./testResume"
 
 const tailored = asSaved({
@@ -60,5 +60,36 @@ describe("whether anything is left out", () => {
         workExperienceSection: [{ id: 1, workRole: "○ Engineer", workDescription: "• Built a loom" }],
       }),
     ).toBe(false)
+  })
+})
+
+describe("a section left out", () => {
+  const master = asSaved({
+    sectionOrder: ["Education", "Projects", "Skills"],
+    sectionsChosen: true,
+    leftOutSections: ["Projects"],
+    projectsSection: [{ id: 1, projectName: "Ledger" }],
+    skillsSection: [{ id: 1, skillName: "Languages", skillDetails: "Go" }],
+  })
+
+  test("isn't printed, though its entries are kept", () => {
+    const printed = printedResume(master)
+    expect(printed.projectsSection).toEqual([])
+    expect(printed.sectionOrder).toEqual(["Education", "Skills"])
+    expect(printed.skillsSection).toHaveLength(1)
+    expect("leftOutSections" in printed).toBe(false)
+    expect(master.projectsSection).toHaveLength(1)
+    expect(hasLeftOut(master)).toBe(true)
+  })
+
+  test("is read as only the editor's section names", () => {
+    expect(leftOutSectionsOf(asSaved({ leftOutSections: ["Skills", "Nonsense", 3, "Work"] }))).toEqual(["Work", "Skills"])
+    expect(leftOutSectionsOf(asSaved({ leftOutSections: "Skills" }))).toEqual([])
+  })
+
+  test("is put back in, or another left out, keeping none once there's none", () => {
+    expect(withSectionLeftOut(["Projects"], "Work", true)).toEqual(["Work", "Projects"])
+    expect(withSectionLeftOut(["Projects"], "Projects", false)).toBeNull()
+    expect(withSectionLeftOut(undefined, "Skills", true)).toEqual(["Skills"])
   })
 })
