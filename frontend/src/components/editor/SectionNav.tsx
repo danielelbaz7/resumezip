@@ -26,6 +26,8 @@ interface SectionNavProps {
   onSelect: (section: ActiveSection) => void
   onReorder: (sections: SectionRef[]) => void
   onAdd: (kind: ExtraKind | SectionName) => void
+  /** The sections left out of the PDF, shown faded. */
+  leftOut?: ReadonlySet<SectionRef>
 }
 
 /**
@@ -33,7 +35,7 @@ interface SectionNavProps {
  * entries each has, and a row of pill tabs on narrower ones. Profile stays first; the rest can be
  * dragged into any order by their icons.
  */
-export default function SectionNav({ sections, headings, extras, active, onSelect, onReorder, onAdd }: SectionNavProps) {
+export default function SectionNav({ sections, headings, extras, active, onSelect, onReorder, onAdd, leftOut }: SectionNavProps) {
   const navRef = useRef<HTMLElement>(null)
   const tabRef = useRef<HTMLSpanElement>(null)
   // The section the white tab was last put behind, so choosing another slides it there.
@@ -108,7 +110,8 @@ export default function SectionNav({ sections, headings, extras, active, onSelec
   const addable = SECTION_NAMES.filter((name) => !sections.includes(name))
   // Two sections can have the same title, so a screen reader also hears where each is.
   const labelOf = (name: SectionRef, index: number) =>
-    (counts.get(titleOf(name)) ?? 0) > 1 ? `${titleOf(name)}, section ${index + 2}` : titleOf(name)
+    ((counts.get(titleOf(name)) ?? 0) > 1 ? `${titleOf(name)}, section ${index + 2}` : titleOf(name)) +
+    (leftOut?.has(name) ? ", left out of the PDF" : "")
   // Changes when a section is renamed, which changes its width in the row of tabs.
   const allTitles = [...titles.values()].join("\n")
 
@@ -213,7 +216,9 @@ export default function SectionNav({ sections, headings, extras, active, onSelec
           data-section-ref={name}
         >
           {/* A title too long for the list, as a section can be renamed, is cut short rather than running under the count. */}
-          <span className="min-w-0 truncate">{titleOf(name)}</span>
+          <span className={`min-w-0 truncate ${leftOut?.has(name) ? "text-ink-3 line-through decoration-ink-3/60" : ""}`}>
+            {titleOf(name)}
+          </span>
           {/* How many entries it has, in the list on wide screens. The form lists the entries, so it isn't read out. */}
           {count > 0 && (
             <span aria-hidden="true" className="ml-auto hidden text-[13px] tabular-nums text-ink-3 xl:inline">

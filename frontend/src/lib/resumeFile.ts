@@ -10,7 +10,7 @@
 import { PROFILE_FIELDS, SECTION_NAMES, SECTIONS } from "@/components/editor/sections"
 import { CHECK_FIELD, readCheckState } from "@/lib/check/state"
 import { isObject } from "@/lib/isObject"
-import { isLeftOut, printedResume } from "@/lib/leftOut"
+import { isLeftOut, leftOutSectionsOf, printedResume } from "@/lib/leftOut"
 import { cleanTag, type Entry, type Headings, type Profile, type Resume, type ResumeContent } from "@/lib/resume"
 import { templateById } from "@/lib/templates"
 import { readTune } from "@/lib/tune"
@@ -271,6 +271,8 @@ export function cleanResume(input: unknown): ResumeContent {
     clean.updatedAt = resume.updatedAt
   }
   if (resume.extraSections !== undefined) clean.extraSections = readExtraSections(resume.extraSections).sections
+  const leftOutSections = leftOutSectionsOf(resume)
+  if (leftOutSections.length > 0) clean.leftOutSections = leftOutSections
   // The sections it shows, in order (see resolveSections). That's then only the
   // sections it has, not every one, so it's marked as chosen (see Resume.sectionsChosen).
   clean.sectionOrder = resolveSections({ ...clean, sectionOrder: resume.sectionOrder, sectionsChosen: resume.sectionsChosen })

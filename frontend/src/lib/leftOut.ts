@@ -4,7 +4,7 @@
 // a left-out bullet starts with "○" where a printed one has "•". Older
 // resumes have neither, so they print as they always have.
 
-import { SECTIONS } from "@/components/editor/sections"
+import { SECTION_NAMES, SECTIONS, type SectionName } from "@/components/editor/sections"
 import type { Resume } from "@/lib/resume"
 import { extraKey, extrasOf, sectionIncluded, type ExtraSection } from "./resumeSections"
 
@@ -32,8 +32,22 @@ const printedBullets = (value: unknown) =>
           .join("\n")
       : value
 
-/** Whether anything in the resume is left out: an entry, a bullet, or a section the person added. */
+/** The editor's sections left out of the PDF, read defensively: only names of its sections, once each. */
+export function leftOutSectionsOf(resume: { leftOutSections?: unknown }): SectionName[] {
+  const saved = resume.leftOutSections
+  return Array.isArray(saved) ? SECTION_NAMES.filter((name) => saved.includes(name)) : []
+}
+
+/** The saved left-out sections with `name` left out, or put back in, in the editor's order; null once none is. */
+export function withSectionLeftOut(saved: unknown, name: SectionName, leftOut: boolean): SectionName[] | null {
+  const others = leftOutSectionsOf({ leftOutSections: saved }).filter((other) => other !== name)
+  const next = leftOut ? SECTION_NAMES.filter((other) => other === name || others.includes(other)) : others
+  return next.length > 0 ? next : null
+}
+
+/** Whether anything in the resume is left out: a section, an entry, a bullet, or a section the person added. */
 export function hasLeftOut(resume: Resume): boolean {
+  if (leftOutSectionsOf(resume).length > 0) return true
   const extraLeftOut = Object.values(extrasOf(resume)).some(
     (section) => !sectionIncluded(section) || (section.kind === "list" && section.bullets.split("\n").some(isLeftOutLine)),
   )
@@ -58,14 +72,23 @@ export function hasLeftOut(resume: Resume): boolean {
 }
 
 /**
- * The resume as it's printed: without left-out entries, bullets and added
- * sections. It's what the PDF shows, and all the copy of the resume inside
+ * The resume as it's printed: without left-out sections, entries, bullets
+ * and added sections. It's what the PDF shows, and all the copy of the resume inside
  * the PDF holds, since anyone who gets the PDF can read that copy.
  */
 export function printedResume(resume: Resume): Resume {
   // Saved entries are only checked for shape, so they're read as unknown here.
   const printed: Record<string, unknown> = { ...resume }
-  for (const { dataKey, fields } of Object.values(SECTIONS)) {
+  const gone = leftOutSectionsOf(resume)
+  delete printed.leftOutSections
+  if (gone.length > 0 && Array.isArray(printed.sectionOrder))
+    printed.sectionOrder = printed.sectionOrder.filter((ref: unknown) => !gone.includes(ref as SectionName))
+  for (const name of SECTION_NAMES) {
+    const { dataKey, fields } = SECTIONS[name]
+    if (gone.includes(name)) {
+      printed[dataKey] = []
+      continue
+    }
     const entries: unknown = resume[dataKey]
     if (!Array.isArray(entries)) continue
     printed[dataKey] = entries
