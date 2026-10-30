@@ -332,6 +332,28 @@ export function createResumeStore() {
     return before
   }
 
+  /**
+   * Sets fields on resumes, each by its id, saved straight away, and gives
+   * back what each changed field was before, to put back the same way. A
+   * field set to undefined is taken away.
+   */
+  function rewrite(edits: Record<string, Partial<Resume>>): Record<string, Partial<Resume>> {
+    const before: Record<string, Partial<Resume>> = {}
+    for (const [id, changes] of Object.entries(edits)) {
+      if (!has(id)) continue
+      const resume = state.resumes[id]
+      const fields = Object.keys(changes) as ResumeField[]
+      before[id] = Object.fromEntries(fields.map((field) => [field, resume[field]]))
+      commit(
+        id,
+        changes,
+        fields.flatMap((field) => changedPaths(field, resume[field], changes[field])),
+      )
+    }
+    if (Object.keys(before).length > 0) flush()
+    return before
+  }
+
   /** Adds an empty resume, and returns its id. It's printed on its template's own paper unless `paper` is another. */
   function create(title: string, tag: string, template: string = DEFAULT_TEMPLATE, paper?: Paper): string {
     const id = crypto.randomUUID()
@@ -637,6 +659,7 @@ export function createResumeStore() {
     reorderSections,
     copySection,
     restyle,
+    rewrite,
     create,
     importResume,
     importAll,

@@ -58,3 +58,20 @@ describe("restyling in the store", () => {
     expect(readResume(storage.getItem(keyOf("b"))!).resume!.selectedTemplate).toBe("jake")
   })
 })
+
+describe("rewriting in the store", () => {
+  test("saves several fields of several resumes at once, and gives back what they were to put back", () => {
+    const storage = memoryStorage(Object.fromEntries([styled, plain].map((resume) => [keyOf(resume.id!), JSON.stringify(resume)])))
+    const store = createResumeStore()
+    store.load(storage)
+    const before = store.rewrite({ a: { selectedTemplate: "mono", workFirst: undefined }, b: { resumeTag: "academic" }, missing: {} })
+    expect(before).toEqual({ a: { selectedTemplate: "swiss", workFirst: "role" }, b: { resumeTag: undefined } })
+    const saved = readResume(storage.getItem(keyOf("a"))!).resume!
+    expect(saved.selectedTemplate).toBe("mono")
+    expect(saved.workFirst).toBeUndefined()
+
+    store.rewrite(before)
+    expect(readResume(storage.getItem(keyOf("a"))!).resume).toMatchObject({ selectedTemplate: "swiss", workFirst: "role" })
+    expect(readResume(storage.getItem(keyOf("b"))!).resume!.resumeTag).toBeUndefined()
+  })
+})
