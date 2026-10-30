@@ -20,6 +20,8 @@ interface ResumeActions extends Pick<
   duplicateResume: ResumeStore["duplicate"]
   /** Puts a style on several resumes, and gives back each one's style before, to put back. */
   restyleResumes: ResumeStore["restyle"]
+  /** Sets fields on several resumes at once, and gives back what they were, to put back. */
+  rewriteResumes: ResumeStore["rewrite"]
   /** Renames a resume, numbering the name if it's taken. */
   renameResume: ResumeStore["rename"]
   /** Changes one field of a resume. */
@@ -124,6 +126,7 @@ export const FormProvider = ({ children }: { children: React.ReactNode }) => {
       duplicateResume: store.duplicate,
       renameResume: store.rename,
       restyleResumes: store.restyle,
+      rewriteResumes: store.rewrite,
       editResume: store.edit,
       deleteResume: store.remove,
       deleteUnreadable: store.deleteUnreadable,

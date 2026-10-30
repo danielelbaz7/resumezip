@@ -3,10 +3,11 @@
 import Link from "next/link"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { usePathname } from "next/navigation"
-import { ArrowLeft, Eye, PencilLine } from "lucide-react"
+import { ArrowLeft, Eye, PencilLine, Sparkles } from "lucide-react"
 import { OpenResumeProvider, useOpenResume, useResumeActions, useResumeField, useResumeState } from "@/context/ResumeContext"
 import DeletedToast from "@/components/dashboard/DeletedToast"
 import { DownloadIcon } from "@/components/dashboard/RowActions"
+import AssistantPanel from "@/components/editor/AssistantPanel"
 import { ChangesProvider, TailoredFromCard } from "@/components/editor/ChangesContext"
 import { CheckProvider } from "@/components/editor/CheckContext"
 import { DriveIcon, JsonIcon, LatexIcon, ShareIcon, WordIcon } from "@/components/editor/FormatIcons"
@@ -164,6 +165,8 @@ function Editor({ id }: { id: string }) {
   const [latexNotice, setLatexNotice] = useState<MenuNotice | null>(null)
   // Small screens show the form or the preview, not both.
   const [view, setView] = useState<"edit" | "preview">("edit")
+  // The AI assistant, in the form's place while it's open.
+  const [assisting, setAssisting] = useState(false)
   // The Write | Check | Style tabs are in the top bar on wide screens, and atop the left bar narrower.
   const wide = useWideScreen()
   const [typing, setTyping] = useState(false)
@@ -330,6 +333,8 @@ function Editor({ id }: { id: string }) {
   // (scrolled just far enough that the section tabs stay pinned above it, where the header ends).
   const select = useCallback((section: ActiveSection) => {
     setActive(section)
+    // Choosing a section, or a finding in Check, shows the form it's in.
+    setAssisting(false)
     if (window.matchMedia(WIDE_SCREEN).matches) {
       if (mainRef.current) mainRef.current.scrollTop = 0
       return
@@ -578,6 +583,21 @@ function Editor({ id }: { id: string }) {
                   {wide && <ModeTabs />}
                   {/* On the narrowest phones the template's name is cut short, so Download PDF still fits. */}
                   <div className="flex min-w-0 items-center justify-end gap-2.5 sm:gap-[15px]">
+                    <button
+                      type="button"
+                      aria-pressed={assisting}
+                      onClick={() => {
+                        setAssisting(!assisting)
+                        // On small screens the panel is in the form's place, which Preview hides.
+                        if (!assisting) show("edit")
+                      }}
+                      className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-full px-4 text-[15px] font-medium max-sm:px-3 ${
+                        assisting ? "bg-ink text-white" : "white-button"
+                      }`}
+                    >
+                      <Sparkles className="h-4 w-4" aria-hidden="true" />
+                      <span className="max-sm:sr-only">Ask AI</span>
+                    </button>
                     <TemplatePicker value={selectedTemplate} onChange={chooseTemplate} />
                     {/* Download PDF is the main way out; the ▾ beside it has the others. One blue pill,
                       split. The button's least width fits "Download PDF", so it doesn't shrink when it
@@ -726,7 +746,11 @@ function Editor({ id }: { id: string }) {
                     view === "preview" ? "hidden" : ""
                   }`}
                 >
-                  <main ref={mainRef} className="min-w-0 flex-1 px-4 pb-12 pt-7 sm:px-9 xl:overflow-y-auto xl:pb-14 xl:pt-[28px]">
+                  <AssistantPanel hidden={!assisting} onClose={() => setAssisting(false)} />
+                  <main
+                    ref={mainRef}
+                    className={`min-w-0 flex-1 px-4 pb-12 pt-7 sm:px-9 xl:overflow-y-auto xl:pb-14 xl:pt-[28px] ${assisting ? "hidden" : ""}`}
+                  >
                     {/* The fields fit the form's own width rather than the window's. Each grid of
                       them is in a container (ProfileForm, SectionForm), not the whole form, so
                       an entry being dragged isn't in one: SectionForm says why. */}

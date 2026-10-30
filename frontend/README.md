@@ -95,8 +95,8 @@ npm run test:browser   # after a build; see below
   editor" adds the resume and opens the editor in Check. All of that happens
   in the browser; the AI notes don't.
 - AI notes, on `/review` and in the editor's Check: `src/lib/review/ai/`
-  sends the resume's printed lines to `src/app/api/review/route.ts`, the
-  site's one server function, which asks the first AI service that answers
+  sends the resume's printed lines to `src/app/api/review/route.ts`, one of
+  the site's two server functions, which asks the first AI service that answers
   and hands back its notes, keeping nothing. It tries Claude
   (`ANTHROPIC_API_KEY`), then OpenAI (`OPENAI_API_KEY`), then Azure OpenAI
   (`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` and
@@ -106,6 +106,12 @@ npm run test:browser   # after a build; see below
   Gemini can't answer, so trying them spends no credit. The browser keeps the
   notes by the printed lines' hash (`saved.ts`), so the same resume isn't
   asked about twice.
+- The editor's AI assistant (Ask AI in its top bar): `src/lib/assistant/`
+  sends the conversation and the open resume, left-out parts too, to
+  `src/app/api/assist/route.ts`, which asks the same AI services and hands
+  back a reply and the changes to make (`schema.ts`). The editor checks each
+  change against the resume and makes them (`apply.ts`), all saved at once,
+  and Undo puts back what they changed.
 - `next.config.js` sends security headers with everything the site serves.
   Its Content-Security-Policy names every site the app sends anything to
   (`connect-src`), and browsers refuse to send to any other. A new one goes
